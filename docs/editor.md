@@ -568,9 +568,17 @@ writes is type-checked first (B8).
   on them; Delete removes the selected wires, then the selected rules from the last one up, in one go (a node, an event
   or a variable stays). Panning moves to the **middle button**, **Space + drag** and the wheel or the trackpad. Copy and
   paste are graph fragments (L-T16), not here yet.
-- **A plugin's ports** (hears, emits, reads, sets, goto, arrives, drives) are drawn from its code's declared uses: they are
-  read-only – an outline pin, never lit as a taker while a wire is dragged (`takesWire`), and a click (or a wire let go
-  on one) opens the plugin in the Code tab instead of a refusal.
+- **A plugin's pins and rows** (#334, Tilman 2026-11-21: *"ja nur anzeige ist gut"*): only a port whose other end is an
+  editable document stays a pin. **emits** (outlet) into a rule's **on**: the rule hears one of the plugin's events;
+  a rule's **do** into **hears** (inlet): the rule emits one of the events the plugin hears (no core event). With several
+  events a small menu picks one (the op's `event`); a wire let go on the empty canvas offers a new rule per event. What
+  the code **reads**, **sets** and **drives** (a component, node type or material it registered) are **display rows** –
+  plain text under a thin divider (*reads hasKey, scene*, *sets doorOpen*, *drives spin*), no pins – each name joined to
+  its box by a fine dotted **reference line** (`View.refs`, muted, 1px, dash `2 4`): not a wire – not selectable, not
+  deletable, not counted when hovering lights a box's wires, and no op names it. The layout places along the references
+  as along wires, and the card's height counts the rows. A click on a row (the box) opens the plugin in the Code tab. A
+  plugin component on a node shows no bus ports (its ports are its spec's: file, parameters, verbs, events), so nothing
+  changes there.
 - **After each op** its trees go to the stage as the Inspector's edits do (`stage.override`): live at once, saved by the
   autosave (`tree-autosave.ts`, held while a rule is incomplete), a step in History that undo reverts. A scene's or the
   experience's rules go to `logic-edit.svelte.ts`, which saves them by themselves (`PUT …/scenes/{sid}` `{ logic }`,
@@ -612,6 +620,9 @@ choice of what a box previews is L-T15).
 - **A plugin's bus use** is what its specs declare (`uses`, `events` – recorded in `registered`, schema 5.1); a plugin box
   says *plugin · declared*. Only for a plugin that declares nothing is its source read (`plugin-code.ts`, the regex reading
   of `api.events.on("x")` and the like).
+- **A wire's word** (Tilman, 2026-11-21: *"values on wires need an outline so they stick out more"*): in its signal's
+  colour, weight 500, on a chip of the canvas's background with a ring of it round the letters – it reads where wires
+  cross, day and night.
 
 **The deck's canvas** (content schema 5.2, #334 L-T7 / L-T8 – Tilman: *"free placement on canvas. and grouping like we
 have in the scutoons deck. also adopt the node styles we already established in the deck. including the coloring."*):

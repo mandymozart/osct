@@ -57,6 +57,9 @@
    *   the group level is read-only.
    * - What a plugin hears, emits, reads and sets is what its specs declare (schema 5.1, `declaredUses`); only for a plugin
    *   that declares nothing it is read from its source (stored, else the compiled module).
+   *   On its box (#334, Tilman 2026-11-21) only `emits` and `hears` are pins – a wire to a rule's on, or from a rule's do,
+   *   changes the rule (several events: a menu picks one); what it reads, sets and drives are display rows with dotted
+   *   reference lines, and a click on them opens its code.
    *   Problems sit in the **issues bar** under the graph (`logic/issues.ts`, the SCUTOONS deck's Problems, more minimal): one
    *   line – a mark and the counts, the first issue beside – that opens a list (remembered per session); a row is the box's
    *   name and the short words, a click marks the box and goes to its level. Only an error has colour (RULES #38).
@@ -286,7 +289,6 @@
   const takesFrom = (from: [string, string], dir: "in" | "out"): Map<string, Set<string>> => {
     const takes = new Map<string, Set<string>>();
     if (!editable) return takes;
-    // A plugin's bus ports never take a wire (its code's uses) – `takesWire` leaves them out
     const ports = takesWire(logic, context, from, dir);
     for (const box of flow.boxes) {
       const ids = ports.get(box.id);
@@ -297,14 +299,25 @@
   };
   /** A wire let go where it does not fit: the op's refusal says why (B8) */
   const refused = (from: [string, string], to: [string, string]) => {
-    // A plugin's ports come from its code (uses): not a mistake to explain in red – its code opens instead (#334)
-    const plugin = [from[0], to[0]].map(id => view.nodes.find(n => n.id === id)).find(n => n?.kind === "plugin");
-    if (plugin?.pick) {
-      onpick(plugin.pick);
-      return say(`${plugin.label}'s ports come from its code (uses) – opened it in the Code tab.`);
-    }
     const result = apply({ op: "connect", from, to }, logic, context);
     if (!result.ok) say(result.reason, true);
+  };
+  /** Where the pointer last was on the panel: a wire to a plugin's pin opens its events' menu there */
+  let pointer = { x: 0, y: 0 };
+  /**
+   * A wire let go on a port that takes it: the connect op – at a plugin's emits or hears (#334) with more than one event,
+   * the menu of its events first (the wire picks one)
+   */
+  const connectWire = (from: [string, string], to: [string, string]) => {
+    const ends = [from, to].map(([id, port]) => ({ node: view.nodes.find(n => n.id === id), port }));
+    const end = ends.find(e => e.node?.kind === "plugin" && (e.port === "emits" || e.port === "hears"));
+    const names = end ? (end.port === "emits" ? end.node!.bus?.emits : end.node!.bus?.hears) ?? [] : [];
+    if (names.length < 2) return run({ op: "connect", from, to });
+    const verb = end!.port === "emits" ? "hears" : "emits";
+    menu = {
+      at: { ...pointer }, head: `Which event – the rule ${verb} it`, add: null,
+      items: names.map(name => ({ key: `event:${name}`, label: name, detail: `${end!.node!.label} ${end!.port}`, select: () => run({ op: "connect", from, to, event: name }) })),
+    };
   };
   /** The box's +: its hidden ports to show, and hiding the unused ones again */
   const exposeMenu = (box: FlowBox, at: { x: number; y: number }) => {
@@ -519,7 +532,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="logic" onkeydown={keydown}>
+<div class="logic" onkeydown={keydown} onpointermovecapture={e => (pointer = { x: e.clientX, y: e.clientY })}>
   <div class="bar">
     <button type="button" class="icon-button" disabled={!up} onclick={goUp} aria-label="Up one level" title="Up one level (Backspace)"
       data-help-name="Up one level" data-help="Goes to the level above: from a target's entity to its scene, from a scene to its group or the experience. Backspace or Alt+↑ too."><Icon name="up" /></button>
@@ -586,7 +599,7 @@
     <p class="danger small">The graph could not load: {canvasError}</p>
   {:else if Canvas}
     <Canvas {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
-      onconnect={(from: [string, string], to: [string, string]) => run({ op: "connect", from, to })}
+      onconnect={connectWire}
       onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
       takesfrom={takesFrom} onrefused={refused} onwiredrop={wireDrop} onexpose={exposeMenu}
       onplace={(positions: Record<string, { x: number; y: number }>) => canvasOp({ edit: "place", positions })} onfold={foldBox}

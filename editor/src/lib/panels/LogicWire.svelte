@@ -18,7 +18,9 @@
    * A wire of the Logic canvas (#334 L-T7, L-T8) as the SCUTOONS deck hangs one (deck-kit `Wire::hang`): a cubic that sags
    * under its ends (0.35rem plus a tenth of their distance), in its signal's colour at 85 %, 1.4 × its signal's weight wide
    * (an event's heavier); hovered, a halo five times as wide at 18 %; selected, the halo in the deck's accent. A wire that
-   * never fires (an event between two scenes) is dotted and thin. Its label sits at its lowest point.
+   * never fires (an event between two scenes) is dotted and thin. Its label sits at its lowest point, in its signal's colour
+   * with an outline in the canvas's background (Tilman, 2026-11-21: "values on wires need an outline so they stick out
+   * more") – `LogicCanvas.svelte` styles it.
    */
   let { id, sourceX, sourceY, targetX, targetY, label, data, selected }: EdgeProps & { data?: LogicWireData } = $props();
 
@@ -28,7 +30,7 @@
 </script>
 
 <path class="halo" class:selected d={wire.d} style:stroke-width="{width * 5}px" style:--wire="var({signalToken(deck)})" />
-<BaseEdge {id} path={wire.d} labelX={wire.x} labelY={wire.y} {label}
+<BaseEdge {id} path={wire.d} labelX={wire.x} labelY={wire.y} {label} labelStyle="--wire-label: var({signalToken(deck)})"
   style="stroke: var({signalToken(deck)}); stroke-width: {width}px; stroke-opacity: .85;{data?.never ? ' stroke-dasharray: 1 4;' : ''}" />
 
 <style>

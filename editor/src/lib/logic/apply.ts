@@ -411,7 +411,24 @@ export const typedRefusal = (from: WireEnd, to: WireEnd, typeOf: (name: string) 
 /** The verbs a node acts with in a rule (`play` … `hide`) */
 const isNodeVerb = (verb: string | undefined): verb is (typeof BEHAVIOUR_NODE_ACTIONS)[number] => !!verb && (BEHAVIOUR_NODE_ACTIONS as readonly string[]).includes(verb);
 
-const connect = (draft: Draft, view: View, context: Context, from: [string, string], to: [string, string], verb: BehaviourAction["action"] | undefined, options: ProjectOptions): OpResult => {
+/**
+ * A wire at a plugin's pin (#334, Tilman 2026-11-21): its `emits` into a rule's on (the rule hears one of its events), a
+ * rule's do into its `hears` (the rule emits one of the events it hears) – the event `asked` for, else its first. Anything
+ * else at a plugin is its code's: null, so `connect` refuses with the Code tab.
+ */
+const pluginEvent = (a: GraphNode, aPort: string, b: GraphNode, bPort: string, asked: string | undefined): { event: string } | { refused: string } | null => {
+  const plugin = a.kind === "plugin" ? a : b.kind === "plugin" ? b : null;
+  if (!plugin) return null;
+  const emits = plugin === a && aPort === "emits" && b.kind === "rule" && bPort === "on";
+  const hears = plugin === b && bPort === "hears" && a.kind === "rule" && (aPort === "do" || aPort.startsWith("do:"));
+  if (!emits && !hears) return { refused: CODE(plugin.label) };
+  const names = (emits ? plugin.bus?.emits : plugin.bus?.hears) ?? [];
+  if (!names.length) return { refused: `${plugin.label}'s code ${emits ? "emits" : "hears"} no event a rule can ${emits ? "hear" : "emit"} – change it in the Code tab.` };
+  if (asked !== undefined && !names.includes(asked)) return { refused: `${plugin.label} ${emits ? "emits" : "hears"} ${names.join(", ")} – not ${asked}.` };
+  return { event: asked ?? names[0] };
+};
+
+const connect = (draft: Draft, view: View, context: Context, from: [string, string], to: [string, string], verb: BehaviourAction["action"] | undefined, options: ProjectOptions, asked?: string): OpResult => {
   let a = boxOf(view, from[0]);
   let b = boxOf(view, to[0]);
   if (!a || !b) return refuse("That end stands for something elsewhere – open its level to connect there.");
@@ -420,7 +437,9 @@ const connect = (draft: Draft, view: View, context: Context, from: [string, stri
   const isIn = (node: GraphNode, port: string) => node.ports.some(p => p.id === port && p.dir === "in");
   if (isIn(a, aPort) && !isIn(b, bPort)) [a, b, aPort, bPort] = [b, a, bPort, aPort];
   if (a.far || b.far) return refuse("That end stands for something elsewhere – open its level to connect there.");
-  if (a.kind === "plugin" || b.kind === "plugin") return refuse(CODE((a.kind === "plugin" ? a : b).label));
+  const fromPlugin = pluginEvent(a, aPort, b, bPort, asked);
+  if (fromPlugin && "refused" in fromPlugin) return refuse(fromPlugin.refused);
+  const busEvent = fromPlugin?.event ?? null;
   // A spec's port: strictly typed (B8), and only where a document has a field for it (L1)
   const typed = typedRefusal({ node: a, port: aPort }, { node: b, port: bPort }, draft.typeOf);
   if (typed) return refuse(typed);
@@ -435,8 +454,8 @@ const connect = (draft: Draft, view: View, context: Context, from: [string, stri
     if (why) return refuse(why);
     const name = ruleName(draft.content, ref);
     if (bPort === "on") {
-      if (!declaredEvent && (a.kind !== "event" || aPort !== "out")) return refuse(`A rule's on hears an event – not ${kindWord(a)}.`);
-      const event = declaredEvent ?? sceneEvent(a);
+      if (!declaredEvent && !busEvent && (a.kind !== "event" || aPort !== "out")) return refuse(`A rule's on hears an event – not ${kindWord(a)}.`);
+      const event = declaredEvent ?? busEvent ?? sceneEvent(a);
       if (event === null) {
         if (ref.doc !== "entity") return refuse(`${a.label} is ${a.detail}'s own event – a ${ref.doc}'s rule hears the bus: a scene event or a core event.`);
         const own = a.pick?.kind === "node" ? a.pick : null;
@@ -521,6 +540,9 @@ const connect = (draft: Draft, view: View, context: Context, from: [string, stri
       if (CORE.includes(event)) return refuse(`${event} is the engine's own event – a rule hears it, never emits it.`);
       if (old && old.action !== "emit") return refuse(`Action ${index! + 1} of ${name} is ${old.action} – it does not emit an event.`);
       action = { action: "emit", event };
+    } else if (b.kind === "plugin" && busEvent) {
+      if (old && old.action !== "emit") return refuse(`Action ${index! + 1} of ${name} is ${old.action} – it does not emit an event.`);
+      action = { action: "emit", event: busEvent };
     } else if (b.kind === "scene" && b.pick?.kind === "scene" && (bPort === "arrives" || bPort === "in")) {
       if (old && old.action !== "goto") return refuse(`Action ${index! + 1} of ${name} is ${old.action} – it does not go to a scene.`);
       action = { action: "goto", address: sceneAddress(b.pick.scene) };
@@ -765,18 +787,18 @@ const canvasEdit = (draft: Draft, context: Exclude<Context, { level: "group" }>,
 
 /**
  * The ports that take a wire dragged from `from` (`dir`: from an outlet or back from an inlet), by box id – each one the
- * strict `connect` would apply. A plugin's bus ports never take one: they are drawn from its code's uses (#334), so the
- * canvas neither lights them nor lets a wire end there.
+ * strict `connect` would apply. A plugin has two pins (#334): its `emits` reaches a rule's on, a rule's do reaches its
+ * `hears`; what it reads, sets and drives are display rows, no pins.
  */
 export const takesWire = (content: LogicContent, context: Context, from: [string, string], dir: "in" | "out", options: ProjectOptions = {}): Map<string, Set<string>> => {
   const takes = new Map<string, Set<string>>();
   if (context.level === "group") return takes;
   const view = project(content, context, options);
   const start = view.nodes.find(n => n.id === from[0]);
-  if (!start || start.kind === "plugin") return takes;
+  if (!start) return takes;
   const other = dir === "in" ? "out" : "in";
   for (const node of view.nodes) {
-    if (node.id === from[0] || node.far || node.kind === "plugin") continue;
+    if (node.id === from[0] || node.far) continue;
     for (const port of node.ports) {
       if (port.dir !== other) continue;
       const op: Op = dir === "out" ? { op: "connect", from, to: [node.id, port.id] } : { op: "connect", from: [node.id, port.id], to: from };
@@ -831,7 +853,7 @@ const applyOp = (op: Op, content: LogicContent, context: Context, options: Proje
     case "connect":
     case "disconnect": {
       const view = project(content, context, options);
-      return op.op === "connect" ? connect(draft, view, context, op.from, op.to, op.verb, options) : disconnect(draft, view, context, op.edge, options);
+      return op.op === "connect" ? connect(draft, view, context, op.from, op.to, op.verb, options, op.event) : disconnect(draft, view, context, op.edge, options);
     }
     default: {
       const ref = refOf(op.home);

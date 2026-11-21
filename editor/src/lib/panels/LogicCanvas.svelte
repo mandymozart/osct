@@ -11,6 +11,7 @@
   import { GRID } from "#lib/logic/signals.js";
   import LogicBox, { type LogicBoxData } from "./LogicBox.svelte";
   import LogicFrame, { type LogicFrameData } from "./LogicFrame.svelte";
+  import LogicRef from "./LogicRef.svelte";
   import LogicWire from "./LogicWire.svelte";
 
   /**
@@ -37,6 +38,9 @@
    * **Selecting** (the deck's way, #334): a drag on the empty canvas draws a selection box – every box and wire it touches is
    * selected, Shift adds to what was – so Group (Ctrl+G) and Delete act on them; panning is the middle button, Space + drag,
    * and the wheel or the trackpad. Stubs and folded groups' pills are never selected.
+   *
+   * **References** (#334): a plugin's display rows (what its code reads, sets, drives) join their boxes by fine dotted lines
+   * (`LogicRef`) – no wire: they take no pointer, are never selected or deleted and light nothing on hover.
    */
   let {
     flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onwiredrop, onexpose, onplace, onfold,
@@ -91,7 +95,7 @@
     hovered = null;
   });
   const nodeTypes = { logic: LogicBox, frame: LogicFrame };
-  const edgeTypes = { logic: LogicWire };
+  const edgeTypes = { logic: LogicWire, ref: LogicRef };
 
   // A box hovered on the level before (it went away under the pointer) lights nothing here
   // A box with no wire lights nothing and dims nothing; the hovered box itself is never dimmed
@@ -136,11 +140,15 @@
       },
     }));
     nodes = [...frames, ...boxes];
-    edges = flow.wires.map(w => ({
+    edges = flow.wires.map((w): Edge => ({
       id: w.id, type: "logic", source: w.source, target: w.target, sourceHandle: w.sourcePort, targetHandle: w.targetPort, label: w.never ? `${w.label} · never fires` : w.label,
       selectable: editable, focusable: editable, selected: chosen.edges.has(w.id), data: { edge: w.edge, deck: w.deck, never: w.never },
       class: ["logic-wire", `sig-${w.deck}`, w.never && "never", w.back && "back", lit && (lit.has(w.source) && lit.has(w.target) && (w.source === hovered || w.target === hovered) ? "lit" : "dim")].filter(Boolean).join(" "),
-    }));
+    })).concat(flow.refs.map((r): Edge => ({
+      // A display row's reference (#334): drawn under the wires, never selected, deleted or lit – not a wire
+      id: r.id, type: "ref", source: r.source, target: r.target, sourceHandle: r.sourceHandle, targetHandle: r.targetHandle,
+      selectable: false, focusable: false, deletable: false, zIndex: -1, class: "logic-ref",
+    })));
   });
 
   // ── Placing: a box or a frame dragged by its head ──
@@ -238,7 +246,7 @@
       onselectionchange={({ nodes: inBox, edges: wiresInBox }) => {
         if (!boxing) return;
         boxing.nodes = inBox.filter(n => n.type === "logic" && n.selectable !== false).map(n => n.id);
-        boxing.edges = wiresInBox.map(e => e.id);
+        boxing.edges = wiresInBox.filter(e => wireOf(e.id)).map(e => e.id);
       }}
       onselectionend={event => {
         const box = boxing;
@@ -280,7 +288,7 @@
         if (editable && !box.stub && !box.pill) choose(event.shiftKey ? [...chosen.nodes, node.id] : [node.id], event.shiftKey ? [...chosen.edges] : []);
         onpick(box);
       }}
-      onedgeclick={({ edge, event }) => { if (editable) choose(event.shiftKey ? [...chosen.nodes] : [], event.shiftKey ? [...chosen.edges, edge.id] : [edge.id]); }}
+      onedgeclick={({ edge, event }) => { if (editable && wireOf(edge.id)) choose(event.shiftKey ? [...chosen.nodes] : [], event.shiftKey ? [...chosen.edges, edge.id] : [edge.id]); }}
       onpaneclick={() => choose([], [])}
       onnodecontextmenu={({ node, event }) => { event.preventDefault(); const box = boxOf(node); onmenu(point(event), box ? { kind: "box", box } : { kind: "pane" }); }}
       onedgecontextmenu={({ edge, event }) => { event.preventDefault(); const w = wireOf(edge.id); if (w) onmenu(point(event), { kind: "wire", edge: w.edge, label: w.label }); }}
@@ -305,7 +313,13 @@
   .flow :global(.svelte-flow__node-frame) { cursor: default; pointer-events: none; }
   .flow :global(.logic-wire.lit path.svelte-flow__edge-path) { stroke-width: 2.5px !important; stroke-opacity: 1 !important; }
   .flow :global(.logic-wire.dim) { opacity: .45; }
-  .flow :global(.svelte-flow__edge-label) { font-size: .625rem; padding: 0 .125rem; border-radius: .25rem; }
+  /* A wire's word: in its signal's colour, a little heavier, ringed in the canvas's background so it reads over crossing wires */
+  .flow :global(.svelte-flow__edge-label) {
+    font-size: .625rem; font-weight: 500; padding: 0 .25rem; border-radius: .25rem; color: var(--wire-label, var(--text));
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    text-shadow: 0 0 2px var(--surface), 0 0 2px var(--surface), 1px 0 0 var(--surface), -1px 0 0 var(--surface), 0 1px 0 var(--surface), 0 -1px 0 var(--surface);
+  }
+  .flow :global(.svelte-flow__edge.logic-ref) { pointer-events: none; }
   /* While a wire is dragged: the inlets that would take it are drawn heavy */
   .flow :global(.svelte-flow__handle.connectingto.valid) { outline: 2px solid var(--text); }
   .flow.editable :global(.svelte-flow__edge) { cursor: pointer; }

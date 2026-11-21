@@ -167,3 +167,25 @@ describe("placing, folding and groups are canvas ops (#334 L-T7)", () => {
     expect(edit({ edit: "tidy" }, content, { level: "group", group: "ch1" })).toMatchObject({ ok: false });
   });
 });
+
+describe("a plugin's display rows (#334, Tilman 2026-11-21)", () => {
+  it("are text rows with reference lines – never wires – and the card is tall enough for them", () => {
+    const flow = flowOf(view);
+    const plugin = flow.boxes.find(b => b.id === "plugin:narrative")!;
+    // Two pins (hears, emits), then the rows below the divider
+    expect(plugin.ports.map(p => p.id)).toEqual(["hears", "emits"]);
+    expect(plugin.rows).toEqual([{ id: "sets", text: "sets doorOpen" }, { id: "drives", text: "drives door" }]);
+    expect(plugin.h).toBe(boxHeight(plugin.ports, false, 2));
+    expect(plugin.h).toBeGreaterThan(boxHeight(plugin.ports));
+    // Each row's name reaches its box by a reference line from the row's side that faces it – not a wire
+    expect(flow.refs.map(r => `${r.source} ${r.sourceHandle} > ${r.target}`).sort()).toEqual([
+      expect.stringMatching(/^plugin:narrative ref:[lr]:drives > node:door\/$/),
+      expect.stringMatching(/^plugin:narrative ref:[lr]:sets > var:doorOpen$/),
+    ]);
+    expect(flow.wires.some(w => w.source === "plugin:narrative" && (w.target === "var:doorOpen" || w.target === "node:door/"))).toBe(false);
+    expect(flow.wires.some(w => w.sourcePort.includes("sets") || w.sourcePort.includes("drives"))).toBe(false);
+    // Folded, the line starts at the head
+    const folded = flowOf(view, { folds: ["plugin:narrative"] });
+    expect(folded.refs.every(r => r.sourceHandle === "ref:hl" || r.sourceHandle === "ref:hr")).toBe(true);
+  });
+});
