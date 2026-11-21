@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { HEX, longHex, rememberColour } from "#lib/colour.js";
+  import { HEX, longHex, rememberColour, screenEyedropper } from "#lib/colour.js";
   import ColourPopover from "./ColourPopover.svelte";
 
   /**
    * A colour value: the swatch opens the editor's colour popover (palette, recent colours, area + hue, hex, pick from
-   * the stage – not the browser's picker), the hex field beside it takes a typed colour (a whole `#rrggbb` goes out
+   * the screen – not the browser's picker), the hex field beside it takes a typed colour (a whole `#rrggbb` goes out
    * at once; an incomplete one shows what is expected). The popover sits in the top layer (no panel clips it), under
    * the swatch, or above it when the screen ends; Esc or a click outside closes it and the focus returns to the swatch.
    */
@@ -12,7 +12,7 @@
     value: string;
     label: string;
     onchange: (hex: string) => void;
-    /** Pick the colour under the pointer on the stage; none = no eyedropper */
+    /** Pick the colour under the pointer on the stage – the fallback where the browser has no EyeDropper (#338) */
     onpick?: () => Promise<string | null>;
   } = $props();
 
@@ -65,13 +65,16 @@
     if (!document.activeElement || document.activeElement === document.body || pop?.contains(document.activeElement)) button?.focus();
   };
 
-  const pickFromStage = async () => {
-    if (!onpick) return;
+  /** The eyedropper (#338): the browser's EyeDropper picks any pixel on the screen – the stage, a panel, another window;
+   *  where it is missing (Firefox, Safari), the stage's own overlay picks from the stage */
+  const native = screenEyedropper();
+  const pick = async () => {
     pop?.hidePopover();
-    const hex = await onpick();
+    // EyeDropper.open needs the click's activation: it is called before anything is awaited
+    const hex = native ? await native() : onpick ? await onpick() : null;
     if (hex && HEX.test(hex)) {
       onchange(longHex(hex));
-      rememberColour(hex);
+      rememberColour(longHex(hex));
     }
     button?.focus();
   };
@@ -86,7 +89,7 @@
   {#if problem}<span class="small danger">{problem}</span>{/if}
 </span>
 <div bind:this={pop} class="pop" popover="auto" {ontoggle} style:left="{left}px" style:top="{top}px">
-  <ColourPopover value={current} onpick={hex => onchange(hex)} oneyedropper={onpick ? pickFromStage : undefined} />
+  <ColourPopover value={current} onpick={hex => onchange(hex)} oneyedropper={native || onpick ? pick : undefined} screen={!!native} />
 </div>
 
 <style>
