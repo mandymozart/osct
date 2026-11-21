@@ -465,8 +465,8 @@ else the compiled module), *its code not read* until it arrived.
   `logic/layout.ts`; boxes without a wire in rows under the graph, the stubs in a column before and after) and
   `LogicCanvas.svelte` draws it with `@xyflow/svelte` – the rendering layer only (decision L7): it pans, zooms and fits,
   and owns nothing: it reports gestures (a drag between ports, a click, a right click), the panel turns them into ops. It is imported on first use, so the editor's first
-  load does not carry it. Ports and wires show their signal by shape and dash, never by colour (RULES #38): an event's
-  port round and its wire solid, a value's a diamond and dashed, a node's filled and dotted.
+  load does not carry it. The boxes, pins and wires are drawn as the SCUTOONS deck draws its nodes, **with the deck's
+  signal colours** – RULES #38's one exception (see *The deck's canvas* below).
 - **Events between scenes never fire**: the engine builds the entities – and so the behaviour rules – of the open scene
   only (`engine/src/scene/ar-scene.ts`: a scene switch disposes the old scene's entities and builds the new one's; the
   loading window prepares image targets, not entities). An event a rule emits in one scene therefore never reaches another
@@ -477,8 +477,9 @@ Under the graph, in the error colour, the **problems** across the experience: a 
 heard that nothing emits, an event emitted that nothing hears, a node an action names that the rule's subtree does not
 have – while a plugin's code is unknown only the last. The level logic is pure and tested (`lib/logic/__tests__/`:
 `project`, `navigation` – the URL, enter, back, stubs, follow, search; `apply` – every op, its refusals, the by-name
-cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems). Not yet:
-lighting up what fires while the stage runs, the canvas's groups and notes (L-T7).
+cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems; `canvas` – the
+signal table, the cards, pins, groups and their ops). Not yet: lighting up what fires while the stage runs, notes on the
+canvas.
 
 **Scene and experience rules, goto** (content schema 5.0, #334 L-T5b): a scene's own rules (`scene.logic`) are boxes of
 its scene level (*scene rule 1*, a click selects the scene – its rules are in its Inspector), the experience's
@@ -570,6 +571,40 @@ choice of what a box previews is L-T15).
 - **A plugin's bus use** is what its specs declare (`uses`, `events` – recorded in `registered`, schema 5.1); a plugin box
   says *plugin · declared*. Only for a plugin that declares nothing is its source read (`plugin-code.ts`, the regex reading
   of `api.events.on("x")` and the like).
+
+**The deck's canvas** (content schema 5.2, #334 L-T7 / L-T8 – Tilman: *"free placement on canvas. and grouping like we
+have in the scutoons deck. also adopt the node styles we already established in the deck. including the coloring."*):
+
+- **Cards** (`LogicBox.svelte`, the deck's `node_card.rs`): 14rem wide, radius 0.54rem, the control fill, one 1px border
+  in the kind's colour (55 %, far 35 %), no shadow; a 2rem head tinted with the kind's colour (9 %) over a 1px line (22 %),
+  with the kind's icon in its colour, the name, the kind's word (muted, right) and a **fold** chevron – folded, the card is
+  its head alone (`canvas.folds`). The kind's colour is the signal of what the box gives (its first outlet; a scene or a
+  group a scene, a stub far), else muted. Every named port is a 1.5rem **row** on the card's edge – inlets left, outlets
+  right, row by row; heights snap to the 1rem grid.
+- **Pins and wires** (`logic/signals.ts` – one table, L-T8; the colours are the theme tokens `--signal-*` in `app.css`, day
+  and night): a pin is 0.32rem in radius, shaped by its signal – an event a triangle along the flow, control / clock / vote a
+  dot, audio / picture / scene a square, address a diamond, far a ring; its label small at 80 %, hidden below zoom 0.55. A
+  wire hangs as the deck's (`Wire::hang`: a cubic that sags 0.35rem plus a tenth of its length under its ends), in its
+  source pin's colour at 85 %, 1.4 × its signal's weight wide (an event's 1.4); hovered a halo five times as wide at 18 %.
+  A selected box has the deck's accent outline (2px, #00728d / #00d1ff). OSCT's signals map to the deck's as
+  agents/DESIGN.md "Logic canvas: signals" lists; the legend under the bar shows them.
+- **Free placement**: a box dragged **by its head** stays where it is let go, on the 1rem grid (`canvas.positions` – box id
+  → `{ x, y }`, over the automatic layout); a drag from a pin still connects. Dragging a box that is not selected moves it
+  alone, a selected one moves the selection. **Tidy** in the bar drops the level's pins: the layout places every box again.
+- **Groups** (the deck's): **Group** in the bar or **Ctrl+G** puts the selected boxes (Shift adds) into a new group
+  `group-N`, *group N*, in the first of the deck's six colours no group has (#5fb3ff, #7fd68a, #f2b84b, #e07ad6, #ff7a6b,
+  #9a8cff); a box leaves its old group (no nesting), a group left empty goes. Its **frame** (`LogicFrame.svelte`) is its
+  boxes' bounds padded 1rem at the sides and below and 2rem on top – a dotted ground in its colour (32 %) inside an outline
+  (45 %, radius 0.72rem), under the boxes and wires, following its boxes while one is dragged. Its head: the fold chevron,
+  the colour's swatch (a click takes the next colour) and its name – a click renames it in place, an empty name removes the
+  group. Dragging the head moves (and pins) every box of the group. **Folded**, the group is one pill in its colour where its
+  boxes were; their wires to the rest end on the pill, the ones between them are hidden; its chevron (or a double-click)
+  opens it again. Groups are kept per canvas: the scene's (its scene and entity levels) or the experience's; the group level
+  has none.
+- Each of these is a canvas op (`place`, `tidy`, `fold`, `group`, `renameGroup`, `groupColour`, `foldGroup` – `apply.ts`),
+  saved with the level's rules like the exposed ports (`logicEdit.setCanvas`), so History lists it and Undo takes it back.
+  A box's right-click menu has *Fold to its head*, *Group this box* (or the selection) and, while it is pinned, *Tidy the
+  level*.
 
 ### The experience search
 

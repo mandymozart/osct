@@ -9,7 +9,7 @@ declare(strict_types=1);
  * (the object form of 2.19–4.x is refused: since 5.0 a condition is an expression – the expression's own syntax is the
  * TypeScript guard's and the editor's job), one known verb per action, a `goto` to `scene:<id>`, and in a scene's or the
  * experience's rules a node named by address (`target:<targetId>/<node name>`) and no node event. A `canvas` is
- * `{ groups?, notes?, folds?, exposed? }` – authoring data the draft and the export carry and a publish leaves out
+ * `{ groups?, notes?, folds?, exposed?, positions? }` – authoring data the draft and the export carry and a publish leaves out
  * (`ContentVersion::assemble`).
  */
 final class Logic
@@ -138,13 +138,25 @@ final class Logic
         return $value;
     }
 
-    /** A canvas `{ groups?, notes?, folds?, exposed? }` (`exposed`: box id → port ids, schema 5.1); 400 `$code` */
+    /**
+     * A canvas `{ groups?, notes?, folds?, exposed?, positions? }` (`exposed`: box id → port ids, schema 5.1; `positions`: box
+     * id → `{ x, y }`, a group's `colour` `#rrggbb` and `folded`, schema 5.2); 400 `$code`
+     */
     public static function canvas(mixed $canvas, string $path, string $code): void
     {
         $fail = static fn(string $message) => throw new ApiError(400, $code, $message);
-        if (!$canvas instanceof stdClass) $fail("$path must be { groups?, notes?, folds?, exposed? }.");
+        if (!$canvas instanceof stdClass) $fail("$path must be { groups?, notes?, folds?, exposed?, positions? }.");
         foreach (get_object_vars($canvas) as $key => $list) {
-            if (!in_array($key, ['groups', 'notes', 'folds', 'exposed'], true)) $fail("$path.$key: unknown field of a canvas (groups, notes, folds, exposed).");
+            if (!in_array($key, ['groups', 'notes', 'folds', 'exposed', 'positions'], true)) $fail("$path.$key: unknown field of a canvas (groups, notes, folds, exposed, positions).");
+            if ($key === 'positions') {
+                if (!$list instanceof stdClass) $fail("$path.positions must be { <box id>: { x, y } }.");
+                $number = static fn($v) => is_int($v) || (is_float($v) && is_finite($v));
+                foreach (get_object_vars($list) as $box => $point) {
+                    $ok = (string) $box !== '' && $point instanceof stdClass && $number($point->x ?? null) && $number($point->y ?? null);
+                    if (!$ok) $fail("$path.positions.$box must be { x, y }.");
+                }
+                continue;
+            }
             if ($key === 'exposed') {
                 if (!$list instanceof stdClass) $fail("$path.exposed must be { <box id>: [port ids] }.");
                 foreach (get_object_vars($list) as $box => $ports) {
@@ -157,12 +169,14 @@ final class Logic
             foreach ($list as $i => $item) {
                 $ok = match ($key) {
                     'groups' => $item instanceof stdClass && is_string($item->id ?? null) && $item->id !== '' && is_string($item->label ?? null)
-                        && is_array($item->members ?? null) && array_filter($item->members, static fn($m) => !is_string($m)) === [],
+                        && is_array($item->members ?? null) && array_filter($item->members, static fn($m) => !is_string($m)) === []
+                        && (!property_exists($item, 'colour') || (is_string($item->colour) && preg_match('/^#[0-9a-fA-F]{6}$/', $item->colour) === 1))
+                        && (!property_exists($item, 'folded') || is_bool($item->folded)),
                     'notes' => $item instanceof stdClass && is_string($item->id ?? null) && $item->id !== '' && is_string($item->text ?? null)
                         && (is_int($item->x ?? null) || is_float($item->x ?? null)) && (is_int($item->y ?? null) || is_float($item->y ?? null)),
                     default => is_string($item) && $item !== '',
                 };
-                if (!$ok) $fail("{$path}.{$key}[$i] must be " . ['groups' => '{ id, label, members }', 'notes' => '{ id, text, x, y }', 'folds' => 'a node id'][$key] . '.');
+                if (!$ok) $fail("{$path}.{$key}[$i] must be " . ['groups' => '{ id, label, members, colour?: #rrggbb, folded?: true | false }', 'notes' => '{ id, text, x, y }', 'folds' => 'a node id'][$key] . '.');
             }
         }
     }

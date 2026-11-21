@@ -16,7 +16,8 @@ export interface LayoutSize {
   gapY: number;
 }
 
-export const LOGIC_SIZE: LayoutSize = { w: 168, h: 40, gapX: 100, gapY: 14 };
+/** The deck's card (14rem × 2rem) and gaps on the 1rem grid (#334 L-T7) */
+export const LOGIC_SIZE: LayoutSize = { w: 224, h: 32, gapX: 96, gapY: 16 };
 
 export interface PlacedNode {
   x: number;

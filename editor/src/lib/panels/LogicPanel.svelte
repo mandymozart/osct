@@ -14,6 +14,8 @@
   import { pluginCodeUses, type PluginUses } from "#lib/logic/plugin-code.js";
   import { project, type LogicContent } from "#lib/logic/project.js";
   import { flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
+  import { DECK_SIGNALS, SIGNAL_STYLES, signalToken } from "#lib/logic/signals.js";
+  import type { LogicCanvas } from "@engine/types";
   import {
     decodeContext, encodeContext, followSelection, levelName, parentLevel, pickSelected, sameContext, sceneOfContext, searchIndex, searchLogic,
     stageMove, type SearchHit, type StageMove,
@@ -56,6 +58,11 @@
    *   the hidden ones, *Hide unused ports* (Ctrl+H for every box) hides them again – the level's canvas keeps the choice
    *   (`logicEdit.setCanvas`). While a wire is dragged the inlets that take it light up; one let go where it does not fit
    *   says why.
+   * - **The deck's canvas** (L-T7, schema 5.2): a box dragged by its head stays where it is let go (on the 1rem grid), *Tidy*
+   *   lays the level out again; the selected boxes group with **Group** or Ctrl+G (a frame in the group's colour – its head
+   *   folds it to a pill, its swatch takes the next colour, its name renames in place); a box's chevron folds it to its head.
+   *   Each is a canvas op saved with the level's rules, so History lists it and Undo takes it back. The boxes, pins and wires
+   *   wear the deck's signal colours (`logic/signals.ts`, L-T8 – the legend shows them).
    */
   let { experienceId, sceneId, stage = null, onpick, onmove }: {
     experienceId: string;
@@ -128,7 +135,14 @@
   };
 
   const view = $derived(project(logic, context));
-  const flow = $derived(flowOf(view));
+  /** The level's canvas: its scene's (the scene and entity levels) or the experience's; the group level keeps none */
+  const levelCanvas = $derived.by((): LogicCanvas | undefined => {
+    const at = context;
+    if (at.level === "experience") return logic.canvas;
+    if (at.level === "group") return undefined;
+    return logic.scenes.find(s => s.id === at.scene)?.canvas;
+  });
+  const flow = $derived(flowOf(view, levelCanvas));
   const levelKey = $derived(encodeContext(context));
   const up = $derived(parentLevel(view));
 
@@ -164,10 +178,12 @@
   // ── Boxes ──
   const selectedBox = (box: FlowBox): boolean => !!box.node && pickSelected(box.node.pick, selection.snapshot(), sceneId, view);
   const pickBox = (box: FlowBox) => {
+    if (box.pill) return;
     if (box.stub) return enterBox(box);
     if (box.node?.pick) onpick(box.node.pick);
   };
   const enterBox = (box: FlowBox) => {
+    if (box.pill) return foldBox(box, false);
     if (box.stub) {
       const near = box.stub.side === "in" ? box.stub.edge.to[0] : box.stub.edge.from[0];
       go(box.stub.far, { mark: near });
@@ -189,6 +205,10 @@
     } else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowUp")) {
       e.preventDefault();
       goUp();
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+      // The deck's Ctrl+G: the selected boxes become a group
+      e.preventDefault();
+      groupPicked();
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
       // Blender's Ctrl+H: every box shows only its wired ports again
       e.preventDefault();
@@ -285,6 +305,24 @@
     menu = { at, head: `${box.node?.label ?? ""} – ports`, add: null, items };
   };
 
+  // ── The deck's canvas (L-T7): placing, folding, groups ──
+  const canvasOp = (edit: Extract<Op, { op: "canvas" }>["edit"]) => {
+    if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
+    run({ op: "canvas", edit });
+  };
+  /** A box's chevron folds it to its head; a folded group's pill opens the group */
+  const foldBox = (box: FlowBox, folded: boolean) => {
+    if (box.pill) return canvasOp({ edit: "foldGroup", group: box.pill.id, folded: false });
+    if (box.node) canvasOp({ edit: "fold", box: box.id, folded });
+  };
+  /** The selected boxes (the level's own – not a stub or a pill) become a group */
+  const groupPicked = () => {
+    const boxes = picked.filter(id => view.nodes.some(n => n.id === id));
+    if (!boxes.length) return say(editable ? "Select the boxes to group first (Shift adds to the selection)." : readOnlyHint ?? "Read-only here.", true);
+    canvasOp({ edit: "group", boxes });
+  };
+  const pinnedHere = $derived(view.nodes.some(n => !!levelCanvas?.positions?.[n.id]));
+
   /** The boxes selected on the canvas; the rule among them is where an action or a condition goes */
   let picked = $state<string[]>([]);
   /** The wires selected on the canvas (the view's edge ids): Delete disconnects them */
@@ -370,11 +408,19 @@
     } else if (box.node?.kind === "node" && box.node.pick?.kind === "node") {
       items.push({ key: "add", label: "Add a rule on this node…", disabled: editable ? null : readOnlyHint, select: () => { picked = [box.id]; void tick().then(() => openAdd(at)); } });
     }
+    if (box.pill) {
+      items.push({ key: "open", label: "Open the group", detail: "Double-click", disabled: editable ? null : readOnlyHint, select: () => foldBox(box, false) });
+    } else if (box.node) {
+      items.push({ key: "fold", label: box.folded ? "Open the box" : "Fold to its head", disabled: editable ? null : readOnlyHint, select: () => foldBox(box, !box.folded) });
+      if (box.pinned) items.push({ key: "unpin", label: "Tidy the level", detail: "the layout places every box again", disabled: editable ? null : readOnlyHint, select: () => canvasOp({ edit: "tidy" }) });
+      items.push({ key: "group", label: picked.includes(box.id) && picked.length > 1 ? `Group the ${picked.length} selected boxes` : "Group this box", detail: "Ctrl+G", disabled: editable ? null : readOnlyHint,
+        select: () => canvasOp({ edit: "group", boxes: picked.includes(box.id) ? picked.filter(id => view.nodes.some(n => n.id === id)) : [box.id] }) });
+    }
     if (box.hidden.length || box.ports.some(p => p.kind)) {
       items.push({ key: "ports", label: "Show a port…", detail: box.hidden.length ? `${box.hidden.length} hidden` : "none hidden", disabled: editable ? (box.hidden.length ? null : "Every port shows.") : readOnlyHint, select: () => exposeMenu(box, at) });
       items.push({ key: "hide", label: "Hide unused ports", detail: "Ctrl+H: every box", disabled: editable ? null : readOnlyHint, select: () => run({ op: "canvas", edit: { edit: "hideUnused", box: box.id } }) });
     }
-    menu = { at, head: box.stub ? box.stub.label : `${box.node?.label}`, add: null, items };
+    menu = { at, head: box.stub ? box.stub.label : box.pill ? box.pill.label : box.node?.label ?? "", add: null, items };
   };
   let addButton = $state<HTMLButtonElement>();
   const plusMenu = () => {
@@ -396,6 +442,13 @@
   });
 
   const never = $derived(flow.wires.some(w => w.never));
+  /** The signals OSCT draws (the deck's clock has none yet), and what each stands for here (DESIGN.md "Logic canvas: signals") */
+  const LEGEND = DECK_SIGNALS.filter(s => s !== "clock");
+  const SIGNAL_WORDS: Record<string, string> = {
+    event: "An event, and a rule's verb inlet", control: "A value: a number, a text, a choice, a colour", clock: "Time (not used yet)",
+    audio: "A sound file", picture: "A picture, a video, a texture or a model", address: "A node a verb acts on (show, hide, play …), an address",
+    vote: "A value true / false", scene: "A scene (goto)", far: "From outside this level",
+  };
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -432,19 +485,22 @@
     </div>
     <button bind:this={addButton} type="button" class="icon-button" disabled={!editable} onclick={plusMenu} aria-label="Add to the logic" title={editable ? "Add a rule, an action or a condition (or right-click the canvas)" : readOnlyHint ?? ""}
       data-help-name="Add to the logic" data-help="What fits here: a rule on the selected node, an action or a condition for the selected rule. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list.">+</button>
+    <button type="button" class="pill" disabled={!editable || !picked.some(id => view.nodes.some(n => n.id === id))} onclick={groupPicked}
+      title={editable ? "Group the selected boxes (Ctrl+G)" : readOnlyHint ?? ""}
+      data-help-name="Group" data-help="The selected boxes (Shift adds to the selection) get a frame of their own, as in the SCUTOONS deck: its head folds it to a pill, its swatch takes the next colour, a click on its name renames it – an empty name removes the group. A box sits in one group at most.">Group</button>
+    <button type="button" class="pill" disabled={!editable || !pinnedHere} onclick={() => canvasOp({ edit: "tidy" })}
+      title={editable ? (pinnedHere ? "Lay the level out again: every box you placed goes back into the layout" : "Nothing placed by hand at this level") : readOnlyHint ?? ""}
+      data-help-name="Tidy" data-help="A box dragged by its head stays where you let it go (on the 1rem grid). Tidy drops those places at this level: the automatic layout places every box again.">Tidy</button>
     <span class="follow">
       <Toggle on={follow} label="Follow" onchange={on => (follow = on)}
         help="On: selecting a scene, a group or a node elsewhere (the stage, the tree, the Scenes panel) moves the Logic view to its level. Off: the view stays where you put it." />
       <span class="small">Follow</span>
     </span>
   </div>
-  <div class="legend small" aria-label="Legend">
-    <span class="key event">event</span><span class="key rule">rule</span><span class="key variable">variable</span><span class="key node">node</span><span class="key plugin">plugin</span><span class="key scene">scene</span>
-    <span class="wire" title="An event"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>event</span>
-    <span class="wire value" title="A value (a variable)"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>value</span>
-    <span class="wire node" title="Acts on a node"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>node</span>
-    <span class="wire scene" title="Goes to a scene (goto)"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>goto</span>
-    <span class="wire media" title="A file: a picture, a sound, a video, a model"><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>media</span>
+  <div class="legend small" aria-label="Legend: the signals">
+    {#each LEGEND as signal (signal)}
+      <span class="sig" title={SIGNAL_WORDS[signal]}><span class="pin {SIGNAL_STYLES[signal].shape}" style:--pin="var({signalToken(signal)})"></span>{signal}</span>
+    {/each}
     {#if never}
       <span class="wire never" data-help-name="Never fires"
         data-help="An event between two scenes: the engine builds the rules of the open scene only, so an event a rule emits in one scene never reaches another scene's rules. Plugins hear every scene."><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>never fires</span>
@@ -465,7 +521,10 @@
     <Canvas {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
       onconnect={(from: [string, string], to: [string, string]) => run({ op: "connect", from, to })}
       onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
-      takesfrom={takesFrom} onrefused={refused} onexpose={exposeMenu} />
+      takesfrom={takesFrom} onrefused={refused} onexpose={exposeMenu}
+      onplace={(positions: Record<string, { x: number; y: number }>) => canvasOp({ edit: "place", positions })} onfold={foldBox}
+      ongroupfold={(group: string, folded: boolean) => canvasOp({ edit: "foldGroup", group, folded })} ongroupcolour={(group: string) => canvasOp({ edit: "groupColour", group })}
+      ongrouprename={(group: string, label: string) => canvasOp({ edit: "renameGroup", group, label })} />
   {:else}
     <p class="muted small">Loading the graph…</p>
   {/if}
@@ -505,19 +564,15 @@
   .none { padding: .25rem .5rem; }
   .follow { display: inline-flex; align-items: center; gap: .25rem; }
   .legend { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; color: var(--muted); }
-  .key { padding: 0 .375rem; border: 1px solid var(--line); }
-  .key.event { border-radius: 999px; }
-  .key.variable { border-style: dashed; }
-  .key.node { background: var(--control-background); }
-  .key.plugin { border-width: 3px; border-style: double; }
-  .key.scene { border-left-width: 4px; border-color: var(--text); }
+  .sig { display: inline-flex; align-items: center; gap: .1875rem; margin-right: .25rem; }
+  .sig .pin { width: .5625rem; height: .5625rem; background: var(--pin); border-radius: 50%; }
+  .sig .pin.square { border-radius: .125rem; }
+  .sig .pin.diamond { width: .4375rem; height: .4375rem; border-radius: .0625rem; transform: rotate(45deg); }
+  .sig .pin.triangle { border-radius: 0; width: .5rem; height: .625rem; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+  .sig .pin.ring { background: none; border: 2px solid var(--pin); box-sizing: border-box; }
   .wire { display: inline-flex; align-items: center; gap: .1875rem; margin-left: .25rem; }
   .wire svg { width: 1.5rem; height: .375rem; }
   .wire line { stroke: var(--muted); stroke-width: 1.5; }
-  .wire.value line { stroke-dasharray: 6 3; }
-  .wire.node line { stroke-dasharray: 1.5 2.5; }
-  .wire.scene line { stroke-dasharray: 8 3 2 3; }
-  .wire.media line { stroke-width: 3; }
   .wire.never line { stroke-dasharray: 1 4; stroke-width: 1; }
   .status { margin: 0; overflow-wrap: anywhere; }
   .problems { margin: 0; padding: 0 0 0 1rem; display: flex; flex-direction: column; gap: .125rem; max-height: 6rem; overflow-y: auto; }

@@ -270,3 +270,36 @@ RULES #32 (the Scutoons dogma, the editor tokens):
   track, filled while on, the knob `#070` → black), the reader's settings `<gold-switch>`.
 - Applied so far: each post-processing pass (head toggle); the #241 rows (`agents/MEMORY.md`, 2026-10-31). The other
   section toggles are follow-ups (`agents/MEMORY.md`, 2026-10-31, #233).
+
+## 10. Logic canvas: signals and cards (Tilman, 2026-11-21, #334 L-T7 / L-T8)
+*"free placement on canvas. and grouping like we have in the scutoons deck. also adopt the node styles we already
+established in the deck. including the coloring."* – RULES #38's one exception: the Logic canvas's nodes, pins and wires
+take the SCUTOONS deck's styles with its signal colours; the rest of the editor stays monochrome. The values are the deck's
+(`scutoons/deck/kit/src/base/signal.rs`, `wire.rs`; `deck/editor/src/show/node_card.rs`). **One table**:
+`editor/src/lib/logic/signals.ts` (`SIGNAL_STYLES`, named like deck-kit's `Signal`); the colours are theme tokens
+`--signal-<name>` in `editor/src/app.css` (day `:root`, night both dark blocks – a test keeps them equal to the table).
+
+| Deck signal | Pin | Day | Night | OSCT signal (a port's signal, type and kind → `deckSignal`) |
+|---|---|---|---|---|
+| event | triangle along the flow, wire weight 1.4 | `#22271e` | `#f3f3f0` | an **event** (a bus event, a node's own, a declared event outlet); a rule's **verb inlet** (`act:play` – the exec pin) |
+| control | dot | `#2f9e4a` | `#46d36a` | a **value**: a number, a whole number, a text, a choice, a colour; a variable without a type |
+| clock | dot | `#c23238` | `#e5484d` | – (kept for time: a timer node later) |
+| audio | square | `#0089a8` | `#19b8d8` | **media**: a sound file |
+| picture | square | `#3a63c9` | `#6f9bff` | **media**: a picture, a video, a texture, a model |
+| address | diamond | `#8a4fd0` | `#b46bff` | **node** (a verb acting on a node: show, hide, play, pause, stop) and **address** |
+| vote | dot | `#b07800` | `#ffb020` | a **value true / false** (a yes or no – the deck's answer) |
+| scene | square | `#c8385a` | `#ff6b8a` | **scene** (goto) |
+| far | ring (hollow) | `#6b7461` | `#a7af9b` | **far**: from outside the level (a stub, a far box) |
+
+- **Accent** (a selected box): `--signal-accent` `#00728d` day / `#00d1ff` night – 2px, just outside the card.
+- **Card**: 14rem wide, radius 0.54rem, body `--control-background`, head 2rem tinted with the kind's colour at 9 % over a
+  1px line at 22 %, border 1px at 55 % (far 35 %), no shadow; head: the kind's icon in its colour, the name (600), the
+  kind's word (.625rem, muted, right), the fold chevron. The kind's colour = the signal of the box's first outlet (a scene
+  or group box: scene; a stub or far box: far), else `--muted`. A named port is a 1.5rem row; heights snap to the 1rem grid.
+- **Pin**: radius 0.32rem on the card's edge, filled in its signal's colour with a 1px `--control-background` edge (the
+  ring: hollow, 2px); its label .625rem at 80 % of `--text`, hidden below zoom 0.55.
+- **Wire**: the deck's hanging cubic (sag 0.35rem + 0.1 × its length under the lower end), its source pin's colour at 85 %,
+  1.4 × weight px; hovered a halo 5 × as wide at 18 %; one that never fires dotted, 1px.
+- **Group** (the deck's six, in order): `#5fb3ff`, `#7fd68a`, `#f2b84b`, `#e07ad6`, `#ff7a6b`, `#9a8cff`; frame = the
+  boxes' bounds padded 1rem (sides, below) and 2rem (top), dots on a 1rem grid at 32 %, outline 45 %, radius 0.72rem;
+  folded, a round pill tinted at 22 %.
