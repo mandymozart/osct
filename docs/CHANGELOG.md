@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 4.11.0 – 2026-11-21
 
 ### Added
 - **Notes on the Logic canvas** (Tilman, 2026-11-21, #334: *"we are missing notes on these graphs, for annotations"*),
