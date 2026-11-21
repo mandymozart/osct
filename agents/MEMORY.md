@@ -227,6 +227,14 @@ Verbatim from the archived entries (the entry title and archive file in front of
   immutable content files, so the build's purge keeps every build an export still needs (the newest export per
   experience at least). Details in the ticket (#322 T-archive). Not started.
 
+## 2026-11-21 – Do not run `content move --delete-old` yet (#87)
+
+- The staging demo's draft still names files in the old folders (`https://buildingfictions.b-cdn.net/demo/<build>/…`,
+  e.g. entry targets' `imageSrc`). `--delete-old` on `demo/` (and likely `staging/`) would break those references.
+  First rewrite the draft's references to the store per experience (or the Library), then delete.
+- Staging demo data fixed by the orchestrator on 2026-11-21: `tally` and `colophon` `of: "book"` → `"experience"`; the
+  key's rule `on: keyRattled` (it emitted keyRattled itself – a loop) → `on: tap` (Tilman: "Ja, auf tap").
+
 ## 2026-11-21 – Demo plugins stuck at plugin API 1.6 on staging
 
 - Tilman saw "[plugins] aquarium … was built against plugin API 1.6, this engine runs 3.1 – not loaded" for the 11
