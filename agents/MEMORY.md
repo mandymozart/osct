@@ -18,17 +18,15 @@ Verbatim from the archived entries (the entry title and archive file in front of
   `Section`.
 **2026-10-31 – texts inside the editor: the book search in the top bar, the book in the Inspector (#237)** (`MEMORY-2026-10.md`)
 - [ ] The tutorial page's chapter 5 has no new screenshots yet (the search, the book in the Inspector, + entry): taken in
-**2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234)** (`MEMORY-2026-10.md`)
+**2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234)** (`MEMORY-2026-10.md`) – **superseded 2026-11-21 by #340** (the sandbox dropped)
 - [ ] **The reader's plugins and the session** (above): Tilman's "no sandbox in the reader" (2026-10-29) predates the
   one cookie for the site (#207), which puts an editor's or admin's session within reach of a published plugin in the
   reader. Whether that changes it is his call: sandbox the reader's scene (camera delegation, the 8th Wall files for an
   opaque origin, offline content), or serve the editor and its API from an origin of their own so the reader's pages
   never hold an editor's cookie (deploy config).
-- [ ] **WebGPU in the frame** (the aquarium's fluid): the Inspector says *WebGPU ok · particles 10k* in headless Edge
-  (its software adapter) inside the sandbox – a sandboxed frame needs no permission for it; not yet seen on a real GPU.
-- [ ] **The frame on the phone** (the S22): frame cost and the sheet's drag over the stage.
-- [ ] **A header policy for the frame** would apply before any script, not only before plugin code: it needs the
-  content bases per book – a server-side page for the frame, or deploy config.
+- [x] **WebGPU in the frame** (the aquarium's fluid): moot – the frame went with #340 (2026-11-21), the stage runs in the page.
+- [x] **The frame on the phone** (the S22): moot – no frame since #340.
+- [x] **A header policy for the frame**: moot – no frame since #340.
 **2026-10-31 – plugin labels mark only unsaved (#232); a toggle per pass and the UI principle (#233)** (`MEMORY-2026-10.md`)
 - [ ] **Follow-ups of the principle** (each needs its own issue; most need a content field = a schema MINOR):
 **2026-10-31 – plugin passes in post-processing, content schema 2.21 (#216)** (`MEMORY-2026-10.md`)
@@ -208,6 +206,39 @@ Verbatim from the archived entries (the entry title and archive file in front of
 - [ ] Final content → on-site session in Amsterdam, fall 2026
 
 ---
+
+## 2026-11-21 – the stage sandbox dropped: the stage runs in the editor's page, a prompt before others' plugin code (5.0.0, #340)
+
+- **Tilman** (decided in the OSCT session after the SCUTOONS XR session relayed it): *"we can drop the sandbox. since we
+  trust the user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is
+  fine. it is a huge security risk but only to the user who is logged in and their scope."* · *"performance will
+  definitely increase."* · on the plan: *"yes please"*, *"and we can rebuild the schema. no worries"*, *"ich bin fuer
+  umbau, jetzt."*
+- **Supersedes #234** (2026-10-31, `archive/MEMORY-2026-10.md`: the stage and every plugin in an iframe without
+  `allow-same-origin`, `frameCsp`, a postMessage protocol, the registry mirrored). RULES #35 is rewritten as the guard rule.
+- **What went**: `stage/frame-host.svelte.ts`, `stage/frame-protocol.ts` (with `frameCsp`, `readFrameEvent`,
+  `FORWARDED_KEYS`, `withoutSavedSpecs` – the API's draft has dropped a saved plugin's recorded specs since 4.6.2), the
+  route `routes/stage-frame/`, the content's recorded responses (`content.snapshot`), the engine's `mirrorPluginRegistry`,
+  the `Origin: null` CORS of the dev servers and `.htaccess`'s `Access-Control-Allow-Origin: *` for `/editor/` and
+  `/assets/content/`, and their tests. `Stage` keeps its API and calls `StageCore` directly (a layer `.stage-host` first
+  in the stage's container); `stage-types.ts` keeps the shared types. Leaving the workspace empties the registry
+  (`resetPlugins`, new in the engine) – the frame used to do that by going away.
+- **The guard** (`plugin-guard.ts`, `plugin-guard.svelte.ts`, `PluginGuardPrompt.svelte`): the saver is the API's existing
+  `updatedBy` (email of `plugins.updated_by`) – no API or schema change was needed. Asked about: stored sources someone
+  else saved last, and declared modules without a stored source (imported builds – *mine*: nobody here saved them, so
+  they count as someone else's). One prompt for all, Run / Don't run; the answer in `localStorage`
+  (`osct-plugin-guard:<experience>`) per plugin and version (`updatedAt|updatedBy|size`, a declared module's URL). The
+  render view asks nobody: only what that browser answered Run for runs (a headless profile has none – a render no longer
+  shows others' plugins; open item below).
+- **Plugin API stays 3.1** (*mine*): `api` did not change; only where the code runs. A MAJOR would have refused every
+  declared module built against 3.x for nothing. The reader had the session within reach of a published plugin anyway
+  (one cookie for the site, #207).
+- [ ] **The render view and others' plugins**: `render_scene` runs in a fresh headless profile, so the guard keeps every
+  plugin someone else saved off the picture. Writes are blocked there anyway (`requestAction`); if Tilman wants the
+  render to show them, `ask: false` could run them instead of skipping – his call.
+- [ ] **Measure the stage start** on the S22 and the desktop before/after (not measured in this session: no local API run).
+- [ ] The guard's answers live in one browser: a person on a second machine is asked again. A per-user answer on the
+  server would need a table – not built (Tilman: "we can rebuild the schema" if wanted).
 
 ## 2026-11-21 – Logic canvas: live feedback on the wires (#334)
 
@@ -1200,7 +1231,7 @@ button gave way to the design's gold × in the header (#291).
   in the draft's text.
 - **The schema number**: the appearance work in the main checkout (uncommitted on 2026-11-14) also calls itself 2.27 –
   whichever lands second takes 2.28 (table row in docs/content.md, the history comment, `npm run schema:lock`).
-- [ ] The built-in browser pane blocks the local stage frame (`ERR_BLOCKED_BY_CLIENT`); the stage was checked in Chrome.
+- [x] The built-in browser pane blocks the local stage frame (`ERR_BLOCKED_BY_CLIENT`); the stage was checked in Chrome. (Moot since #340: no frame.)
 - [ ] The import script for the sculptures (#256): upload mesh + maps, place the node turned 90° at a scale from the
   model's size (both examples sit well at 0.15) – planned for 2026-11-15.
 - [ ] Not tested on a phone: the swap while scanning, and `auto` on iOS.
@@ -1221,7 +1252,7 @@ button gave way to the design's gold × in the header (#291).
   edit since the page was opened (kept per subject in `baselines.ts`, lost with a reload). Not a removal (RULES #1):
   the way back stays, one step deep.
 - Decided by the session, **for Tilman to confirm**:
-  - [ ] RULES #35 said no message from the stage frame makes the page call the API. A gizmo drag is such a message, and
+  - [x] (Moot since #340, 2026-11-21: no stage frame, no messages.) RULES #35 said no message from the stage frame makes the page call the API. A gizmo drag is such a message, and
     it saves itself now. Narrowed instead of dropped: only a placement (numbers) of the node the page selected, and a
     placement handle's move while that target's placement is open. The alternative: gizmo drags stay live-only until
     the next edit in the page.
@@ -1387,7 +1418,8 @@ button gave way to the design's gold × in the header (#291).
 
 - **Tilman (2026-10-31):** *"Auf der Leser-Seite sollen die Plugins auf jeden Fall auf der Seite laufen."* The reader
   keeps running book plugins in its own page on purpose – no sandbox for the reader. The editor's stage and its plugins
-  are sandboxed since 1.58.0 (#234); that question is closed.
+  are sandboxed since 1.58.0 (#234); that question is closed. *(Superseded 2026-11-21, #340: the editor's sandbox is
+  dropped too – a prompt before others' plugin code instead.)*
 - **#241 shipped (1.62.0), but `Toggle.svelte` is still a pill that reads *on* / *off*** – the button look Tilman
   objected to. #243: a real switch (track and knob, `role="switch"`), modelled on the reader's `<gold-switch>`.
 - **Cost (#242):** the #241 cloud worker reported it ran on **overage** (the 7-day limit was full) although cloud
@@ -1402,7 +1434,7 @@ button gave way to the design's gold × in the header (#291).
 - 2026-10-31 – docs: one owner per topic (#218) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – shared/ tidied in one schema MINOR (2.24, #214) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – content editing: entries, the book, the onboarding; Markdown and variables (#223) → `archive/MEMORY-2026-10.md`
-- 2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234) → `archive/MEMORY-2026-10.md`
+- 2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234) → `archive/MEMORY-2026-10.md` – superseded by #340 (2026-11-21)
 - 2026-10-31 – plugin labels mark only unsaved (#232); a toggle per pass and the UI principle (#233) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – the trial report names the phone model (#235) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – a MINOR never breaks an older app (#220); rules per package (#221) → `archive/MEMORY-2026-10.md`
