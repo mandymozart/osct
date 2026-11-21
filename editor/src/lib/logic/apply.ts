@@ -1,6 +1,6 @@
 import {
   BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NODE_ACTIONS, BEHAVIOUR_TYPE, behaviourData, behaviourRules, isBehaviourNodeEvent,
-  type BehaviourAction, type BehaviourRule, type ComponentData, type EntityData, type LogicCanvas,
+  type BehaviourAction, type BehaviourRule, type ComponentData, type EntityData, type LogicCanvas, type LogicCanvasGroup,
 } from "@engine/types";
 import { CAMEL_CASE_NAME } from "@shared/guards/primitives";
 import { expressionVariables } from "@shared/text/expressions";
@@ -9,6 +9,7 @@ import type { VariableInfo, VariableType } from "@shared/types/variables";
 import { appendCondition, literalOf, newAction, pathOfName, removeConditionTerms, rulesOf, setValueProblems, typeWord, whenProblems, withAction, withRules } from "#lib/behaviour-edit.js";
 import { nodeLabel } from "#lib/tree.js";
 import { nodeAt, withNode } from "#lib/values.js";
+import { GROUP_COLOURS, snap } from "./signals";
 import { conditionWords, experienceProblems, logicRuleLabel, logicTypes, project, type LogicContent, type ProjectOptions } from "./project";
 import { typeTakes, typeWords } from "./spec-ports";
 import type { CanvasEdit, Context, GraphEdge, GraphNode, Home, Op, PortSpec, PortType, Problem, RulePlace, RuleRef, View } from "./types";
@@ -38,7 +39,9 @@ import type { CanvasEdit, Context, GraphEdge, GraphNode, Home, Op, PortSpec, Por
  * needs a field to land in (L1): a rule's do into a node's **action inlet** (`act:play`) writes that verb on the node; a
  * node's **event outlet** (`ev:ended`) into a rule's `on` makes the rule hear that event by name; a **parameter inlet** has
  * no rule action yet, and a **file inlet** waits for file nodes (L-T12) – both are refused with the reason. The canvas ops
- * `expose` and `hideUnused` change the level's canvas (`LogicCanvas.exposed` of the scene, or the experience's).
+ * change the level's canvas (the scene's `LogicCanvas`, or the experience's): `expose` and `hideUnused` its exposed ports,
+ * and (L-T7, schema 5.2) `place` / `tidy` its pinned boxes, `fold` a box to its head, `group` / `renameGroup` /
+ * `groupColour` / `foldGroup` the deck's groups – saved like a rule's edit, so History lists them and Undo takes them back.
  */
 
 /** A tree an op changed: the target's whole new entity */
@@ -608,37 +611,131 @@ const disconnect = (draft: Draft, view: View, context: Context, id: string, opti
 const canvasHome = (context: Exclude<Context, { level: "group" }>): { doc: "scene"; scene: string } | { doc: "experience" } =>
   context.level === "experience" ? { doc: "experience" } : { doc: "scene", scene: context.scene };
 
-/** `expose` and `hideUnused`: which ports the level's boxes show beyond their wired ones (`LogicCanvas.exposed`) */
+/** A canvas without its empty fields; undefined when nothing is left */
+const leanCanvas = (canvas: LogicCanvas): LogicCanvas | undefined => {
+  const next: LogicCanvas = {};
+  if (canvas.groups?.length) next.groups = canvas.groups;
+  if (canvas.notes?.length) next.notes = canvas.notes;
+  if (canvas.folds?.length) next.folds = canvas.folds;
+  if (canvas.exposed && Object.keys(canvas.exposed).length) next.exposed = canvas.exposed;
+  if (canvas.positions && Object.keys(canvas.positions).length) next.positions = canvas.positions;
+  return Object.keys(next).length ? next : undefined;
+};
+
+/** A group's name for the status line */
+const groupName = (group: LogicCanvasGroup) => group.label || group.id;
+
+/**
+ * The canvas ops (`LogicCanvas` of the level's scene, or the experience's): `expose` / `hideUnused` – which ports the
+ * level's boxes show beyond their wired ones (L-T6); `place` / `tidy` – boxes pinned over the layout on the 1rem grid, or
+ * the pins dropped (L-T7); `fold` – a box to its head; `group`, `renameGroup` (empty: the group goes), `groupColour`,
+ * `foldGroup` – the deck's groups (a box in one group at most, no nesting)
+ */
 const canvasEdit = (draft: Draft, context: Exclude<Context, { level: "group" }>, edit: CanvasEdit, options: ProjectOptions): OpResult => {
-  if (edit.edit !== "expose" && edit.edit !== "hideUnused") return refuse("Canvas edits (groups, notes) are not here yet.");
   const home = canvasHome(context);
-  const canvas = home.doc === "experience" ? draft.content.canvas : draft.content.scenes.find(s => s.id === home.scene)?.canvas;
   if (home.doc === "scene" && !draft.content.scenes.some(s => s.id === home.scene)) return refuse(`There is no scene ${home.scene}.`);
-  const exposed: Record<string, string[]> = { ...(canvas?.exposed ?? {}) };
+  const canvas: LogicCanvas = (home.doc === "experience" ? draft.content.canvas : draft.content.scenes.find(s => s.id === home.scene)?.canvas) ?? {};
   const view = project(draft.content, context, options);
-  let words: string;
-  if (edit.edit === "expose") {
-    const box = view.nodes.find(n => n.id === edit.box);
-    if (!box) return refuse("That box is not at this level.");
-    const ports = edit.ports.map(id => box.ports.find(p => p.id === id && p.kind));
-    const missing = edit.ports.find((_, i) => !ports[i]);
-    if (missing !== undefined) return refuse(`${box.label} has no port ${missing}.`);
-    const fresh = edit.ports.filter(id => !(exposed[box.id] ?? []).includes(id));
-    if (!fresh.length) return refuse(`${box.label} shows ${edit.ports.length === 1 ? "that port" : "those ports"} already.`);
-    exposed[box.id] = [...(exposed[box.id] ?? []), ...fresh];
-    words = `${box.label} shows ${ports.map(p => p!.label).join(", ")} – unused, it hides again with Hide unused ports.`;
-  } else {
-    const boxes = edit.box ? view.nodes.filter(n => n.id === edit.box) : view.nodes;
-    if (edit.box && !boxes.length) return refuse("That box is not at this level.");
-    const cleared = boxes.filter(n => exposed[n.id]?.length);
-    if (!cleared.length) return refuse(edit.box ? `${boxes[0].label} shows only its wired ports already.` : "Every box here shows only its wired ports already.");
-    cleared.forEach(n => delete exposed[n.id]);
-    words = edit.box ? `${boxes[0].label} shows only its wired ports again.` : `${cleared.length === 1 ? "One box shows" : `${cleared.length} boxes show`} only their wired ports again.`;
+  const boxOf = (id: string) => view.nodes.find(n => n.id === id);
+  const groups = canvas.groups ?? [];
+  const groupOf = (id: string) => groups.find(g => g.id === id);
+  const save = (next: LogicCanvas, words: string) => {
+    draft.setCanvas(home, leanCanvas(next));
+    return draft.done(words, options);
+  };
+  switch (edit.edit) {
+    case "expose":
+    case "hideUnused": {
+      const exposed: Record<string, string[]> = { ...(canvas.exposed ?? {}) };
+      let words: string;
+      if (edit.edit === "expose") {
+        const box = boxOf(edit.box);
+        if (!box) return refuse("That box is not at this level.");
+        const ports = edit.ports.map(id => box.ports.find(p => p.id === id && p.kind));
+        const missing = edit.ports.find((_, i) => !ports[i]);
+        if (missing !== undefined) return refuse(`${box.label} has no port ${missing}.`);
+        const fresh = edit.ports.filter(id => !(exposed[box.id] ?? []).includes(id));
+        if (!fresh.length) return refuse(`${box.label} shows ${edit.ports.length === 1 ? "that port" : "those ports"} already.`);
+        exposed[box.id] = [...(exposed[box.id] ?? []), ...fresh];
+        words = `${box.label} shows ${ports.map(p => p!.label).join(", ")} – unused, it hides again with Hide unused ports.`;
+      } else {
+        const boxes = edit.box ? view.nodes.filter(n => n.id === edit.box) : view.nodes;
+        if (edit.box && !boxes.length) return refuse("That box is not at this level.");
+        const cleared = boxes.filter(n => exposed[n.id]?.length);
+        if (!cleared.length) return refuse(edit.box ? `${boxes[0].label} shows only its wired ports already.` : "Every box here shows only its wired ports already.");
+        cleared.forEach(n => delete exposed[n.id]);
+        words = edit.box ? `${boxes[0].label} shows only its wired ports again.` : `${cleared.length === 1 ? "One box shows" : `${cleared.length} boxes show`} only their wired ports again.`;
+      }
+      return save({ ...canvas, exposed }, words);
+    }
+    case "place": {
+      const ids = Object.keys(edit.positions);
+      if (!ids.length) return refuse("Nothing was moved.");
+      const away = ids.find(id => !boxOf(id));
+      if (away) return refuse("That box is not at this level – only the level's own boxes are placed.");
+      const wrong = ids.find(id => !Number.isFinite(edit.positions[id].x) || !Number.isFinite(edit.positions[id].y));
+      if (wrong) return refuse(`${boxOf(wrong)!.label}: no place to pin it to.`);
+      const positions = { ...(canvas.positions ?? {}) };
+      for (const id of ids) positions[id] = { x: snap(edit.positions[id].x), y: snap(edit.positions[id].y) };
+      const names = ids.map(id => boxOf(id)!.label);
+      return save({ ...canvas, positions }, `${names.length === 1 ? names[0] : `${names.length} boxes`} pinned where you let go – Tidy lays the level out again.`);
+    }
+    case "tidy": {
+      const positions = { ...(canvas.positions ?? {}) };
+      const pinned = view.nodes.filter(n => positions[n.id]);
+      if (!pinned.length) return refuse("Nothing is pinned at this level – the layout places every box already.");
+      pinned.forEach(n => delete positions[n.id]);
+      return save({ ...canvas, positions }, `${pinned.length === 1 ? "One box" : `${pinned.length} boxes`} back in the layout.`);
+    }
+    case "fold": {
+      const box = boxOf(edit.box);
+      if (!box) return refuse("That box is not at this level.");
+      const folds = new Set(canvas.folds ?? []);
+      if (folds.has(box.id) === edit.folded) return refuse(`${box.label} is ${edit.folded ? "folded" : "open"} already.`);
+      if (edit.folded) folds.add(box.id);
+      else folds.delete(box.id);
+      return save({ ...canvas, folds: [...folds] }, `${box.label} ${edit.folded ? "folded to its head" : "open again"}.`);
+    }
+    case "group": {
+      const ids = [...new Set(edit.boxes)];
+      if (!ids.length) return refuse("Select the boxes to group first (Shift adds to the selection).");
+      const away = ids.find(id => !boxOf(id));
+      if (away) return refuse("Only the level's own boxes group – not a stub or a folded group.");
+      // A box leaves its old group; a group left without boxes goes
+      const left = groups.map(g => ({ ...g, members: g.members.filter(m => !ids.includes(m)) })).filter(g => g.members.length);
+      let n = 1;
+      while (left.some(g => g.id === `group-${n}`)) n++;
+      const usedColours = new Set(left.map(g => g.colour));
+      const colour = GROUP_COLOURS.find(c => !usedColours.has(c)) ?? GROUP_COLOURS[left.length % GROUP_COLOURS.length];
+      const group: LogicCanvasGroup = { id: `group-${n}`, label: `group ${n}`, members: ids, colour };
+      return save({ ...canvas, groups: [...left, group] }, `${ids.length === 1 ? boxOf(ids[0])!.label : `${ids.length} boxes`} grouped as ${group.label} – click its name to rename it.`);
+    }
+    case "renameGroup": {
+      const group = groupOf(edit.group);
+      if (!group) return refuse("That group is not there any more.");
+      const label = edit.label.trim();
+      if (!label) return save({ ...canvas, groups: groups.filter(g => g !== group) }, `${groupName(group)} removed – its boxes stay where they are.`);
+      if (label === group.label) return refuse(`${label} is its name already.`);
+      return save({ ...canvas, groups: groups.map(g => (g === group ? { ...g, label } : g)) }, `${groupName(group)} renamed to ${label}.`);
+    }
+    case "groupColour": {
+      const group = groupOf(edit.group);
+      if (!group) return refuse("That group is not there any more.");
+      const at = GROUP_COLOURS.indexOf((group.colour ?? GROUP_COLOURS[groups.indexOf(group) % GROUP_COLOURS.length]) as (typeof GROUP_COLOURS)[number]);
+      const colour = GROUP_COLOURS[(at + 1) % GROUP_COLOURS.length];
+      return save({ ...canvas, groups: groups.map(g => (g === group ? { ...g, colour } : g)) }, `${groupName(group)} has its next colour.`);
+    }
+    case "foldGroup": {
+      const group = groupOf(edit.group);
+      if (!group) return refuse("That group is not there any more.");
+      if (!!group.folded === edit.folded) return refuse(`${groupName(group)} is ${edit.folded ? "folded" : "open"} already.`);
+      const { folded: _was, ...rest } = group;
+      return save({ ...canvas, groups: groups.map(g => (g === group ? (edit.folded ? { ...rest, folded: true } : rest) : g)) },
+        `${groupName(group)} ${edit.folded ? "folded to one pill – its wires end on it" : "open again"}.`);
+    }
+    default:
+      return refuse("Canvas edits for free nodes are not here yet.");
   }
-  const { exposed: _old, ...rest } = canvas ?? {};
-  const next: LogicCanvas = Object.keys(exposed).length ? { ...rest, exposed } : rest;
-  draft.setCanvas(home, Object.keys(next).length ? next : undefined);
-  return draft.done(words, options);
 };
 
 /** Apply an op to the documents, at the level `context` (see the module's comment) */

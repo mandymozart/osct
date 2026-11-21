@@ -33,38 +33,66 @@ final class Export
         Editor::user();
         Experiences::exists($experienceId);
         $build = $_GET['build'] ?? null;
-        $versionBase = null;
-        if ($build === null || $build === '') {
-            $version = ContentVersion::assemble($experienceId);
-            $configuration = $version['configuration'];
-            $files = $version['files'];
-            $source = ['kind' => 'draft'];
-            $hash = $version['hash'];
-            $build = $version['build'];
-            $schema = $version['schema'];
-        } else {
-            if (!is_string($build) || !preg_match(ContentStore::BUILD, $build)) throw new ApiError(400, 'invalid-build', 'build must be a published build (12 hex digits).');
-            $row = Db::one('SELECT v.env, v.hash, v.published_at, u.email FROM experience_versions v LEFT JOIN users u ON u.id = v.published_by WHERE v.experience_id = :experience AND v.build = :build ORDER BY v.published_at DESC LIMIT 1',
-                ['experience' => $experienceId, 'build' => $build]);
-            if (!$row) throw new ApiError(404, 'unknown-build', "The publish log has no version $build of this experience.");
-            $env = (string) $row['env'];
-            $store = ContentStore::for($env, $experienceId);
-            $configuration = self::json($store->get("$build/game.config.json"));
-            if (!$configuration instanceof stdClass) throw new ApiError(404, 'build-missing', "Version $build is in the publish log, but $env's content store has no readable game.config.json of it.", ['env' => $env]);
-            $files = self::json($store->get("$build/files.json"));
-            if (!$files instanceof stdClass) $files = new stdClass();
-            $source = ['kind' => 'published', 'env' => $env, 'publishedAt' => Editor::iso((int) $row['published_at']), 'publishedBy' => $row['email']];
-            $version = $configuration->version ?? null;
-            $hash = $version instanceof stdClass && is_string($version->hash ?? null) ? $version->hash : (string) $row['hash'];
-            $schema = $version instanceof stdClass && is_string($version->schema ?? null) ? $version->schema : '';
-            // A Code tab plugin the publish carried lies in the version's own folder (its `src` a content path, #78)
-            foreach (ContentStore::describe() as $described) {
-                if ($described['env'] === $env && $described['url'] !== null) $versionBase = rtrim($described['url'], '/') . "/$experienceId/$build";
-            }
-        }
+        Http::json(200, self::data($experienceId, is_string($build) && $build !== '' ? $build : null, $build !== null && !is_string($build)));
+    }
 
+    /**
+     * The answer of the endpoint: the draft (`$build` null) or a published build as the content store holds it
+     * @return array<string, mixed>
+     */
+    public static function data(string $experienceId, ?string $build, bool $invalid = false): array
+    {
+        if ($build === null && !$invalid) {
+            $version = ContentVersion::assemble($experienceId);
+            return self::answer($experienceId, ['kind' => 'draft'], $version['build'], $version['hash'], $version['schema'], $version['configuration'], $version['files'], null);
+        }
+        if ($build === null || !preg_match(ContentStore::BUILD, $build)) throw new ApiError(400, 'invalid-build', 'build must be a published build (12 hex digits).');
+        $row = Db::one('SELECT v.env, v.hash, v.published_at, u.email FROM experience_versions v LEFT JOIN users u ON u.id = v.published_by WHERE v.experience_id = :experience AND v.build = :build ORDER BY v.published_at DESC LIMIT 1',
+            ['experience' => $experienceId, 'build' => $build]);
+        if (!$row) throw new ApiError(404, 'unknown-build', "The publish log has no version $build of this experience.");
+        $env = (string) $row['env'];
+        $store = ContentStore::for($env, $experienceId);
+        $configuration = self::json($store->get("$build/game.config.json"));
+        if (!$configuration instanceof stdClass) throw new ApiError(404, 'build-missing', "Version $build is in the publish log, but $env's content store has no readable game.config.json of it.", ['env' => $env]);
+        $files = self::json($store->get("$build/files.json"));
+        if (!$files instanceof stdClass) $files = new stdClass();
+        $source = ['kind' => 'published', 'env' => $env, 'publishedAt' => Editor::iso((int) $row['published_at']), 'publishedBy' => $row['email']];
+        $version = $configuration->version ?? null;
+        $hash = $version instanceof stdClass && is_string($version->hash ?? null) ? $version->hash : (string) $row['hash'];
+        $schema = $version instanceof stdClass && is_string($version->schema ?? null) ? $version->schema : '';
+        return self::answer($experienceId, $source, $build, $hash, $schema, $configuration, $files, self::versionBase($env, $experienceId, $build));
+    }
+
+    /**
+     * The answer for a version a publish is writing (the export archive, `ExportArchive`): its configuration and files as
+     * they go into the store, not read back. `publishedBy` stays out – the archive lies where readers can reach it.
+     * @param array{configuration: stdClass, files: stdClass, build: string, hash: string, schema: string} $version
+     * @return array<string, mixed>
+     */
+    public static function ofPublish(string $experienceId, array $version, string $env, string $publishedAt): array
+    {
+        $source = ['kind' => 'published', 'env' => $env, 'publishedAt' => $publishedAt, 'publishedBy' => null];
+        return self::answer($experienceId, $source, $version['build'], $version['hash'], $version['schema'], $version['configuration'], $version['files'], self::versionBase($env, $experienceId, $version['build']));
+    }
+
+    /** Where a published build's own files lie for readers (`<environment URL>/<experience>/<build>`), null when unknown */
+    public static function versionBase(string $env, string $experienceId, string $build): ?string
+    {
+        // A Code tab plugin the publish carried lies in the version's own folder (its `src` a content path, #78)
+        foreach (ContentStore::describe() as $described) {
+            if ($described['env'] === $env && $described['url'] !== null) return rtrim($described['url'], '/') . "/$experienceId/$build";
+        }
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $source
+     * @return array<string, mixed>
+     */
+    private static function answer(string $experienceId, array $source, string $build, string $hash, string $schema, stdClass $configuration, stdClass $files, ?string $versionBase): array
+    {
         [$list, $layout] = self::files($experienceId, $configuration, $files, $versionBase);
-        Http::json(200, [
+        return [
             'experience' => $experienceId,
             'source' => $source,
             'build' => $build,
@@ -78,7 +106,7 @@ final class Export
             'layout' => $layout,
             'plugins' => Plugins::sources($experienceId),
             'credits' => (object) Assets::creditsOf($experienceId),
-        ]);
+        ];
     }
 
     /**

@@ -225,7 +225,20 @@ Verbatim from the archived entries (the entry title and archive file in front of
   immutable (same build, same folder), written by the publish (trigger: every publish of that environment; the CLI
   `osct content export --archive` for a manual one). The media are not copied: `export.json` names the build's
   immutable content files, so the build's purge keeps every build an export still needs (the newest export per
-  experience at least). Details in the ticket (#322 T-archive). Not started.
+  experience at least). Details in the ticket (#322 T-archive). Built on `feature/322-export-archive` (2026-11-21):
+  `ExportArchive.php` (the PHP copy of the export plan, compared with content-export.ts by
+  `scripts/test/export-archive.test.ts`), written after `latest.json` (a failure does not fail the publish); purge keeps
+  the builds the newest archive per environment names. The archive names no person (`publishedBy` null – readable through
+  the pull zone). Open: a restore command (download export.json's files into place); old archives keep naming builds a
+  purge has removed (only the newest per environment is protected).
+
+## 2026-11-21 – Do not run `content move --delete-old` yet (#87)
+
+- The staging demo's draft still names files in the old folders (`https://buildingfictions.b-cdn.net/demo/<build>/…`,
+  e.g. entry targets' `imageSrc`). `--delete-old` on `demo/` (and likely `staging/`) would break those references.
+  First rewrite the draft's references to the store per experience (or the Library), then delete.
+- Staging demo data fixed by the orchestrator on 2026-11-21: `tally` and `colophon` `of: "book"` → `"experience"`; the
+  key's rule `on: keyRattled` (it emitted keyRattled itself – a loop) → `on: tap` (Tilman: "Ja, auf tap").
 
 ## 2026-11-21 – Demo plugins stuck at plugin API 1.6 on staging
 

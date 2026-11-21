@@ -14,6 +14,9 @@
  *                                                          (one-off: the layout before #87 into the store per experience)
  *   osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]
  *                                                          (the database → the content source folder, docs/content.md "Export")
+ *   osct content export --archive --env <env> --experience <id> [--dry-run]
+ *                                                          (the export archive of the build live in <env>, written into its store –
+ *                                                          docs/content.md "Export archive")
  *   osct targets prepare --experience <id> [--dry-run] [--force] [--all]
  *   osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>] [--name <name>]
  *                        [--apply] [--overwrite] [--all] [--cache <dir>]   (a publisher's delivery into the draft, #322)
@@ -64,6 +67,7 @@ import { StorageClient } from './lib/storage';
 import { deleteMoved, describeMove, experienceOf, moveProblems, planMove, runMove } from './lib/content-move';
 import { APP_VERSION, CONTENT_DIR, DEMO_REFUSED_ENV } from './config';
 import { planExport, runExport } from './lib/content-export';
+import { archivedBuilds, newestArchives, runArchive } from './lib/export-archive';
 import { parseMapping, type LayoutLike } from './lib/delivery-plan';
 import { DeliveryProblems, deliveryApi, runDeliveryImport } from './lib/delivery-import';
 import type { ExperienceExport } from '../../shared/api/editor';
@@ -74,7 +78,7 @@ import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAM
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const OPTIONS = {
-  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite'],
+  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite', 'archive'],
   values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base', 'files', 'layout', 'name', 'cache'],
 };
 /** The local dev API (as the MCP server's default) */
@@ -90,7 +94,8 @@ const USAGE = `osct – content command line
   osct content sync --env <env> [--force] [--dry-run] [--without-videos]
                                                upload the build as a version of its experience and make it current
   osct content purge --env <env> --experience <id> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
-                                               delete old versions that are provably out of use
+                                               delete old versions that are provably out of use – never exports/ and
+                                               never a build the newest export archive (of any environment) names
                                                (defaults: --min-age ${DEFAULT_PURGE.minAgeDays} --keep ${DEFAULT_PURGE.keep})
   osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]
                                                write the experience from the editor's database as a content source
@@ -101,6 +106,13 @@ const USAGE = `osct – content command line
                                                --force; files whose sha256 export.json already has are kept, not
                                                downloaded again; --assets-base resolves content paths without a host
                                                (default the experience's assetsBase, else the API's origin). OSCT_API_URL, OSCT_EDITOR_TOKEN
+  osct content export --archive --env <env> --experience <id> [--dry-run]
+                                               the export archive of the build live in <env> (its latest.json on the
+                                               storage) into <title>/<env>/<experience>/exports/<build>/ – YAML, plugin
+                                               sources, EXPORT.md, export.json naming the media by URL (none copied);
+                                               an archive that is there is not written again (a publish writes one
+                                               itself). The build must be in the instance's publish log. OSCT_API_URL,
+                                               OSCT_EDITOR_TOKEN and the storage variables
   osct targets prepare --experience <id> [--dry-run] [--force] [--all]
                                                make the targets' recognition data ahead (#306) on an instance
                                                (--all: switched-off targets too):
@@ -175,6 +187,7 @@ const storage = () =>
  * as a content source folder (lib/content-export.ts)
  */
 async function exportCommand(cli: CliArgs): Promise<void> {
+  if (cli.flag('archive')) return archiveCommand(cli);
   const experience = requiredExperience(cli);
   const out = cli.option('out') ? path.resolve(cli.option('out')!) : CONTENT_DIR;
   if (!out) throw new Error('Name the folder: --out <dir> (or OSCT_CONTENT_DIR)');
@@ -211,6 +224,35 @@ async function exportCommand(cli: CliArgs): Promise<void> {
   result.record.problems.forEach(problem => console.warn(`   ⚠️  ${problem}`));
   console.log(`✅ ${result.out}: ${plan.texts.size} source files, ${result.record.files.length} files (${result.downloaded} downloaded, ${result.kept} kept from the previous export)` +
     ` – build ${data.build}, hash ${data.hash.slice(0, 12)}${data.unknown ? `, ${data.unknown} files the instance knows nothing of` : ''}`);
+}
+
+/**
+ * `osct content export --archive --env <env>` (#322): the export archive of the build live in the environment (its store's
+ * latest.json), from the export endpoint's answer for that build, written into the store (lib/export-archive.ts)
+ */
+async function archiveCommand(cli: CliArgs): Promise<void> {
+  const experience = requiredExperience(cli);
+  const env = environment(cli);
+  const root = storeRoot(title(), env, experience);
+  const client = storage();
+  const raw = await client.get(`${root}/latest.json`);
+  const build = raw ? (JSON.parse(Buffer.from(raw).toString('utf8')) as { build?: string }).build : undefined;
+  if (!build || !/^[0-9a-f]{12}$/.test(build)) throw new Error(`${root}/latest.json names no build – nothing is live to archive`);
+  const apiUrl = (process.env.OSCT_API_URL?.trim() || LOCAL_API).replace(/\/+$/, '');
+  const token = required('OSCT_EDITOR_TOKEN');
+  const route = `/editor/experiences/${encodeURIComponent(experience)}/export?build=${build}`;
+  const response = await fetch(`${apiUrl}${route}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error(`GET ${route} → ${response.status} ${(await response.text().catch(() => '')).slice(0, 300)}`);
+  const data = (await response.json()) as ExperienceExport;
+  const plan = planExport(data);
+  console.log(`🗄️  ${experience}: the archive of build ${build} (${env}) → ${root}/exports/${build}/ – ${plan.texts.size} source files, ${plan.downloads.size} files named`);
+  plan.problems.forEach(problem => console.warn(`   ⚠️  ${problem}`));
+  if (cli.flag('dry-run')) {
+    console.log('Dry run – nothing written.');
+    return;
+  }
+  const result = await runArchive(client, root, data, plan, { instance: apiUrl, title: title(), env, writtenBy: 'cli' });
+  console.log(result.written ? `✅ ${result.path}/ written (builds it names: ${result.record.builds.map(b => `${b.env}/${b.build}`).join(', ')})` : `✅ ${result.path}/ is there already – an archive is never written again`);
 }
 
 /**
@@ -436,14 +478,18 @@ async function main(): Promise<void> {
       // Strict: what the CDN serves counts as in use, so the check needs the CDN URL
       if (!url) throw new Error('OSCT_CONTENT_BASE_URL is not set – purge checks which version the CDN serves');
       const client = storage();
-      const [state, seen] = await Promise.all([readStore(client, root), cdnManifest(url)]);
+      const [state, seen, archives] = await Promise.all([readStore(client, root), cdnManifest(url), newestArchives(client, title(), experience)]);
       if (!seen.manifest && !seen.status.startsWith('404')) {
         throw new Error(`The CDN's latest.json could not be read (${seen.status}) – nothing is purged without knowing what it serves`);
       }
+      // The builds the newest export archive of the experience needs (#322): unreadable archives stop the purge
+      if (archives.unreadable.length) throw new Error(`Export archives without a readable export.json: ${archives.unreadable.join(', ')} – nothing is purged without knowing what they name`);
+      archives.newest.forEach(({ env: archiveEnv, record }) => console.log(`🗄️  newest export archive in ${archiveEnv}: ${record.build} (${record.exportedAt}) names ${record.builds.map(b => `${b.env}/${b.build}`).join(', ')}`));
       const plan = planPurge(state, seen.manifest?.build ?? null, Date.now(), {
         minAgeDays: cli.number('min-age', DEFAULT_PURGE.minAgeDays),
         keep: cli.number('keep', DEFAULT_PURGE.keep),
         unknown: flag('unknown'),
+        archived: archivedBuilds(archives, env),
       });
       console.log(`🌐 CDN latest.json: ${seen.manifest?.build ?? seen.status}`);
       describePurge(plan).forEach(line => console.log(line));
