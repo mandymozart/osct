@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 4.6.0 – 2026-11-21
 
 ### Added
 - The editor's Logic canvas in the SCUTOONS deck's look (#334 L-T7 / L-T8, docs/editor.md "The deck's canvas"): boxes are
