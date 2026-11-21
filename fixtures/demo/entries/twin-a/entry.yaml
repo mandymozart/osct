@@ -1,14 +1,14 @@
-# One of two targets that share the entity `beacon` (entities/beacon): the same tree, placed by the entity's params.
 category: glossary
 title: The twins (A)
 scene: the-twins
-body: "The shared entity `beacon` – the same tree as on page 8, with its own placement and a spinning model."
-tags: [shared]
+body: The shared entity `beacon` – the same tree as on page 8, with its own placement and a spinning model.
+tags:
+  - shared
 target:
   image: target.jpg
-  place:
-    x: 60
-    y: 100
-    width: 80
   entity:
     ref: beacon
+  place:
+    x: 60
+    "y": 100
+    width: 80

@@ -1,0 +1,26 @@
+label: Cat Pope poster (SCUTOONS test)
+order: 9
+surfaces:
+  - id: poster
+    label: Cat Pope poster, A3
+    widthMm: 297
+    heightMm: 420
+    place:
+      x: 0
+      "y": 210
+      z: 0
+      rx: 90
+      ry: 0
+      rz: 0
+logic:
+  rules: []
+  canvas:
+    exposed:
+      node:catpope/1:
+        - src
+        - act:show
+        - act:hide
+      node:catpope/0:
+        - src
+        - act:show
+        - act:hide

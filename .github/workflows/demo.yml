@@ -1,12 +1,10 @@
-# The demo book (fixtures/demo, agents/research/2026-10-30-demo-book.md) on the CDN: built like the book's content
-# and synced to staging as an experience of its own – the store `<title>/staging/demo/` next to the book's (#87), so it
-# never touches the book's current version; never to production (the CLI refuses a demo build there). The staging
-# reader opens it at https://osct.porschuetz.de/x/demo/, the staging editor imports it from the CDN (experience demo,
-# docs/editor.md "Try it"). Runs by hand, and on a push to develop that touches the demo or what it is built with.
-#
-# Storage access comes from the GitHub environment "staging" (docs/content-cdn.md): OSCT_BUNNY_STORAGE_ZONE,
-# OSCT_BUNNY_STORAGE_ENDPOINT, OSCT_BUNNY_STORAGE_PASSWORD, OSCT_TITLE; the sync checks the CDN at
-# OSCT_CONTENT_BASE_URL/demo (#33: the names without OSCT_ are still read as a fallback until the environment is renamed).
+# The demo (fixtures/demo, agents/research/2026-10-30-demo-book.md) is checked here, not synced: since #322 decision (b)
+# the demo lives in the staging database like the book – edited in the staging editor and published with its Publish
+# button – and fixtures/demo is its committed export (`osct content export --experience demo`, docs/content.md "Export").
+# A sync from here would compete with the editor's Publish and overwrite what was published there, so this workflow only
+# builds the export with the current engine and scripts: a push that breaks the demo fails here. The CLI still refuses a
+# demo build for production (`DEMO.md`, docs/content-cdn.md). Runs by hand, and on a push to develop that touches the demo
+# or what it is built with.
 name: Demo book
 
 on:
@@ -19,11 +17,6 @@ on:
       - "scripts/**"
       - ".github/workflows/demo.yml"
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Only show what the sync would upload"
-        type: boolean
-        default: false
 
 concurrency:
   group: content-demo
@@ -31,22 +24,13 @@ concurrency:
 
 jobs:
   demo:
-    name: Build and sync the demo book
+    name: Build and check the demo
     runs-on: ubuntu-latest
-    environment: staging
     defaults:
       run:
         working-directory: scripts
     env:
       OSCT_CONTENT_DIR: fixtures/demo
-      OSCT_CONTENT_ENV: staging
-      OSCT_TITLE: ${{ vars.OSCT_TITLE || 'osct' }}
-      OSCT_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL }}
-      OSCT_BUNNY_STORAGE_ZONE: ${{ vars.OSCT_BUNNY_STORAGE_ZONE }}
-      OSCT_BUNNY_STORAGE_ENDPOINT: ${{ vars.OSCT_BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ENDPOINT || vars.BUNNY_STORAGE_ZONE_ENDPOINT || 'storage.bunnycdn.com' }}
-      OSCT_BUNNY_STORAGE_PASSWORD: ${{ secrets.OSCT_BUNNY_STORAGE_PASSWORD }}
-      # The staging reader shows the demo (/x/demo/): the CDN check asks with its origin (CORS)
-      OSCT_APP_URL: https://osct.porschuetz.de
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,8 +40,5 @@ jobs:
           cache-dependency-path: scripts/package-lock.json
       - run: npm ci
       - run: npm run build
-      - name: Build the demo book
+      - name: Build the demo
         run: npm run build:content:force
-      # The experience is the build's (demo): <title>/staging/demo/
-      - name: Sync it to staging as the experience demo
-        run: npm run osct -- content sync --env staging --experience demo ${{ inputs.dry_run && '--dry-run' || '' }}

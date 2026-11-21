@@ -1,24 +1,24 @@
-# The screen: a video standing upright on the page like a screen, tinted (plugins/tint), slowly turning (plugins/spin)
-# and shown on a slightly bent sheet of paper (plugins/paper – the sheet is the model file next to it, a `model`
-# parameter). The video speaks – its sound is in the file – and has subtitles (#257): the files screen.<language>.vtt
-# beside it belong to it by their names, nothing here names them (the video and the files: editor/tools/narration-video.mjs).
 category: video
 title: The screen
 scene: the-switch
-body: "A video standing upright, its bottom edge on the paper, tinted gold and turning slowly around its own axis, on a slightly bent sheet of paper – a layer and two components on one node. The sheet is a model file the `paper` component takes: pick another in its row. The video speaks, and what it says shows as a subtitle line in your language: the files `screen.en.vtt`, `screen.de.vtt`, `screen.fr.vtt` and `screen.nl.vtt` lie beside `screen.mp4` and belong to it by their names."
-tags: [placement, layer, subtitles]
+body: A video standing upright, its bottom edge on the paper, tinted gold and turning slowly around its own axis – a layer and a component on one node.
+tags:
+  - placement
+  - layer
 target:
   image: target.jpg
-  place:
-    x: 300
-    y: 100
-    width: 90
   entity:
     type: video
-    src: screen.mp4
+    src: v1.mp4
     params:
-      rotation: [90, 0, 0]
-      position: [0, 0, 0.2535]  # half the plane's height (160 / 284 × 0.9): its bottom edge on the page (#189)
+      rotation:
+        - 90
+        - 0
+        - 0
+      position:
+        - 0
+        - 0
+        - 0.2535
       scale: 0.9
     components:
       - type: tint
@@ -27,4 +27,8 @@ target:
       - type: spin
         degreesPerSecond: 15
       - type: paper
-        sheet: sheet.glb
+        sheet: /assets/content/entries/screen/v1.glb
+  place:
+    x: 300
+    "y": 100
+    width: 90

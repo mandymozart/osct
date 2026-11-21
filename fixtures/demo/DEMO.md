@@ -1,9 +1,30 @@
 # The demo – a sandbox, not the book
 
-`fixtures/demo/` is the **demo** (`demo`, an experience without a printed book): every node type, placement, filter and component the content model has,
-fourteen plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and two
+`fixtures/demo/` is the **demo** (`demo`, *The Demo Book*): every node type, placement, filter and component the content model has,
+twenty plugins that use every part of the plugin API (node types of their own among them, `sparkle`, `aquarium` and `inkPainting`, and two
 post-processing passes, `filmGrain` and `scanLines`), and a
 narrative across its scenes – a key tapped on one page opens a door on another, a lamp lights when the door opened, a tally counts the pages found, a tap switches a scene.
+
+**Where it lives** (#322 decision (b), as in SCUTOONS): the demo is the staging database's experience `demo`, edited in
+the staging editor and published with its Publish button. This folder is its **export** (`osct content export
+--experience demo --from draft`, `EXPORT.md` says from which build) – do not edit the YAML by hand, change the demo in the
+editor and export it again. An export writes no YAML comments, so what each part shows is written down here; this file
+is carried over by every export. CI only builds the folder (`.github/workflows/demo.yml`), it does not sync it.
+
+**The scenes**: *Cover* (the seal), *1–2 The key* (the key, the aquarium, the tally, about the demo), *3–4 The door*
+(the door and the lamp), *5–6 The switch* (the switch, the speaking screen, the ink painting, a link), *7–8 The twins*
+(two targets sharing the entity `beacon` with its `sparkle` node), *9–10 Mark the Page* (Kévin's rig: the paper baked
+frame by frame from Blender, its clip `speak` playing while the page is found), *11–12* (empty, a page to try things
+on), *Back cover* (the colophon), and the *Cat Pope poster (SCUTOONS test)* on an A3 surface – the poster's figures
+lift off the print and float in front of it as cut-outs, each with the shadow of its own outline on the paper
+(`plugins/cutout-shadow`, the shared entity `catpope-overlay`).
+
+**The plugins added in the editor**: `contact-shadow` (a soft shadow under a node, after drei's ContactShadows),
+`cutout-shadow` (`cutout` and `cutoutShadow` for flat pictures floating over their page), `hover` (a node bobs and drifts
+like a hoverboard), `toon` (two flat tones and a drawn outline – the Cat Pope test), `my-model-look` and
+`my-sparkle-look` (made with *make material code* from a model's and a sparkle's look – the key wears `myModelLook`),
+and `lifts` (the looks `fadeCode` and `printLiftCode`, the experience's *found* and *lost* next to `reveal`'s
+`revealCode`).
 
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
 model's clip `rattle`, sets `hasKey` in the experience scope and emits `keyRattled`; the door's rules show its `hint` child
@@ -90,12 +111,14 @@ for promotion, re-check the NC clause first.
 **The zero plane** (#189): every model stands on its page – its lowest point at the target's `z = 0`. The beacon's model
 has its origin in its middle (lifted by its lower half, `position: [0, 0, 0.9973]`), the door's floor sat 0.0188 above
 its origin (`z -0.0103`), the standing videos (lamp, screen) are lifted by half their plane's height, the sparkle's ball
-rests on the page. The content build warns when a model floats or sinks; a test keeps the demo free of such warnings.
+rests on the page. The content build warns when a model floats or sinks; the demo's test names the models that still do
+in the exported content (#322): the Cat Pope figures (they float on purpose), the key (lifted by `z 0.1627`) and the mark
+(its baked frames dip just below the page).
 Build it with `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor (docs/editor.md "Try it"), read it in
 docs/plugins.md and `agents/research/2026-10-30-demo-book.md`. Most assets are the test fixture's small stand-ins (a
 "door" that is a stack of boxes): the demo shows mechanics, not art. The **key** is its own: a 7 KB brass key with one
 animation clip, `rattle`, which its behaviour plays on a tap (the `animation` component says how: once) – written by `editor/tools/key-model.mjs`
-(`node editor/tools/key-model.mjs` regenerates `entries/key/key.glb`; an editor test checks the file is the script's).
+(`node editor/tools/key-model.mjs` writes it; a changed key is uploaded in the editor and the demo exported again – the export holds it as the build optimised it).
 
 In the editor, the Inspector's *vars and events* (the scene selected) drives the narrative by hand: **tap** taps a found target without
 aiming at it (the key rattles and is taken, the switch changes its scene), the variables are editable and **set** adds
@@ -105,5 +128,5 @@ without the key's page), and the timeline lists every event with the time since 
 Next to it, `fixtures/content/` stays the **test fixture** – the tests and CI build that one. The demo is free to
 change with every idea.
 
-This file marks the demo: the content build copies it into the build output, and `osct content sync` uploads a build
-with it only to the environment `demo` (never `staging` or `production`, whose current version is the real experience's).
+This file marks the demo: the content build copies it into the build output, and `osct content sync` refuses a build
+with it for production.

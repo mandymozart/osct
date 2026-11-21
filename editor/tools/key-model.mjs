@@ -5,7 +5,9 @@
  *
  *     node editor/tools/key-model.mjs [out.glb]
  *
- * Writes the demo's `key.glb` unless another path is given.
+ * Writes the demo's `key.glb` unless another path is given. The demo lives in the staging database (#322): a changed key
+ * is uploaded in the editor, then the demo exported again – the export holds the file as the build optimised it
+ * (meshopt), so it is no longer byte for byte the script's.
  *
  * The model, in glTF's axes (Y up, Z towards the viewer) and the content's units (1 = the target's width, before the
  * node's `scale`): the tip at the origin, the shaft up the Y axis, a collar, the bow a ring in the XY plane on top

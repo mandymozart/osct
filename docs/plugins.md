@@ -964,7 +964,7 @@ characters), keep it small
 
 ## The demo: everything at once
 
-`fixtures/demo/` is a sandbox experience (without a printed book) that uses every node type, placement, filter and component, and fourteen plugins that
+`fixtures/demo/` is a sandbox experience – the staging database's demo, exported (#322) – that uses every node type, placement, filter and component, and twenty plugins that
 together use every part of the API – a narrative across its scenes (the key and the door with their `behaviour` rules,
 the door's opening and the lamp as plugin code, a tally of the pages found, a tap that switches a scene, a sparkle of its
 own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, a

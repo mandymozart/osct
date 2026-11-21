@@ -48,8 +48,8 @@ that note.
 
 ## Try it (the demo experience, or the fixture's studio scenes)
 
-The **demo experience** (`fixtures/demo/`, `DEMO.md`): six scenes that use every node type, placement, filter and
-component, fourteen plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
+The **demo experience** (`fixtures/demo/`, `DEMO.md` – the staging database's export since #322): nine scenes that use
+every node type, placement, filter and component, twenty plugins, and a narrative across its pages – the key on page 1 opens the door on page 3, the lamp
 lights when the door opened, a tally counts the pages found, a tap switches a scene ([plugins](plugins.md) "The demo
 experience", the note `agents/research/2026-10-30-demo-book.md`). The fixture's **studio scenes**
 (`fixtures/content/FIXTURE.md`, pages 28–31) are the smaller scene of every entity type, placement and filter. Locally,
@@ -77,7 +77,7 @@ with SQLite and the local content store:
    stage's right-click menu plays it again, *reset* in the scene's *vars and events* starts a new game – on *The door*
    the hint shows then; *set* `hasKey` (experience, true), switch the door off and on, and it opens without a visit to the
    key's page. Open *The switch* and click the entity on the stage: the next scene shows; its *post-processing* holds
-   *scanLines* switched off – the toggle in the pass's head turns the lines on. The **Code** tab lists the fourteen
+   *scanLines* switched off – the toggle in the pass's head turns the lines on. The **Code** tab lists the twenty
    plugins (compiled by the content build, their sources next to them): change one, **Run**, and the stage shows it.
    Move a node in the **Inspector** (type a scale, or press and slide) – the top bar says *Saved* a moment later –,
    then **Publish** – it goes to
@@ -96,12 +96,14 @@ On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the st
 `staging` GitHub environment ([deploy](deploy.md)); *Import an experience… → the CDN* takes the current version, publishing
 (to `staging · CDN`) writes a new one, and the staging reader sees it on its next start.
 
-**The demo experience on staging**: the workflow *Demo experience* (`.github/workflows/demo.yml`, by hand or on a push to
-`develop` that touches the demo) builds `fixtures/demo` and syncs it to staging as the experience **`demo`** – its own
-store `https://buildingfictions.b-cdn.net/osct/staging/demo/`, next to the book's (#87). In the staging editor:
-*Import an experience… → URL* with that base URL (the form takes the current version and its folder as *assets at*),
-then open its scenes. Publishing it there writes only the demo's store – the book stays what staging's readers get
-("A store per experience" below). On a phone, the staging reader opens it at `https://osct.porschuetz.de/x/demo/`
+**The demo experience on staging** lives in the staging database like the book (#322 decision (b), as in SCUTOONS):
+it is edited in the staging editor and its **Publish** writes the experience **`demo`** – its own store
+`https://buildingfictions.b-cdn.net/osct/staging/demo/`, next to the book's (#87); the book stays what staging's readers
+get ("A store per experience" below). `fixtures/demo` is its committed export – after a change worth keeping, export it
+again (`osct content export --experience demo --from draft --out ../fixtures/demo --force` against the staging API,
+[content](content.md) "Export") and commit. The workflow *Demo book* (`.github/workflows/demo.yml`) only builds that
+export as a check; it no longer syncs (that competed with the editor's Publish). A fresh instance gets the demo by
+*Import an experience… → URL* with the store's base URL, or from the folder. On a phone, the staging reader opens it at `https://osct.porschuetz.de/x/demo/`
 ([content on the CDN](content-cdn.md)).
 
 ## Experiences, import and publish

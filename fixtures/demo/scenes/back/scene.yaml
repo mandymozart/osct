@@ -1,6 +1,5 @@
-# The back cover: one surface, one page wide – the colophon and the tally of the whole experience.
-label: "Back cover"
-order: 4
+label: Back cover
+order: 8
 surfaces:
   - id: surface
     widthMm: 230

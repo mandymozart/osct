@@ -4,7 +4,7 @@ import type { PluginApi } from "osct-plugin-api";
  * Two looks, written as code: the engine's built-in `printLift` (a pale print lifts off the page and takes its colours)
  * and `fade`, as plugins – to copy and change, next to `plugins/reveal` (the dissolve). `registerAppearance` runs the
  * factory once per animation; `update(visible)` gets 0 → 1 when the entity appears (reveal, found) and 1 → 0 when the
- * page is lost (lost). Pick `printLiftCode` or `fadeCode` for a moment in the experience's appearance or on a node's
+ * page is lost (lost). Pick `printLiftCode` or `fadeCode` for a moment in the book's appearance or on a node's
  * reveal / found / lost component.
  *
  * Both fade the entity in with real transparency on copies of its materials (`materials()` – never the model's own,

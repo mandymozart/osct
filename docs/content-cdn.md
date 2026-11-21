@@ -29,7 +29,8 @@ and in it **one immutable folder per content version**, served through the pull 
 - `<env>` is `staging` or `production` (a local development API has `local`, in its directory store only).
 - `<experience>` is the configuration's `experience.id`: OSCT's book is `osct` (`osct/staging/osct/…`), the demo
   (`fixtures/demo`) is `demo` – an experience on staging like any other (`osct/staging/demo/…`), never on production
-  (the CLI refuses a demo build there).
+  (the CLI refuses a demo build there). Since #322 decision (b) the staging editor's Publish writes it, like the book's;
+  `fixtures/demo` is its committed export.
 
 **Several experiences per environment** (Tilman, 2026-11-20 – needed for Kévin's further works): a publish or sync
 writes only its experience's store, so it never replaces another experience for its readers; the editor's Publish
@@ -152,8 +153,9 @@ client/). **sync** runs where the content source is – by hand on that machine;
 run (a content repository's workflow?) is open. The workflow "Content" (`.github/workflows/content.yml`, Actions →
 Content → Run workflow: environment, status / purge, dry run on by default) takes the variables and the secret from
 the GitHub environment; it has no sync, because a checkout of this repository has no content. It also runs the one-off
-**move** (below). The one sync on a push is the demo's (`.github/workflows/demo.yml`: a push to `develop` that touches the
-demo or what builds it, to staging as the experience `demo`).
+**move** (below). No workflow syncs on a push: the demo's (`.github/workflows/demo.yml`, a push to `develop` that touches
+the demo or what builds it) only builds `fixtures/demo` as a check since #322 decision (b) – the demo lives in the staging
+database and its store is written by the editor's Publish; a sync from CI would overwrite that.
 
 ## Loading in the app
 
@@ -287,8 +289,8 @@ read/write key).
 | 7 | after the 30 days of edge cache | `content move … --delete-old` per old folder – readers of the old app keep loading the old folder until then |
 
 Steps 2, 3 and 6 write to the zone; step 7 deletes. A deploy of this change before step 4 makes the staging reader
-look for `<old base>/osct/latest.json` (not there – it shows the startup error), and the demo workflow syncs into
-`osct/staging/demo/` on the next push that touches `scripts/` – a write to the new layout, harmless to the old folders.
+look for `<old base>/osct/latest.json` (not there – it shows the startup error). (The demo workflow synced into
+`osct/staging/demo/` then; since #322 it only builds the demo, the editor's Publish writes its store.)
 
 ## Content out of git
 

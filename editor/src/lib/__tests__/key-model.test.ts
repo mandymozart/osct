@@ -9,10 +9,17 @@ const parse = (glb: Uint8Array): Promise<GLTF> =>
   new Promise((resolve, reject) => new GLTFLoader().parse(glb.slice().buffer, "", resolve, reject));
 
 describe("the demo experience's key (editor/tools/key-model.mjs)", () => {
-  it("is the file the script writes – regenerate it with `node editor/tools/key-model.mjs`", () => {
-    // From the editor's folder (vitest's cwd): happy-dom gives import.meta.url an http URL
+  it("is the demo's key – the export holds it as the build optimised it, with the script's node and clip", () => {
+    // fixtures/demo is the staging database's export (#322): the file is the CDN-optimised one (meshopt), not the
+    // script's bytes; it keeps the script's node `key` and clip `rattle`. From the editor's folder (vitest's cwd).
     const file = readFileSync(resolve(process.cwd(), "..", KEY_MODEL_PATH));
-    expect(Buffer.from(file).equals(Buffer.from(buildKeyGlb()))).toBe(true);
+    const json = JSON.parse(file.subarray(20, 20 + file.readUInt32LE(12)).toString("utf8")) as { nodes: Array<{ name?: string }>; animations?: Array<{ name: string }> };
+    expect(json.nodes.map(node => node.name)).toContain("key");
+    expect(json.animations?.map(clip => clip.name)).toEqual(["rattle"]);
+  });
+
+  it("writes the same file every time", () => {
+    expect(Buffer.from(buildKeyGlb()).equals(Buffer.from(buildKeyGlb()))).toBe(true);
   });
 
   it("stays a few KB", () => {

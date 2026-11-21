@@ -1,6 +1,6 @@
-# A link entry: the fourth category.
 category: link
 title: The repository
 scene: the-switch
-body: "Where the demo and the plugin API live."
+body: Where the demo book and the plugin API live.
 media: https://github.com/mandymozart/osct
+tags: []
