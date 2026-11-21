@@ -86,6 +86,8 @@ export class Stage {
    * new frame (its registry starts empty).
    */
   onStarted: (() => void) | null = null;
+  /** The Code tab's saved plugin ids, given to every frame that starts (`FrameInit.saved`): their saved sources win (#269) */
+  savedPlugins: () => string[] = () => [];
 
   private frame: HTMLIFrameElement;
   private requests: FrameRequests;
@@ -248,7 +250,7 @@ export class Stage {
     this.initialising = true;
     this.requests.hold();
     try {
-      await this.requests.first("init", [{ content: snapshot, preview: previewSync() } satisfies FrameInit]);
+      await this.requests.first("init", [{ content: snapshot, preview: previewSync(), saved: this.savedPlugins() } satisfies FrameInit]);
     } catch (e) {
       this.status = "error";
       this.error = e instanceof Error ? e.message : String(e);

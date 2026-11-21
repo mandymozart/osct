@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.4.1 – 2026-11-21
+
+### Fixed
+- The editor's stage no longer refuses a plugin whose declaration was built against an older plugin API when the Code
+  tab has a saved source of it ("[plugins] aquarium was built against plugin API 1.6 … not loaded" in the Demo Book
+  after 4.x): the saved source wins on the stage (#269), so the declared compiled module is neither checked nor loaded –
+  every frame is given the saved ids when it starts (`FrameInit.saved`).
+
 ## 4.4.0 – 2026-11-21
 
 ### Added
