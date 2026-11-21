@@ -23,6 +23,9 @@
     onexpose: (box: FlowBox, at: { x: number; y: number }) => void;
     /** The head's chevron: fold the box to its head, or open it; on a folded group's pill, open the group */
     onfold: (box: FlowBox, folded: boolean) => void;
+    /** An event box the stage can fire now (#334): a ▶ on its head, on devices that hover */
+    fire?: boolean;
+    onfire?: (box: FlowBox) => void;
   }
 </script>
 
@@ -139,6 +142,10 @@
     {:else}
       <span class="word">{word}</span>
     {/if}
+    {#if data.fire && data.onfire}
+      <button type="button" class="fire nodrag" aria-label="Fire {label} on the stage" title="Fire {label} on the stage, by hand (right-click: with a payload)"
+        onclick={e => { e.stopPropagation(); data.onfire?.(box); }} ondblclick={e => e.stopPropagation()}><Icon name="play" /></button>
+    {/if}
     {#if box.hidden.length && data.editable && !box.folded}
       <button type="button" class="expose nodrag" aria-label="Show a port of {label} ({box.hidden.length} hidden)" title="Show a port ({box.hidden.length} hidden)"
         onclick={expose} ondblclick={e => e.stopPropagation()}>+</button>
@@ -232,7 +239,13 @@
   .box.pointed:not(.selected) { border-color: var(--kind); }
   .box.pointed .enter, .box.pointed .fold { color: var(--text); }
   .box:focus-visible { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
-  .enter, .expose, .fold {
+  /* The ▶ that fires an event box on the stage (#334): only where a pointer hovers, shown while it is over the box */
+  .fire { display: none; }
+  @media (hover: hover) {
+    .box.pointed .fire, .fire:focus-visible { display: grid; }
+    .fire:hover { color: var(--text); background: var(--hover-background); }
+  }
+  .enter, .expose, .fold, .fire {
     flex: none; display: grid; place-items: center; width: 1.125rem; height: 1.125rem; padding: 0; border: 0; border-radius: .25rem; background: none; color: var(--muted); cursor: pointer;
   }
   .expose { font: inherit; font-size: .875rem; line-height: 1; border: 1px solid color-mix(in srgb, var(--kind) 35%, transparent); width: 1rem; height: 1rem; }

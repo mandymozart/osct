@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Group } from "three";
 import { BEHAVIOUR_CORE_EVENTS, BEHAVIOUR_NAME_PATTERN, BEHAVIOUR_SCOPES, type EntityData, type NodeTimeline, type Target } from "../../types/index";
-import { applyBehaviour, applyLogic, MAX_DEPTH, namedPaths, type NodeLookup, passes } from "../behaviour";
+import { applyBehaviour, applyLogic, MAX_DEPTH, namedPaths, type NodeLookup, passes, runRuleByHand } from "../behaviour";
 import { buildEntity } from "../entities";
 import { installedPlugins, installPlugin, type PluginApi, uninstallPlugin } from "../plugins";
 import { CORE_EVENTS, emitCoreEvent, EVENT_NAME_PATTERN, observeEvents, resetVars, runtimeApi, setNavigator, setVariableTypes, stageEnded, VAR_SCOPES } from "../plugin-runtime";
@@ -363,5 +363,46 @@ describe("behaviour: in the entity's node tree", () => {
     expect(VAR_SCOPES).toBe(BEHAVIOUR_SCOPES);
     expect(CORE_EVENTS).toBe(BEHAVIOUR_CORE_EVENTS);
     expect(EVENT_NAME_PATTERN).toBe(BEHAVIOUR_NAME_PATTERN);
+  });
+});
+
+describe("behaviour: one rule by hand (the editor's Run this rule, #334)", () => {
+  it("runs a node's rule as if its event came: its condition applies, no other rule of the event runs", () => {
+    const node = group({ name: "key", components: [behaviour([
+      { on: "tap", do: { set: { first: 1 } } },
+      { on: "tap", when: "armed", do: [{ set: { second: 1 } }, { emit: "rattled" }] },
+    ])] });
+    const instance = applyBehaviour({ node, target: target("key"), nodes: { "": new Group() }, timelines: {} })!;
+    cleanups.push(instance.dispose);
+    const log: unknown[] = [];
+    cleanups.push(observeEvents((event, payload) => event === "behaviour" && log.push(payload)));
+    const heard: unknown[] = [];
+    cleanups.push(runtimeApi("listener").events.on("rattled", payload => heard.push(payload)));
+    expect(runRuleByHand({ targetId: "key", node: "key" }, 1)).toBe("held");
+    expect(vars().get("second")).toBeUndefined();
+    vars().set("armed", true);
+    expect(runRuleByHand({ targetId: "key", node: "key" }, 1)).toBe("ran");
+    expect(vars().get("second")).toBe(1);
+    expect(vars().get("first")).toBeUndefined();
+    expect(heard).toEqual([{ targetId: "key", node: "key" }]);
+    expect(log).toEqual([{ targetId: "key", node: "key", rule: 2, on: "tap", do: "set second = 1 · emit rattled" }]);
+    expect(runRuleByHand({ targetId: "key", node: "key" }, 5)).toBe("missing");
+    expect(runRuleByHand({ targetId: "key", node: "" }, 0)).toBe("missing");
+    instance.dispose();
+    expect(runRuleByHand({ targetId: "key", node: "key" }, 0)).toBe("missing");
+  });
+
+  it("runs a scene's and the experience's rule by their home; a disposed list is gone", () => {
+    const node = (): NodeLookup => ({ missing: "none here" });
+    const scene = applyLogic(readRules([{ on: "sceneChanged", do: { set: { arrived: 1 } } }]), { home: "scene", sceneId: "hall", node });
+    const experience = applyLogic(readRules([{ on: "doorOpened", do: { set: { opened: true } } }]), { home: "experience", node });
+    cleanups.push(scene.dispose, experience.dispose);
+    expect(runRuleByHand({ home: "scene", scene: "attic" }, 0)).toBe("missing");
+    expect(runRuleByHand({ home: "scene", scene: "hall" }, 0)).toBe("ran");
+    expect(vars().get("arrived")).toBe(1);
+    expect(runRuleByHand({ home: "experience" }, 0)).toBe("ran");
+    expect(vars().get("opened")).toBe(true);
+    scene.dispose();
+    expect(runRuleByHand({ home: "scene", scene: "hall" }, 0)).toBe("missing");
   });
 });

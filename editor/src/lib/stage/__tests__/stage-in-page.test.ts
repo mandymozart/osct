@@ -46,6 +46,8 @@ class FakeCore {
   setSurfaceGizmo(surfaceId: string | null, mode: string) { this.record("setSurfaceGizmo", surfaceId, mode); }
   sampleColor(x: number, y: number) { this.record("sampleColor", x, y); return "#102030"; }
   tap(targetId: string) { this.record("tap", targetId); return true; }
+  fire(event: string, payload?: unknown) { this.record("fire", event, payload); return event === "varChanged" ? "\"varChanged\" is a core event" : null; }
+  runRule(home: unknown, rule: number) { this.record("runRule", home, rule); return "ran"; }
   elapsed() { return 1234; }
   async dispose() { this.record("dispose"); }
 }
@@ -87,6 +89,15 @@ describe("the stage in the editor's page", () => {
     expect(stage.sceneId).toBe("the-key");
     await expect(stage.tap("key")).resolves.toBe(true);
     await expect(stage.sampleColor(4, 5)).resolves.toBe("#102030");
+  });
+
+  it("hands the Logic panel's tests on the stage to the core: an event fired, a rule run (#334)", () => {
+    const { stage, core } = make();
+    expect(stage.fire("doorOpened", { door: "front" })).toBeNull();
+    expect(stage.fire("varChanged")).toContain("core event");
+    expect(stage.runRule({ home: "experience" }, 0)).toBe("ran");
+    expect(core.calls).toContainEqual(["fire", "doorOpened", { door: "front" }]);
+    expect(core.calls).toContainEqual(["runRule", { home: "experience" }, 0]);
   });
 
   it("starts once: the kept plugins are marked before the first scene loads its plugins, then onStarted", async () => {

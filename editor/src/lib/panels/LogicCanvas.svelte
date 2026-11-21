@@ -66,7 +66,7 @@
    */
   let {
     flow, live = null, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onwiredrop, onexpose, onplace, onfold,
-    ongroupfold, ongroupcolour, ongrouprename, onnoteedit,
+    fireable, onfire, ongroupfold, ongroupcolour, ongrouprename, onnoteedit,
   }: {
     flow: Flow;
     /** What the stage lit just now (the panel's live feedback); null: nothing */
@@ -93,6 +93,10 @@
     onwiredrop?: (from: [string, string], dir: "in" | "out", at: { x: number; y: number }, flowAt: { x: number; y: number } | null) => void;
     /** A box's +: show one of its hidden ports */
     onexpose: (box: FlowBox, at: { x: number; y: number }) => void;
+    /** An event box whose ▶ fires it on the stage now (#334); none: no ▶ */
+    fireable?: (box: FlowBox) => boolean;
+    /** A box's ▶: fire its event on the stage */
+    onfire?: (box: FlowBox) => void;
     /** Boxes dragged and let go: where they are now (box id → its place) */
     onplace: (positions: Record<string, { x: number; y: number }>) => void;
     /** A box's chevron: fold it to its head or open it (a folded group's pill: open the group) */
@@ -182,6 +186,7 @@
       data: {
         box, selected: selected(box), flash: flash === box.id, dim: !!lit && !lit.has(box.id), hover: hovered === box.id, never: neverBox.has(box.id), editable,
         takes: dragging ? dragging.get(box.id) ?? NONE : null, live: live?.boxes.get(box.id) ?? null, onpick, onenter, onexpose, onfold,
+        fire: fireable?.(box) ?? false, onfire,
       },
     }));
     nodes = [...frames, ...boxes, ...notes];

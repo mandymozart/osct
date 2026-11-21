@@ -70,7 +70,7 @@ describe("live feedback: a variable's change lights its wires and shows its valu
 
 describe("live feedback: a rule that ran pulses its box and lights its wires", () => {
   it("a node's rule: its box, the wire into its on (its own event) and every wire out of its actions", () => {
-    const hit = liveHit(door, line("behaviour", { targetId: "door", rule: 1, on: "found", do: "hide hint, emit openDoor" }));
+    const hit = liveHit(door, line("behaviour", { targetId: "door", rule: 2, on: "found", do: "hide hint, emit openDoor" }));
     expect(sorted(hit.wires)).toEqual(["event:door/:found:out>rule:door/#1:on", "rule:door/#1:do:0>node:door/1:act:hide", "rule:door/#1:do:1>event:openDoor:in"]);
     expect(hit.boxes).toEqual(["rule:door/#1"]);
   });
@@ -78,8 +78,8 @@ describe("live feedback: a rule that ran pulses its box and lights its wires", (
   it("matches a node's rule by its node's name", () => {
     const view = project(content, { level: "scene", scene: "door" });
     const index = liveIndex(view, flowOf(view), { nodeName: target => (target === "bell" ? "bell" : "") });
-    expect(liveHit(index, line("behaviour", { targetId: "bell", node: "bell", rule: 0, on: "keyRattled", do: "…" })).boxes).toEqual(["rule:bell/#0"]);
-    expect(liveHit(index, line("behaviour", { targetId: "bell", rule: 0, on: "keyRattled", do: "…" })).boxes).toEqual([]);
+    expect(liveHit(index, line("behaviour", { targetId: "bell", node: "bell", rule: 1, on: "keyRattled", do: "…" })).boxes).toEqual(["rule:bell/#0"]);
+    expect(liveHit(index, line("behaviour", { targetId: "bell", rule: 1, on: "keyRattled", do: "…" })).boxes).toEqual([]);
   });
 
   it("names a node from the draft", () => {
@@ -88,7 +88,7 @@ describe("live feedback: a rule that ran pulses its box and lights its wires", (
   });
 
   it("a scene's rule pulses its scene's box at the experience level", () => {
-    expect(liveHit(indexAt({ level: "experience" }), line("behaviour", { home: "scene", scene: "door", rule: 0, on: "found", do: "…" })).boxes).toEqual(["scene:door"]);
+    expect(liveHit(indexAt({ level: "experience" }), line("behaviour", { home: "scene", scene: "door", rule: 1, on: "found", do: "…" })).boxes).toEqual(["scene:door"]);
   });
 });
 

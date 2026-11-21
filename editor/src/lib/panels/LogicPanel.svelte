@@ -8,7 +8,9 @@
   import { session } from "#lib/session.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
   import { logicContent, logicFocus } from "#lib/logic-content.svelte.js";
-  import { project, type LogicContent } from "#lib/logic/project.js";
+  import { logicTypes, project, type LogicContent } from "#lib/logic/project.js";
+  import { NOT_RUNNING, parsePayload, parseValue, stageItems, type StageAction, type StageItem } from "#lib/logic/fire.js";
+  import { describePayload } from "#lib/stage/event-log.js";
   import { NOTE_NODE, flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
   import { DECK_SIGNALS } from "#lib/logic/signals.js";
   import { addHit, emptyLive, freshLines, liveHit, liveIndex, markSeen, nodeNames, prune, LIVE_MS, type LiveState } from "#lib/logic/live.js";
@@ -82,6 +84,14 @@
    *   box, a `varChanged` its variable's wires and box (with the new value), a `behaviour` line its rule's box and wires
    *   (`logic/live.ts`: the index once per flow, a hit per line). The timeline as it stands when the panel opens counts as
    *   seen: nothing is replayed.
+   * - **Testing on the stage** (#334, Tilman 2026-11-21: "manually trigger an event from the nodes to test what firing them
+   *   would look like down the line"): a box's right-click menu sets things off on the running stage (`logic/fire.ts`) – an
+   *   event box *Fire on stage* (or *Fire with a payload…*: `key: value` pairs typed in the menu's field), and on
+   *   hover-capable devices a ▶ on its head; a node's own `tap` box *Tap on stage*; a variable box *Set on stage…* (a value by
+   *   its type, `stage.setVar` – `varChanged` as the Variables tab writes it); a rule box *Run this rule* (as if its event
+   *   came – its when applies, no other rule runs). The Log marks a fired event's and a run rule's line *by hand*, Trace lights
+   *   the wires. Only the running stage changes, never the draft (Restart resets it), so read-only levels allow it too; an
+   *   item is disabled with its reason while the stage does not run or what it names is not on the stage.
    */
   let { experienceId, sceneId, stage = null, onpick, onmove }: {
     experienceId: string;
@@ -471,7 +481,11 @@
 
   // ── The menu: right click, the + button, a node type dropped from the Library ──
   type Pin = { x: number; y: number };
-  type MenuState = { at: Pin; head: string; add: { kind: string | null; from?: WireFrom | null; pin?: Pin | null } | null; items: LogicMenuItem[] };
+  /** `input`: the menu's field is a value to type (a payload, a variable's value) – its items follow what is typed */
+  type MenuState = {
+    at: Pin; head: string; add: { kind: string | null; from?: WireFrom | null; pin?: Pin | null } | null; items: LogicMenuItem[];
+    input?: { placeholder: string; label: string; items: (typed: string) => LogicMenuItem[] };
+  };
   let menu = $state<MenuState | null>(null);
   let menuQuery = $state("");
   const addContext = $derived<AddContext>({
@@ -485,6 +499,7 @@
   });
   const menuItems = $derived.by((): LogicMenuItem[] => {
     const add = menu?.add;
+    if (menu?.input) return menu.input.items(menuQuery);
     if (!add) return menu?.items ?? [];
     const choices = add.from ? wireChoices(addContext, add.from, { query: menuQuery }) : addChoices(addContext, { kind: add.kind, query: menuQuery });
     const rows = choices.map(c => rowOf(c, add.pin));
@@ -552,6 +567,75 @@
     const done = ops.length - refused.length;
     push({ ...merged, words: `Deleted ${done} of the selection (${[notes.length && `${notes.length} note${notes.length === 1 ? "" : "s"}`, edges.length && `${edges.length} wire${edges.length === 1 ? "" : "s"}`, refs.length && `${refs.length} rule${refs.length === 1 ? "" : "s"}`].filter(Boolean).join(", ")})${refused.length ? ` – ${refused.length} refused: ${refused[0]}` : ""}${others.length ? " – nodes, events and variables stay" : ""}.` });
   };
+  // ── Testing on the stage (#334): fire an event, set a variable, run a rule – the running stage only, never the draft ──
+  const types = $derived(logicTypes(logic));
+  /** What a box offers to set off on the stage (`logic/fire.ts`) */
+  const stageItemsOf = (box: FlowBox): StageItem[] => (box.node && !box.stub && !box.pill
+    ? stageItems(box.node, logic, { running: stage?.status === "running", scene: stage?.sceneId ?? null, context, types, vars: stage?.vars ?? [] }) : []);
+  /** An event box the ▶ on its head fires now */
+  const fireable = (box: FlowBox): boolean => stageItemsOf(box).some(i => i.key === "stage:fire" && !i.disabled);
+  const fireBox = (box: FlowBox) => {
+    const item = stageItemsOf(box).find(i => i.key === "stage:fire");
+    if (item) stageAct(item.action, { x: 0, y: 0 }, item.disabled);
+  };
+  const RESET = "Restart on the stage resets it";
+  const fireNow = (event: string, payload: Record<string, unknown> | undefined) => {
+    const refused = stage ? stage.fire(event, payload) : NOT_RUNNING;
+    say(refused ?? `Fired ${event}${payload ? ` with ${describePayload(payload)}` : ""} on the stage, by hand – the Log and Trace show what it set off. ${RESET}.`, !!refused);
+  };
+  const setNow = (name: string, value: string | number | boolean, scope: Extract<StageAction, { kind: "set" }>["scope"]) => {
+    if (!stage) return say(NOT_RUNNING, true);
+    void stage.setVar(name, value, scope).then(refused => say(refused ?? `${name} = ${JSON.stringify(value)} on the stage (${scope}), by hand. ${RESET}.`, !!refused));
+  };
+  /** A menu whose field is a value to type – opened once the menu that asked for it has gone (so its field takes the focus) */
+  const askMenu = (next: MenuState) => {
+    menu = null;
+    menuQuery = "";
+    void tick().then(() => (menu = next));
+  };
+  /** Do what a stage item says (`off`: why it cannot – said instead) */
+  const stageAct = (action: StageAction, at: Pin, off: string | null = null) => {
+    if (off) return say(off, true);
+    if (!stage) return say(NOT_RUNNING, true);
+    if (action.kind === "fire") {
+      if (!action.ask) return fireNow(action.event, undefined);
+      const event = action.event;
+      return askMenu({ at, head: `Fire ${event} – its payload`, add: null, items: [], input: {
+        placeholder: "key: value, key: value – or nothing", label: "The payload",
+        items: typed => {
+          const parsed = parsePayload(typed);
+          return [{ key: "fire", label: parsed.ok && parsed.value ? `Fire with ${describePayload(parsed.value)}` : `Fire ${event}${parsed.ok ? " with no payload" : ""}`,
+            detail: "on the stage's bus, by hand", disabled: parsed.ok ? null : parsed.reason, select: () => { if (parsed.ok) fireNow(event, parsed.value); } }];
+        },
+      } });
+    }
+    if (action.kind === "tap") {
+      const target = action.target;
+      void stage.tap(target).then(ok => say(ok ? `Tapped ${target} on the stage, by hand – its nodes heard tap. ${RESET}.` : `${target} is not found on the stage – show its target first.`, !ok));
+      return;
+    }
+    if (action.kind === "set") {
+      const { name, type, scope } = action;
+      if (type === "boolean") {
+        return askMenu({ at, head: `Set ${name} on the stage (${scope})`, add: null, items: [true, false].map(value => ({
+          key: String(value), label: `${name} = ${value}`, detail: "varChanged, by hand", select: () => setNow(name, value, scope),
+        })) });
+      }
+      return askMenu({ at, head: `Set ${name} on the stage (${type ?? "untyped"} · ${scope})`, add: null, items: [], input: {
+        placeholder: type === "string" ? "The text" : type ? `A ${type}` : "true, false, a number or a text", label: `${name}'s value`,
+        items: typed => {
+          const parsed = parseValue(type, typed);
+          return [{ key: "set", label: parsed.ok ? `${name} = ${JSON.stringify(parsed.value)}` : `Set ${name}`, detail: "varChanged, by hand",
+            disabled: parsed.ok ? null : parsed.reason, select: () => { if (parsed.ok) setNow(name, parsed.value, scope); } }];
+        },
+      } });
+    }
+    const result = stage.runRule(action.home, action.rule);
+    say(result === "ran" ? `Ran the rule on the stage as if ${action.on} came, by hand – the Log and Trace show what it did. ${RESET}.`
+      : result === "held" ? "Its when is false on the stage – nothing ran (set its variables first)."
+        : result === "stopped" ? NOT_RUNNING : "That rule is not on the stage – Restart the stage, then try again.", result !== "ran" && result !== "held");
+  };
+
   const openMenu = (at: Pin, target: CanvasTarget, flowAt?: Pin) => {
     if (target.kind === "pane") return openAdd(at, null, flowAt ?? null);
     if (target.kind === "group") return groupMenu(target.group, at);
@@ -575,6 +659,8 @@
     const items: LogicMenuItem[] = [];
     if (box.node?.enter || box.stub) items.push({ key: "enter", label: box.stub ? "Go there" : "Open its level", detail: "Double-click", select: () => enterBox(box) });
     if (box.node?.pick) items.push({ key: "pick", label: "Select", detail: "In the tree and the Inspector", select: () => pickBox(box) });
+    // Testing on the stage (#334): read-only levels too – it changes the running stage, not the draft
+    for (const item of stageItemsOf(box)) items.push({ key: item.key, label: item.label, detail: item.detail, disabled: item.disabled, select: () => stageAct(item.action, at) });
     if (box.node?.kind === "rule") {
       items.push({ key: "add", label: "Add an action or a condition…", disabled: editable ? null : readOnlyHint, select: () => { picked = [box.id]; void tick().then(() => openAdd(at)); } });
       items.push({ key: "delete", label: "Delete the rule", detail: "Delete", disabled: editable ? null : readOnlyHint, select: () => removeBoxes([box], []) });
@@ -721,6 +807,7 @@
       onconnect={connectWire}
       onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
       takesfrom={takesFrom} onrefused={refused} onwiredrop={wireDrop} onexpose={exposeMenu}
+      {fireable} onfire={fireBox}
       onplace={(positions: Record<string, { x: number; y: number }>) => canvasOp({ edit: "place", positions })} onfold={foldBox}
       ongroupfold={(group: string, folded: boolean) => canvasOp({ edit: "foldGroup", group, folded })} ongroupcolour={(group: string) => canvasOp({ edit: "groupColour", group })}
       ongrouprename={(group: string, label: string) => canvasOp({ edit: "renameGroup", group, label })} onnoteedit={noteText} />
@@ -753,7 +840,8 @@
     </section>
   {/if}
   {#if menu}
-    <LogicMenu at={menu.at} head={menu.head} items={menuItems} filter={!!menu.add} bind:query={menuQuery} onclose={() => (menu = null)} />
+    <LogicMenu at={menu.at} head={menu.head} items={menuItems} filter={!!menu.add || !!menu.input} placeholder={menu.input?.placeholder} fieldLabel={menu.input?.label}
+      bind:query={menuQuery} onclose={() => (menu = null)} />
   {/if}
 </div>
 
