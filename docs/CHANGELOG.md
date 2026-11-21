@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.9.2 – 2026-11-21
+
+### Changed
+- **The Logic canvas fades out at the panel's edges** instead of stopping in a gap before them (Tilman, 2026-11-21,
+  #334): the canvas runs to the panel's sides (and its foot when no issues bar lies below) and boxes and wires fade out
+  over the last 1.5rem; the view controls stay crisp.
+
 ## 4.9.1 – 2026-11-21
 
 ### Added
