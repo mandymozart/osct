@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 4.4.0 – 2026-11-21
 
 ### Added
 - `osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>] [--name <name>]
