@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.12.2 – 2026-11-21
+
+### Fixed
+- **The Logic view's … settings open under their button** (#334): in a narrow panel the … wraps to the bar's second
+  row, and the settings opened left of it, outside the panel; they now open from the button's left edge, kept on the
+  screen.
+
 ## 4.12.1 – 2026-11-21
 
 ### Changed
