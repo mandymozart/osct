@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Added
+- **Live feedback on the Logic canvas** (Tilman, 2026-11-21, #334: *"when a event fire that cable should light up. or when
+  a variable changes. we can see what is actively happening then"*): while the stage runs, a wire that carries an event
+  lights up in its colour when the event fires – a glow runs along it from where it comes from to where it goes – and the
+  event's box pulses; when a variable changes, its wires light up and its box shows the new value for a moment; a rule
+  that ran pulses with the wires out of its actions. Only what happens after the panel opened shows; another firing starts
+  the pulse again; with reduced motion the wires only brighten. The bar's **Live** switch turns it off (on by default,
+  remembered in this browser).
+
 ## 4.11.0 – 2026-11-21
 
 ### Added

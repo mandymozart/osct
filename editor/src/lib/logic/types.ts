@@ -159,6 +159,11 @@ export interface GraphEdge {
   label: string;
   /** The document place it comes from; null = derived (a by-name join: the bus, a variable across scenes, a plugin's use) */
   home: Home | null;
+  /**
+   * The events or variables a derived edge joins by name, when its ends do not say it (a bundled wire between two scenes,
+   * a stub at the border) – the live feedback lights it when one of them fires or changes (`live.ts`, #334)
+   */
+  names?: readonly string[];
 }
 
 /** An edge leaving the level: drawn at its border, named by its far end; following it opens `far` */

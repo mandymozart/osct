@@ -491,8 +491,29 @@ rule that hears nothing – stay grey (a hollow ring, the box's border dashed; R
 only the names a plugin could not set or emit are said. The level logic is pure and tested (`lib/logic/__tests__/`:
 `project`, `navigation` – the URL, enter, back, stubs, follow, search; `apply` – every op, its refusals, the by-name
 cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems; `canvas` – the
-signal table, the cards, pins, groups and their ops). Not yet: lighting up what fires while the stage runs, notes on the
-canvas.
+signal table, the cards, pins, groups and their ops; `live` – the live feedback below).
+
+**Live feedback** (#334, Tilman 2026-11-21: *"when a event fire that cable should light up. or when a variable changes"*):
+while the stage runs, the canvas shows what happens on it. The panel reads the stage's timeline (`stage.events` – the Log
+tab's lines) and matches each **new** line to the level drawn (`logic/live.ts`, pure: `liveIndex` maps event names,
+variable names and rules to wire and box ids once per flow; `liveHit` per line):
+
+- **An event** (a core event – `targetFound`, `sceneChanged` …, a plugin's, a rule's emit): every wire that carries it –
+  into its event box (a rule's emit, a plugin's `emits`, a node's declared event pin) and out of it (the rules' `on`, a
+  plugin's `hears`), a bundled wire between scenes or a stub that names it (a derived edge carries its `names`) – and the
+  event box. A node's own `found` / `tap` box is no bus event: its rule's line lights it.
+- **`varChanged`** (the variable's name in its payload): the wires into the variable (sets) and out of it (the conditions'
+  reads), a bundled wire or a stub that names it; its box pulses and shows the new value in its head (`= true`).
+- **`behaviour`** (a rule ran – its target and node's name, or its scene, and its index): the rule's box pulses in its
+  kind's colour, with the wire into its `on` and every wire out of its actions; at the group and experience levels a
+  scene's rule pulses its scene's box.
+
+A lit wire is drawn in its own signal colour, fully opaque and heavier, a glow running once along it from source to target
+over a halo that fades in about a second (`LogicWire`, class `live` – apart from the pointer's `lit` / `dim`); a box's
+border pulses once (`LogicBox`). Another firing starts the pulse again. With `prefers-reduced-motion` only the brighter,
+thicker state shows, without movement. Only lines new since the panel opened count – the history is never replayed; Clear
+in the Log tab starts again. The bar's **Live** switch turns it off (on by default, kept in `localStorage`
+`osct-editor-logic-live`).
 
 **Scene and experience rules, goto** (content schema 5.0, #334 L-T5b): a scene's own rules (`scene.logic`) are boxes of
 its scene level (*scene rule 1*, a click selects the scene – its rules are in its Inspector), the experience's
