@@ -273,10 +273,11 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       cannot). GitHub releases are optional notes; nothing deploys from them (docs/deploy.md).
 
 24. **Content deployment is apart from the app deployment** (`docs/content-cdn.md`).
-    Content goes to the CDN with the osct CLI (`osct content sync --env <env>`, `scripts/src/cli.ts`): every content
-    version is its own immutable folder `<env>/<build>/` on the bunny.net storage zone `osct` (`<build>` = content
-    checksum, without the app version); `<env>/latest.json` names the current one and is the only file ever
-    overwritten; `<env>/versions.json` records when each version was current. Never overwrite a file inside a
+    Content goes to the CDN with the osct CLI (`osct content sync --env <env>`, `scripts/src/cli.ts`): every experience
+    has its own store per environment, `<title>/<env>/<experience>/` (#87, `shared/api/content-store.ts`; the title is
+    the instance's `OSCT_TITLE`), and in it every content version is its own immutable folder `<build>/` on the bunny.net
+    storage zone `osct` (`<build>` = content checksum, without the app version); the store's `latest.json` names the
+    current one and is the only file ever overwritten; its `versions.json` records when each version was current. Never overwrite a file inside a
     version folder. Old versions go only through `osct content purge`, which deletes nothing that is current, served
     by the CDN, kept for rollback or retired within the CDN cache time, and refuses on inconsistent bookkeeping.
     Where the sync is triggered (by hand in `content.yml`, a local run, later a content repository) is not fixed –

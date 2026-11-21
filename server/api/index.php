@@ -95,7 +95,8 @@ declare(strict_types=1);
  *   POST   /editor/experiences/{id}/plugins[?id=]     a script file as the body, X-File-Name → 201 { plugin } (the Library, #186)
  *   PUT    /editor/experiences/{id}/plugins/{pid}/file a script file as the body → { plugin } · GET …/plugins/{pid}/usages
  *                                               the Code tab's plugin sources (docs/server.md "Plugin sources")
- *   GET    /content/{env}/{path}                the local content store (json files, and the assets' files; public)
+ *   GET    /content/{env}/{experience}/{path}   an experience's local content store (json files, plugins – #87) and the
+ *                                               Library's files (/content/assets/{experience}/…; public)
  *
  * Signed-in requests from a browser send the session cookie `osct_session` and, with every write, its CSRF token in
  * `X-CSRF-Token`; other clients send `Authorization: Bearer <session token>` – or an AI connection's token `osct_…`
@@ -230,7 +231,7 @@ try {
         (bool) preg_match("#^GET /editor/experiences/($id)/plugins/($id)$#", $route, $match) => Plugins::get($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/plugins/($id)$#", $route, $match) => Plugins::put($match[1], $match[2]),
         (bool) preg_match("#^DELETE /editor/experiences/($id)/plugins/($id)$#", $route, $match) => Plugins::delete($match[1], $match[2]),
-        // The local content store, public like the CDN (an environment name, ContentStore::ENV)
+        // The local content store, public like the CDN: an environment name (ContentStore::ENV), then the experience
         (bool) preg_match('#^GET /content/(' . ContentStore::ENV . ')/(.+)$#', $route, $match) => ContentStore::serve($match[1], $match[2]),
         default => throw new ApiError(404, 'not-found', 'Unknown endpoint.'),
     };

@@ -85,13 +85,13 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `PUT /editor/experiences/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in an experience with plugins – "Plugin sources"), no `assets` list |
 | `PUT /editor/experiences/{id}/targets/{targetId}` | `{ entity }` or `{ ref }` | `{ target }` – the target's entity: inline (`entity`, null removes it) or a shared one (`ref`, 400 `unknown-entity` when there is none); records a change. 404 for an unknown target |
 | `GET /editor/experiences/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
-| `POST /editor/experiences/{id}/publish` | `{ env, note?, replace?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, replaced }` – writes the assembled version to the content store of `env`, which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<env>/<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log. An environment serves one experience: when it serves another (or one that cannot be told) the publish needs `replace: true`, else 409 `other-experience` with `current` `{ env, experience, title, build, since }`; `replaced` `{ experience, build }` names the experience replaced, null when none; `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name), `invalid-replace`; 502 `content-store-failed` |
+| `POST /editor/experiences/{id}/publish` | `{ env, note?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt }` – writes the assembled version to the experience's own store in `env` (#87: `<title>/<env>/<id>/` on the zone, `<env>/<id>/` in the directory store – a publish never touches another experience), which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log. `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name); 502 `content-store-failed` |
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
 | `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
 | `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, delivery, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes, `delivery` the delivery that wrote it ([Deliveries](#deliveries)) and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
 | `GET /editor/experiences/{id}/deliveries?limit=` | | `{ deliveries: [{ id, name, source, counts, user, token, createdAt, changes }] }` – the applied deliveries, newest first (a comparison leaves no row); `changes` = how many changes of the log name it, `token` the AI connection it came through; `limit` default 50, at most 500 – [Deliveries](#deliveries) |
 | `POST /editor/experiences/{id}/deliveries` | `{ name, source?, scenes?, entries, apply?, overwrite? }` – a delivery plan, its files Library files by id or URL | `{ delivery: { id, name, source }, applied, items, counts, problems, warnings, written }` – a publisher's delivery compared with the draft per scene, entry and target (`new` / `changed` / `same` / `conflict`); with `apply: true` written in one transaction, each write a change naming the delivery – [Deliveries](#deliveries). 400 `invalid-delivery`; 409 `delivery-problems` with `comparison` |
-| `GET /content/{env}/{path}` | | the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` (immutable) – nothing else, no other path |
+| `GET /content/{env}/{experience}/{path}` | | an experience's store in the **local** content store, public like the CDN: `latest.json`, `versions.json` (`no-cache`) and `<build>/game.config.json` / `files.json` and a published plugin (immutable) – nothing else, no other path; `/content/assets/{experience}/…` the Library's files ("Assets") |
 
 Signed-in calls from a browser send the session cookie and, with every write, its CSRF token; other clients send
 `Authorization: Bearer <session>` – or an AI connection's token `osct_…` ([AI connections](#ai-connections)) –
@@ -304,11 +304,16 @@ The editor's keys:
   store), `bunny` = the storage zone. A connected CDN has priority: with `bunny` every environment goes there except
   `local`, which always stays in the folder.
 - `CONTENT_STORE_DIR` (as an environment variable `OSCT_CONTENT_STORE_DIR`; empty = `content-store/` at the top level of a
-  development checkout, `api/content-store` in a deployed layout): the content store, served by `GET /content/{env}/…`;
+  development checkout, `api/content-store` in a deployed layout): the content store, served by `GET /content/{env}/{experience}/…`;
   a relative path counts from the api folder. The image sets `/var/lib/osct/content-store`, a Kamal volume
   ([Content store and var](#content-store-and-var)).
-- `CONTENT_BASE_URL` (empty): this instance's content CDN – what `{ "source": "cdn" }` imports (the same value as
-  the reader's build flag `VITE_CONTENT_BASE_URL`, [content-cdn](content-cdn.md)).
+- `CONTENT_BASE_URL` (empty): this instance's content CDN, the environment's URL `<pull zone>/<title>/<env>` – an
+  experience's store is `<base>/<experience>/`; `{ "source": "cdn" }` imports from there (the same value as the reader's
+  build flag `VITE_CONTENT_BASE_URL`, [content-cdn](content-cdn.md)).
+- `TITLE` (`osct`): the title – the first segment of every path on the storage zone, `<title>/<env>/<experience>/…`
+  (#50, #87; the osct CLI reads the same `OSCT_TITLE`). Not used by the directory store (one instance, one title).
+- `EXPERIENCE` (empty): the instance's default experience – what `POST /editor/import/preview { source: "cdn" }` reads
+  when the request names none (the reader build's `VITE_EXPERIENCE` is the same value, `OSCT_EXPERIENCE`).
 - `BUNNY_STORAGE_ZONE`, `BUNNY_STORAGE_ENDPOINT` (`storage.bunnycdn.com`), `BUNNY_STORAGE_PASSWORD` (the zone's access
   key – a secret): the storage zone the osct CLI syncs to (`scripts/.env` holds the same values under the same
   environment names, `OSCT_BUNNY_STORAGE_*` and `OSCT_CONTENT_BASE_URL`, #33). The endpoint is a
@@ -318,8 +323,8 @@ The editor's keys:
 
 What the API keeps besides the database is not code, so it lives outside `server/api/` (`Paths.php`):
 
-- **The content store** – the directory store's folder: published versions (`<env>/<build>/…`, `latest.json`,
-  `versions.json`) and the Library's uploads (`assets/<experience>/…`) wherever this server is the backend: the environment
+- **The content store** – the directory store's folder: published versions (`<env>/<experience>/<build>/…`,
+  `<env>/<experience>/latest.json`, `versions.json` – #87) and the Library's uploads (`assets/<experience>/…`) wherever this server is the backend: the environment
   `local`, and every environment of an instance without a CDN. For such an instance it *is* the published content –
   back it up with the database ([deploy, "Backup"](deploy.md#backup)). `CONTENT_STORE_DIR` / `OSCT_CONTENT_STORE_DIR`.
 - **var/** – `var/db/` (the SQLite file, when `DB_SQLITE_PATH` is used), `var/log/error.log` (`LOG_PATH`),
@@ -379,18 +384,19 @@ entity and record before and after with the user in `changes`. Every save that c
 (`PUT …/targets/{id}`, `…/scenes/{id}`, `…/environment`, `…/passes`, `…/appearance`, `…/entities/{ref}`, an asset's replace) reads,
 changes and writes it in one transaction with the row locked (`SELECT … FOR UPDATE` on MySQL, `BEGIN IMMEDIATE` on
 SQLite – `Db::transaction`, `Db::forUpdate`), so two saves at the same moment never lose one's change. **Publish** writes the same assembly to the content
-store as a version of the environment (`local`, `staging`, `production`) with the osct CLI's bookkeeping
-(`versions.json`, `latest.json` last – [content-cdn](content-cdn.md)), so the reader of that environment sees it at
-its next start and `osct content purge` understands what the editor wrote. `latest.json` and the `versions.json` entry
-name the experience (`experience`), so the API can tell which experience an environment serves (`ContentStore::live`); a manifest
-written before that is read through its version's `game.config.json` (`experience.id`). Publishing over another experience needs
-`replace: true` ([editor](editor.md) "One experience per environment").
+store as a version of the experience in the environment (`local`, `staging`, `production`) – into the experience's own
+store there (#87), with the osct CLI's bookkeeping (`versions.json`, `latest.json` last – [content-cdn](content-cdn.md)),
+so the reader of that environment sees it at its next start and `osct content purge` understands what the editor
+wrote. Each experience has its own store, so a publish never replaces another experience; any experience can publish
+to staging and production. `latest.json` and the `versions.json` entry name the experience (`experience`); where an
+experience is live is read from its stores (`ContentStore::live`).
 
-**The content store** (`ContentStore`): `CONTENT_STORE=local` keeps the versions in the content store's folder
-([Content store and var](#content-store-and-var)) and `GET /api/content/{env}/{path}` serves their json files (version
-folders immutable, `latest.json` revalidated) – for development, and for a host without the CDN. `CONTENT_STORE=bunny`
-sends every environment but `local` to the storage
-zone over the Storage API (`PUT https://{endpoint}/{zone}/{env}/{path}` with the `AccessKey` header and the sha256
+**The content store** (`ContentStore::for(env, experience)`): `CONTENT_STORE=local` keeps the versions in the content
+store's folder ([Content store and var](#content-store-and-var)), `<env>/<experience>/…`, and
+`GET /api/content/{env}/{experience}/{path}` serves their json files (version folders immutable, `latest.json`
+revalidated) – for development, and for a host without the CDN; a reader of such an instance is built with
+`VITE_CONTENT_BASE_URL=<site>/api/content/<env>`. `CONTENT_STORE=bunny` sends every environment but `local` to the
+storage zone over the Storage API (`PUT https://{endpoint}/{zone}/{title}/{env}/{experience}/{path}` with the `AccessKey` header and the sha256
 checksum – what `scripts/src/lib/storage.ts` does), reads `versions.json` from there, and answers 502
 `content-store-failed` when the zone refuses. The environment `local` always stays in the directory – it exists only
 on a developer's machine.
@@ -440,9 +446,10 @@ without edge caching; heavy media goes through this server. Back up the content 
 
 Before anything is imported, the editor and the MCP server ask what an import would bring in:
 `POST /editor/import/preview` takes the import's body – a configuration (with `files`, `assetsBase`) or
-`{ source: "cdn" }` – checks it as the import does (the same 400s) and writes nothing. For the CDN it reads the
-instance's content base (`CONTENT_BASE_URL`), its `latest.json` and the current build's `game.config.json`, as the
-import will. The answer:
+`{ source: "cdn", experience? }` – checks it as the import does (the same 400s) and writes nothing. For the CDN it
+reads the experience's store below the instance's content base (`CONTENT_BASE_URL/<experience>`; `experience` defaults
+to the instance's `EXPERIENCE` – none of either: 400 `invalid-experience`), its `latest.json` and the current build's
+`game.config.json`, as the import will (the import of `{id}` with `source: "cdn"` reads `{id}`'s store). The answer:
 
 - `source` – `cdn` or `configuration`; `contentBase` and `manifest` `{ url, build, activatedAt }` – the content base and
   what its `latest.json` says (null for a configuration: a form that read a content base itself fills them in);
@@ -506,7 +513,8 @@ plugin source ("Plugin sources" – the 400 says so). They live in the content s
 `assets/<experience>/<asset id>/v<n>.<ext>` – in the content store's folder for the local store, served (for every experience id the
 editor accepts, capitals and `_` included) by `GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's
 engine loads them cross-origin), or in the CDN's storage zone (`CONTENT_STORE=bunny`, reached at
-`<root>/assets/…`, next to the environment that `CONTENT_BASE_URL` = `<root>/<env>` names). `ASSET_BASE_URL` overrides where their URLs point. The local store's URLs are this API's
+`<root>/assets/…`, at the zone root – `CONTENT_BASE_URL` = `<root>/<title>/<env>`; the uploads are no title's and no
+environment's, #87). `ASSET_BASE_URL` overrides where their URLs point. The local store's URLs are this API's
 own (`Http::apiUrl()`): on a deployed instance (`ENV` not `local`) the host of `APP_URL` – the API is served as `/api`
 next to the app – and never the request's `Host` / `X-Forwarded-Host`, which the client chooses and which would end up
 in the content; without `APP_URL` such an instance refuses the upload (500 `not-configured`). A local instance takes

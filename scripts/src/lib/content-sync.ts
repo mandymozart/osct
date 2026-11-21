@@ -1,10 +1,11 @@
 /**
- * Content on the CDN (docs/content-cdn.md, layout: shared/types/content-manifest.ts): every content version gets
- * its own immutable folder `<env>/<build>/` – a file on the CDN is never overwritten, so no edge cache or browser
- * cache can serve a stale copy. `<env>/latest.json` names the current version, `<env>/versions.json` records every
+ * Content on the CDN (docs/content-cdn.md, layout: shared/api/content-store.ts): every experience of a title has its own
+ * store per environment, `<title>/<env>/<experience>/` (the store root, `storeRoot` – #87), and in it every content version
+ * gets its own immutable folder `<root>/<build>/` – a file on the CDN is never overwritten, so no edge cache or browser
+ * cache can serve a stale copy. `<root>/latest.json` names the current version, `<root>/versions.json` records every
  * version with when it was current, so `purge` can remove old ones that are provably out of use.
  *
- * sync:  upload the build into `<env>/<build>/` (skipped when that version is already complete there: its
+ * sync:  upload the build into `<root>/<build>/` (skipped when that version is already complete there: its
  *        game.config.json – written last – exists), then versions.json, then latest.json (the switch).
  *        Syncing an older content build again only moves latest.json back (rollback). Syncing the current build
  *        again repairs a versions.json that does not record it as current (#175).
@@ -100,24 +101,24 @@ const readJson = async (storage: StorageClient, file: string): Promise<unknown> 
   }
 };
 
-export interface EnvironmentState {
-  env: string;
+export interface StoreState {
+  root: string;
   /** latest.json on the storage: undefined = none, null = unreadable */
   current: ContentManifest | null | undefined;
   /** versions.json: undefined = none, null = unreadable */
   versions: ContentVersion[] | null | undefined;
-  /** Direct children of the environment folder */
+  /** Direct children of the store root */
   listing: StoredFile[];
 }
 
-export async function readEnvironment(storage: StorageClient, env: string): Promise<EnvironmentState> {
+export async function readStore(storage: StorageClient, root: string): Promise<StoreState> {
   const [listing, current, versions] = await Promise.all([
-    storage.list(env),
-    readJson(storage, `${env}/latest.json`),
-    readJson(storage, `${env}/versions.json`),
+    storage.list(root),
+    readJson(storage, `${root}/latest.json`),
+    readJson(storage, `${root}/versions.json`),
   ]);
   return {
-    env,
+    root,
     listing,
     current: current === undefined ? undefined : isContentManifest(current) ? current : null,
     versions: versions === undefined ? undefined : isContentVersions(versions) ? versions : null,
@@ -127,14 +128,14 @@ export async function readEnvironment(storage: StorageClient, env: string): Prom
 /** The last segment of a stored path (a version folder's build, a file's name) */
 export const nameOf = (item: StoredFile) => item.path.split('/').pop() ?? '';
 
-/** Version folders on the storage (direct children of the environment named like a build) */
-const versionFolders = (state: EnvironmentState): string[] =>
+/** Version folders on the storage (direct children of the store root named like a build) */
+const versionFolders = (state: StoreState): string[] =>
   state.listing.filter(i => i.isDirectory && CONTENT_BUILD.test(nameOf(i))).map(nameOf);
 
 /**
  * Where latest.json and versions.json disagree (#175): versions.json must list the build latest.json names, with it as
  * its only current entry (`retiredAt` null). Empty when they agree, or when neither exists yet. Arguments as in
- * `EnvironmentState`: undefined = none, null = unreadable.
+ * `StoreState`: undefined = none, null = unreadable.
  */
 export function versionProblems(current: ContentManifest | null | undefined, versions: ContentVersion[] | null | undefined): string[] {
   const problems: string[] = [];
@@ -157,7 +158,7 @@ export function versionProblems(current: ContentManifest | null | undefined, ver
 // ---------------------------------------------------------------- sync
 
 export interface SyncPlan {
-  env: string;
+  root: string;
   build: ContentBuild;
   /** The version is complete on the storage already (only latest.json moves, if at all) */
   uploaded: boolean;
@@ -179,14 +180,14 @@ export function videosMissing(currentFiles: ContentFiles | null, build: ContentB
   return Object.keys(currentFiles).filter(p => VIDEO.test(p) && !local.has(p) && folders.has(p.slice(0, p.lastIndexOf('/'))));
 }
 
-export async function planSync(storage: StorageClient, env: string, build: ContentBuild, force = false): Promise<SyncPlan> {
-  const state = await readEnvironment(storage, env);
-  const uploaded = !force && (await storage.exists(`${env}/${build.build}/game.config.json`));
+export async function planSync(storage: StorageClient, root: string, build: ContentBuild, force = false): Promise<SyncPlan> {
+  const state = await readStore(storage, root);
+  const uploaded = !force && (await storage.exists(`${root}/${build.build}/game.config.json`));
   const currentFiles = state.current && state.current.build !== build.build
-    ? await readJson(storage, `${env}/${state.current.build}/files.json`)
+    ? await readJson(storage, `${root}/${state.current.build}/files.json`)
     : null;
   return {
-    env,
+    root,
     build,
     uploaded,
     current: !!state.current && state.current.build === build.build,
@@ -201,7 +202,7 @@ export function describeSync(plan: SyncPlan): string[] {
   const { build } = plan;
   const bytes = build.files.reduce((sum, f) => sum + f.size, 0);
   return [
-    `📦 Content ${build.build} (schema ${build.schema}, built with app ${build.version}, ${build.files.length} files, ${mb(bytes)}) → ${plan.env}/${build.build}/`,
+    `📦 Content ${build.build} (schema ${build.schema}, built with app ${build.version}, ${build.files.length} files, ${mb(bytes)}) → ${plan.root}/${build.build}/`,
     plan.uploaded ? '   already on the storage – no upload' : `   upload ${build.files.length} files (${mb(bytes)})`,
     plan.current ? '   already the current version' : '   becomes the current version (latest.json)',
     ...(plan.current && !plan.agrees ? ['   versions.json does not record it as current – rewritten (latest.json stays)'] : []),
@@ -228,8 +229,8 @@ export function activate(versions: ContentVersion[], build: ContentBuild, now: s
 }
 
 export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<void> {
-  const { env, build } = plan;
-  const root = `${env}/${build.build}`;
+  const { root, build } = plan;
+  const folder = `${root}/${build.build}`;
   if (!plan.uploaded) {
     const total = build.files.reduce((sum, f) => sum + f.size, 0);
     const queue = [...build.files];
@@ -237,37 +238,37 @@ export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<v
     const worker = async () => {
       for (let next = queue.shift(); next; next = queue.shift()) {
         const data = fs.readFileSync(path.join(CLIENT_PUBLIC_ASSETS_DIR, next.file));
-        await storage.put(`${root}/${CONTENT_PREFIX}${next.file}`, data, contentTypeOf(next.file));
+        await storage.put(`${folder}/${CONTENT_PREFIX}${next.file}`, data, contentTypeOf(next.file));
         done += next.size;
         console.log(`   ⬆️  ${next.file} (${Math.round((done / Math.max(total, 1)) * 100)}%)`);
       }
     };
     await Promise.all(Array.from({ length: PARALLEL_UPLOADS }, worker));
-    await storage.put(`${root}/files.json`, JSON.stringify(fileIndex(build)), 'application/json');
+    await storage.put(`${folder}/files.json`, JSON.stringify(fileIndex(build)), 'application/json');
     // Last: the configuration marks the version as complete
-    await storage.put(`${root}/game.config.json`, build.config, 'application/json');
-    console.log(`✅ ${root}/ uploaded`);
+    await storage.put(`${folder}/game.config.json`, build.config, 'application/json');
+    console.log(`✅ ${folder}/ uploaded`);
   }
   if (plan.current && plan.agrees) return;
   // Read again right before the write, from the Storage API (never through the pull zone, whose edges cache JSON for
   // 30 days): versions.json first, latest.json last – a reader never sees a current version without its record
-  const state = await readEnvironment(storage, env);
-  if (state.versions === null) throw new Error(`${env}/versions.json is not readable – fix it before switching versions`);
+  const state = await readStore(storage, root);
+  if (state.versions === null) throw new Error(`${root}/versions.json is not readable – fix it before switching versions`);
   // latest.json names the build already: only versions.json is repaired, the build current since latest.json says (#175)
   const stays = state.current?.build === build.build ? state.current : null;
   const now = stays?.activatedAt ?? new Date().toISOString();
   const versions = activate(state.versions ?? [], build, now, !plan.uploaded);
-  await storage.put(`${env}/versions.json`, JSON.stringify(versions, null, 2), 'application/json');
+  await storage.put(`${root}/versions.json`, JSON.stringify(versions, null, 2), 'application/json');
   if (stays) {
-    console.log(`✅ ${env}/versions.json records ${build.build} as current again (latest.json named it already)`);
+    console.log(`✅ ${root}/versions.json records ${build.build} as current again (latest.json named it already)`);
     return;
   }
   const manifest: ContentManifest = {
     build: build.build, hash: build.hash, schema: build.schema, version: build.version, activatedAt: now,
     ...(build.experience ? { experience: build.experience } : {}),
   };
-  await storage.put(`${env}/latest.json`, JSON.stringify(manifest, null, 2), 'application/json');
-  console.log(`✅ ${env}/latest.json → ${build.build}`);
+  await storage.put(`${root}/latest.json`, JSON.stringify(manifest, null, 2), 'application/json');
+  console.log(`✅ ${root}/latest.json → ${build.build}`);
 }
 
 /**
@@ -345,7 +346,7 @@ export interface PurgeOptions {
   minAgeDays: number;
   /** Newest retired versions that always stay (rollback) */
   keep: number;
-  /** Also delete folders and files in the environment that are not versions on record */
+  /** Also delete folders and files in the store root that are not versions on record */
   unknown: boolean;
 }
 
@@ -361,7 +362,7 @@ export interface PurgeItem {
 }
 
 export interface PurgePlan {
-  env: string;
+  root: string;
   items: PurgeItem[];
   /** versions.json without the purged versions */
   versions: ContentVersion[];
@@ -371,18 +372,18 @@ export interface PurgePlan {
  * Which version folders may go. Pure (state + what the CDN serves + now), so the tests run it without a storage
  * zone. Throws when the bookkeeping does not allow a safe decision.
  */
-export function planPurge(state: EnvironmentState, cdnBuild: string | null, now: number, options: PurgeOptions): PurgePlan {
-  const { env } = state;
-  if (!state.current) throw new Error(`${env}/latest.json is ${state.current === null ? 'not readable' : 'missing'} – nothing is purged without a current version`);
-  if (!state.versions) throw new Error(`${env}/versions.json is ${state.versions === null ? 'not readable' : 'missing'} – nothing is purged without the version record`);
+export function planPurge(state: StoreState, cdnBuild: string | null, now: number, options: PurgeOptions): PurgePlan {
+  const { root } = state;
+  if (!state.current) throw new Error(`${root}/latest.json is ${state.current === null ? 'not readable' : 'missing'} – nothing is purged without a current version`);
+  if (!state.versions) throw new Error(`${root}/versions.json is ${state.versions === null ? 'not readable' : 'missing'} – nothing is purged without the version record`);
   const current = state.current.build;
   const record = new Map(state.versions.map(v => [v.build, v]));
-  if (!record.has(current)) throw new Error(`${env}/versions.json does not list the current version ${current}`);
+  if (!record.has(current)) throw new Error(`${root}/versions.json does not list the current version ${current}`);
   const folders = versionFolders(state);
   if (!folders.includes(current)) throw new Error(`The current version ${current} is not on the storage`);
   const open = state.versions.filter(v => v.retiredAt === null);
   if (open.length !== 1 || open[0].build !== current) {
-    throw new Error(`${env}/versions.json does not agree with latest.json (current ${current}, open: ${open.map(v => v.build).join(', ') || 'none'})`);
+    throw new Error(`${root}/versions.json does not agree with latest.json (current ${current}, open: ${open.map(v => v.build).join(', ') || 'none'})`);
   }
 
   const kept = new Set(
@@ -418,11 +419,11 @@ export function planPurge(state: EnvironmentState, cdnBuild: string | null, now:
     items.push({ target, build: name, verdict, purge: verdict === 'purge' });
   }
   const purged = new Set(items.flatMap(i => (i.purge && i.build ? [i.build] : [])));
-  return { env, items, versions: state.versions.filter(v => !purged.has(v.build)) };
+  return { root, items, versions: state.versions.filter(v => !purged.has(v.build)) };
 }
 
 export function describePurge(plan: PurgePlan): string[] {
-  const lines = [`🧹 ${plan.env}/: ${plan.items.filter(i => i.purge).length} of ${plan.items.length} entries go`];
+  const lines = [`🧹 ${plan.root}/: ${plan.items.filter(i => i.purge).length} of ${plan.items.length} entries go`];
   plan.items.forEach(i => lines.push(`   ${i.purge ? 'DELETE' : 'keep  '} ${i.target} – ${i.verdict}`));
   return lines;
 }
@@ -432,5 +433,5 @@ export async function runPurge(storage: StorageClient, plan: PurgePlan): Promise
     await storage.delete(item.target);
     console.log(`   🗑️  ${item.target}`);
   }
-  await storage.put(`${plan.env}/versions.json`, JSON.stringify(plan.versions, null, 2), 'application/json');
+  await storage.put(`${plan.root}/versions.json`, JSON.stringify(plan.versions, null, 2), 'application/json');
 }

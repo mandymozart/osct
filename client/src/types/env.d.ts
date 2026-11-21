@@ -8,11 +8,16 @@ interface ImportMetaEnv {
   /** "true" shows the debug overlay in production builds (dev builds always show it) */
   readonly VITE_DEBUG?: string;
   /**
-   * Content CDN base URL of the environment (`https://…/staging`): the app loads `latest.json` and the current
-   * content version from there (docs/content-cdn.md) and the build reads no content; unset = the content bundled
-   * with the app (dev server, tests)
+   * Content CDN URL of the environment (`https://…/osct/staging` – `<pull zone>/<title>/<env>`): the app loads the
+   * experience's `latest.json` and current content version from `<base>/<experience>/` (docs/content-cdn.md, #87) and
+   * the build reads no content; unset = the content bundled with the app (dev server, tests)
    */
   readonly VITE_CONTENT_BASE_URL?: string;
+  /**
+   * The instance's default experience – the one opened without `/x/<experience>/` (utils/experience-path.ts); required
+   * with VITE_CONTENT_BASE_URL
+   */
+  readonly VITE_EXPERIENCE?: string;
   /**
    * Font folder of the design font (ABC Areal – `utils/font-face-html.ts`); read by the build only. Unset = the shared
    * folder on the CDN, empty = no web font (Arial)

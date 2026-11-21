@@ -23,6 +23,12 @@ final class Config
         // Which environment this instance is (local, staging, production): GET /health names it, the editor publishes to
         // it and no other, and the editor's AI agent guide names the MCP server after it (osct-staging …)
         'ENV' => 'local',
+        // The title (white-label instance) – the first segment of every path in the CDN's storage zone,
+        // `<title>/<env>/<experience>/…` (docs/content-cdn.md, #50/#87); the osct CLI reads the same OSCT_TITLE
+        'TITLE' => 'osct',
+        // The instance's default experience: the one the reader opens without /x/<experience>/ (its build's VITE_EXPERIENCE),
+        // and the one `{ "source": "cdn" }` previews when the request names none
+        'EXPERIENCE' => '',
         // Other origins that may call the API (comma separated, * wildcard), e.g. the staging site
         'ALLOWED_ORIGINS' => '',
         // Roles (docs/server.md "Roles"): e-mail addresses that get the role editor when they sign in – the first editors of
@@ -69,7 +75,8 @@ final class Config
         // The content store's folder (OSCT_CONTENT_STORE_DIR); empty = content-store/ at the top level of a development
         // checkout, api/content-store in a deployed layout (Paths)
         'CONTENT_STORE_DIR' => '',
-        // The reader's content CDN of this instance – `{ "source": "cdn" }` imports its current version
+        // The reader's content CDN of this instance: the environment's URL `<pull zone>/<title>/<env>` – an experience's
+        // store is below it (`…/<experience>/latest.json`); `{ "source": "cdn" }` imports an experience's current version
         'CONTENT_BASE_URL' => '',
         'BUNNY_STORAGE_ZONE' => '',
         // Host name; a full http(s) origin only for a local test double
@@ -118,6 +125,13 @@ final class Config
     {
         $env = strtolower(trim(self::get('ENV')));
         return preg_match(ContentStore::ENV_NAME, $env) ? $env : 'local';
+    }
+
+    /** The title (`TITLE`): a name like an environment's (`ContentStore::ENV_NAME`), else the default `osct` */
+    public static function title(): string
+    {
+        $title = strtolower(trim(self::get('TITLE')));
+        return preg_match(ContentStore::ENV_NAME, $title) ? $title : self::DEFAULTS['TITLE'];
     }
 
     /** @return string[] */

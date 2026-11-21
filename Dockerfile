@@ -4,7 +4,8 @@
 # docs/deploy.md).
 #
 #   docker build -t osct .                      (--build-arg VITE_DEBUG=true for the debug bar: staging;
-#                                                --build-arg VITE_CONTENT_BASE_URL=<CDN> for content from the CDN)
+#                                                --build-arg VITE_CONTENT_BASE_URL=<CDN> --build-arg VITE_EXPERIENCE=<id>
+#                                                for content from the CDN)
 #   docker run --rm -p 8080:80 -e OSCT_DB_SQLITE_PATH=/data/osct.sqlite -e OSCT_SECRET=$(openssl rand -hex 32) osct
 
 # ---- 1. Build the content and the app -------------------------------------------------------------------
@@ -31,9 +32,12 @@ COPY docs/plugins.md docs/plugins.md
 # Build flags (client/.env lists them): the debug bar only where asked for (the API is always /api next to the app).
 # VITE_CONTENT_BASE_URL (the environment's content CDN, docs/content-cdn.md): with it the app loads its content from
 # the CDN at runtime and the build reads no content. It is required: the repository holds no book content (#5).
+# It is the environment's URL (`<pull zone>/<title>/<env>`); VITE_EXPERIENCE names the experience the reader opens by
+# default – its store is `<base>/<experience>/`, another one is opened with /x/<experience>/ (#87).
 ARG VITE_DEBUG=
 ARG VITE_CONTENT_BASE_URL=
-ENV VITE_DEBUG=$VITE_DEBUG VITE_CONTENT_BASE_URL=$VITE_CONTENT_BASE_URL
+ARG VITE_EXPERIENCE=
+ENV VITE_DEBUG=$VITE_DEBUG VITE_CONTENT_BASE_URL=$VITE_CONTENT_BASE_URL VITE_EXPERIENCE=$VITE_EXPERIENCE
 # prebuild runs the content build (unless the content comes from the CDN) and the translation check, then vite +
 # the type checks
 RUN cd client && npm run build && find dist -name '*.map' -delete

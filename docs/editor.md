@@ -83,7 +83,8 @@ with SQLite and the local content store:
    then **Publish** – it goes to
    `local · this server`, the local API's own environment. With the fixture: open *Studio A – models* the same way.
 7. The reader reads the published version when it is started with
-   `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` (`latest.json` names the new build).
+   `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` and `VITE_EXPERIENCE=osct` (the fixture's id;
+   `<base>/osct/latest.json` names the new build – another experience opens at `/x/<experience>/`).
 
 The one-page version of this flow for editors, with the diagram, ships with the app at `/docs/tutorials/`
 (`client/public/docs/tutorials/index.html` – a static page, served by the site's `.htaccess` like any file). Its other
@@ -96,19 +97,20 @@ On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the st
 (to `staging · CDN`) writes a new one, and the staging reader sees it on its next start.
 
 **The demo experience on staging**: the workflow *Demo experience* (`.github/workflows/demo.yml`, by hand or on a push to
-`develop` that touches the demo) builds `fixtures/demo` and syncs it to the environment **`demo`** of the storage zone
-– `https://buildingfictions.b-cdn.net/demo/`. In the staging editor: *Import an experience… → URL* with that base URL (the
-form takes the current version and its folder as *assets at*), then open its scenes. Publishing it there makes it *the*
-experience of staging (the store is per environment, not per experience – "One experience per environment" below), so the editor's
-publish step says so first. On a phone, the staging reader opens it with
-`https://osct.porschuetz.de/?content=https://buildingfictions.b-cdn.net/demo` ([content on the CDN](content-cdn.md)).
+`develop` that touches the demo) builds `fixtures/demo` and syncs it to staging as the experience **`demo`** – its own
+store `https://buildingfictions.b-cdn.net/osct/staging/demo/`, next to the book's (#87). In the staging editor:
+*Import an experience… → URL* with that base URL (the form takes the current version and its folder as *assets at*),
+then open its scenes. Publishing it there writes only the demo's store – the book stays what staging's readers get
+("A store per experience" below). On a phone, the staging reader opens it at `https://osct.porschuetz.de/x/demo/`
+([content on the CDN](content-cdn.md)).
 
 ## Experiences, import and publish
 
 ### The Experiences page
 
 `/editor/`: the instance's experiences – under each, where it is live (below) – and *Import an experience…*: the CDN's current
-version, a `game.config.json` by URL or file, or a **content base URL** – a CDN folder with `latest.json`, e.g. `…/demo` –
+version, a `game.config.json` by URL or file, or a **content base URL** – an experience's CDN folder with `latest.json`, e.g.
+`…/osct/staging/demo` –
 whose current version is taken; *assets at* = where its `/assets/content/…` paths resolve (for a content base the
 version's folder) – every draft and publish points there, no media is copied. Under the experiences: **AI connections** and
 the MCP guide ([below](#ai-connections)).
@@ -142,35 +144,32 @@ form shows the new comparison and says so. Importing from any environment stays 
 ### Publish: the instance's own environment
 
 An instance publishes to **its own environment only** (#183): a developer's machine to `local`, staging to `staging`,
-production to `production` – the CDN keeps a root folder per environment, and staging is for testing. There is no
+production to `production` – the CDN keeps a folder per environment, and staging is for testing. There is no
 choice of environment: next to **Publish** (the experience page's bar) the target is named with its backend – `staging · CDN`
 (a connected CDN has priority) or `local · this server` / `staging · this server` (the directory store of an instance
 without a CDN, [server, "One environment per instance"](server.md#one-environment-per-instance)) – and where the experience
 is live (*live on staging, production* or *draft only*). Wherever this server is the target, a short *No CDN connected*
 stands next to it (its help in the Info view has the whole line). **Publish** opens a step in the page – no browser
-dialog – that names the experience, its build now, the target and what it replaces there (*Replaces build … of “Test Experience” on
-staging*, or another experience, below), says on production that every reader gets it, and where this server is the target:
+dialog – that names the experience, its build now, the target and the build of it it replaces there (*Replaces build … of
+“Test Experience” on staging*, or *“Test Experience” is not published on staging yet.*), says on production that every
+reader of the experience gets it, and where this server is the target:
 *No CDN connected – the published content is stored and served by this server only. Readers load from here without
 edge caching; heavy media goes through this server. Back up the content store.* Its button publishes; *Cancel* or
 Escape closes it. Another environment is published from its own editor (the API refuses it, 403 `other-environment`).
 
-### One experience per environment
+### A store per experience
 
-Each environment's content store (`<env>/latest.json`, `<env>/<build>/` – [content on the CDN](content-cdn.md)) serves
-exactly one experience: the last one published there. Until the store has a folder per experience (#87) the editor makes that
-visible and safe (#143):
+Every experience has a content store of its own in each environment (`<title>/<env>/<experience>/latest.json`,
+`…/<experience>/<build>/` – [content on the CDN](content-cdn.md), #87; until then an environment served one experience and
+publishing another asked to replace it, #143). So several experiences are published on one installation – any experience
+can publish to staging and production, and a publish only ever replaces that experience's previous build. Readers open
+the instance's default experience at `/` and another one at `/x/<experience>/`.
 
 - **Where an experience is live.** The Experiences overview shows under each experience *live on staging · build … · since …* (one line per
-  environment that serves it) or *draft only*; next to Publish the experience page shows the same in short. An environment
-  serving an experience that is not imported here, or whose store cannot be read, gets a line under the list.
-- **Publishing over another experience asks.** The publish step names both when the environment serves another experience
-  (*Staging serves “Onion Skin & Crocodile Tears”. Publish “Demo” instead? …*); production says it more strictly (every
-  reader of the app gets the other experience). Only its *Replace on staging* sends `replace: true` – the API refuses the
-  publish without it (409 `other-experience`; when that happens because the environment changed meanwhile, the step opens
-  again with what it serves now).
-- **Switching back** is publishing the real experience again (with the same question): when its draft is unchanged, its last
-  version is still on the store and only `latest.json` moves back – nothing is uploaded again.
-- The MCP server never replaces an experience: its publish gets the 409 and leaves the decision to a person in the editor.
+  environment that serves a build of it) or *draft only*; next to Publish the experience page shows the same in short. An
+  environment whose store cannot be read gets a line under the list.
+- **Going back** to an earlier version is publishing that draft again: when the draft is unchanged, its version is still
+  on the store and only `latest.json` moves back – nothing is uploaded again.
 
 ## AI connections
 

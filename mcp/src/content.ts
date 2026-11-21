@@ -246,7 +246,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
 
   server.registerTool(
     "list_experiences",
-    { description: "The instance's experiences: id, title, author, the scene it opens on (initialScene), number of scenes, content schema, last publish, `live` (the environments serving it – empty: draft only) – and the editor's link of each; `environments` = what each environment serves.", inputSchema: z.object({}), annotations: read },
+    { description: "The instance's experiences: id, title, author, the scene it opens on (initialScene), number of scenes, content schema, last publish, `live` (the environments serving a build of it – every experience has its own store in each; empty: draft only) – and the editor's link of each; `environments` = the environments whose content store could not be read (where an experience is live there is unknown).", inputSchema: z.object({}), annotations: read },
     guard(async () => {
       const { experiences, environments } = await api.call<ExperienceList>("GET", "/editor/experiences");
       return text({ experiences: experiences.map(b => ({ ...b, open: editorHref(links, b.id) })), environments });
@@ -269,13 +269,13 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "import_experience",
     {
       description:
-        "Replaces an experience's content rows from a game configuration (the content build's game.config.json, content schema 3.x – another is refused, 400 invalid-configuration): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the instance CDN's current version. `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the experience exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new experience is imported at once. To tell the person first which experience and build would come in (the CDN's experience id among it), call preview_import.",
+        "Replaces an experience's content rows from a game configuration (the content build's game.config.json, content schema 3.x – another is refused, 400 invalid-configuration): `url` fetches it (e.g. the reader's dev server http://localhost:5174/src/game.config.json), or pass `configuration`; `source: \"cdn\"` imports the current version of this experience on the instance's CDN (its own store there). `assetsBase` = where its /assets/content/… paths resolve. The change and publish logs stay; edits made since are replaced. **Two steps when the experience exists**: the first call imports nothing and answers `comparison` – the incoming build (id, date, app and schema version) against what the draft is based on and its edits since that import – and a short-lived `confirmation`. Show the comparison to the person and ask; only with their yes call again with the same arguments and `confirm: <confirmation.id>`. A new experience is imported at once. To tell the person first which experience and build would come in (the CDN's experience id among it), call preview_import.",
       inputSchema: z.object({
         experience: ID.describe("the configuration's own experience.id (preview_import's incoming.experience) – another id is refused (400 invalid-configuration)"),
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
         assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against – its files.json is read from there, so the Library lists the imported files (a base without one imports with none)"),
-        source: z.enum(["cdn"]).optional().describe('"cdn" = the instance CDN\'s current version (CONTENT_BASE_URL)'),
+        source: z.enum(["cdn"]).optional().describe('"cdn" = the current version of `experience` on the instance\'s CDN (CONTENT_BASE_URL/<experience>)'),
         confirm: z.string().optional().describe("the second step: the confirmation id of the comparison the person agreed to"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
@@ -298,19 +298,20 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "preview_import",
     {
       description:
-        "What an import would bring in, before anything is imported – read-only, takes import_experience's sources: `source: \"cdn\"` (the instance CDN's current version), `url` (a game.config.json to fetch) or `configuration`. Answers the content base and its latest.json (build, when it became current), `incoming` (the one experience's id and title, the build, its date, app and schema version), `counts` (scenes, entries, targets, shared entities) and `existing` – the draft of that id the import would replace (what it is based on, its edits since, where it is live), null for a new experience. Tell the person which experience and build comes in and, when `existing`, that its draft is replaced and its edits lost; then import_experience with `experience` = incoming.experience and the same source.",
+        "What an import would bring in, before anything is imported – read-only, takes import_experience's sources: `source: \"cdn\"` (the current version of an experience on the instance's CDN – `experience`, default the instance's own), `url` (a game.config.json to fetch) or `configuration`. Answers the content base and its latest.json (build, when it became current), `incoming` (the one experience's id and title, the build, its date, app and schema version), `counts` (scenes, entries, targets, shared entities) and `existing` – the draft of that id the import would replace (what it is based on, its edits since, where it is live), null for a new experience. Tell the person which experience and build comes in and, when `existing`, that its draft is replaced and its edits lost; then import_experience with `experience` = incoming.experience and the same source.",
       inputSchema: z.object({
         url: z.string().url().optional().describe("a game.config.json to fetch"),
         configuration: z.record(z.string(), z.unknown()).optional().describe("the game configuration itself"),
         assetsBase: z.string().url().optional().describe("the origin the configuration's /assets/content/… paths resolve against – its files.json is read from there, so the Library lists the imported files (a base without one imports with none)"),
-        source: z.enum(["cdn"]).optional().describe('"cdn" = the instance CDN\'s current version (CONTENT_BASE_URL)'),
+        source: z.enum(["cdn"]).optional().describe('"cdn" = an experience\'s current version on the instance\'s CDN (CONTENT_BASE_URL/<experience>)'),
+        experience: ID.optional().describe("with source cdn: whose store to read – default the instance's own experience (400 invalid-experience when it has none)"),
       }),
       annotations: { readOnlyHint: true, openWorldHint: true },
     },
-    guard(async ({ url, configuration, assetsBase, source }) => {
+    guard(async ({ url, configuration, assetsBase, source, experience: named }) => {
       const body = await importSource({ url, configuration, assetsBase, source });
       if ("error" in body) return fail(body);
-      const preview = await api.call<ImportPreview>("POST", "/editor/import/preview", body);
+      const preview = await api.call<ImportPreview>("POST", "/editor/import/preview", source === "cdn" && named ? { ...body, experience: named } : body);
       const { experience, title, build } = preview.incoming;
       return text({
         ...preview,
@@ -1023,7 +1024,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the experience's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Each environment serves one experience: 409 other-experience (with `current`, the experience it serves) when it serves another – replacing it is the person's decision in the editor, never this tool's. The other refusals: 400 invalid-env, invalid-note, invalid-replace; 404 not-found (no such experience); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
+        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the experience's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Every experience has its own store in the environment: a publish replaces only this experience's previous build there. The other refusals: 400 invalid-env, invalid-note; 404 not-found (no such experience); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
       inputSchema: z.object({ experience: EXPERIENCE, env: z.string().regex(ENV_NAME).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },

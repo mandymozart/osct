@@ -7,6 +7,35 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.2.0 – 2026-11-21
+
+### Changed
+- **Several experiences on one installation** (#87, with #50): every experience has a content store of its own in each
+  environment – `<title>/<env>/<experience>/latest.json` and `…/<experience>/<build>/` on the CDN's storage zone. The
+  title is the instance's setting `OSCT_TITLE` (default `osct`), so one zone can hold several white-label titles.
+  `OSCT_CONTENT_BASE_URL` / `VITE_CONTENT_BASE_URL` now name the environment (`…/osct/staging`); the experience is added.
+- The reader opens the instance's default experience (`VITE_EXPERIENCE` / `OSCT_EXPERIENCE`) at `/` – every link of
+  today stays as it is – and any other experience below `/x/<experience>/` (`/x/demo/scene/…`). Progress stays per
+  experience, as before.
+- The editor's Publish: any experience can publish to staging and production; a publish only replaces that
+  experience's previous build there. The question before replacing another experience is gone, and so is the API's
+  `replace` (409 `other-experience`, 400 `invalid-replace`).
+- The osct CLI works per experience: `sync` writes the build's experience, `status` checks every experience of an
+  environment (or `--experience`), `purge` takes `--experience` (or `OSCT_EXPERIENCE`).
+- The editor API's local content store and its route: `/api/content/<env>/<experience>/…`. `{ "source": "cdn" }` reads
+  the experience's store; the import preview takes `experience` (default the instance's `OSCT_EXPERIENCE`).
+- The demo is an experience on staging (`osct/staging/demo/`, opened at `/x/demo/`) instead of an environment of its
+  own; the CLI refuses a demo build only for production.
+
+### Fixed
+- The header's entries counter: leftover merge markers inside its CSS (since 1.84.0) dropped its muted colour; the
+  label is muted again.
+
+### Added
+- `osct content move --from <old folder> --env <env> [--experience <id>] [--dry-run] [--delete-old]` (also in the
+  workflow *Content*): the one-off copy of the old environment folders into the store per experience – nothing is
+  deleted unless asked, and only once every file arrived (docs/content-cdn.md "Moving to the store per experience").
+
 ## 4.1.0 – 2026-11-21
 
 **Content schema 5.1 – a MINOR, plugin API 3.1** (#334 L-T6, research §5.9 "ports from the code"): a 5.0 app ignores what

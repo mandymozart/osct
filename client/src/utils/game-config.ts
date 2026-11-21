@@ -1,12 +1,15 @@
 /**
  * The game configuration – read access for the whole app (RULES #14). The runtime is the engine's
- * (engine/src/content/game-config.ts); the reader adds what differs per app: the content base URL of the build
- * (`VITE_CONTENT_BASE_URL`, docs/content-cdn.md), the bundled copy (`virtual:osct-game-config` – dev server, tests)
- * and the translated startup errors. A debug build (the dev server, staging) also takes a content base URL from the
- * address – `?content=<base url>` – and keeps it for the tab, so another experience (the demo) opens in the same reader.
+ * (engine/src/content/game-config.ts); the reader adds what differs per app: the content base URL – the environment's
+ * CDN URL of the build (`VITE_CONTENT_BASE_URL`, docs/content-cdn.md) plus the experience the address names
+ * (`/x/<experience>/…`) or the instance's default (`VITE_EXPERIENCE`) – utils/experience-path.ts, #87 –, the bundled
+ * copy (`virtual:osct-game-config` – dev server, tests) and the translated startup errors. A debug build (the dev
+ * server, staging) also takes a whole content base URL from the address – `?content=<base url>` – and keeps it for the
+ * tab, so content of any store opens in the same reader.
  */
 import { t } from "i18next";
 import { loadGameConfiguration as load, type LoadOptions } from "@engine/content/game-config";
+import { contentBaseUrl } from "./experience-path";
 
 export * from "@engine/content/game-config";
 
@@ -40,7 +43,7 @@ export const contentBaseOverride = (
 /** Loads the game configuration once before the app starts (main.ts); see the engine's `loadGameConfiguration` */
 export const loadGameConfiguration = (options: LoadOptions = {}) =>
   load({
-    baseUrl: contentBaseOverride() ?? import.meta.env.VITE_CONTENT_BASE_URL ?? "",
+    baseUrl: contentBaseOverride() ?? contentBaseUrl(),
     bundled: () => import("virtual:osct-game-config").then(module => module.default),
     texts: {
       contentNewer: t("startup:contentNewer"),

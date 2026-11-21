@@ -19,9 +19,10 @@ const MISSING_CONTENT = 'client/src/game.config.json is missing – build the co
 const readLocalGameConfig = () => (existsSync(GAME_CONFIG_FILE) ? JSON.parse(readFileSync(GAME_CONFIG_FILE, 'utf8')) : null);
 
 /**
- * Experience data for the app shell (home-screen name, static splash). A CDN build takes it from the environment's
- * current content version on the CDN – it only shapes the first frame, the app renders the loaded content after that – and
- * falls back to a local content build, then to no experience data. Without the CDN the local build is required.
+ * Experience data for the app shell (home-screen name, static splash). A CDN build takes it from the current content
+ * version of the instance's default experience on the CDN (`<base>/<VITE_EXPERIENCE>/`, #87) – it only shapes the first
+ * frame, the app renders the loaded content after that – and falls back to a local content build, then to no experience
+ * data. Without the CDN the local build is required.
  */
 async function readShellConfig(contentBaseUrl) {
   if (!contentBaseUrl) {
@@ -237,8 +238,14 @@ function xr8Engine() {
 export default defineConfig(async ({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
   // Content CDN of the environment (client/.env.local or the deploy's environment); '' = bundled content
-  const contentBaseUrl = (loadEnv(mode, import.meta.dirname, 'VITE_').VITE_CONTENT_BASE_URL ?? '').replace(/\/+$/, '');
-  const shellConfig = await readShellConfig(contentBaseUrl);
+  const viteEnv = loadEnv(mode, import.meta.dirname, 'VITE_');
+  const contentBaseUrl = (viteEnv.VITE_CONTENT_BASE_URL ?? '').replace(/\/+$/, '');
+  // The instance's default experience: its store below the environment's CDN URL (src/utils/experience-path.ts, #87)
+  const experience = (viteEnv.VITE_EXPERIENCE ?? '').trim();
+  if (contentBaseUrl && !experience) {
+    throw new Error('VITE_EXPERIENCE is not set – a build against the content CDN (VITE_CONTENT_BASE_URL) names the experience it opens (docs/content-cdn.md)');
+  }
+  const shellConfig = await readShellConfig(contentBaseUrl && `${contentBaseUrl}/${encodeURIComponent(experience)}`);
   // The design font's folder (src/utils/font-face-html.ts); the service worker caches what it loads from there
   const fontUrl = fontBaseUrl(loadEnv(mode, import.meta.dirname, 'VITE_').VITE_FONT_BASE_URL);
   const port = 5173;

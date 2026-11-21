@@ -17,12 +17,15 @@ registry:
     - KAMAL_REGISTRY_PASSWORD
 
 # Built on the deploying machine from a clean clone of the commit – uncommitted changes never reach a server.
-# OSCT_CONTENT_BASE_URL (GitHub environment variable, docs/content-cdn.md): the app loads its content from that CDN;
-# empty = the content of the commit is built into the image. The destination adds VITE_DEBUG.
+# OSCT_CONTENT_BASE_URL (GitHub environment variable, docs/content-cdn.md): the environment's CDN URL
+# `<pull zone>/<title>/<env>` – the app loads an experience's content from `<base>/<experience>/`; empty = the content of
+# the commit is built into the image. OSCT_EXPERIENCE: the instance's default experience, the one the reader opens
+# without /x/<experience>/ (#87). The destination adds VITE_DEBUG.
 builder:
   arch: amd64
   args:
     VITE_CONTENT_BASE_URL: <%= ENV.fetch("OSCT_CONTENT_BASE_URL", "") %>
+    VITE_EXPERIENCE: <%= ENV.fetch("OSCT_EXPERIENCE", "osct") %>
 
 ssh:
   user: <%= ENV.fetch("SSH_USER", "root") %>
@@ -56,6 +59,10 @@ env:
     # (default) keeps them in the content store on the server's volume (the destination file), served under /api/content.
     # OSCT_CONTENT_BASE_URL (the same variable as the build flag) lets the editor import the CDN's current version.
     OSCT_CONTENT_STORE: <%= ENV.fetch("CONTENT_STORE", "local") %>
+    # The store layout `<title>/<env>/<experience>/` (docs/content-cdn.md, #87): the title of this instance in the storage
+    # zone, and its default experience (the reader's, and what `{ "source": "cdn" }` previews when none is named)
+    OSCT_TITLE: <%= ENV.fetch("OSCT_TITLE", "osct") %>
+    OSCT_EXPERIENCE: <%= ENV.fetch("OSCT_EXPERIENCE", "osct") %>
     # The first editors and admins (docs/server.md "Roles"): these addresses get the role when they sign in
     OSCT_EDITORS: <%= ENV.fetch("EDITORS", "") %>
     OSCT_ADMINS: <%= ENV.fetch("ADMINS", "") %>

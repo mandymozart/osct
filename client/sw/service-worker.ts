@@ -12,8 +12,8 @@
  *   URL, else assets/content/ of the app): cached when first used (the PreloaderService's fetches fill it) and
  *   served from the cache afterwards. Bundled content: one cache per content build (`version.hash`), older ones
  *   are dropped when a new worker takes over. CDN content: one cache; every content version is its own
- *   immutable folder (`<base>/<build>/`), and when `latest.json` names another version the entries of the other
- *   versions are dropped. `latest.json` is fetched network-first and kept, so the installed app starts offline
+ *   immutable folder (`<base>/<experience>/<build>/`, #87), and when an experience's `latest.json` names another
+ *   version the entries of its other versions are dropped. `latest.json` is fetched network-first and kept, so the installed app starts offline
  *   with the last content it saw.
  * - Design font (ABC Areal, from the CDN font folder – src/utils/font-face-html.ts): cached when first used and served
  *   from the cache afterwards, in a cache of its own that outlives builds and content versions (the files do not change).
@@ -94,17 +94,30 @@ const withoutQuery: WorkboxPlugin = {
   },
 };
 
-/** When latest.json names another version, the cached files of every other version go */
+/**
+ * The experience store a URL is the latest.json of – `<base>/<experience>/` for `<base>/<experience>/latest.json` (every
+ * experience has its own store below the environment's CDN URL, #87) –, null for any other URL
+ */
+const storeOfManifest = (href: string): string | null => {
+  if (!href.startsWith(`${CONTENT_BASE_URL}/`)) return null;
+  const match = /^([^/]+)\/latest\.json$/.exec(href.slice(CONTENT_BASE_URL.length + 1));
+  return match ? `${CONTENT_BASE_URL}/${match[1]}/` : null;
+};
+
+/** When an experience's latest.json names another version, the cached files of its other versions go – another experience's stay */
 const dropOtherVersions: WorkboxPlugin = {
   cacheDidUpdate: async ({ cacheName, request }) => {
+    const url = request.url.split("?")[0];
+    const store = storeOfManifest(url);
+    if (!store) return;
     const cache = await caches.open(cacheName);
-    const stored = await cache.match(request.url.split("?")[0]);
+    const stored = await cache.match(url);
     const build = stored ? ((await stored.json()) as { build?: unknown }).build : undefined;
     if (typeof build !== "string") return;
-    const current = `${CONTENT_BASE_URL}/${build}/`;
+    const current = `${store}${build}/`;
     const versionFile = /^[0-9a-f]{12}\//;
     const others = (await cache.keys()).filter(key =>
-      key.url.startsWith(`${CONTENT_BASE_URL}/`) && versionFile.test(key.url.slice(CONTENT_BASE_URL.length + 1)) && !key.url.startsWith(current));
+      key.url.startsWith(store) && versionFile.test(key.url.slice(store.length)) && !key.url.startsWith(current));
     await Promise.all(others.map(key => cache.delete(key)));
   },
 };
@@ -112,7 +125,7 @@ const dropOtherVersions: WorkboxPlugin = {
 // latest.json changes with every content sync: from the network, the stored copy only when offline
 if (CONTENT_BASE_URL) {
   registerRoute(
-    ({ url }) => `${url.origin}${url.pathname}` === `${CONTENT_BASE_URL}/latest.json`,
+    ({ url }) => storeOfManifest(`${url.origin}${url.pathname}`) !== null,
     readerOnly(new NetworkFirst({
       cacheName: CONTENT_CACHE,
       networkTimeoutSeconds: MANIFEST_TIMEOUT_SECONDS,

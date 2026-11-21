@@ -281,7 +281,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     const published = await call("publish", { experience: "osct", env: "local", note: "from the MCP" });
     expect(published.ok).toBe(true);
     expect(published.data.build).toMatch(/^[0-9a-f]{12}$/);
-    expect(existsSync(join(storeDir, "local", published.data.build, "game.config.json"))).toBe(true);
+    expect(existsSync(join(storeDir, "local", "osct", published.data.build, "game.config.json"))).toBe(true);
     expect(published.data).toMatchObject({ env: "local", store: "server", warning: expect.stringContaining("No CDN connected") });
     const staging = await call("publish", { experience: "osct", env: "staging" });
     expect(staging.data.error).toMatchObject({ status: 403, code: "other-environment", env: "local" });

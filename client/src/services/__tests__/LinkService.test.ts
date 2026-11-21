@@ -49,6 +49,15 @@ describe("links: building", () => {
     expect(linkForState({ currentRoute: route(Pages.ABOUT, "/about"), currentScene: null }, "1.1.0")).toBe("/about?osct=1.1.0");
   });
 
+  it("another experience: every route below /x/<experience>, read without it and written with it (#87)", () => {
+    expect(parseLink("/x/demo/scene/scene1", "?osct=3.10.0")).toEqual({ slug: "/scene", value: "scene1", version: "3.10.0" });
+    expect(parseLink("/x/demo/entries/category/video", "")).toMatchObject({ slug: "/entries", value: "video" });
+    expect(parseLink("/x/demo", "")).toBeNull();
+    expect(parseLink("/x/demo/", "")).toBeNull();
+    expect(linkForState({ currentRoute: route(Pages.ABOUT, "/about"), currentScene: null }, "1.1.0", "/x/demo")).toBe("/x/demo/about?osct=1.1.0");
+    expect(linkForState({ currentRoute: route(Pages.SPLASH, "/"), currentScene: null }, "1.1.0", "/x/demo")).toBe("/x/demo?osct=1.1.0");
+    expect(linkForState({ currentRoute: route(Pages.SPLASH, "/"), currentScene: null }, "1.1.0", "")).toBe("/?osct=1.1.0");
+  });
 });
 
 describe("links: resolving", () => {

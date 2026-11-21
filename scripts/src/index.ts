@@ -19,7 +19,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_ENV, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE, projectRoot, requireContentDir } from './config';
+import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_MARKER, DEMO_REFUSED_ENV, FIXTURE_MARKER, OUTPUT_FILE, projectRoot, requireContentDir } from './config';
 import { buildConfig } from './build/game-config';
 import { buildPlugins, writePluginBundles } from './build/plugins';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
@@ -40,7 +40,7 @@ if (!fs.existsSync(path.join(CONTENT_DIR, 'experience.yaml'))) {
   process.exit(1);
 }
 if (fs.existsSync(path.join(CONTENT_DIR, FIXTURE_MARKER))) console.log('🧪 This is the test fixture – never synced to the CDN');
-if (fs.existsSync(path.join(CONTENT_DIR, DEMO_MARKER))) console.log(`🎲 This is the demo – synced to the environment ${DEMO_ENV} only`);
+if (fs.existsSync(path.join(CONTENT_DIR, DEMO_MARKER))) console.log(`🎲 This is the demo – an experience of its own, never synced to ${DEMO_REFUSED_ENV}`);
 
 async function generateConfigFile(): Promise<void> {
   try {

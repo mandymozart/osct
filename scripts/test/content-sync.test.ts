@@ -7,7 +7,7 @@ import {
   activate,
   type ContentBuild,
   DEFAULT_PURGE,
-  type EnvironmentState,
+  type StoreState,
   fileIndex,
   isDemoBuild,
   isFixtureBuild,
@@ -58,8 +58,8 @@ const RECENT = '000000000003';
 const CURRENT = '000000000004';
 
 /** Four versions: two retired long ago, one retired yesterday, one current */
-const state = (overrides: Partial<EnvironmentState> = {}): EnvironmentState => ({
-  env: 'staging',
+const state = (overrides: Partial<StoreState> = {}): StoreState => ({
+  root: 'staging',
   current: { build: CURRENT, hash: CURRENT, schema: '1.1', version: '1.7.2', activatedAt: daysAgo(1) },
   versions: [version(OLDER, 120, 90), version(OLD, 90, 60), version(RECENT, 60, 1), version(CURRENT, 1, null)],
   listing: [file('latest.json'), file('versions.json'), folder(OLDER), folder(OLD), folder(RECENT), folder(CURRENT)],
