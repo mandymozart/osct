@@ -1187,6 +1187,33 @@ OSCT_API_URL=http://127.0.0.1:8080/api OSCT_EDITOR_TOKEN=osct_… \
   configuration stays the same; a `.glb` is optimised again (its bytes change, its name does not) – no built names need
   recording.
 
+### Export archive
+
+Every publish writes the export of the build it published into the experience's content store (#322, MEMORY 2026-11-21 –
+the layout is [Content on the CDN](content-cdn.md) "The export archive"): `<title>/<env>/<experience>/exports/<build>/`,
+once per build, never rewritten. The server writes it in the publish (`server/api/src/ExportArchive.php`, the PHP copy of
+`scripts/src/lib/content-export.ts`'s plan – `scripts/test/export-archive.test.ts` compares the two on `fixtures/content`
+and `fixtures/demo`), after `latest.json`: a failed archive does not fail the publish (the answer's `export` says
+`written: false` with `error`; the server's error log has it).
+
+- **What it holds**: the source files of an export (above) – YAML, `plugins/<id>/index.ts`, `EXPORT.md` – and **no
+  media**. `export.json` (`ExportArchiveRecord` in `shared/api/editor.ts`): `archive: true`, experience, instance, title,
+  env, `source` (the published build, `publishedBy` always null – the archive lies where readers can reach it), build,
+  hash, schema, appVersion, `writtenBy` (`publish` or `cli`), exportedAt, `files` (`{ path, url, origin, sha256, v, size }`
+  – each file the YAML names, by its path in the folder and the URL it is read from; checksums where the instance knows
+  them), `builds` (`{ env, build }` – the content builds those URLs lie in, read from `<title>/<env>/<experience>/<build>/`
+  or the directory store's `/content/<env>/<experience>/<build>/`, and the archived build) and `problems`. The compiled
+  plugin modules are not named (the build compiles the sources); a published configuration has no logic canvas, so the
+  archive's scenes have none either.
+- **Manual run**: `osct content export --archive --env <env> --experience <id> [--dry-run]` writes the archive of the
+  build live in `<env>` (the store's `latest.json`) from the export endpoint's answer for that build – the build must be
+  in the instance's publish log (a build only the CLI synced, the demo's, is not: 404 `unknown-build`). It needs
+  `OSCT_API_URL`, `OSCT_EDITOR_TOKEN` and the storage variables (the storage zone only – an instance without CDN gets its
+  archives from its publishes).
+- **Purge** keeps every build the newest archive per environment names (docs/content-cdn.md "The osct CLI").
+- **Restore**: copy the folder, download each file of `export.json` to its `path`, then `osct content build` (or import
+  the build). Not a command yet.
+
 ### Importing a delivery
 
 A publisher's delivery (folders of printed images, entry images and videos) reaches the experience's **draft in the

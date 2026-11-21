@@ -7,6 +7,18 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.5.0 – 2026-11-21
+
+### Added
+- The export archive (#322, docs/content-cdn.md "The export archive", docs/content.md "Export archive"): every publish
+  writes the export of the published build into the experience's content store, `<title>/<env>/<experience>/exports/<build>/`
+  (the directory store of an instance without CDN alike) – once per build, never rewritten. It holds what `osct content
+  export` writes (YAML, plugin sources, EXPORT.md, export.json) without the media: export.json names each file by its
+  immutable URL and lists the content builds they lie in. The publish answer has `export: { path, written, error? }`.
+  `osct content export --archive --env <env> --experience <id>` writes one for the build live there.
+- `osct content purge` keeps every build the newest export archive of the experience (in any environment) names, and
+  never deletes `exports/` (`--unknown` included).
+
 ## 4.4.2 – 2026-11-21
 
 ### Fixed
