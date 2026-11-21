@@ -63,6 +63,9 @@ export const logicContent = (props: () => { experienceId: string; sceneId: strin
     const list = declared.filter(p => !declaredUses(p.registered));
     const experienceId = props().experienceId;
     void plugins.stored;
+    // The stored sources are not listed yet: which ones are stored decides how each is read – wait for the list (#340: else
+    // every source was asked for twice, once before the list and once after)
+    if (plugins.experienceId !== experienceId || plugins.loading) return;
     let current = true;
     void Promise.all(list.map(async p => [p.id, await readSource(experienceId, p)] as const)).then(read => {
       if (current) code = Object.fromEntries(read.flatMap(([id, source]) => (source === null ? [] : [[id, pluginCodeUses(source)]])));
