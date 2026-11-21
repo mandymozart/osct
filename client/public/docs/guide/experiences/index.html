@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Experiences, import, publish – OSCT docs</title>
+  <meta name="description" content="The editor&#x27;s start page: the experiences of this installation, importing one, connecting an AI agent, and publishing.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>Experiences, import, publish</h1>
+  <p class="lead">The start page lists the experiences here and is where one comes in. Publishing happens from inside an experience.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="page">The Experiences page</h2>
+  <figure>
+    <a href="/docs/img/experiences.webp"><img src="/docs/img/experiences.webp" width="1440" height="900" alt="The Experiences page: two experiences as covers on the left, the import form on the right, AI connections below." loading="lazy"></a>
+    <figcaption>Left: the experiences, each with where it is live (<i>draft</i> = not published). Below them: AI connections. Right: the import form.</figcaption>
+  </figure>
+  <p>Click a cover to open the experience. Under each one a line says where it is live and since when, or <i>draft only</i>.</p>
+
+  <h2 id="import">Importing an experience</h2>
+  <div class="beside wide">
+    <div>
+      <p>An import turns an experience's <b>game configuration</b> into a draft here. Three sources:</p>
+      <ul>
+        <li><b>the CDN</b>: the version this installation has published.</li>
+        <li><b>URL</b>: a <code>game.config.json</code>, or a <b>content base</b> – an experience's folder on the CDN that holds <code>latest.json</code>, e.g. <code>…/osct/staging/demo</code>.</li>
+        <li><b>file</b>: a <code>game.config.json</code> from your computer.</li>
+      </ul>
+      <p><b>Assets at</b> is where the media paths resolve. No media is copied: the draft points at the files where they are.</p>
+      <p>Before anything is imported the form shows <b>what comes in</b>: the build, its date, the app and schema version, the experience and what it holds.</p>
+    </div>
+    <figure>
+      <a href="/docs/img/import-preview.webp"><img src="/docs/img/import-preview.webp" width="720" height="700" alt="The import form with a content base URL and the preview of what comes in." loading="lazy"></a>
+      <figcaption>The preview. The red lines say a draft of this experience exists and how many edits an import replaces.</figcaption>
+    </figure>
+  </div>
+  <p>The experience's id comes from the configuration. If a draft with that id exists, <b>the import replaces it</b>, so the editor shows a comparison first and imports only when you confirm.</p>
+  <figure>
+    <img src="/docs/img/import-compare.webp" width="708" height="420" alt="The comparison: the incoming build against the build the draft is based on, and the edits made since." loading="lazy">
+    <figcaption>Coming in against what the draft is based on, and the edits since that would be lost. <b>Replace the draft</b> imports; <i>Cancel</i> goes back.</figcaption>
+  </figure>
+
+  <h2 id="publish">Publishing</h2>
+  <div class="beside wide">
+    <div>
+      <p><b>Publish</b> is the cloud button in the top bar of an open experience. Next to it: <i>draft only</i> or <i>live on …</i>.</p>
+      <p>It opens a step that names the experience, the target and what it replaces there. Its button publishes; <i>Cancel</i> or <kbd>Esc</kbd> closes it.</p>
+      <ul>
+        <li><b>An installation publishes to its own environment only</b>: a local machine to <code>local</code>, staging to <code>staging</code>, production to <code>production</code>. There is no choice.</li>
+        <li><b>Each experience has its own store.</b> Publishing one never touches another.</li>
+        <li><b>No CDN connected</b> means this server stores and serves the published content itself.</li>
+        <li>Publish carries the draft and every <b>saved</b> plugin source. Unsaved code stays behind.</li>
+      </ul>
+      <p><b>Going back</b>: revert the draft in <a href="/docs/guide/workspace/#undo">History</a>, then publish again.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/publish.webp" width="480" height="250" alt="The publish step under the top bar." loading="lazy">
+      <figcaption>The publish step on a local installation.</figcaption>
+    </figure>
+  </div>
+  <p>Readers open the installation's default experience at <code>/</code> and any other at <code>/x/&lt;experience&gt;/</code>.</p>
+
+  <h2 id="ai">AI connections</h2>
+  <div class="beside wide">
+    <div>
+      <p>An AI agent (Claude Code, Claude Desktop, Codex CLI, OpenCode, Cursor) can work in the editor as you. It saves drafts and <b>never publishes</b>.</p>
+      <ul>
+        <li><b>Connect an AI agent</b>: pick the agent, press <b>Create token &amp; copy prompt</b>, paste the prompt into the agent. It sets itself up.</li>
+        <li><b>Existing connections</b>: each token with when it was last used and when it expires. <b>Renew</b> gives it another 182 days; <b>Revoke</b> stops it at once.</li>
+      </ul>
+      <p>A token is shown once, so every agent gets its own. Details: <a href="/docs/api/mcp/">MCP server</a>.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/ai-connections.webp" width="640" height="360" alt="Connect an AI agent: the agent's name, the prompt button, three steps." loading="lazy">
+    </figure>
+  </div>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

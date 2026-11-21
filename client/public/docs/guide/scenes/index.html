@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Scenes and surfaces – OSCT docs</title>
+  <meta name="description" content="Scenes, groups and surfaces in the OSCT editor: the Scenes panel, adding and ordering scenes, double pages, single pages and walls.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>Scenes and surfaces</h1>
+  <p class="lead">An experience is an ordered list of scenes. A scene has one or more surfaces, and the targets lie on them. There are no page numbers: a scene has a label.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="panel">The Scenes panel</h2>
+  <figure>
+    <img src="/docs/img/scenes.webp" width="744" height="192" alt="The Scenes panel: six scene cards in a row, the open one framed." loading="lazy">
+    <figcaption>Each card shows the scene's surfaces with the targets on them, its label and its target count. The open scene is framed.</figcaption>
+  </figure>
+  <div class="table"><table>
+    <tr><th>To</th><th>Do</th></tr>
+    <tr><td>Open a scene</td><td class="wrap">Click its card. <kbd>←</kbd> <kbd>→</kbd> or ‹ › step to the neighbour.</td></tr>
+    <tr><td>Pick several</td><td class="wrap"><kbd>Shift</kbd>+click for a range, <kbd>Ctrl</kbd>+click for one more.</td></tr>
+    <tr><td>Reorder</td><td class="wrap">Drag the picked cards; a line shows where they land. The drop is saved at once.</td></tr>
+    <tr><td>Add a scene</td><td class="wrap">The add button in the head (after the open scene), or the dashed <b>+</b> at the end. Choose a preset.</td></tr>
+    <tr><td>Group</td><td class="wrap">Pick scenes, then the folder button or <kbd>Ctrl</kbd>+<kbd>G</kbd>. <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> ungroups.</td></tr>
+    <tr><td>Remove a scene</td><td class="wrap">Select the scene, then <i>remove scene…</i> in the Inspector. It asks first and names what goes with it.</td></tr>
+  </table></div>
+  <p>The head's two layout buttons switch between a filmstrip and a grid.</p>
+
+  <h2 id="presets">Scene presets</h2>
+  <div class="table"><table>
+    <tr><th>Preset</th><th>Its surface</th></tr>
+    <tr><td>Double page</td><td class="wrap">One surface, 460 × 320 mm, flat on the table. A double page is <b>one</b> surface.</td></tr>
+    <tr><td>Single page</td><td class="wrap">230 × 320 mm. A cover is a single-page scene first in the order.</td></tr>
+    <tr><td>Wall</td><td class="wrap">2000 × 1500 mm, standing ahead.</td></tr>
+  </table></div>
+
+  <h2 id="groups">Groups</h2>
+  <p>A group is a label over neighbouring scenes: <b>one stop</b> in the reader's switcher. In the panel it is a band over its cards. Click the band to select the group and type its label in the Inspector.</p>
+  <p>The band shows the group's target count. It turns into a warning when the group holds more targets than the app keeps loaded at once.</p>
+
+  <h2 id="surfaces">Surfaces</h2>
+  <p>With the scene selected, the Inspector lists its surfaces. <b>+ surface</b> adds a double page, single page, wall or custom one. <b>Arrange in a row</b> lays them flat side by side.</p>
+  <p>Select a surface (its row in the tree, or the <b>Surface</b> tool, <kbd>S</kbd>) to edit:</p>
+  <ul>
+    <li><b>Label, format and size</b> in mm. Targets that end up outside are named in red.</li>
+    <li><b>Place</b>: position and rotation in the scene. The Surface tool's gizmo does the same on the stage.</li>
+    <li><b>Grid</b>: the surface's own grid for its targets.</li>
+    <li><b>Reference image</b>: a picture of the page or wall, shown on the stage to place targets against. It is an editing aid; readers never get it.</li>
+  </ul>
+  <div class="note"><p>A surface with entries or targets on it is removed only after a confirmation that names them. They fall back to the scene's first surface.</p></div>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

@@ -209,6 +209,33 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-21 – A documentation site for users at /docs/ (#336)
+
+Tilman: *"i would love to have a route docs/ … a documentation that can work properly to figure out how stuff works in
+the editor. organize it logically and add illustrations of screen shots where possible. make those things brief. add
+tutorials for most common use cases of an editor or admin and an api documentation … for plugin makers or how the logic
+system works and mcp as well"*.
+
+- **Static pages in `client/public/docs/`**, no build step: the hub, an editor guide (nine pages), tutorials for editors
+  and for admins, API pages (which API for what, the logic system, the plugin API, the MCP server). One stylesheet, one
+  script with the list of pages (sidebar, *On this page*, previous / next). How it is kept: `docs/docs-site.md`.
+- **For users, brief**: what a thing is for and how to use it. `docs/*.md` stay the developers' documentation and the
+  source the pages are written from (RULES #31) – a page never copies their detail.
+- **The long page at `/docs/tutorials/` stays** as it is (RULES #1), linked as *Content and demo walkthrough*; the new
+  tutorials live beside it (`tutorials/editor/`, `tutorials/admin/`).
+- The folder is `guide/`, not `editor/`: `/docs/editor/…` would read like the editor app's own address.
+- The editor's account menu has *Documentation* (opens `/docs/` in a new tab).
+- Screenshots: the local editor on the demo, re-imported from `…/osct/staging/demo` (build e04673e65644) into the local
+  SQLite; headless Edge over CDP, signed in through the form with the mail log's code.
+- [ ] `docs/editor.md` "Environment" still describes the **world** row (the built-in café, a glTF model) – gone since #310;
+  the panel has the sky, the onion sky and the preview only. Correct the section (the site's page is right).
+- [ ] `docs/editor.md` "Inspector: the scene" lists *appearance* among the scene's sections – it is the experience's
+  (`ExperiencePanel.svelte`); the "Try it" section speaks of nine demo scenes (there are six).
+- [ ] The long walkthrough's screenshots (`tutorials/demo/`, `tools/`, `import/`) are from before the floating panels;
+  retake them, or fold its chapters into the new pages (ask Tilman before removing the page).
+- [ ] The local SQLite's `editor@osct.test` is now also **admin** (granted with the admin secret for the admin page's
+  screenshot; it is the last admin there, so the API refuses to take the role back).
+
 ## 2026-11-21 – fixtures/demo is the staging demo's export; demo.yml no longer syncs (#322 decision (b))
 
 - `fixtures/demo` = `osct content export --experience demo --from draft` from staging (the DB side won – Tilman's

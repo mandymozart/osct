@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The Code tab – OSCT docs</title>
+  <meta name="description" content="The editor&#x27;s Code tab: opening, running, saving and shipping the experience&#x27;s plugins.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>The Code tab</h1>
+  <p class="lead">The Code tab holds the experience's plugins: TypeScript that adds components, node types, materials, passes and looks. You try code on the stage with Run and keep it with Save.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <p>What a plugin can do is in the <a href="/docs/api/plugins/">Plugin API</a>; this page is about the tab.</p>
+  <h2 id="tab">The tab</h2>
+  <div class="beside wide">
+    <div>
+      <ul>
+        <li><b>Plugin</b>: pick one of the experience's plugins. <b>new</b> starts one with two examples. An asterisk marks unsaved edits (<i>spin*</i>).</li>
+        <li><b>The editor</b> knows the plugin API: completion (<kbd>Ctrl</kbd>+<kbd>Space</kbd>), documentation on hover, type errors underlined.</li>
+        <li><b>On the stage</b>: the line under the editor says what of this plugin runs there: <i>the saved version</i>, <i>edits not saved</i>, <i>failed</i>, or <i>not loaded</i>.</li>
+        <li><b>Run</b> (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>): tries the text on the stage, saved or not.</li>
+        <li><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>): stores the source and runs it.</li>
+        <li><b>Download</b>: the plugin as a zip with its types, to work on in your own editor.</li>
+        <li><b>Delete</b>: refused while the draft uses something the plugin registers.</li>
+      </ul>
+    </div>
+    <figure>
+      <a href="/docs/img/code.webp"><img src="/docs/img/code.webp" width="576" height="844" alt="The Code tab with the spin plugin open." loading="lazy"></a>
+      <figcaption>The demo's <i>spin</i> plugin.</figcaption>
+    </figure>
+  </div>
+
+  <h2 id="run">What Run does</h2>
+  <ol>
+    <li>The TypeScript is turned into JavaScript in your browser. Types are removed, not checked.</li>
+    <li>The stage loads it and registers what it adds, replacing the previous Run.</li>
+    <li>The scene is built again. A new component now shows under <i>add component</i> in the Inspector, a pass under <i>add pass</i>, a node type under <i>+ node</i>.</li>
+  </ol>
+  <p>Errors show under the editor and on their line. What ran before stays registered. The <b>log</b> below has the plugin's <code>api.log</code> lines and its errors on the stage.</p>
+
+  <h2 id="saved">Saved sources load by themselves</h2>
+  <p>Every time the workspace opens, the saved plugins are loaded onto the stage. Run is only for trying edits before you save them.</p>
+  <p>If a plugin hangs the stage, the editor skips it on the next open and says so. Fix it, then Run it by hand.</p>
+
+  <h2 id="shipping">Reaching readers</h2>
+  <ul>
+    <li><b>A Run reaches no reader. Publish does</b>: it carries every <b>saved</b> source.</li>
+    <li>Unsaved edits stay behind.</li>
+    <li>A source that does not compile stops the publish and names the line.</li>
+    <li>Type errors are <b>not</b> checked at publish. Fix what the editor underlines first.</li>
+    <li>A node that uses a component, node type, material, pass or look that no plugin provides stops the publish too.</li>
+  </ul>
+
+  <h2 id="safety">Where the code runs</h2>
+  <p>In the editor, plugins run inside the stage's sandbox. They cannot read your session, reach the editor's page, load from other sites or show dialogs. They can use the experience's files. In the reader app the published plugins run in the app's page.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

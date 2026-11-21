@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Workspace and panels – OSCT docs</title>
+  <meta name="description" content="The workspace of a scene: floating panels and tabs, the tree, selection, the search, autosave, undo and the History.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>Workspace and panels</h1>
+  <p class="lead">The stage fills the window and the panels float over it. One selection is shared by the tree, the stage and the Inspector.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="panels">Panels and tabs</h2>
+  <div class="table"><table>
+    <tr><th>Panel</th><th>Where it starts</th><th>What it holds</th></tr>
+    <tr><td>Tree</td><td>left</td><td class="wrap">The scene's surfaces, entries, targets and nodes.</td></tr>
+    <tr><td>Tools</td><td>top, over the stage</td><td class="wrap">Undo, the tools, select filters, shading, grid and snap, view, live. <a href="/docs/guide/stage/">The stage</a></td></tr>
+    <tr><td>Inspector</td><td>right</td><td class="wrap">Tabs: <b>Inspector</b> (what is selected), <b>Environment</b>, <b>Library</b>, <b>Code</b>.</td></tr>
+    <tr><td>Scenes</td><td>bottom</td><td class="wrap">The experience's scenes as a filmstrip. <a href="/docs/guide/scenes/">Scenes</a></td></tr>
+    <tr><td>Info</td><td>bottom left, folded</td><td class="wrap">Help for the control under the pointer.</td></tr>
+    <tr><td>History, Logic</td><td>closed</td><td class="wrap">Open them from the panels menu (History also from the clock in the Tools).</td></tr>
+  </table></div>
+  <ul>
+    <li><b>Move</b> a panel by its head. It snaps to walls and to other panels and never overlaps one.</li>
+    <li><b>Resize</b> by its edges; the panels in the way make room. Double-click an edge for its own size.</li>
+    <li><b>Fold</b> a panel to its head with a double-click on the head. <b>Close</b> with ×.</li>
+    <li><b>Drag a tab</b> into another panel's head, or onto the stage to make a panel of its own.</li>
+    <li>The <b>panels menu</b> (top bar, right) lists every tab, brings closed ones back and has <b>Reset layout</b>.</li>
+  </ul>
+  <p>The layout is remembered per browser. The Inspector can be folded but never closed.</p>
+
+  <h2 id="tree">The tree</h2>
+  <div class="beside">
+    <div>
+      <p>From top to bottom: the <b>scene</b>, its <b>surfaces</b>, then each <b>entry</b> with its <b>target</b> and the target's <b>entity</b> as a tree of nodes.</p>
+      <ul>
+        <li>A click on any row selects it.</li>
+        <li>The <b>eye</b> switches a target off and on, as if the camera lost and found the page.</li>
+        <li><b>+ target</b> and <b>+ entry</b> at the end add one to the scene.</li>
+        <li><b>Right click</b> a row for its menu: remove, move up or down, into or out of a node.</li>
+        <li><b>Drag</b> a node row onto another to make it a child, or between rows to reorder.</li>
+        <li>Drag a target row onto a surface row to move it to that surface.</li>
+      </ul>
+      <p>Keys: <kbd>↑</kbd> <kbd>↓</kbd> walk the rows, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> reorder a node, <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> indent and outdent, <kbd>Delete</kbd> removes the selected node.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/tree.webp" width="264" height="460" alt="The tree of scene 1–2: surfaces, three entries with their targets and nodes." loading="lazy">
+    </figure>
+  </div>
+
+  <h2 id="selection">Selection</h2>
+  <p>What you select decides what the Inspector shows:</p>
+  <div class="table"><table>
+    <tr><th>Selected</th><th>How</th><th>The Inspector shows</th></tr>
+    <tr><td>The scene</td><td class="wrap">its row, or a click on empty stage</td><td class="wrap">label, surfaces, post-processing, rules, vars and events</td></tr>
+    <tr><td>A surface</td><td class="wrap">its row, or the Surface tool</td><td class="wrap">size, place, grid, reference image</td></tr>
+    <tr><td>An entry</td><td class="wrap">its row</td><td class="wrap">the text form</td></tr>
+    <tr><td>A target</td><td class="wrap">its row, or its printed image on the stage</td><td class="wrap">printed image and placement</td></tr>
+    <tr><td>A node</td><td class="wrap">its row, or a click on it on the stage</td><td class="wrap">placement, file, material, components</td></tr>
+    <tr><td>The experience</td><td class="wrap">its name in the top bar</td><td class="wrap">title, printed book, rules, variables</td></tr>
+    <tr><td>A group</td><td class="wrap">its band in the Scenes panel</td><td class="wrap">label and its scenes</td></tr>
+  </table></div>
+
+  <h2 id="search">Search</h2>
+  <p>The top bar's search finds <b>entries</b> (title and text), <b>scenes</b>, <b>targets</b> and <b>named nodes</b> across the whole experience. A pick opens its scene and selects it. <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>K</kbd> focuses the field.</p>
+
+  <h2 id="autosave">Autosave</h2>
+  <p>An edit shows on the stage at once and is saved about a second after you stop. The top bar says where the draft stands. <i>Not saved</i> names what keeps it back, e.g. a rule that is not complete yet.</p>
+  <p><b>Undo edits</b> at the foot of a panel takes its subject back to how it was when you opened the page.</p>
+
+  <h2 id="undo">Undo and History</h2>
+  <div class="beside wide">
+    <div>
+      <ul>
+        <li><b>↶ ↷</b> in the Tools, or <kbd>Ctrl</kbd>+<kbd>Z</kbd> and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>: your own saved changes since the page opened, one step at a time.</li>
+        <li><b>History</b> (the clock): every saved change of the experience, newest first, by anyone, with filters for scene, kind and person.</li>
+        <li>Click a row for <b>Revert</b> (that change) or <b>Jump back to here</b> (everything after it).</li>
+      </ul>
+      <p>A revert changes the draft only. Readers see it with the next publish.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/history.webp" width="448" height="320" alt="The History panel: saved changes with date, what changed and who." loading="lazy">
+    </figure>
+  </div>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

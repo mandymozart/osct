@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The Logic panel – OSCT docs</title>
+  <meta name="description" content="The editor&#x27;s Logic panel: the experience&#x27;s rules, events, variables and plugins as a graph, level by level, and how to edit them there.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>The Logic panel</h1>
+  <p class="lead">The Logic panel draws what the rules and plugins do as a graph: which event sets off which rule, what the rule reads, and what it changes. It shows one level at a time.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <p>Open it from the panels menu in the top bar. How rules work is in <a href="/docs/api/logic/">the logic system</a>; this page is about the panel.</p>
+  <figure>
+    <a href="/docs/img/logic.webp"><img src="/docs/img/logic.webp" width="896" height="676" alt="The Logic panel on the demo's door scene." loading="lazy"></a>
+    <figcaption>The demo's door scene. <code>found</code> sets off two rules of the door's group; rule 2 reads <code>hasKey</code> (set in scene 1–2), hides the hint and emits <code>openDoor</code>, which the <i>narrative</i> plugin hears. In red below: a problem it found.</figcaption>
+  </figure>
+
+  <h2 id="boxes">What the boxes are</h2>
+  <div class="table"><table>
+    <tr><th>Box</th><th>Stands for</th></tr>
+    <tr><td>Event</td><td class="wrap">A node's <code>found</code>, <code>lost</code>, <code>tap</code>, <code>unlocked</code>, a scene event, or a core event.</td></tr>
+    <tr><td>Rule</td><td class="wrap">One rule of a behaviour, of the scene or of the experience.</td></tr>
+    <tr><td>Variable</td><td class="wrap">A variable the rules read or set.</td></tr>
+    <tr><td>Node</td><td class="wrap">A node the rules play, pause, stop, show or hide. Its ports come from its type and components.</td></tr>
+    <tr><td>Plugin</td><td class="wrap">Code that hears or emits events, or reads or sets variables.</td></tr>
+    <tr><td>Stub</td><td class="wrap">At the edge: something that crosses into another level, named by its far end (<i>hasKey ← set in 1–2</i>).</td></tr>
+  </table></div>
+  <p>The legend under the bar gives the colour and shape of each signal: event, control, picture, address, scene and so on.</p>
+
+  <h2 id="levels">Levels</h2>
+  <p><b>Experience → group → scene → entity.</b> The breadcrumb shows where you are.</p>
+  <ul>
+    <li><b>Go in</b>: double-click a box, or its arrow. <b>Go up</b>: the breadcrumb, ↑ or <kbd>Backspace</kbd>.</li>
+    <li><b>Search</b> finds any box of the experience and opens its level.</li>
+    <li>With <b>Follow</b> on, selecting something on the stage or in the tree moves the view to it. Entering a scene here opens that scene.</li>
+  </ul>
+
+  <h2 id="editing">Editing</h2>
+  <p>You can edit on a scene's and an entity's level of the open scene, and on the experience level. The group level is read-only.</p>
+  <div class="table"><table>
+    <tr><th>To</th><th>Do</th></tr>
+    <tr><td>Make a rule hear an event</td><td class="wrap">Drag from the event's outlet to the rule's <b>on</b>.</td></tr>
+    <tr><td>Add a condition</td><td class="wrap">Drag a variable into the rule's <b>when</b>.</td></tr>
+    <tr><td>Add an action</td><td class="wrap">Drag from the rule's <b>+</b> to a node (show), a variable (set), an event (emit) or a scene (goto).</td></tr>
+    <tr><td>Add a rule, action or term</td><td class="wrap">Right-click the canvas, or the bar's <b>+</b>.</td></tr>
+    <tr><td>Remove</td><td class="wrap">Select a wire or a rule and press <kbd>Delete</kbd>.</td></tr>
+  </table></div>
+  <p>While you drag a wire, only the ports that can take it light up. A wire that does not fit says why under the bar. Every change shows on the stage at once, saves itself, and is a step you can undo.</p>
+  <p>Fine-tune a rule in the Inspector: the verb, the value, the scope. The canvas and the Inspector edit the same rules.</p>
+
+  <h2 id="canvas">Arranging the canvas</h2>
+  <ul>
+    <li><b>Drag a box by its head</b> to place it. <b>Tidy</b> lets the layout place everything again.</li>
+    <li><b>Group</b> (or <kbd>Ctrl</kbd>+<kbd>G</kbd>) frames the selected boxes; a group has a name and a colour and folds to one pill.</li>
+    <li>A box hides its unused ports. Its <b>+</b> shows more; <kbd>Ctrl</kbd>+<kbd>H</kbd> hides the unused ones again.</li>
+  </ul>
+  <p>The arrangement is saved with the draft. It is authoring data: readers never get it.</p>
+
+  <h2 id="problems">Problems</h2>
+  <p>Under the graph, in red: a variable that is read but never set, an event that is heard but never emitted (or emitted but never heard), a node an action names that is not there, and type problems in conditions.</p>
+  <div class="note"><p><b>Events do not travel between scenes.</b> Only the open scene's rules exist, so an event one scene emits never reaches another scene's rules; such wires are dotted and labelled <i>never fires</i>. Use a <b>variable</b> to carry state across scenes, or an experience rule.</p></div>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

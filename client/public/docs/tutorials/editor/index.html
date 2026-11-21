@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tutorials for editors – OSCT docs</title>
+  <meta name="description" content="Step-by-step tutorials for the OSCT editor: a first look with the demo, a new target with AR content, an entry text, a rule, a new scene, post-processing and looks, publishing, connecting an AI agent.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Tutorials</p>
+  <h1>Tutorials for editors</h1>
+  <p class="lead">Eight short jobs, each a few minutes. They use the demo experience, so nothing here can break a real one.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+  <h2 id="first-look">1 · A first look with the demo</h2>
+  <ol class="steps">
+    <li><p>Open <a href="/editor/"><code>/editor</code></a>, sign in, and click <b>The Demo</b>. If it is not there, <a href="/docs/guide/experiences/#import">import it</a> first.</p></li>
+    <li><p>In the Scenes panel at the bottom, click the scene <b>1–2</b>. Drag on the stage to orbit, use the wheel to zoom.</p></li>
+    <li><p>In the tree, click <b>model</b> under <i>The key</i>. The Inspector shows its placement and its components.</p></li>
+    <li><p>Click the scene's row (<b>1–2</b>) at the top of the tree. In the Inspector open <b>vars and events</b> and press the tap button <b>The key</b>. The key rattles, <code>hasKey</code> becomes <i>true</i>, and the timeline lists what happened.</p></li>
+    <li><p>Open scene <b>3–4</b>. Because <code>hasKey</code> is true, the door opens. Press <b>Restart</b> in the Tools to start over: the door stays shut and shows its hint.</p></li>
+  </ol>
+  <figure>
+    <img src="/docs/img/vars.webp" width="400" height="376" alt="Vars and events after the tap." loading="lazy">
+    <figcaption>Step 4: the variable and the timeline after the tap.</figcaption>
+  </figure>
+
+  <h2 id="target">2 · Add a target with AR content</h2>
+  <p>A target is a printed image plus what appears on it.</p>
+  <ol class="steps">
+    <li><p>Open the scene the image is printed on. At the end of the tree, click <b>+ target</b>.</p></li>
+    <li><p>Fill in the form: a <b>title</b>, the printed <b>image</b> (<i>Upload…</i> or <i>Library…</i>), the <b>content</b> that appears on it (a model, video, image, text, group, light, or none yet) with its file, and <b>listed in</b>: the category the reader's menu shows it under.</p></li>
+    <li><p>Set where it is printed: the <b>surface</b>, <b>x · y</b> and the <b>width</b> in mm. Or drag the translucent image on the stage and pull its corner square for the width.</p></li>
+    <li><p>Create it. The stage shows the target with its content at once.</p></li>
+    <li><p>Select the content's node. Use <b>Move</b> (<kbd>W</kbd>), <b>Rotate</b> (<kbd>E</kbd>), <b>Scale</b> (<kbd>R</kbd>), or type values in the Inspector. A video or image lies flat by default; rotation X = 90° stands it up.</p></li>
+  </ol>
+  <div class="note"><p>Measure the printed place on the real page. If the printed width is wrong, the content has the wrong size in the reader. A scene takes at most 10 targets.</p></div>
+
+  <h2 id="entry">3 · Write an entry's text</h2>
+  <ol class="steps">
+    <li><p>Click the entry's row in the tree (the one with the page icon, above its target). Its form opens in the Inspector.</p></li>
+    <li><p>Type the <b>text</b>. Leave a blank line for a new paragraph. Use <code>*emphasis*</code>, <code>**strong**</code> and <code>[a link](https://example.org)</code>. The <b>preview</b> below shows it as the reader will.</p></li>
+    <li><p>To make the text depend on what the reader did, use a variable: <code>{hasKey: You hold the key.|Find the key first.}</code></p></li>
+    <li><p>Add a <b>picture</b> with its <b>caption</b>, or a <b>link</b>, if the entry has one. Everything saves itself.</p></li>
+  </ol>
+  <p>For a text without a printed image, e.g. a glossary term, use <b>+ entry</b> in the tree.</p>
+
+  <h2 id="rule">4 · Make something react: a rule</h2>
+  <p>Goal: a tap on a model plays its clip and remembers that it happened.</p>
+  <ol class="steps">
+    <li><p>Select the model's node. If it has a clip, add the component <b>animation</b> at the bottom of the Inspector, choose the clip and set <i>plays on</i> to <b>never</b>.</p></li>
+    <li><p>Add the component <b>behaviour</b>. In rule 1 press <b>tap</b>.</p></li>
+    <li><p><b>+ action… → play</b>, and choose the clip.</p></li>
+    <li><p><b>+ action… → set</b>: name <code>tapped</code>, value <code>true</code>, scope <b>experience</b> so it is kept with the reader's progress.</p></li>
+    <li><p>Test it: select the scene, open <b>vars and events</b>, press the target's tap button. The timeline shows a <b>behaviour</b> line.</p></li>
+    <li><p>Use it elsewhere: on another node add a behaviour with <b>found</b>, <b>when</b> <code>tapped</code>, and an action such as <b>show</b>.</p></li>
+  </ol>
+  <figure>
+    <img src="/docs/img/behaviour.webp" width="400" height="490" alt="Two rules in the Inspector." loading="lazy">
+    <figcaption>Rules in the Inspector: the event as pills, the condition, then the actions in order.</figcaption>
+  </figure>
+  <p>More: <a href="/docs/api/logic/">the logic system</a>. To see the rules as a graph, open the <a href="/docs/guide/logic/">Logic panel</a>.</p>
+
+  <h2 id="scene">5 · Add a scene</h2>
+  <ol class="steps">
+    <li><p>In the Scenes panel, click the dashed <b>+</b> at the end (or the add button in its head, which adds after the open scene).</p></li>
+    <li><p>Choose a preset: <b>double page</b>, <b>single page</b> or <b>wall</b>, and give it a <b>label</b>, e.g. <code>12–13</code>.</p></li>
+    <li><p>Drag its card to its place in the order.</p></li>
+    <li><p>Select its surface in the tree and set a <b>reference image</b>: a picture of the printed page. It shows on the stage so you can place targets where they are printed.</p></li>
+    <li><p>Add the targets (tutorial 2).</p></li>
+  </ol>
+
+  <h2 id="look">6 · Give the picture a look</h2>
+  <ol class="steps">
+    <li><p>Set the shading in the Tools to <b>rendered</b>. Passes show only there.</p></li>
+    <li><p><b>For every scene</b>: click the experience's name in the top bar; under <b>post-processing</b> press <b>+ bloom</b>, <b>+ vignette</b> or <b>+ grade</b> and tune the rows.</p></li>
+    <li><p><b>For one scene only</b>: select the scene, open <b>post-processing</b>, press <b>own for this scene</b>, then change its list. <i>Back to the experience's</i> drops the override.</p></li>
+    <li><p><b>How things appear</b>: in the experience's Inspector, under <b>appearance</b>, pick a look for <i>found</i> (e.g. <i>printLift</i>) and press <b>play</b> to see it.</p></li>
+  </ol>
+  <div class="note"><p>Keep to three passes and one bloom. More is too slow on a phone, and the editor warns.</p></div>
+
+  <h2 id="publish">7 · Publish, check, take back</h2>
+  <ol class="steps">
+    <li><p>Check the top bar says <b>Saved</b>. If you changed code, press <b>Save</b> in the Code tab too.</p></li>
+    <li><p>Press <b>Publish</b> (the cloud button). Read what it replaces, then confirm.</p></li>
+    <li><p>Open the reader on a phone: <code>/</code> for the default experience, <code>/x/&lt;experience&gt;/</code> for any other. Point it at the printed page.</p></li>
+    <li><p>Something wrong? Open <b>History</b> (the clock in the Tools), click the change, choose <b>Revert</b> or <b>Jump back to here</b>. Then publish again.</p></li>
+  </ol>
+  <figure>
+    <img src="/docs/img/publish.webp" width="480" height="250" alt="The publish step." loading="lazy">
+  </figure>
+
+  <h2 id="agent">8 · Let an AI agent help</h2>
+  <ol class="steps">
+    <li><p>On the <a href="/editor/">Experiences page</a>, under <b>Connect an AI agent</b>, choose your agent.</p></li>
+    <li><p>Press <b>Create token &amp; copy prompt</b> and paste the prompt into the agent. It installs the connection and asks you to restart it.</p></li>
+    <li><p>Ask it something small first: <i>“List the scenes of the demo.”</i></p></li>
+    <li><p>After each change it gives you a link. Open it and check the stage. Publishing stays your button.</p></li>
+  </ol>
+  <p>What an agent can do: <a href="/docs/api/mcp/">MCP server</a>.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

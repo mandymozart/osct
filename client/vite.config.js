@@ -235,6 +235,26 @@ function xr8Engine() {
   };
 }
 
+/**
+ * The documentation site (`public/docs/`, served at `/docs/`): its pages are folders with an `index.html`, which the
+ * web server answers for the folder's address (`/docs/guide/`). The dev and preview servers answer a folder with the
+ * app's own page instead, so here a folder under `/docs/` gets its `index.html`.
+ */
+function docsIndex() {
+  const pages = (root) => (req, _res, next) => {
+    const [path, query] = (req.url ?? '').split('?');
+    if (/^\/docs\/([\w-]+\/)*$/.test(path) && existsSync(resolve(root, `.${path}index.html`))) {
+      req.url = `${path}index.html${query === undefined ? '' : `?${query}`}`;
+    }
+    next();
+  };
+  return {
+    name: 'osct-docs-index',
+    configureServer(server) { server.middlewares.use(pages(resolve(import.meta.dirname, 'public'))); },
+    configurePreviewServer(server) { server.middlewares.use(pages(resolve(server.config.root, server.config.build.outDir))); },
+  };
+}
+
 export default defineConfig(async ({command,mode})=>{
   const localIP = command === 'serve' ? getLocalIP() : 'localhost';
   // Content CDN of the environment (client/.env.local or the deploy's environment); '' = bundled content
@@ -257,7 +277,7 @@ export default defineConfig(async ({command,mode})=>{
   return {
   plugins: [
     designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
-    contentFromCdn(contentBaseUrl), ...(https ? [basicSsl()] : []),
+    contentFromCdn(contentBaseUrl), docsIndex(), ...(https ? [basicSsl()] : []),
   ],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
