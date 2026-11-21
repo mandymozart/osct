@@ -7,6 +7,31 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.10.0 – 2026-11-21
+
+### Added
+- **A Log tab** in the editor (Tilman, 2026-11-21, #337), beside Inspector, Environment, Library and Code and floatable
+  like them: one timeline of what happens on the stage, newest first – the stage's events, the rules that ran
+  (*behaviour*, *goto* with its *open* link), and the plugins' `api.log` lines and errors, each with the time since the
+  scene opened. Above it, the **problems**: the Logic panel's errors and warnings for the whole experience and the plugins
+  that are not on the stage – a click goes to the box in the Logic panel or the plugin in the Code tab; closed at first to
+  their counts and the first problem. **Chips** show only the kinds you pick (remembered in this browser), *clear*
+  empties the timeline, and *tap* in its top bar taps a target so you see what follows.
+- **A Variables tab**: the plugins' live variables, a section per scope (the scene's open), each with its type, a control
+  for its value and delete; *set* one by hand (closed at first); *reset* for a new game.
+- **One + in the tree** opens a menu of everything the scene can get – a double page, a single page, a wall, a custom
+  surface, a target or an entry (their forms), and a node of every type (group, model, video, image, text, light and the
+  plugins' types) onto the selected target or node; type to filter. What you add is selected, so the Inspector shows it
+  at once; a node without a selected target is greyed out with the reason, a model, video or image asks for its file.
+
+### Changed
+- The scene's Inspector keeps a **one-line summary** of the narrative (*3 vars · 12 events*) with links to the Variables
+  and Log tabs instead of the *vars and events* section.
+- **Surfaces leave the scene's Inspector**: the tree's Surfaces level adds them (the new surface is selected and its
+  Inspector opens), reorders them (its menu, Alt ↑ ↓) and removes them (its menu's *Remove surface…* or Delete – the
+  surface's Inspector asks first). The surface Inspector shows only while a surface is selected.
+- The tree's *+ target* and *+ entry* became items of the one + menu. The Code tab keeps its own log.
+
 ## 4.9.4 – 2026-11-21
 
 ### Changed

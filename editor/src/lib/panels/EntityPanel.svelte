@@ -13,6 +13,7 @@
   import { library } from "#lib/library.svelte.js";
   import { recognitionFrames, frameTargetOf } from "#lib/recognition-frames.svelte.js";
   import { nodeAssetKinds, pickAccept, type LibraryPick } from "#lib/library-pick.js";
+  import { nodeAdd } from "#lib/node-add.svelte.js";
   import { fileNameOf } from "#lib/library-place.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { Stage } from "#lib/stage/stage.svelte.js";
@@ -78,14 +79,12 @@
    * target fields, its entity or a node that node's rows, the breadcrumb in the head stepping up; a selected **entry**
    * (#227) the entry (`EntryView`); the **experience** (the top bar's ⚙, #237) its texts and settings (`ExperiencePanel`); the
    * **scene** – selected in the tree, or nothing else selected – its sections (`SceneView`: the scene,
-   * post-processing, vars and events).
+   * post-processing, rules, a line about the narrative that opens the Variables and Log tabs).
    */
-  let { stage, experienceId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, onenvironment, onopenscene }: {
+  let { stage, experienceId, sceneId, selected, node = $bindable([]), pickColour, ontargetchanged, oncode, ontab }: {
     stage: Stage | null; experienceId: string; sceneId: string; selected: string | null; node: number[];
-    /** The scene's environment row: the workspace opens the Environment tab */
-    onenvironment?: () => void;
-    /** A goto's link in the scene's timeline: the workspace opens that scene */
-    onopenscene?: (sceneId: string) => void;
+    /** The scene's narrative line: the workspace shows the Variables or the Log tab */
+    ontab?: (tab: "variables" | "log") => void;
     /** Show the Code tab (a made plugin's error is there) */
     oncode?: () => void;
     /** Pick a colour from the stage (the workspace owns the picking overlay) */
@@ -691,6 +690,18 @@
     addType = "";
     addAsset = "";
   };
+  // The Tree's + (#337): a node of the asked type, added as + node adds it – after its file is picked when it takes one
+  $effect(() => {
+    if (!nodeAdd.asked || !target) return;
+    untrack(() => {
+      const type = nodeAdd.take();
+      if (!type) return;
+      addType = type as NodeType;
+      addAsset = "";
+      if (!nodeAssetKinds(type)) add();
+      else pickFor({ subject: { for: "node", nodeType: type }, label: `the new ${type} node`, current: "", onpick: asset => { addAsset = asset.url; add(); } });
+    });
+  });
   // Where "+ node" puts the new node (#163): chosen, else the default for the selected node (next to a file node)
   let addPlaceChosen = $state<AddPlace | null>(null);
   const addPlace = $derived<AddPlace>(addPlaceChosen ?? defaultAddPlace(current ?? undefined));
@@ -783,7 +794,7 @@
   <LibraryPanel {experienceId} pick={picking} />
 {:else if !target}
   <!-- The scene: selected, or nothing else is (a target id this scene does not have shows it too) -->
-  <SceneView {stage} {experienceId} {sceneId} {onenvironment} {onopenscene} />
+  <SceneView {stage} {experienceId} {sceneId} {ontab} />
 {:else}
   <div class="head">
     <!-- The breadcrumb (#162): target › entity › group › node – a crumb selects that level; ▾ after the target picks another -->

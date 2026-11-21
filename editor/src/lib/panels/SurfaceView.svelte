@@ -15,6 +15,7 @@
   import { SURFACE_PRESETS, formatOf, presetSize, sameSurfaces, surfaceName, targetsOutside, updateSurface, type SurfacePatch, type SurfacePreset } from "#lib/surface-edit.js";
   import { arrangeSceneInRow, canArrangeInRow, moveSceneSurface, removeSceneSurface, surfaceRemovalWarning } from "#lib/surface-actions.js";
   import { surfaceMode } from "#lib/surface-mode.svelte.js";
+  import { surfaceRemoval } from "#lib/surface-removal.svelte.js";
   import { surfaceGrids } from "#lib/surface-grids.svelte.js";
   import { clampGrid, clampSubdivisions, getPreview, MAX_SUBDIVISIONS, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
   import { SURFACE_GIZMO_MODES } from "#lib/stage/surface-gizmo.js";
@@ -24,8 +25,8 @@
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**
-   * The selected **surface** in the Inspector (#314 – the Surface mode's tap, the Tree's Surfaces level, a side in the
-   * scene's surfaces): its label as printed, its size (w × h mm), its place in the scene (x y z mm, rx ry rz ° – Euler
+   * The selected **surface** in the Inspector (#314 – the Surface mode's tap, the Tree's Surfaces level: a click on a row,
+   * a surface just added with its +, #337): its label as printed, its size (w × h mm), its place in the scene (x y z mm, rx ry rz ° – Euler
    * XYZ, `SurfacePlace`; on the stage the Surface tool's gizmo moves or turns it; *arrange in a row* lays the scene's
    * surfaces side by side), its **reference
    * image** (editor-only – Library… / Upload…, the fit, remove; `PUT …/surfaces/{id}/reference`), ↑ ↓ in the scene's
@@ -125,6 +126,10 @@
 
   let removing = $state(false);
   const warning = $derived(removing ? surfaceRemovalWarning(sceneId, surfaceId) : "");
+  // The Tree's *Remove surface…* (#337): the confirmation shows here
+  $effect(() => {
+    if (surfaceRemoval.asked && surfaceRemoval.take(sceneId, surfaceId)) removing = true;
+  });
 </script>
 
 {#if pick}

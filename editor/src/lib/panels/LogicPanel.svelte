@@ -2,16 +2,11 @@
   import { onMount, tick, untrack, type Component } from "svelte";
   import { page } from "$app/state";
   import { replaceState } from "$app/navigation";
-  import { getPlugins } from "@engine/content/game-config";
-  import type { PluginData } from "@engine/types";
   import Icon from "#lib/components/Icon.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import { content } from "#lib/content.svelte.js";
-  import { plugins } from "#lib/plugins.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
-  import { getPlugin } from "#lib/api.js";
-  import { declaredUses } from "@engine/types";
-  import { pluginCodeUses, type PluginUses } from "#lib/logic/plugin-code.js";
+  import { logicContent, logicFocus } from "#lib/logic-content.svelte.js";
   import { project, type LogicContent } from "#lib/logic/project.js";
   import { flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
   import { DECK_SIGNALS } from "#lib/logic/signals.js";
@@ -82,45 +77,9 @@
     onmove: (move: StageMove) => void;
   } = $props();
 
-  /** What each plugin's code uses, by plugin id – read once per experience and Run / save */
-  let code = $state<Record<string, PluginUses>>({});
-
-  const declared = $derived.by((): PluginData[] => {
-    void plugins.version;
-    void content.scenes;
-    return getPlugins();
-  });
-
-  const readSource = async (plugin: PluginData): Promise<string | null> => {
-    try {
-      return (await getPlugin(experienceId, plugin.id)).plugin.source;
-    } catch {
-      try {
-        const response = await fetch(plugin.src);
-        return response.ok ? await response.text() : null;
-      } catch {
-        return null;
-      }
-    }
-  };
-
-  $effect(() => {
-    // A plugin whose specs declare its bus use needs no reading of its source (`project.ts` prefers the declaration)
-    const list = declared.filter(p => !declaredUses(p.registered));
-    void plugins.stored;
-    let current = true;
-    void Promise.all(list.map(async p => [p.id, await readSource(p)] as const)).then(read => {
-      if (current) code = Object.fromEntries(read.flatMap(([id, source]) => (source === null ? [] : [[id, pluginCodeUses(source)]])));
-    });
-    return () => { current = false; };
-  });
-
-  /** The open scene's trees as the stage shows them (an edit not saved yet included), the other scenes as the draft has them */
-  const scenesShown = $derived(content.scenes.map(scene => (scene.id !== sceneId || !stage ? scene : {
-    ...scene, targets: scene.targets.map(target => ({ ...target, entity: stage.overrides.has(target.id) ? stage.treeOf(target.id) : target.entity })),
-  })));
-  /** With the scenes' and the experience's rules and the variables as edited (`logicEdit`, content schema 5.0) */
-  const logic = $derived<LogicContent>(logicEdit.withLogic({ scenes: scenesShown, groups: content.groups, plugins: declared, code }));
+  /** The experience's logic (`logic-content.svelte.ts`, shared with the Log tab's problems) */
+  const source = logicContent(() => ({ experienceId, sceneId, stage }));
+  const logic = $derived<LogicContent>(source.logic);
 
   // ── The level: one place, one setter ──
   /** The level the URL names – a scene's level only on its own scene's route */
@@ -170,6 +129,15 @@
       url.searchParams.set("logic", value);
       // Before the router is up (the first render) it refuses: the next change writes it
       replaceState(url, page.state).catch(() => {});
+    });
+  });
+
+  // A box asked for from elsewhere (the Log tab's problems): its level, marked
+  $effect(() => {
+    if (!logicFocus.asked) return;
+    untrack(() => {
+      const asked = logicFocus.take();
+      if (asked) go(asked.context, { mark: asked.node });
     });
   });
 

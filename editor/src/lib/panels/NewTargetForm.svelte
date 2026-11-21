@@ -16,7 +16,7 @@
   import LibraryPanel from "./LibraryPanel.svelte";
 
   /**
-   * A new target on the open scene (the tree's "+ target"): an entry (title, on this scene) with its printed image, **what
+   * A new target on the open scene (the tree's + menu, *target…*): an entry (title, on this scene) with its printed image, **what
    * appears on it** (optional: a node of a type with its file, a text's line) and the **entry category** (the reader's
    * consultation menu – it follows what appears until set by hand, `categoryFor`), and where it is printed – the scene's
    * surface (when it has several), x / y from the surface's top left corner and the printed width in mm (`place`). Files are chosen

@@ -58,6 +58,8 @@
   import UndoRedo from "#lib/UndoRedo.svelte";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
   import LogicPanel from "#lib/panels/LogicPanel.svelte";
+  import LogPanel from "#lib/panels/LogPanel.svelte";
+  import StageVariables from "#lib/panels/StageVariables.svelte";
   import type { LogicPick } from "#lib/logic/types.js";
   import type { StageMove } from "#lib/logic/navigation.js";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
@@ -68,7 +70,7 @@
    * The workspace. On a desktop and an iPad (#308) the **stage** (the engine over the mock stage) is the whole window
    * and the panels float over it (`FloatingPanel`, `SCENE_PANELS`): the **Tree** of the scene (a 3D tool's outliner),
    * the **Inspector** (essential) with its tabs Inspector (whatever is selected – the scene while nothing else is,
-   * #229), Environment, Library and Code (`panel-tabs.ts`), the **Scenes** filmstrip (#307, `ScenesPanel.svelte`: a
+   * #229), Environment, Library, Code, Log and Variables (`panel-tabs.ts`, #337), the **Scenes** filmstrip (#307, `ScenesPanel.svelte`: a
    * card opens its scene, a band selects its group, a drag reorders; the draft follows `scenes.version`), **Info** and
    * the stage's **Tools** (inline). Every content is a tab (#318, `SCENE_TABS`) that can live in any panel: dragged into
    * another panel's head or out onto the stage (a panel of its own). Each moves by its head, resizes by its edges, folds
@@ -90,6 +92,8 @@
     { id: "environment", name: "Environment", icon: "globe", home: "inspector", about: "The sky around the reader and the onion sky, previewed on the stage." },
     { id: "library", name: "Library", icon: "folder", home: "inspector", about: "The experience's files: images, models, videos, sounds and code – use one on the selected node. Ctrl+L opens it and focuses its search." },
     { id: "code", name: "Code", icon: "code", home: "inspector", about: "The experience's code: its plugins' sources, saved with Save or Ctrl+S." },
+    { id: "log", name: "Log", icon: "list", home: "inspector", about: "What happens on the stage, newest first: the events, the rules' lines, the plugins' log and the problems – filtered by kind; tap a target here." },
+    { id: "variables", name: "Variables", icon: "sliders", home: "inspector", about: "The plugins' variables on the stage: each one's scope, type and value to change or delete, one set by hand, reset for a new game." },
     { id: "scenes", name: "Scenes", icon: "film", home: "scenes", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders." },
     { id: "info", name: "Info", icon: "info", home: "info", about: "The name and description of the control under the pointer or in focus." },
     { id: "history", name: "History", icon: "history", home: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312)." },
@@ -140,7 +144,7 @@
   const SCENE_PANELS: PanelSpec[] = [
     { id: "tree", name: "Tree", icon: "tree", about: "The scene's surfaces, entries, their targets and the entities' nodes: a click selects, a drag moves a node.",
       place: at("top-left", 0, 0), size: { w: 16.5, h: "fill" }, min: { w: 12, h: 8 } },
-    { id: "inspector", name: "Inspector", icon: "inspector", about: "Whatever is selected, and the tabs Environment, Library and Code. It folds but never closes.",
+    { id: "inspector", name: "Inspector", icon: "inspector", about: "Whatever is selected, and the tabs Environment, Library, Code, Log and Variables. It folds but never closes.",
       place: at("top-right", 0, 0), size: { w: 25, h: "fill" }, min: { w: 16, h: 10 }, essential: true },
     { id: "scenes", name: "Scenes", icon: "film", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders.",
       place: at("bottom-left", 17, 0), size: { w: "fill", h: 12 }, min: { w: 20, h: 10 } },
@@ -230,7 +234,7 @@
 
   // ── targets and entries: the forms, removal, a changed image or placement ──
   let addingTarget = $state(false);
-  /** The tree's "+ entry" (#237): an entry without a printed image on this scene */
+  /** The tree's + menu's *entry…* (#237): an entry without a printed image on this scene */
   let addingEntry = $state(false);
   /** The creation step of a new scene (#238 – every experience adds scenes, #320): it follows `after` */
   let addingScene = $state<{ after: string | null } | null>(null);
@@ -928,13 +932,17 @@
   {:else if shown === "inspector" && addingEntry && scene}
     <div class="body"><NewEntryForm {experienceId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
   {:else if shown === "inspector"}
-    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} onopenscene={id => void openScene(id)} /></div>
+    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} ontab={openTab} /></div>
   {:else if shown === "environment"}
     <div class="body"><EnvironmentPanel {stage} {experienceId} /></div>
   {:else if shown === "library"}
     <div class="body"><LibraryPanel {experienceId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
   {:else if shown === "code"}
     <div class="body code"><CodePanel {experienceId} {stage} /></div>
+  {:else if shown === "log"}
+    <div class="body"><LogPanel {stage} {experienceId} {sceneId} onopenscene={id => void openScene(id)} ontab={tab => floats.showTab(tab, true)} /></div>
+  {:else if shown === "variables"}
+    <div class="body"><StageVariables {stage} /></div>
   {/if}
 {/snippet}
 

@@ -413,7 +413,7 @@ schema 5.2 `positions: { <box id>: { x, y } }` – the boxes an author pinned ov
 authoring data: stored in the editor's database and in its export, never in a reader's configuration – the content build
 and a publish leave it out.
 
-The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the scene's *vars and events* there shows
+The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the **Log** tab there shows
 each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
 the demo's `door` plugin hears the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
 Variables are not declared yet: a rule names them, a missing one is *not set* (`null`).

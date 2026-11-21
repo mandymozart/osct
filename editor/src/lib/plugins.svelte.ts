@@ -97,6 +97,8 @@ export class CodeBuffer {
 
 /** How many lines of the experience's code the Code tab keeps */
 export const LOG_LINES = 50;
+/** How many of the plugins' lines the Log tab keeps */
+export const JOURNAL_LINES = 100;
 
 /**
  * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the experience (the
@@ -104,7 +106,8 @@ export const LOG_LINES = 50;
  * scene), and **Run** – transpile in the browser, then import and install in the stage's registry under the plugin's
  * id, in the stage frame (the page runs no plugin code, #234), build the scene again. `version` counts the runs and the
  * registry's changes the frame reports: the Inspector's rows follow the registry (mirrored from the frame) through it.
- * `logs` are the plugins' lines from the stage (`api.log`, their errors), newest last, for the Code tab.
+ * `logs` are the plugins' lines from the stage (`api.log`, their errors), newest last, for the Code tab; `journal` the
+ * same lines for the Log tab.
  * The Library lists the same sources as its scripts (#186): it uploads a script file as a new source, replaces one
  * from a file, and asks the Code tab to open one (`focus`).
  * A Run also reports a node type of the plugin that did not build on the stage (its error, as a Run's), and switches a
@@ -140,9 +143,21 @@ class Plugins {
   /** The stored text of each source as last read or saved: a run of the same text runs the saved version */
   private storedText = new Map<string, string>();
 
+  /**
+   * The same lines for the Log tab's timeline, newest last (at most `JOURNAL_LINES`): not emptied by a Run, only by the
+   * Log tab's *clear*
+   */
+  journal = $state<FrameLog[]>([]);
+
   /** A line from the stage frame (a plugin's log, its error) */
   addLog(line: FrameLog): void {
     this.logs = [...this.logs.slice(-(LOG_LINES - 1)), line];
+    this.journal = [...this.journal.slice(-(JOURNAL_LINES - 1)), line];
+  }
+
+  /** The Log tab's *clear* (the Code tab's log stays) */
+  clearJournal(): void {
+    this.journal = [];
   }
 
   async load(experienceId: string): Promise<void> {
@@ -156,6 +171,7 @@ class Plugins {
         this.storedText.clear();
         this.pending = null;
         this.code.reset();
+        this.journal = [];
       }
       this.experienceId = experienceId;
     } catch (e) {

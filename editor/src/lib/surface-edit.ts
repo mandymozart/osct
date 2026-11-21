@@ -3,7 +3,7 @@ import { SCENE_PAGE_MM, SCENE_WALL_MM } from "@shared/api/editor";
 
 /**
  * Editing a scene's surfaces (#314, #319 – `agents/SCENES.md` "Schema 3.0"): the pure rules behind the Surface mode, the
- * Tree's Surfaces level and the Inspector's surfaces – a new surface from a preset (a double page, a single page, a wall,
+ * Tree's Surfaces level and the selected surface – a new surface from a preset (a double page, a single page, a wall,
  * a custom one), remove, reorder, change one surface's fields, *arrange in a row*, the targets lying on a surface, the
  * choices of surface a placement offers, and a surface's name. Surfaces are free areas next to each other – no side,
  * every one at its `place` in the scene's coordinate system. Every edit returns the scene's whole new list – the API

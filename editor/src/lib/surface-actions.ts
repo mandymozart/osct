@@ -4,7 +4,7 @@ import { putTarget } from "./api";
 import { addSurface, arrangeInRow, inRow, liesOn, moveSurface, moveToSurface, onSurface, removalWarning, removeSurface, type MovedHow, type SurfacePreset } from "./surface-edit";
 
 /**
- * The surface edits as the Tree's Surfaces level, the Inspector's surfaces and the selected surface run them (#314) –
+ * The surface edits as the Tree's Surfaces level and the selected surface run them (#314, #337) –
  * one place, so the three never diverge: each writes the scene's whole list (`PUT …/scenes/{id}`) and selects what it
  * made. The rules are `surface-edit.ts`.
  */

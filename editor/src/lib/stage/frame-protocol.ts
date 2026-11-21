@@ -117,6 +117,10 @@ export interface KeyForward {
 export interface FrameLog {
   level: "info" | "warn" | "error";
   text: string;
+  /** The frame's clock when it was said (`performance.now()`), as a stage event's `t` */
+  t?: number;
+  /** Milliseconds since the scene on the stage opened, as a stage event's `at` */
+  at?: number;
 }
 
 /** The result of running transpiled plugin code in the frame */

@@ -11,6 +11,8 @@ export interface StageEvent {
   detail: string;
   /** Milliseconds since the scene on the stage opened */
   at: number;
+  /** The frame's clock when it happened (`performance.now()`) – the Log tab merges the plugins' lines by it */
+  t?: number;
 }
 
 /** How many events the panel keeps */
