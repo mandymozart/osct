@@ -44,4 +44,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     fs.writeFileSync(OUTPUT, text);
     console.log(`wrote ${relative}`);
   }
+  // The documentation site's plugin API reference (/docs/api/plugins/reference/) is written from this file, so it
+  // follows in the same run – written with it, checked with it (docs/docs-site.md "Reference pages")
+  const reference = await import("../docs-reference/plugin-api.mjs");
+  const { write } = await import("../docs-reference/page.mjs");
+  if (!write(reference.OUTPUT, reference.generate(), process.argv.includes("--check"))) process.exit(1);
 }

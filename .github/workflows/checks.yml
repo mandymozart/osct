@@ -106,7 +106,8 @@ jobs:
       - name: Type-check
         run: npm run check
       # plugin-api.d.ts is checked in: it must be what the engine's plugin API gives (before the build rewrites it)
-      - name: Plugin API types up to date
+      # … and with it the documentation site's plugin API reference, written from that file (docs/docs-site.md)
+      - name: Plugin API types and their reference page up to date
         run: npm run plugin-api -- --check
       - name: Tests
         run: npm test
@@ -134,6 +135,9 @@ jobs:
       - run: npm ci
       - name: Type-check
         run: npx tsc --noEmit
+      # The documentation site's MCP tools reference is generated from the tools' definitions (docs/docs-site.md)
+      - name: Tools reference page up to date
+        run: npm run docs-reference -- --check
       - name: Tests
         run: npm test
 
