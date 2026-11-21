@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.6.5 – 2026-11-21
+
+### Fixed
+- The Logic view's hover is gentler and never hides the box under the pointer: a hovered box with no wire dims nothing (it
+  dimmed itself with everything else), the hovered box is never dimmed and shows its border and its open / fold chevrons
+  at full strength, and the unconnected boxes and wires dim to 55 % / 45 % (were 30 % / 25 %).
+
 ## 4.6.4 – 2026-11-21
 
 ### Changed
