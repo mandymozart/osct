@@ -24,11 +24,13 @@
     strict?: boolean;
     /** Must be > 0 (scale) */
     positive?: boolean;
+    /** Whole numbers only: a typed fraction is refused, a scrub rounds */
+    integer?: boolean;
     disabled?: boolean;
     oninput?: (value: number) => void;
     onchange?: (value: number) => void;
   }
-  let { value, min, max, step = 1, fallback, unit = "", prefix = "", label, strict = false, positive = false, disabled = false, oninput, onchange }: Props = $props();
+  let { value, min, max, step = 1, fallback, unit = "", prefix = "", label, strict = false, positive = false, integer = false, disabled = false, oninput, onchange }: Props = $props();
 
   const SCRUB_START_PX = 4;
   const PX_PER_STEP = 2;
@@ -55,6 +57,7 @@
   const problemOf = (v: number): string | null => {
     if (strict && ((min !== undefined && v < min) || (max !== undefined && v > max))) return `${min ?? "…"} … ${max ?? "…"}`;
     if (positive && v <= 0) return "must be > 0";
+    if (integer && !Number.isInteger(v)) return "a whole number";
     return null;
   };
   const clamp = (v: number): number => {
@@ -63,6 +66,7 @@
       if (max !== undefined) v = Math.min(max, v);
     }
     if (positive && v <= 0) v = step;
+    if (integer) v = Math.round(v);
     return +v.toFixed(6);
   };
   const apply = (v: number, final: boolean) => {

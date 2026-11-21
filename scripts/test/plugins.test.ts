@@ -312,7 +312,7 @@ describe('a plugin\'s feedback buffers (API 1.6)', () => {
     build.buildAll();
     vi.restoreAllMocks();
     expect(build.errors).toEqual([]);
-    expect(plugins[0].data).toMatchObject({ api: '3.0', registered: { nodeTypes: { painting: { description: 'A painting.', params: {} } } } });
+    expect(plugins[0].data).toMatchObject({ api: PLUGIN_API_VERSION, registered: { nodeTypes: { painting: { description: 'A painting.', params: {} } } } });
     // Nothing of the buffer is recorded: it is no registration
     expect(Object.keys(plugins[0].data.registered ?? {})).toEqual(['components', 'nodeTypes', 'passes']);
 
@@ -327,5 +327,51 @@ describe('a plugin\'s feedback buffers (API 1.6)', () => {
     await size.plugins.buildPlugins();
     vi.restoreAllMocks();
     expect(size.errors).toEqual(['plugins/nodes: api.feedback – width is a whole number of pixels, 1–2048']);
+  }, 60000);
+
+  it('records what a spec declares (actions, events, uses – schema 5.1) and the builders\' plain objects; the build type-checks the inferred types', async () => {
+    const HUM = `import type { PluginApi } from "osct-plugin-api";
+export const register = (api: PluginApi): void => {
+  const p = api.p;
+  api.registerComponent("hum", {
+    description: "Hums.",
+    params: { volume: p.number({ min: 0, max: 1, default: 0.5, slider: [0, 0.8], description: "How loud." }), voice: p.choice(["low", "high"], { description: "Voice." }) },
+    actions: ["play", "pause"],
+    events: ["ended"],
+    uses: { hears: ["doorOpened"], sets: ["hummed"] },
+  }, ({ params, emit }) => {
+    const loud: number = params.volume;
+    const voice: "low" | "high" = params.voice;
+    return { onAction: action => { if (action === "pause" && loud > 0 && voice === "low") emit("ended"); } };
+  });
+  api.registerPass("scan", { description: "Scan lines.", params: { lines: p.integer({ min: 10, max: 800, default: 200, description: "How many." }) }, uses: { reads: ["mood"] } }, () => ({}) as never);
+};
+`;
+    const build = await loadBuild(makeContent(content(HUM, '')));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    const registered = plugins[0].data.registered!;
+    expect(registered.components!.hum).toEqual({
+      description: 'Hums.',
+      params: {
+        volume: { kind: 'number', default: 0.5, min: 0, max: 1, slider: [0, 0.8], description: 'How loud.' },
+        voice: { kind: 'choice', options: ['low', 'high'], default: 'low', description: 'Voice.' },
+      },
+      actions: ['play', 'pause'], events: ['ended'], uses: { hears: ['doorOpened'], sets: ['hummed'] },
+    });
+    expect(registered.passes!.scan).toEqual({ description: 'Scan lines.', params: { lines: { kind: 'number', default: 200, min: 10, max: 800, step: 1, integer: true, description: 'How many.' } }, uses: { reads: ['mood'] } });
+    // An undeclared event is a type error in the build; a verb no node answers a spec error
+    const typo = await loadBuild(makeContent(content(HUM.replace('emit("ended")', 'emit("endd")'), '')));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await typo.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(typo.errors.some(e => /index\.ts\(\d+,\d+\): .*"endd"/.test(e))).toBe(true);
+    const verb = await loadBuild(makeContent(content(HUM.replace('actions: ["play", "pause"]', 'actions: ["play", "explode"] as string[]'), '')));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await verb.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(verb.errors).toContain('plugins/tint: hum.actions: explode is no rule verb a node answers (play, pause, stop, show, hide)');
   }, 60000);
 });

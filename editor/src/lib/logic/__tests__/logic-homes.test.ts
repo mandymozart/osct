@@ -34,7 +34,7 @@ describe("scene rules in the Logic view (#334 L-T5b)", () => {
     const box = view.nodes.find(n => n.id === "rule:scene:door#0")!;
     expect(box).toMatchObject({ label: "scene rule 1", detail: "hasKey", home: { doc: "scene", scene: "door", rule: 0, part: "on" } });
     expect(view.edges.find(e => e.from[0] === "var:hasKey" && e.to[0] === box.id)?.home).toMatchObject({ doc: "scene", part: "when", index: 0 });
-    expect(view.edges.find(e => e.from.join() === `${box.id},do:0`)).toMatchObject({ to: ["node:door/1", "in"], label: "show", signal: "node" });
+    expect(view.edges.find(e => e.from.join() === `${box.id},do:0`)).toMatchObject({ to: ["node:door/1", "act:show"], label: "show", signal: "node" });
     const goto = view.stubs.find(s => s.label === "→ Epilogue · goto")!;
     expect(goto).toMatchObject({ side: "out", far: { level: "scene", scene: "epilogue" } });
     expect(goto.edge).toMatchObject({ signal: "scene", home: { doc: "scene", part: "do", index: 1 } });

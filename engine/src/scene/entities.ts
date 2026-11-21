@@ -58,6 +58,11 @@ export interface EntityInstance {
   timeline?: NodeTimeline;
   /** The timelines of every node of the tree by its path – editor tools */
   timelines?: Record<string, NodeTimeline>;
+  /**
+   * A rule's verb (`play`, `pause`, `stop`, `show`, `hide`) for the plugin parts of every node of the tree by its path – the
+   * node type's and the components' whose spec declares it (`actions`, schema 5.1); true when one took it
+   */
+  actors?: Record<string, (verb: string) => boolean>;
 }
 
 export interface EntityContext {
@@ -108,17 +113,22 @@ const buildNode = (target: Target, node: EntityData, asset: EntityContext["asset
   const nodes: Record<string, Object3D> = { "": placed };
   const timelines: Record<string, NodeTimeline> = {};
   if (own?.timeline) timelines[""] = own.timeline;
+  // The node's own plugin parts answer a rule's verb their spec declares: the node type's, then the components'
+  const ownAct = plugin && own && "act" in own ? (own.act as (verb: string) => boolean) : null;
+  const actors: Record<string, (verb: string) => boolean> = { "": verb => [ownAct?.(verb) ?? false, components.act(verb)].includes(true) };
   children.forEach((child, i) => {
     Object.entries(child.nodes ?? {}).forEach(([key, object]) => (nodes[key === "" ? `${i}` : `${i}.${key}`] = object));
     Object.entries(child.timelines ?? {}).forEach(([key, timeline]) => (timelines[key === "" ? `${i}` : `${i}.${key}`] = timeline));
+    Object.entries(child.actors ?? {}).forEach(([key, act]) => (actors[key === "" ? `${i}` : `${i}.${key}`] = act));
   });
   // The node's behaviour (built-in): its rules act on the node's subtree – heard after the node's other parts
-  const behaviour = applyBehaviour({ node, target, nodes, timelines });
+  const behaviour = applyBehaviour({ node, target, nodes, timelines, actors });
   if (behaviour) all.push(behaviour);
   return {
     object: placed,
     nodes,
     timelines,
+    actors,
     // Every part hears the tap; the node used it when one of them did
     onTap: () => all.map(part => part.onTap?.() === true).includes(true),
     onFound: () => all.forEach(part => part.onFound?.()),

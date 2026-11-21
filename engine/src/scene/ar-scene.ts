@@ -604,7 +604,7 @@ export class ArScene implements IArScene {
     if (!data || !anchor.entity) return { missing: `target "${targetId}" has no entity` };
     const path = name ? namedPaths(data).get(name) : "";
     if (path === undefined) return { missing: `no node named "${name}" on target "${targetId}"` };
-    return { object: anchor.entity.nodes?.[path] ?? (path === "" ? anchor.entity.object : undefined), timeline: anchor.entity.timelines?.[path] };
+    return { object: anchor.entity.nodes?.[path] ?? (path === "" ? anchor.entity.object : undefined), timeline: anchor.entity.timelines?.[path], act: anchor.entity.actors?.[path] };
   }
 
   private removeContent(): void {

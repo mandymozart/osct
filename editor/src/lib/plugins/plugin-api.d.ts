@@ -82,7 +82,7 @@ declare const MOMENTS: readonly [
 	"lost"
 ];
 type Moment = (typeof MOMENTS)[number];
-interface AppearanceSpec {
+interface AppearanceSpec extends SpecLogic {
 	description: string;
 	params: Record<string, ComponentParamSpec>;
 }
@@ -96,6 +96,11 @@ interface AppearanceSpec {
  * 1.7) takes a model file: a Library model's URL or a `/assets/content/…` path (in the content's YAML a `.glb` / `.gltf`
  * next to the node, which the content build resolves to its path), `""` = none – its value is that string, and the
  * plugin's code loads it with `api.loadModel(value)`.
+ *
+ * A number's `min` and `max` are **hard** limits: the guard and the editor refuse a value outside them, the engine keeps the
+ * value it had (a warning). Schema 5.1 (#334, plugin API 3.1): its optional `slider` `[lo, hi]` is the **soft** range – the
+ * span the editor's control offers first, inside min … max – and `integer: true` takes whole numbers only (min, max and
+ * default whole too). The plugin API's builders (`api.p`, `./spec-builders.ts`) write these objects.
  */
 export type ComponentParamSpec = ParamText & ({
 	kind: "color";
@@ -107,6 +112,11 @@ export type ComponentParamSpec = ParamText & ({
 	max: number;
 	step?: number;
 	unit?: string;
+	slider?: readonly [
+		number,
+		number
+	];
+	integer?: boolean;
 } | {
 	kind: "choice";
 	options: readonly string[];
@@ -143,7 +153,28 @@ interface ParamText {
 	/** What the parameter does – the row's help in the editor's Info view */
 	description: string;
 }
-export interface ComponentSpec {
+/**
+ * What a spec says beyond its parameters (schema 5.1, #334, plugin API 3.1) – what the editor's Logic view draws as ports:
+ * - `actions`: the rule verbs it answers on its node (`play`, `pause`, `stop`, `show`, `hide` – `SPEC_ACTIONS`): a rule's
+ *   `play: <node>` reaches the component's `onAction("play")` beside the node's own clip;
+ * - `events`: the scene events it emits (`ended`) – through its context's `emit`, on the bus by name;
+ * - `uses`: what its code hears, emits, reads and sets of the bus and the variables, by name – the Logic view joins it to
+ *   the rules (it reads the plugin's source only for a plugin that declares nothing).
+ * The names are camelCase; an action is one of the node verbs, an event never a core event. An older app ignores the fields.
+ */
+export interface SpecLogic {
+	actions?: readonly string[];
+	events?: readonly string[];
+	uses?: SpecUses;
+}
+/** A spec's bus use: event names it hears and emits, variable names it reads and sets */
+export interface SpecUses {
+	hears?: readonly string[];
+	emits?: readonly string[];
+	reads?: readonly string[];
+	sets?: readonly string[];
+}
+export interface ComponentSpec extends SpecLogic {
 	description: string;
 	/** The node types it applies to (none = every type) – built-in types or a plugin's (`registerNodeType`) */
 	nodeTypes?: readonly NodeType[];
@@ -188,7 +219,8 @@ interface MediaLevelData {
 	level: number;
 	src: string;
 }
-export interface PassSpec {
+/** Schema 5.1: `actions`, `events`, `uses` (`SpecLogic`) as a component's */
+export interface PassSpec extends SpecLogic {
 	description: string;
 	params: Record<string, ComponentParamSpec>;
 }
@@ -205,21 +237,23 @@ declare const NODE_SRC_KINDS: readonly [
 	"image"
 ];
 export type NodeSrcKind = (typeof NODE_SRC_KINDS)[number];
-export interface NodeTypeSpec {
+/** A node type's spec; schema 5.1 adds `actions`, `events` and `uses` (`SpecLogic`, the Logic view's ports) */
+export interface NodeTypeSpec extends SpecLogic {
 	description: string;
 	/** The file its `src` takes (default `none`: the node has no file) */
 	src?: NodeSrcKind;
 	/** Its parameters, set in the node's `params` (never `position`, `rotation` or `scale` – the placement's) */
 	params: Record<string, ComponentParamSpec>;
 }
-export interface MaterialSpec {
+/** Schema 5.1: `actions`, `events`, `uses` (`SpecLogic`) as a component's */
+export interface MaterialSpec extends SpecLogic {
 	description: string;
 	/** The node types it applies to (none = every node with meshes) – built-in types or a plugin's */
 	nodeTypes?: readonly string[];
 	/** Its parameters, set in the node's `material.params` */
 	params: Record<string, ComponentParamSpec>;
 }
-export interface TextureSpec {
+export interface TextureSpec extends SpecLogic {
 	description: string;
 	/** Its parameters, set in a texture value `{ type, …parameters }` (a plain type takes the defaults) */
 	params: Record<string, ComponentParamSpec>;
@@ -240,6 +274,7 @@ interface LogicCanvas {
 	groups?: LogicCanvasGroup[];
 	notes?: LogicCanvasNote[];
 	folds?: string[];
+	exposed?: Record<string, string[]>;
 }
 interface LogicCanvasGroup {
 	id: string;
@@ -258,6 +293,115 @@ interface LogicData {
 	/** Authoring data of the editor's Logic view – never in a reader's configuration */
 	canvas?: LogicCanvas;
 }
+interface ParamTextOptions {
+	description: string;
+	label?: string;
+}
+interface NumberOptions extends ParamTextOptions {
+	/** The hard limits: a value outside is refused */
+	min: number;
+	max: number;
+	/** Default: `min` */
+	default?: number;
+	step?: number;
+	unit?: string;
+	/** The soft range `[lo, hi]` the editor's control offers, inside min … max */
+	slider?: readonly [
+		number,
+		number
+	];
+}
+type NumberParam = Extract<ComponentParamSpec, {
+	kind: "number";
+}>;
+type BooleanParam = Extract<ComponentParamSpec, {
+	kind: "boolean";
+}>;
+type StringParam = Extract<ComponentParamSpec, {
+	kind: "string";
+}>;
+type ColorParam = Extract<ComponentParamSpec, {
+	kind: "color";
+}>;
+type TextureParam = Extract<ComponentParamSpec, {
+	kind: "texture";
+}>;
+type ModelParam = Extract<ComponentParamSpec, {
+	kind: "model";
+}>;
+type ChoiceParam<O extends readonly string[]> = ParamText & {
+	kind: "choice";
+	options: O;
+	default: O[number];
+};
+type FileKind = "image" | "video" | "model";
+declare const PARAM_BUILDERS: {
+	/** A number with hard limits `min` … `max`, an optional soft `slider` range, step and unit */
+	number: (options: NumberOptions) => NumberParam;
+	/** A whole number (`integer: true`, step 1 unless given): min, max and default whole too */
+	integer: (options: NumberOptions) => NumberParam;
+	/** True or false (default false) */
+	boolean: (options: ParamTextOptions & {
+		default?: boolean;
+	}) => BooleanParam;
+	/** A text (default "") */
+	string: (options: ParamTextOptions & {
+		default?: string;
+	}) => StringParam;
+	/** One of the options (default the first); pass them `as const` or inline, and the handler sees their union */
+	choice: <const O extends readonly [
+		string,
+		...string[]
+	]>(options: O, more: ParamTextOptions & {
+		default?: O[number];
+	}) => ChoiceParam<O>;
+	/** A colour `#rrggbb` (default white) */
+	color: (options: ParamTextOptions & {
+		default?: string;
+	}) => ColorParam;
+	/** A picture: a Library image or video, a content file or a procedural texture (default "" = none) */
+	texture: (options: ParamTextOptions & {
+		default?: string;
+	}) => TextureParam;
+	/** A model file (default "" = none) – load it with `api.loadModel(value)` */
+	model: (options: ParamTextOptions & {
+		default?: string;
+	}) => ModelParam;
+	/** A file: `model` → a model parameter, `image` / `video` → a texture parameter */
+	file: <K extends FileKind>(kind: K, options: ParamTextOptions & {
+		default?: string;
+	}) => K extends "model" ? ModelParam : TextureParam;
+};
+export type ParamBuilders = typeof PARAM_BUILDERS;
+type ParamValueOf<P, Tex = unknown> = P extends {
+	kind: "number";
+} ? number : P extends {
+	kind: "boolean";
+} ? boolean : P extends {
+	kind: "choice";
+	options: readonly (infer O)[];
+} ? (string extends O ? string : O) : P extends {
+	kind: "texture";
+} ? Tex : string;
+/**
+ * A handler's `params` for a spec: one typed field per parameter – and still indexable by any name (`params[name]` is
+ * `unknown`), so code written against `Record<string, unknown>` keeps compiling. A spec typed only as `ComponentSpec` (its
+ * parameter names unknown) gives `Record<string, unknown>`, as before the builders.
+ */
+export type ParamsOf<S, Tex = unknown> = S extends {
+	params: infer P;
+} ? string extends keyof P ? Record<string, unknown> : {
+	-readonly [K in keyof P]: ParamValueOf<P[K], Tex>;
+} & Record<string, unknown> : Record<string, unknown>;
+type ItemsOf<L> = L extends readonly (infer A)[] ? A & string : never;
+/** The literal union of a spec's declared `actions` (never without any) */
+export type ActionsOf<S> = S extends {
+	actions?: infer L;
+} ? ItemsOf<L> : never;
+/** The literal union of a spec's declared `events` (never without any) */
+export type EventsOf<S> = S extends {
+	events?: infer L;
+} ? ItemsOf<L> : never;
 declare const ENTITY_TYPES: readonly [
 	"group",
 	"model",
@@ -558,12 +702,12 @@ export interface PluginScene {
  * raises the alpha where it darkens – the picture below shows through less).
  */
 /** What a pass factory gets */
-export interface PassContext {
+export interface PassContext<P = Record<string, unknown>> {
 	/**
 	 * The pass's parameters with the spec's defaults filled in – a `texture` parameter as a three.js texture (a Library
 	 * picture, a procedural texture of a plugin) or null for none
 	 */
-	params: Record<string, unknown>;
+	params: P;
 	/** The app's three.js (one instance – a plugin never imports three itself) */
 	three: typeof THREE;
 	/** three's `ShaderPass` (`new ShaderPass({ uniforms, vertexShader, fragmentShader })`) */
@@ -595,7 +739,7 @@ export interface PostPass extends Pass {
 	 */
 	setMask?(mask: THREE.Texture | null): void;
 }
-export type PassFactory = (context: PassContext) => PostPass;
+export type PassFactory<P = Record<string, unknown>> = (context: PassContext<P>) => PostPass;
 /**
  * A node's material of a plugin (`api.registerMaterial`): the node's
  * `material: { type, params }` names a material a plugin registered; its `build` makes a three.js material (a
@@ -607,10 +751,10 @@ export type PassFactory = (context: PassContext) => PostPass;
  * it directly (`uniforms: { time }`).
  */
 /** What a material's `build` gets */
-export interface MaterialContext {
+export interface MaterialContext<P = Record<string, unknown>> {
 	node: EntityData;
 	/** The material's parameters with the spec's defaults filled in – a `texture` parameter as a three.js `Texture` (or null) */
-	params: Record<string, unknown>;
+	params: P;
 	/** Seconds since the material was built, as a uniform the engine advances every frame (`uniforms: { time }`) */
 	time: {
 		value: number;
@@ -635,7 +779,7 @@ export interface MaterialInstance {
 	dispose?(): void;
 }
 /** Builds the material: a three.js material, or a `MaterialInstance` with hooks */
-export type MaterialBuild = (context: MaterialContext) => Material | MaterialInstance | null | void;
+export type MaterialBuild<P = Record<string, unknown>> = (context: MaterialContext<P>) => Material | MaterialInstance | null | void;
 /**
  * Texture parameters: a spec's parameter of kind `texture` takes a file – a Library
  * image or video, a file of the content – or a procedural texture a plugin registered (`api.registerTexture`, drawn by
@@ -649,8 +793,8 @@ export type MaterialBuild = (context: MaterialContext) => Material | MaterialIns
  * use: the use owns it (its `update` runs every frame, it is disposed with the node).
  */
 /** What a procedural texture's `draw` gets: its parameters resolved (the spec's defaults filled in), three.js */
-export interface TextureContext {
-	params: Record<string, unknown>;
+export interface TextureContext<P = Record<string, unknown>> {
+	params: P;
 	/** The app's three.js (one instance – plugins never import three themselves) */
 	three: typeof THREE;
 }
@@ -661,8 +805,8 @@ export interface TextureInstance {
 	dispose?(): void;
 }
 /** Draws a procedural texture: a texture (a `CanvasTexture`, a `DataTexture`) or a `TextureInstance` */
-export type TextureDraw = (context: TextureContext) => TextureInstance | Texture | null | void;
-interface AppearanceContext {
+export type TextureDraw<P = Record<string, unknown>> = (context: TextureContext<P>) => TextureInstance | Texture | null | void;
+interface AppearanceContext<P = Record<string, unknown>> {
 	/**
 	 * The entity on its anchor – its whole node tree. Its position, rotation and scale are its placement; whatever the
 	 * look sets on them is put back when the animation ends
@@ -671,7 +815,7 @@ interface AppearanceContext {
 	/** The target's anchor: the page – x to the right, y to the top of the page, z out of it, 1 unit = the target's width */
 	anchor: Object3D;
 	/** The look's parameters with the spec's defaults filled in */
-	params: Record<string, unknown>;
+	params: P;
 	/** What happens: the first find (`reveal`), a later one (`found`), the page is lost (`lost`) */
 	moment: Moment;
 	/** The app's three.js (one instance – a plugin never imports three itself) */
@@ -693,7 +837,7 @@ interface AppearanceRun {
 	/** Free what the look created; the engine puts the placement and the materials back itself */
 	dispose?(): void;
 }
-type AppearanceFactory = (context: AppearanceContext) => AppearanceRun;
+type AppearanceFactory<P = Record<string, unknown>> = (context: AppearanceContext<P>) => AppearanceRun;
 declare const FEEDBACK_TYPES: readonly [
 	"half",
 	"float",
@@ -785,11 +929,16 @@ export interface Feedback {
  * of its own and no session (#234); its page runs no plugin code and mirrors the registry's specs
  * (`pluginRegistrySnapshot` → `mirrorPluginRegistry`).
  */
-/** What a component's `apply` gets: the node, its parameters resolved, the node's objects, the target, three.js */
-export interface ComponentContext {
+/** A spec's parameters as its handler gets them: typed from the spec (`ParamsOf`), a texture parameter as a three.js texture or null */
+export type PluginParams<S> = ParamsOf<S, THREE.Texture | null>;
+/**
+ * What a component's `apply` gets: the node, its parameters resolved, the node's objects, the target, three.js, and `emit`.
+ * `P`, `E`: the parameters and the event names its spec declares (inferred by `registerComponent`)
+ */
+export interface ComponentContext<P = Record<string, unknown>, E extends string = string> {
 	node: EntityData;
 	/** The component's parameters with the spec's defaults filled in */
-	params: Record<string, unknown>;
+	params: P;
 	/** The node's own object (a model's scene, a video's plane) – the placement group for a node without one */
 	object: Object3D;
 	/** The placement group around the node (its position / rotation / scale relative to the parent) */
@@ -799,9 +948,14 @@ export interface ComponentContext {
 	target: Target;
 	/** The app's three.js (one instance – plugins never import three themselves) */
 	three: typeof THREE;
+	/**
+	 * Emit one of the events its spec declares (`events`) on the bus, with the target's id (and the payload's fields) – a
+	 * rule hears it by name. An event the spec does not declare is not sent (a warning)
+	 */
+	emit(event: E, payload?: Record<string, unknown>): void;
 }
-/** The hooks a component returns; every one is optional */
-export interface ComponentInstance {
+/** The hooks a component returns; every one is optional. `P`, `A`: its spec's parameters and actions */
+export interface ComponentInstance<P = Record<string, unknown>, A extends string = string> {
 	/** Every rendered frame while the scene runs (seconds since the last frame) */
 	update?(delta: number): void;
 	onFound?(): void;
@@ -815,9 +969,14 @@ export interface ComponentInstance {
 	/** Free what the component created */
 	dispose?(): void;
 	/** Apply other parameter values in place (the editor's live edit); false = the node is built anew */
-	tune?(params: Record<string, unknown>): boolean;
+	tune?(params: P): boolean;
+	/**
+	 * A rule's verb on the node, one of the spec's `actions` (`play: door` reaches a component of the node `door` that
+	 * declares `play`) – beside what the engine does itself (a model's clip, the node's visibility)
+	 */
+	onAction?(action: A): void;
 }
-export type ComponentApply = (context: ComponentContext) => ComponentInstance | null | void;
+export type ComponentApply<P = Record<string, unknown>, A extends string = string, E extends string = string> = (context: ComponentContext<P, E>) => ComponentInstance<P, A> | null | void;
 /**
  * A material layer: the body of a GLSL function `vec4 (vec4 rgba, vec2 uv, float time, <the parameters>)`, run on
  * every pixel of the node's material after its own shading, in linear RGB. The spec's parameters arrive as
@@ -827,11 +986,11 @@ export type ComponentApply = (context: ComponentContext) => ComponentInstance | 
 export interface LayerDefinition {
 	glsl: string;
 }
-/** What a node type's `build` gets: the node, its parameters resolved, its file loaded, the target, three.js */
-export interface NodeTypeContext {
+/** What a node type's `build` gets: the node, its parameters resolved, its file loaded, the target, three.js, `emit` */
+export interface NodeTypeContext<P = Record<string, unknown>, E extends string = string> {
 	node: EntityData;
 	/** The node type's parameters (from the node's `params`) with the spec's defaults filled in */
-	params: Record<string, unknown>;
+	params: P;
 	/**
 	 * The node's file, loaded – a model's `scene` and `animations`, a video's `element` and `texture`, an image's
 	 * `texture` – or undefined (a type without `src`, or the file did not load). It is shared with every node that uses
@@ -841,6 +1000,8 @@ export interface NodeTypeContext {
 	target: Target;
 	/** The app's three.js (one instance – plugins never import three themselves) */
 	three: typeof THREE;
+	/** Emit one of the events its spec declares, as a component's `emit` */
+	emit(event: E, payload?: Record<string, unknown>): void;
 }
 /**
  * What a node type's `build` returns: the node's own three.js object – the engine puts it into the node's placement
@@ -848,7 +1009,7 @@ export interface NodeTypeContext {
  * material it replaces the material of every mesh of the object, except a mesh with `userData.keepMaterial =
  * true`.
  */
-export interface NodeTypeInstance {
+export interface NodeTypeInstance<P = Record<string, unknown>, A extends string = string> {
 	object: Object3D;
 	update?(delta: number): void;
 	onFound?(): void;
@@ -859,48 +1020,60 @@ export interface NodeTypeInstance {
 	/** Free what the build created (geometries, materials, textures of its own – not the shared asset) */
 	dispose?(): void;
 	/** Apply other parameter values in place (the editor's live edit); false = the node is built anew */
-	tune?(params: Record<string, unknown>): boolean;
+	tune?(params: P): boolean;
+	/** A rule's verb on the node, one of the spec's `actions` (as a component's) */
+	onAction?(action: A): void;
 }
-export type NodeTypeBuild = (context: NodeTypeContext) => NodeTypeInstance | null | void;
+export type NodeTypeBuild<P = Record<string, unknown>, A extends string = string, E extends string = string> = (context: NodeTypeContext<P, E>) => NodeTypeInstance<P, A> | null | void;
 export interface PluginApi {
 	/** `PLUGIN_API_VERSION` */
 	readonly version: string;
 	readonly three: typeof THREE;
-	registerComponent(type: string, spec: ComponentSpec, apply: ComponentApply): void;
-	registerLayer(type: string, spec: ComponentSpec, layer: LayerDefinition): void;
+	/**
+	 * The parameter builders (API 3.1, `p.number({ min, max, slider? })`, `p.choice(["a", "b"])` …): they write the plain
+	 * parameter objects, and the register functions infer the handler's `params` from them
+	 */
+	readonly p: ParamBuilders;
+	/**
+	 * A component: its spec (parameters, and optionally `actions`, `events`, `uses`) and `apply`, which gets the parameters
+	 * typed from the spec (`params.speed: number`), `emit` for the declared events and returns hooks (`onAction` for the
+	 * declared actions)
+	 */
+	registerComponent<const S extends ComponentSpec>(type: string, spec: S, apply: ComponentApply<PluginParams<S>, ActionsOf<S>, EventsOf<S>>): void;
+	registerLayer<const S extends ComponentSpec>(type: string, spec: S, layer: LayerDefinition): void;
 	/**
 	 * A node type of the plugin's own: `build` makes its three.js object with `api.three` (Points, a Sprite,
 	 * a Line, a mesh with its own material); the engine places it like every node – placement, children, components and
 	 * layers come with it. The spec declares its parameters (rows in the Entity panel, values in the node's `params`)
 	 * and the file its `src` takes (`glb`, `video`, `image` or `none`).
 	 */
-	registerNodeType(type: string, spec: NodeTypeSpec, build: NodeTypeBuild): void;
+	registerNodeType<const S extends NodeTypeSpec>(type: string, spec: S, build: NodeTypeBuild<PluginParams<S>, ActionsOf<S>, EventsOf<S>>): void;
 	/**
 	 * A post-processing pass of the plugin's own: its spec as the built-in passes have it, the factory builds the
 	 * three.js pass (`PassContext`: the resolved parameters, `shaderPass`, the canvas size). The content names it in
 	 * `passes: [{ type, … }]`; the plugin's pass leaves the registry when the plugin is uninstalled.
 	 */
-	registerPass(type: string, spec: PassSpec, factory: PassFactory): void;
+	registerPass<const S extends PassSpec>(type: string, spec: S, factory: PassFactory<PluginParams<S>>): void;
 	/**
 	 * A whole material: `build` makes a three.js material – a `ShaderMaterial` with GLSL of its own, a
 	 * `MeshStandardMaterial` with a procedural texture – and may return `{ material, update, tune, dispose }`. A node names
 	 * it as `material: { type, params }`; it replaces the material of the node's meshes (a model's, a plane's, a plugin
 	 * node's), the node's layers still add on top. `time` in the context is a uniform the engine advances.
 	 */
-	registerMaterial(type: string, spec: MaterialSpec, build: MaterialBuild): void;
+	registerMaterial<const S extends MaterialSpec>(type: string, spec: S, build: MaterialBuild<PluginParams<S>>): void;
 	/**
 	 * A procedural texture: `draw` makes a three.js texture (a `CanvasTexture`, a `DataTexture`) and may
 	 * return `{ texture, update, dispose }` to animate it. Any spec's `texture` parameter takes it by its type – a
 	 * material's, a layer's, a component's, a node type's.
 	 */
-	registerTexture(type: string, spec: TextureSpec, draw: TextureDraw): void;
+	registerTexture<const S extends TextureSpec>(type: string, spec: S, draw: TextureDraw<ParamsOf<S>>): void;
 	/**
 	 * A look of the plugin's own: how an entity appears and disappears. The factory runs once per animation with the
 	 * entity, its anchor, the resolved parameters and the moment (`AppearanceContext`) and returns
 	 * `{ duration, update(visible), dispose? }` – `visible` runs from 0 to 1 on `reveal` and `found`, from 1 to 0 on
 	 * `lost`. The experience names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
 	 */
-	registerAppearance(type: string, spec: AppearanceSpec, factory: AppearanceFactory): void;
+	registerAppearance<const S extends AppearanceSpec>(type: string, spec: S, factory: AppearanceFactory<ParamsOf<S>>): void;
 	/** Core events of the scene (read-only) and scene events of the content */
 	readonly events: PluginEvents;
 	/** Variables in the scopes scene, stage, session and experience */

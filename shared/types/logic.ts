@@ -28,12 +28,15 @@ import { type BehaviourRule, readRules, type RuleHome, rulesData, rulesProblems 
  * The Logic view's authoring data beside a list of rules (the editor builds its UI later, #334 L-T7) – kept small:
  * - `groups`: a frame around boxes of the view (`members`: the view's node ids), with a label;
  * - `notes`: a free text on the canvas at a point of the view (x, y in the view's units);
- * - `folds`: the view's node ids that are folded to a pill.
+ * - `folds`: the view's node ids that are folded to a pill;
+ * - `exposed` (schema 5.1): the ports an author exposed on a box beyond its wired ones – box id → port ids. A box shows its
+ *   wired ports and these; the rest of the ports its spec gives stay hidden behind its **+** (the Blender way, #334).
  */
 export interface LogicCanvas {
   groups?: LogicCanvasGroup[];
   notes?: LogicCanvasNote[];
   folds?: string[];
+  exposed?: Record<string, string[]>;
 }
 
 export interface LogicCanvasGroup {
@@ -63,11 +66,14 @@ export type LogicHome = Exclude<RuleHome, "entity">;
 const isText = (value: unknown): value is string => typeof value === "string";
 const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 
+/** The fields a canvas has (`exposed` since schema 5.1) */
+const CANVAS_KEYS = ["groups", "notes", "folds", "exposed"];
+
 /** Problems of a canvas (`at` = its path) */
 export const canvasProblems = (canvas: unknown, at: string): string[] => {
-  if (!isObject(canvas)) return [`${at}: expected { groups?, notes?, folds? }`];
+  if (!isObject(canvas)) return [`${at}: expected { groups?, notes?, folds?, exposed? }`];
   const problems: string[] = [];
-  Object.keys(canvas).filter(key => !["groups", "notes", "folds"].includes(key)).forEach(key => problems.push(`${at}.${key}: unknown field of a canvas (groups, notes, folds)`));
+  Object.keys(canvas).filter(key => !CANVAS_KEYS.includes(key)).forEach(key => problems.push(`${at}.${key}: unknown field of a canvas (${CANVAS_KEYS.join(", ")})`));
   const list = (key: string, check: (item: unknown, path: string) => string[]) => {
     const value = canvas[key];
     if (value === undefined) return;
@@ -83,6 +89,14 @@ export const canvasProblems = (canvas: unknown, at: string): string[] => {
   list("notes", (note, path) =>
     !isObject(note) || !isText(note.id) || !note.id || !isText(note.text) || !isNumber(note.x) || !isNumber(note.y) ? [`${path}: expected { id, text, x, y }`] : []);
   list("folds", (fold, path) => (isText(fold) && fold ? [] : [`${path}: expected a node id`]));
+  if (canvas.exposed !== undefined) {
+    if (!isObject(canvas.exposed)) problems.push(`${at}.exposed: expected { <box id>: [port ids] }`);
+    else {
+      for (const [box, ports] of Object.entries(canvas.exposed)) {
+        if (!box || !Array.isArray(ports) || !ports.every(port => isText(port) && port)) problems.push(`${at}.exposed.${box}: expected a list of port ids`);
+      }
+    }
+  }
   return problems;
 };
 

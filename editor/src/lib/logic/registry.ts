@@ -45,7 +45,8 @@ export const CORE_TYPES: NodeType<never>[] = [
   type("event", "event", () => [port("in", "", "event", "in", true), port("out", "", "event", "out", true)]),
   type<Pick<BehaviourRule, "do">>("rule", "rule", rulePorts),
   type("variable", "variable", () => [port("set", "set", "value", "in", true), port("get", "get", "value", "out", true)]),
-  type("node", "entity", () => [port("in", "", "node", "in", true)]),
+  // A node: what acts on it (`in`), then the ports its specs give (`spec-ports.ts`, handed in by the projection)
+  type<{ ports?: PortSpec[] } | undefined>("node", "entity", params => [port("in", "", "node", "in", true), ...(params?.ports ?? [])]),
   type("plugin", "plugin", () => [...placePorts(), port("drives", "drives", "node", "out", true)]),
   // A scene box also takes the node actions of the experience's rules (on a node of one of its targets)
   type("scene", "scene", () => [...placePorts(), port("nodes", "nodes", "node", "in", true)]),

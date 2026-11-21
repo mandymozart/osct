@@ -141,10 +141,14 @@ describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
       'l.rules[1].do[0].hide: a scene\'s rule names a node by address – "hint" is not an address (target:<targetId>/<node name>)',
       "l.rules[1].do[1].node: a scene's rule names a node by address – expected an address (target:<targetId>/<node name>), got undefined",
       'l.rules[1].do[2].show: a scene\'s rule names a node by address – "scene:a": a scene address does not fit here (target:<targetId>/<node name>)',
-      "l.canvas.more: unknown field of a canvas (groups, notes, folds)",
+      "l.canvas.more: unknown field of a canvas (groups, notes, folds, exposed)",
       "l.canvas.notes[0]: expected { id, text, x, y }",
       "l.canvas.folds[0]: expected a node id",
     ]);
+    // Schema 5.1: the ports an author exposed per box
+    expect(canvasProblems({ exposed: { "node:t/0": ["src", "p:hum.volume"] } }, "c")).toEqual([]);
+    expect(canvasProblems({ exposed: { b: ["", 2] } }, "c")).toEqual(["c.exposed.b: expected a list of port ids"]);
+    expect(canvasProblems({ exposed: ["src"] }, "c")).toEqual(["c.exposed: expected { <box id>: [port ids] }"]);
     expect(logicProblems([], "l", "experience")).toEqual(["l: expected { rules, canvas? }"]);
     expect(logicProblems({}, "l", "experience")).toEqual(["l.rules: expected a list of rules { on, when?, do }"]);
     expect(rulesProblems("x", "r", "entity")).toEqual(["r: expected a list of rules { on, when?, do }"]);
