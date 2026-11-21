@@ -227,6 +227,17 @@ Verbatim from the archived entries (the entry title and archive file in front of
   immutable content files, so the build's purge keeps every build an export still needs (the newest export per
   experience at least). Details in the ticket (#322 T-archive). Not started.
 
+## 2026-11-21 – Demo plugins stuck at plugin API 1.6 on staging
+
+- Tilman saw "[plugins] aquarium … was built against plugin API 1.6, this engine runs 3.1 – not loaded" for the 11
+  fixture plugins. Cause: the demo's draft configuration still declared them from its first import (api 1.6, old
+  `plugin.js`), but the database had **no source** for them – a publish injects (recompiles) only plugins with a saved
+  source, so the old declarations went through unchanged. Fix: their sources from `fixtures/demo/plugins/` were added to
+  the staging demo (PUT …/plugins/{id}, additive, 2026-11-21); the next Publish of the demo in the editor compiles them
+  against 3.1. The osct experience's live build declares only 3.1 plugins.
+- [ ] Guard: a publish (and the import) should refuse or report a declared plugin without a saved source whose API
+  MAJOR the engine does not run, instead of passing it through.
+
 ## 2026-11-21 – Demo: the staging database and `fixtures/demo` have drifted apart (#322 decision (b))
 
 - The staging DB's demo has 9 plugins (contact-shadow, cutout-shadow, hover, lifts, my-model-look, my-sparkle-look,
