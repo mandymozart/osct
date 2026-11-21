@@ -24,6 +24,15 @@
     <tr><td class="wrap">Have an AI agent build or change content for you</td><td><a href="/docs/api/mcp/">The MCP server</a></td><td class="wrap">Your agent, connected with a token.</td></tr>
   </table></div>
 
+  <h2 id="reference">Reference</h2>
+  <p>The guides explain; the reference pages list everything, generated from the code, so they are always what the software does:</p>
+  <ul>
+    <li><a href="/docs/api/plugins/reference/">Plugin API reference</a> – every member of <code>api</code>, every context and hook, with its signature.</li>
+    <li><a href="/docs/api/mcp/reference/">MCP tools reference</a> – every tool with its parameters.</li>
+    <li><a href="/docs/api/content/">Content model reference</a> – node types, placement, components, the rules' grammar, filters, passes and looks, with every parameter's range and default.</li>
+  </ul>
+  <p>Looking for one name? Press <kbd>/</kbd> and type it: <code>registerPass</code>, <code>put_target</code>, <code>bloom</code>.</p>
+
   <h2 id="together">How they fit together</h2>
   <ul>
     <li><b>One event bus and one set of variables.</b> A rule's <code>emit</code> is heard by a plugin's <code>api.events.on</code>; a plugin's <code>api.vars.set</code> is read by a rule's <code>when</code>.</li>
@@ -33,7 +42,7 @@
   </ul>
 
   <h2 id="content">The content underneath</h2>
-  <p>All three write the same content model: an experience → scenes → surfaces, entries and targets → an entity's node tree with components. An agent can read the full model with the tool <code>describe_content_model</code>. For developers, the model and the HTTP API are documented in the repository: <code>docs/content.md</code> and <code>docs/server.md</code>.</p>
+  <p>All three write the same content model: an experience → scenes → surfaces, entries and targets → an entity's node tree with components. It is listed in the <a href="/docs/api/content/">content model reference</a>; an agent reads the same with the tool <code>describe_content_model</code>. For developers, the model and the HTTP API are documented in the repository: <code>docs/content.md</code> and <code>docs/server.md</code>.</p>
 
   <h2 id="versions">Versions</h2>
   <p>These pages describe plugin API 3.1 and content schema 5.2. An older reader app skips what it does not know (a new component, a new parameter) with a quiet update hint; it never breaks.</p>

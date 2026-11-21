@@ -226,6 +226,13 @@ system works and mcp as well"*.
 - **Styled like the editor** (Tilman, the same day: *"can we please style the docs in the way the creator and deck editor
   are styled?"*): the editor's monochrome palette with day and night, system type, square corners, small-capital labels
   (`docs.css`) – not the reader's black and gold, which the first draft took from the long walkthrough.
+- **Reference pages are generated, never typed** (Tilman, the same day: *"the apis should have reference pages. otherwise
+  it is hard to find a specific one"*, *"generated whenever anything in the apis updates"*): the plugin API from
+  `plugin-api.d.ts` (in the run of `npm run plugin-api`), the MCP tools and the content model from the server's own
+  definitions (`npm run docs-reference` in `mcp/`); Checks fails on a stale page. The hand-written API pages stay as
+  the guides. A page of prose is never generated, a list of members never written.
+- **The search has no index file**: `docs.js` reads the listed pages on first use (headings and table rows with ids).
+  An index built by a script would be one more thing to regenerate; the pages are small.
 - The folder is `guide/`, not `editor/`: `/docs/editor/…` would read like the editor app's own address.
 - The editor's account menu has *Documentation* (opens `/docs/` in a new tab).
 - Screenshots: the local editor on the demo, re-imported from `…/osct/staging/demo` (build e04673e65644) into the local

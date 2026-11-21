@@ -7,6 +7,23 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.8.2 – 2026-11-21
+
+### Added
+- **Reference pages for the APIs** on the documentation site (Tilman, 2026-11-21, #336), generated from the code:
+  the **plugin API reference** (every member of `api`, the events, variables, progress and scene, the parameter
+  builders, the specs, the contexts and hooks, with signatures – from the types the Code tab uses), the **MCP tools
+  reference** (all 53 tools with their parameters – from the server's own tool definitions) and the **content model
+  reference** (scenes, entries, targets, node types, placement, components and the rules' grammar, filters, passes and
+  looks with every parameter's range and default – what `describe_content_model` answers).
+- **Search** on the documentation site: a field at the top of the sidebar (`/` focuses it) finds pages, sections and
+  every row of the reference pages – `registerPass`, `put_target`, `bloom`.
+
+### Changed
+- The reference pages follow the APIs: `npm run plugin-api` in `editor/` writes the plugin API's page with the
+  declaration file, `npm run docs-reference` in `mcp/` writes the tools' and the content model's, and the Checks
+  workflow fails when a committed page is not what its generator gives.
+
 ## 4.8.1 – 2026-11-21
 
 ### Added
