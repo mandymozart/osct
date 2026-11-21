@@ -9,6 +9,37 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 
 ## Unreleased
 
+### Added
+- `osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>] [--name <name>]
+  [--apply] [--overwrite] [--all] [--cache <dir>]` (#322 T6, docs/content.md "Importing a delivery"): a publisher's
+  delivery into the experience's draft through the editor API, replacing `npm run import`. The mapping's pages become
+  scenes (the rule of the folder's import, now `scripts/src/lib/delivery-plan.ts`), pictures WebP under the image rule
+  and videos H.264 (ffmpeg, only when the mapping names a video), cached by the delivered file's sha256; each file is
+  uploaded to the Library unless it holds those bytes already; the API's comparison is printed per scene, entry and
+  target (new, changed, conflict, same) and written only with `--apply` (one transaction, revertable per delivery). The
+  content folder is neither read nor written. A mapping's `printed` and `note` are read and ignored.
+- `GET /editor/experiences/{id}/assets` names each upload's `sha256` (null for an imported file) – what the delivery
+  import deduplicates by.
+
+### Changed
+- `npm run import` (`import-delivery.ts`, the content folder's delivery import) is superseded by `osct delivery import`;
+  it stays until the new one has run one real delivery (#322 T9) and shares its page → scene and video rules.
+
+## 4.3.0 – 2026-11-21
+
+### Added
+- `osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]` (#322
+  T2, docs/content.md "Export"): the editor's database → the content source folder – one YAML writer per source file (the
+  inverse of the content build, logic with its canvas), plugin sources, `layout/`, every file downloaded next to its YAML
+  (resumed by sha256 from the previous `export.json`), `EXPORT.md` and `export.json`; written into a temp folder and
+  swapped in as a whole, a folder without `EXPORT.md` only with `--force`. The round trip fixture → build → export →
+  build gives the same configuration (`scripts/test/content-export.test.ts`).
+- The content build reads what an export writes from the database: `groups.yaml` and a scene's `group`, `credits.yaml`
+  (the configuration's `credits` of the files it names), a target's `recognition: { image, width, height }`. `EXPORT.md`
+  and `export.json` do not count for the content hash.
+
+## 4.2.0 – 2026-11-21
+
 ### Changed
 - **Several experiences on one installation** (#87, with #50): every experience has a content store of its own in each
   environment – `<title>/<env>/<experience>/latest.json` and `…/<experience>/<build>/` on the CDN's storage zone. The
@@ -26,33 +57,11 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   the experience's store; the import preview takes `experience` (default the instance's `OSCT_EXPERIENCE`).
 - The demo is an experience on staging (`osct/staging/demo/`, opened at `/x/demo/`) instead of an environment of its
   own; the CLI refuses a demo build only for production.
-- `npm run import` (`import-delivery.ts`, the content folder's delivery import) is superseded by `osct delivery import`;
-  it stays until the new one has run one real delivery (#322 T9) and shares its page → scene and video rules.
-
 ### Fixed
 - The header's entries counter: leftover merge markers inside its CSS (since 1.84.0) dropped its muted colour; the
   label is muted again.
 
 ### Added
-- `osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>] [--name <name>]
-  [--apply] [--overwrite] [--all] [--cache <dir>]` (#322 T6, docs/content.md "Importing a delivery"): a publisher's
-  delivery into the experience's draft through the editor API, replacing `npm run import`. The mapping's pages become
-  scenes (the rule of the folder's import, now `scripts/src/lib/delivery-plan.ts`), pictures WebP under the image rule
-  and videos H.264 (ffmpeg, only when the mapping names a video), cached by the delivered file's sha256; each file is
-  uploaded to the Library unless it holds those bytes already; the API's comparison is printed per scene, entry and
-  target (new, changed, conflict, same) and written only with `--apply` (one transaction, revertable per delivery). The
-  content folder is neither read nor written. A mapping's `printed` and `note` are read and ignored.
-- `GET /editor/experiences/{id}/assets` names each upload's `sha256` (null for an imported file) – what the delivery
-  import deduplicates by.
-- `osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]` (#322
-  T2, docs/content.md "Export"): the editor's database → the content source folder – one YAML writer per source file (the
-  inverse of the content build, logic with its canvas), plugin sources, `layout/`, every file downloaded next to its YAML
-  (resumed by sha256 from the previous `export.json`), `EXPORT.md` and `export.json`; written into a temp folder and
-  swapped in as a whole, a folder without `EXPORT.md` only with `--force`. The round trip fixture → build → export →
-  build gives the same configuration (`scripts/test/content-export.test.ts`).
-- The content build reads what an export writes from the database: `groups.yaml` and a scene's `group`, `credits.yaml`
-  (the configuration's `credits` of the files it names), a target's `recognition: { image, width, height }`. `EXPORT.md`
-  and `export.json` do not count for the content hash.
 - `osct content move --from <old folder> --env <env> [--experience <id>] [--dry-run] [--delete-old]` (also in the
   workflow *Content*): the one-off copy of the old environment folders into the store per experience – nothing is
   deleted unless asked, and only once every file arrived (docs/content-cdn.md "Moving to the store per experience").
