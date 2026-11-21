@@ -63,6 +63,9 @@
   import type { LogicPick } from "#lib/logic/types.js";
   import type { StageMove } from "#lib/logic/navigation.js";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
+  import PluginGuardPrompt from "#lib/components/PluginGuardPrompt.svelte";
+  import { pluginGuard } from "#lib/plugin-guard.svelte.js";
+  import { session } from "#lib/session.svelte.js";
   import { history } from "#lib/history.svelte.js";
   import { markRender, renderRequest, renderState } from "#lib/render-view.js";
 
@@ -592,6 +595,18 @@
       }
       if (disposed || !container) return;
       if (!stage) {
+        // The saved sources' ids before the stage starts: their compiled declarations are not loaded on the stage
+        if (plugins.experienceId !== experienceId) await plugins.load(experienceId).catch(() => undefined);
+        // The guard (#340): the stage runs plugin code in this page, with the person's session – code someone else saved
+        // last runs only after the prompt says so; what it keeps off is said in the Code tab and the Log tab. The render view
+        // (#89, nobody to ask) runs only what the person answered Run for before
+        const declined = await pluginGuard.check(experienceId, plugins.stored, plugins.declared(), session.user?.email ?? null, { ask: !render });
+        plugins.declined.clear();
+        declined.forEach((why, id) => {
+          plugins.declined.set(id, why);
+          plugins.addLog({ level: "warn", text: `[plugin ${id}] not run: ${why}`, t: performance.now() });
+        });
+        if (disposed || !container || stage) return;
         stage = new Stage(container);
         // A click picks by the pick mode; nothing of its kind there clears the selection (tree, stage and panel alike)
         stage.onPick = hit => {
@@ -620,12 +635,11 @@
           select();
         };
         stage.onSurfacePlace = placeSurface;
-        // The Code tab's saved sources run on every frame that starts (#269): their looks and components are known at once
+        // The Code tab's saved sources run when the stage starts (#269): their looks and components are known at once
         const started = stage;
         started.onStarted = () => void plugins.autoLoad(experienceId, started);
-        started.savedPlugins = () => plugins.stored.map(p => p.id);
-        // The saved sources' ids before the frame starts: their compiled declarations are not loaded on the stage
-        if (plugins.experienceId !== experienceId) await plugins.load(experienceId).catch(() => undefined);
+        // Their content modules never load: a saved source runs instead, a declined plugin not at all (#340)
+        started.keptPlugins = () => [...plugins.stored.map(p => p.id), ...plugins.declined.keys()];
       }
       await stage.open(sceneId);
     } catch (e) {
@@ -648,6 +662,7 @@
     return () => {
       disposed = true;
       pointer.removeEventListener("change", onPointer);
+      pluginGuard.dismiss();
       void stage?.dispose();
       stage = null;
     };
@@ -1001,6 +1016,7 @@
       <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar()}</FloatingPanel>
     {/if}
   <RevertPrompt />
+  <PluginGuardPrompt />
 </div>
 {/if}
 
@@ -1011,7 +1027,7 @@
   /* The render view (#89): no top bar above it */
   .workspace.render { inset: 0; }
   .workspace.holding { user-select: none; }
-  .workspace.holding .stage :global(iframe.stage-frame) { pointer-events: none; }
+  .workspace.holding .stage :global(.stage-host) { pointer-events: none; }
   .float-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .float-body.inspector { min-width: 0; }
   /* The toolbar in its floating panel: one row; the page computes the groups' widths from these sizes */
@@ -1026,8 +1042,9 @@
   .live .on { color: var(--accent, currentColor); }
   .tree-body { padding: .25rem .375rem .75rem; }
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-  /* The stage frame (#234) under the toolbar and the notices; a panel drag over it stays the page's */
-  .stage :global(iframe.stage-frame) { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
+  /* The stage's layer (#340: in this page, no frame) under the toolbar and the notices; a panel drag over it stays the page's */
+  .stage :global(.stage-host) { position: absolute; inset: 0; overflow: hidden; }
+  .stage :global(.stage-host canvas) { display: block; }
   .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }

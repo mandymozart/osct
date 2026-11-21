@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RunResult } from "../stage/frame-protocol";
+import type { RunResult } from "../stage/stage-types";
 
 /**
- * The Code tab's code on the live stage (#269): a frame that starts gets every stored source by itself – each one's
+ * The Code tab's code on the live stage (#269): a stage that starts gets every stored source by itself – each one's
  * status says whether it runs, saved or with edits, or failed and why; a source that hung the stage is skipped the
  * next time; the pickers name why a type is missing.
  */
@@ -22,7 +22,7 @@ vi.mock("../api", async original => ({
 
 const { plugins, AUTO_LOAD_TIMEOUT_MS } = await import("../plugins.svelte");
 
-/** The frame's side: what each plugin's run answers, and every run and refresh it was asked for */
+/** The stage's side: what each plugin's run answers, and every run and refresh it was asked for */
 class FakeStage {
   runs: string[] = [];
   refreshes = 0;
@@ -53,7 +53,7 @@ describe("the saved sources load by themselves when the stage starts", () => {
     const stage = new FakeStage();
     const version = plugins.version;
     await plugins.autoLoad(nextExperience(), stage);
-    // The broken one never reaches the frame: it does not transpile
+    // The broken one never reaches the stage: it does not transpile
     expect(stage.runs).toEqual(["lifts", "reveal"]);
     expect(stage.refreshes).toBe(1);
     expect(plugins.version).toBe(version + 1);
@@ -64,7 +64,21 @@ describe("the saved sources load by themselves when the stage starts", () => {
     expect(plugins.missingNote()).toBe("not loaded – broken failed");
   });
 
-  it("a run the frame refuses is the source's failure", async () => {
+  it("a source the guard kept off (#340: Don't run) is not run and says why", async () => {
+    const id = nextExperience();
+    await plugins.load(id);
+    plugins.declined.set("reveal", "ben saved it last and you chose Don't run – Run in the Code tab runs it now");
+    const stage = new FakeStage();
+    await plugins.autoLoad(id, stage);
+    expect(stage.runs).toEqual(["lifts"]);
+    expect(plugins.status.get("reveal")).toEqual({ state: "skipped", error: "ben saved it last and you chose Don't run – Run in the Code tab runs it now" });
+    expect(plugins.failed().map(f => f.id)).toContain("reveal");
+    // Another experience starts without that answer
+    await plugins.load(nextExperience());
+    expect(plugins.declined.size).toBe(0);
+  });
+
+  it("a run the stage refuses is the source's failure", async () => {
     const stage = new FakeStage(id => (id === "reveal" ? { ok: false, error: "register failed – boom" } : { ok: true, types: [] }));
     await plugins.autoLoad(nextExperience(), stage);
     expect(plugins.status.get("reveal")).toEqual({ state: "failed", error: "register failed – boom" });
@@ -76,7 +90,7 @@ describe("the saved sources load by themselves when the stage starts", () => {
     await plugins.autoLoad(id, new FakeStage(p => (p === "lifts" ? "hang" : { ok: true, types: [] })));
     expect(plugins.status.get("lifts")).toEqual({ state: "failed", error: `the stage did not answer within ${AUTO_LOAD_TIMEOUT_MS / 1000} s` });
     expect(window.localStorage.getItem(`osct-code-autoload:${id}`)).toBe("lifts");
-    // The frame is likely still in it: the rest wait
+    // The stage is likely still in it: the rest wait
     expect(plugins.status.get("reveal")).toEqual({ state: "failed", error: "not loaded – the stage stopped answering at lifts" });
     // The page reloaded (it froze): the next start skips it and says why
     const next = new FakeStage();
@@ -101,14 +115,14 @@ describe("the saved sources load by themselves when the stage starts", () => {
 });
 
 describe("a Run and a Save keep the status", () => {
-  it("unsaved edits run as edits; the saved text runs as saved; a new frame gets what ran here", async () => {
+  it("unsaved edits run as edits; the saved text runs as saved; a new stage gets what ran here", async () => {
     const id = nextExperience();
     const stage = new FakeStage();
     await plugins.autoLoad(id, stage);
     const edited = SOURCES.reveal.replace("'reveal'", "'reveal, edited'");
     expect(await plugins.run("reveal", edited, stage)).toBe(true);
     expect(plugins.status.get("reveal")).toEqual({ state: "edits" });
-    // A new frame (a reload): the edits run there again, not the stored text
+    // A new stage (the workspace again): the edits run there again, not the stored text
     const frame = new FakeStage();
     const sources: string[] = [];
     const run = frame.runPlugin.bind(frame);

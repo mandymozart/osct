@@ -7,6 +7,38 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 5.0.0 – 2026-11-21
+
+### Removed
+- **The editor's stage sandbox** (Tilman, 2026-11-21, #340: *"we can drop the sandbox. since we trust the user, thats why
+  we gave them access to the api. if we got plugins that need to change db game state, that is fine. it is a huge security
+  risk but only to the user who is logged in and their scope."* · *"performance will definitely increase."*): the stage
+  and the experience's plugins no longer run in an iframe without `allow-same-origin` (#234, since 1.58.0). Gone with it:
+  the route `/editor/stage-frame/`, the frame's Content Security Policy, the postMessage protocol and its checks, the
+  forwarded keys, the draft recorded and replayed into the frame, the plugin registry mirrored back into the page
+  (`mirrorPluginRegistry`), the dev servers' `Origin: null` CORS and the site's `Access-Control-Allow-Origin: *` for
+  `/editor/` and `/assets/content/`. Every feature of the stage stays.
+
+### Changed
+- **The stage runs in the editor's own page**: the workspace calls the stage directly – the draft it already loaded, one
+  plugin registry, picks, the gizmo, snapping, the eyedropper, the keyboard and the Info view's help without a boundary
+  in between, and no copy of the editor started a second time for the frame. Leaving the workspace empties the plugin
+  registry (`resetPlugins`), so the next experience starts with none of this one's code.
+- **Plugins in the editor act with the signed-in editor's session**: a plugin may use the page's `fetch` – read and change
+  what the person who opens the experience may (the draft, the data, the game state). That is a risk, scoped to that
+  person; docs/plugins.md "Where it runs" says so plainly. The plugin API stays 3.1 (`api` did not change). MAJOR: the
+  editor's security model changed, no backward compatibility before the Tokyo release.
+- The reader's stored progress is format 5 (the app's MAJOR, RULES #10) – the same shape as format 4, read without a
+  notice; the reader's plugin loading is unchanged.
+
+### Added
+- **A prompt before others' plugin code**: before the stage runs plugin code that someone other than the signed-in editor
+  saved last – or a module that came with an imported content build – the editor asks once: *Run plugin code by ben?*,
+  each plugin with who saved it last (the API's `updatedBy`), **Run** or **Don't run**. The answer is kept in this browser
+  per experience and source version, so a new save by someone else asks again; *Don't run* keeps those plugins off the
+  stage and the Code tab and the Log tab say why (Run in the Code tab still runs one). The person's own code runs without
+  asking. The render view asks nobody and runs only what was answered Run before.
+
 ## 4.12.2 – 2026-11-21
 
 ### Fixed

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  applyPreviewSync, clampGrid, getPreview, isNodeHidden, isNodeKey, MAX_HIDDEN_NODES, nodeKey, parseHiddenNodes, parseNodeKey, parseSettings, previewSync, setNodeHidden, setPreviewActive,
+  clampGrid, getPreview, isNodeHidden, isNodeKey, MAX_HIDDEN_NODES, nodeKey, parseHiddenNodes, parseNodeKey, parseSettings, setNodeHidden, setPreviewActive,
   parseSurfaceGrids, setTargetHidden, subscribePreview, surfaceGridOf, updatePreview, viewSummary,
 } from "../preview";
 
@@ -120,7 +120,7 @@ describe("editor preview settings", () => {
     expect(surfaceGridOf(getPreview(), "page")).toBe(5);
     expect(surfaceGridOf(getPreview(), "door")).toBeNull();
     expect(surfaceGridOf(getPreview(), "other")).toBe(getPreview().gridMm);
-    expect(JSON.parse(previewSync()).surfaceGrids).toEqual({ wall: { mm: 25 }, page: { mm: 20, sub: 4 }, door: { snap: false } });
+    expect(getPreview().surfaceGrids).toEqual({ wall: { mm: 25 }, page: { mm: 20, sub: 4 }, door: { snap: false } });
     expect(parseSurfaceGrids({ a: 0, "b c": 5, d: "5", e: 9000, f: { on: true } })).toEqual({ a: { mm: 1 }, e: { mm: 500 }, f: { on: true } });
     expect(parseSurfaceGrids([1])).toEqual({});
   });
@@ -202,39 +202,17 @@ describe("the view group's settings (#229)", () => {
   });
 });
 
-describe("the preview kept in step with the stage frame (#234)", () => {
+describe("the preview's values, checked", () => {
   beforeEach(() => {
     localStorage.clear();
     updatePreview({ view: "reader", orbit: null, shading: "rendered", wobble: 0, hidden: [] });
   });
 
-  it("gives the same text for the same preview, whatever order or extra the value has", () => {
-    const sync = previewSync();
-    expect(previewSync({ ...JSON.parse(sync), active: true, extra: 1 })).toBe(sync);
-    expect(JSON.parse(sync)).not.toHaveProperty("active");
+  it("takes only well-formed hidden nodes (#311), each once", () => {
+    expect(parseHiddenNodes(["key:0.1", "key:0.1", "<img>", 4])).toEqual(["key:0.1"]);
+    expect(parseHiddenNodes("key:0")).toEqual([]);
   });
 
-  it("takes what the other side sent, checked: a wrong value is the default, the same preview changes nothing", () => {
-    const seen: string[] = [];
-    const unsubscribe = subscribePreview(state => seen.push(state.shading));
-    expect(applyPreviewSync(previewSync())).toBe(false);
-    expect(applyPreviewSync(JSON.stringify({ ...JSON.parse(previewSync()), shading: "solid", hidden: ["key", 3] }))).toBe(true);
-    expect(getPreview()).toMatchObject({ shading: "solid", hidden: ["key"] });
-    expect(applyPreviewSync(JSON.stringify({ shading: "<script>", wobble: "lots" }))).toBe(true);
-    expect(getPreview()).toMatchObject({ shading: "rendered", wobble: 0 });
-    expect(applyPreviewSync("not json")).toBe(false);
-    expect(seen).toEqual(["solid", "rendered"]);
-    unsubscribe();
-  });
-
-  it("carries the nodes hidden on the stage (#311), checked on the way in", () => {
-    updatePreview({ hiddenNodes: [] });
-    expect(JSON.parse(previewSync()).hiddenNodes).toEqual([]);
-    expect(applyPreviewSync(JSON.stringify({ ...JSON.parse(previewSync()), hiddenNodes: ["key:0.1", "key:0.1", "<img>", 4] }))).toBe(true);
-    expect(getPreview().hiddenNodes).toEqual(["key:0.1"]);
-    expect(previewSync({ ...JSON.parse(previewSync()), hiddenNodes: "key:0" })).toContain('"hiddenNodes":[]');
-    updatePreview({ hiddenNodes: [] });
-  });
   it("keeps the texture quality the stage previews (#260): auto, or one of the four sizes – anything else is auto", () => {
     expect(parseSettings({ textureQuality: 2048 }).textureQuality).toBe(2048);
     expect(parseSettings({ textureQuality: "auto" }).textureQuality).toBe("auto");

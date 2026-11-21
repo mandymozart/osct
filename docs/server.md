@@ -138,18 +138,18 @@ an experience's plugin in the editor, anything injected – can read the session
   reads them), gives it a new token, sets that as the cookie and answers `{ user, csrfToken }`; the old token stops
   working at once. The client then deletes the stored token; a refused one (401) means signing in as usual; unreachable,
   it waits for the next start. The endpoint goes once those browsers have had their chance (MEMORY open item).
-- **What the cookie does not do – and the editor's sandbox does.** The cookie stops the session from being **read and
+- **What the cookie does not do.** The cookie stops the session from being **read and
   carried off**. It does not, by itself, separate code that runs on the site's own pages from the session: such code is
   in the same origin and could make requests that go with the cookie while the page is open – and read the CSRF token
   from `GET /user` like the app does.
-  - **The editor** (#234, Tilman 2026-10-31: *"Make editors safe, please. Sandbox."*): experience plugins – the draft's and the
-    Code tab's Run – run only in the **stage frame**, an iframe sandboxed without `allow-same-origin`
-    ([editor](editor.md) "The stage frame"). Its origin is opaque, so for plugin code `document.cookie` and
-    `localStorage` throw, the page is another origin, a request to the API is a cross-site request without the
-    `SameSite=Strict` cookie (and CORS sends this API no credentials anyway), and the frame's Content Security Policy
-    lets it reach the content and the Library's files (`/api/content/…`, public) but no other path of the API. The CSRF
-    token never leaves the page; nothing the frame sends makes the page call the API. RULES #35.
-  - **The reader** is not sandboxed (Tilman, 2026-10-29: the review before a release is the protection): a published
+  - **The editor** (5.0, #340, Tilman 2026-11-21: *"we can drop the sandbox. since we trust the user, thats why we gave
+    them access to the api. … it is a huge security risk but only to the user who is logged in and their scope."*):
+    experience plugins – the draft's and the Code tab's – run in the editor's own page, with the signed-in editor's
+    session; they can read and write what that person may. The stage frame of #234 (an iframe sandboxed without
+    `allow-same-origin`, 1.58.0 to 4.x) is gone. What stays is a **guard**: plugin code someone other than the signed-in
+    editor saved last runs only after a prompt that names who saved it, kept per experience and source version
+    ([editor](editor.md) "The plugin guard"). RULES #35.
+  - **The reader** runs plugins in its page too (Tilman, 2026-10-29: the review before a release is the protection): a published
     experience's plugins run in the reader's page, with the reader's session – and since the cookie is one for the site, with
     the session of an editor or admin who opens the reader in the same browser. A published plugin is compiled by the content build from a source an editor stored and reaches readers only
     through a person's publish, but it is code of the same kind. The reader's scene in a frame needs the camera
@@ -666,8 +666,8 @@ Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the con
 
 The editor's **Code** tab ([editor](editor.md)) keeps the TypeScript of an experience's plugins in the `plugins` table
 (`Plugins.php`): one row per plugin id (`experience_id`, `id`, `source`, who, when), at most 256 KB each, every save a
-change (`kind: plugin`, the source before and after). They are the editor's sandbox: the editor transpiles and runs
-them on its own stage, and nothing of them reaches a publish. The compiled plugins an experience has come in with the
+change (`kind: plugin`, the source before and after). The editor transpiles and runs them on its own stage (in its page,
+with the person's session – `updatedBy`, who saved a source last, is what the editor's plugin guard asks about, #340). The compiled plugins an experience has come in with the
 import – the configuration's `plugins` list (content schema 2.4: `{ id, src, api }`, 2.14: `registered`, what each
 plugin registered – written by the content build only) is kept in `experiences.plugins_json` and assembled back after
 `tutorial`, its `src` below the assets base like every other content path. What the compiled plugins register is

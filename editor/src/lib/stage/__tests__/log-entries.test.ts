@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { StageEvent } from "../event-log";
-import type { FrameLog } from "../frame-protocol";
+import type { StageLog } from "../stage-types";
 import {
   countKinds, eventEntry, filterLog, listSummary, LOG_KINDS, mergeLog, narrativeSummary, pluginEntry, problemsSummary, readLogFilter, toggleLogKind,
   writeLogFilter, type LogKind,
 } from "../log-entries";
 
 const ev = (event: string, t: number, detail = ""): StageEvent => ({ event, detail, at: t - 1000, t });
-const line = (text: string, t?: number, level: FrameLog["level"] = "info"): FrameLog => ({ level, text, ...(t === undefined ? {} : { t, at: t - 1000 }) });
+const line = (text: string, t?: number, level: StageLog["level"] = "info"): StageLog => ({ level, text, ...(t === undefined ? {} : { t, at: t - 1000 }) });
 
 describe("the Log tab's timeline (#337)", () => {
   it("splits the rules' lines (behaviour, goto) from the stage's events", () => {
@@ -23,7 +23,7 @@ describe("the Log tab's timeline (#337)", () => {
     expect(pluginEntry(line("no clock")).at).toBeNull();
   });
 
-  it("merges the events (newest first) and the plugins' lines (newest last) by the frame's clock, newest first", () => {
+  it("merges the events (newest first) and the plugins' lines (newest last) by the page's clock, newest first", () => {
     const events = [ev("varChanged", 1500), ev("behaviour", 1300), ev("targetFound", 1100)];
     const logs = [line("a", 1000), line("b", 1200), line("c", 1600)];
     expect(mergeLog(events, logs).map(e => (e.kind === "plugin" ? e.detail : e.line))).toEqual(["c", "varChanged", "behaviour", "b", "targetFound", "a"]);
