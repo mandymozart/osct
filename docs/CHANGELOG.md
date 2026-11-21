@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.11.1 – 2026-11-21
+
+### Fixed
+- **An event wire's word reads again** (#334): the event signal is near white at night, so in 4.11.0's white ring its
+  word ("hears", "emits", "on") was a white blot; it now takes the event's day ink, dark in both themes.
+
 ## 4.11.0 – 2026-11-21
 
 ### Added
