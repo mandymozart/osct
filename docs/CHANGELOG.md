@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.9.4 – 2026-11-21
+
+### Changed
+- **The colour fields' eyedropper picks anywhere on the screen** (Tilman, 2026-11-21, #338): where the browser has an
+  EyeDropper (Chrome, Edge) it takes any pixel – the stage, the editor's panels, another window; every colour field has
+  it, not only those with a stage pick. Where the browser has none (Firefox, Safari) the stage's own picker stays.
+- **Nested sections start closed on every visit** (#338): a look's moments (reveal, found, lost) and the passes keep
+  their open state only while the editor is open, so the long lists inside a section start short.
+
 ## 4.9.3 – 2026-11-21
 
 ### Fixed

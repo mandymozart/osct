@@ -9,13 +9,15 @@
    * stays the source of the value. Keyboard: Tab through the swatches → the area (arrows: saturation ← →,
    * brightness ↑ ↓; Shift ×10) → the hue (a range input) → the hex.
    */
-  let { value, palette = PALETTE, onpick, oneyedropper }: {
+  let { value, palette = PALETTE, onpick, oneyedropper, screen = false }: {
     /** The field's colour (a whole hex) */
     value: string;
     palette?: { name: string; hex: string }[];
     onpick: (hex: string) => void;
     /** Pick from the stage (the colour under the pointer); none = no button */
     oneyedropper?: () => void;
+    /** The eyedropper picks from the whole screen (the browser's EyeDropper), not only the stage */
+    screen?: boolean;
   } = $props();
 
   const swatches = $derived(palette.filter(c => HEX.test(c.hex)).map(c => ({ ...c, hex: longHex(c.hex) })));
@@ -105,7 +107,7 @@
   <input class="hue" type="range" min="0" max="359" step="1" aria-label="Hue" value={Math.round(hsv.h)} oninput={e => set({ h: Number(e.currentTarget.value) })} />
   <div class="hex-row">
     {#if oneyedropper}
-      <button type="button" class="icon-button framed" aria-label="Pick from the stage" title="Pick the colour under the pointer on the stage (Esc cancels)" onclick={oneyedropper}><Icon name="droplet" stroke={2} /></button>
+      <button type="button" class="icon-button framed" aria-label={screen ? "Pick from the screen" : "Pick from the stage"} title={screen ? "Pick the colour under the pointer anywhere on the screen (Esc cancels)" : "Pick the colour under the pointer on the stage (Esc cancels)"} onclick={oneyedropper}><Icon name="droplet" stroke={2} /></button>
     {/if}
     <input class="field hex" type="text" spellcheck="false" autocomplete="off" aria-label="Hex" value={current ?? ""} oninput={e => typeHex(e.currentTarget.value)} />
   </div>

@@ -38,4 +38,16 @@ describe("sections: the open state per collapsible section", () => {
     sections.reload();
     expect(sections.isOpen("0", false)).toBe(false);
   });
+
+  it("keeps a nested section's state for this visit only (#338): reveal, found, lost start closed again", () => {
+    localStorage.removeItem(KEY);
+    sections.reload();
+    sections.toggle("stage.appearance.reveal", false, true);
+    expect(sections.isOpen("stage.appearance.reveal", false, true)).toBe(true);
+    expect(localStorage.getItem(KEY)).toBeNull();
+    // A state stored by an older editor does not open it either
+    localStorage.setItem(KEY, JSON.stringify({ "stage.appearance.found": true }));
+    sections.reload();
+    expect(sections.isOpen("stage.appearance.found", false, true)).toBe(false);
+  });
 });

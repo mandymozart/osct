@@ -70,3 +70,27 @@ export const rememberColour = (hex: string): void => {
   const c = longHex(hex);
   writeStoredJson(RECENT_KEY, [c, ...recentColours().filter(x => x !== c)].slice(0, RECENT_MAX));
 };
+
+/** The browser's EyeDropper (Chromium): not in TypeScript's DOM types yet */
+interface EyeDropperLike { open(): Promise<{ sRGBHex: string }> }
+type EyeDropperClass = new () => EyeDropperLike;
+
+/**
+ * The browser's eyedropper (#338): a pick of any pixel on the screen – the stage, the editor's panels, another window –
+ * as `#rrggbb`, null when cancelled (Esc). Null where the browser has none (Firefox, Safari): the caller falls back to
+ * the stage's own picker. The returned function must be called from a click (the browser needs its activation).
+ */
+export const screenEyedropper = (scope: object = globalThis): (() => Promise<string | null>) | null => {
+  const Dropper = (scope as { EyeDropper?: EyeDropperClass }).EyeDropper;
+  if (typeof Dropper !== "function") return null;
+  return () => new Dropper().open().then(
+    result => {
+      const hex = result.sRGBHex.trim();
+      if (HEX.test(hex)) return longHex(hex);
+      // Some builds answer rgb(r, g, b)
+      const rgb = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/i.exec(hex);
+      return rgb ? `#${rgb.slice(1, 4).map(n => Number(n).toString(16).padStart(2, "0")).join("")}` : null;
+    },
+    () => null,
+  );
+};
