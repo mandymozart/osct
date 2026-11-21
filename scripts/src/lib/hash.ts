@@ -9,8 +9,10 @@ import { listFiles } from './files';
 // (a new hash = new content to sync)
 const COMMAND_FILES = [
   'sounds.ts', 'cli.ts', 'schema-lock.ts', 'import-delivery.ts',
-  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts', 'lib/cli-args.ts',
+  'lib/storage.ts', 'lib/content-sync.ts', 'lib/contract.ts', 'lib/entry.ts', 'lib/cli-args.ts', 'lib/content-export.ts',
 ];
+// An export's marker and record (`osct content export`) change on every export – they shape nothing the build writes
+const EXPORT_FILES = ['EXPORT.md', 'export.json'];
 const isCommandFile = (file: string) => COMMAND_FILES.some(prefix => file.startsWith(prefix));
 
 // Text files get normalised line endings before hashing
@@ -25,7 +27,7 @@ export function hashBuildInputs(): string {
   const hash = createHash('sha256');
   const sharedDir = path.join(projectRoot, 'shared');
   for (const [label, dir] of [['content', CONTENT_DIR], ['scripts', SCRIPTS_SRC_DIR], ['shared', sharedDir]] as const) {
-    for (const file of listFiles(dir).filter(f => !(label === 'scripts' && isCommandFile(f)))) {
+    for (const file of listFiles(dir).filter(f => !(label === 'scripts' && isCommandFile(f)) && !(label === 'content' && EXPORT_FILES.includes(f)))) {
       let data = fs.readFileSync(path.join(dir, file));
       if (TEXT_FILE.test(file)) {
         data = Buffer.from(data.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');

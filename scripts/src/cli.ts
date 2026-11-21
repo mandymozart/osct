@@ -12,6 +12,8 @@
  *   osct content purge  --env <env> --experience <id> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
  *   osct content move   --from <old folder> --env <env> [--experience <id>] [--dry-run] [--delete-old]
  *                                                          (one-off: the layout before #87 into the store per experience)
+ *   osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]
+ *                                                          (the database → the content source folder, docs/content.md "Export")
  *   osct targets prepare --experience <id> [--dry-run] [--force] [--all]
  *
  * Environment (or a scripts/.env file, never committed):
@@ -27,8 +29,8 @@
  *                                checks what the CDN serves; purge requires it
  *   OSCT_APP_URL                 the site the reader runs on (optional) – the CDN check asks with its origin (CORS)
  * The same names as the server's settings (docs/server.md, #33).
- *   OSCT_API_URL                 targets prepare: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
- *   OSCT_EDITOR_TOKEN            targets prepare: a person's editor token (the editor's experiences page, AI connections)
+ *   OSCT_API_URL                 targets prepare, export: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
+ *   OSCT_EDITOR_TOKEN            targets prepare, export: a person's editor token (the editor's experiences page, AI connections)
  */
 import { spawnSync } from 'child_process';
 import path from 'path';
@@ -56,7 +58,9 @@ import { messageOf } from './lib/errors';
 import { describePlan, editorApi, planTargets, prepareTargets } from './lib/targets-prepare';
 import { StorageClient } from './lib/storage';
 import { deleteMoved, describeMove, experienceOf, moveProblems, planMove, runMove } from './lib/content-move';
-import { DEMO_REFUSED_ENV } from './config';
+import { APP_VERSION, CONTENT_DIR, DEMO_REFUSED_ENV } from './config';
+import { planExport, runExport } from './lib/content-export';
+import type { ExperienceExport } from '../../shared/api/editor';
 import { ENV_NAME } from '../../shared/api/rules';
 import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAME } from '../../shared/api/content-store';
 
@@ -65,7 +69,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 const OPTIONS = {
   flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all'],
-  values: ['env', 'experience', 'from', 'min-age', 'keep'],
+  values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base'],
 };
 /** The local dev API (as the MCP server's default) */
 const LOCAL_API = 'http://127.0.0.1:8080/api';
@@ -82,6 +86,15 @@ const USAGE = `osct – content command line
   osct content purge --env <env> --experience <id> [--dry-run] [--min-age <days>] [--keep <n>] [--unknown]
                                                delete old versions that are provably out of use
                                                (defaults: --min-age ${DEFAULT_PURGE.minAgeDays} --keep ${DEFAULT_PURGE.keep})
+  osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]
+                                               write the experience from the editor's database as a content source
+                                               folder (YAML, plugin sources, its files, EXPORT.md, export.json):
+                                               --from the draft (default), the build live on the instance's own
+                                               environment, or a published build; --out defaults to OSCT_CONTENT_DIR;
+                                               the folder is replaced as a whole – one without EXPORT.md only with
+                                               --force; files whose sha256 export.json already has are kept, not
+                                               downloaded again; --assets-base resolves content paths without a host
+                                               (default the experience's assetsBase, else the API's origin). OSCT_API_URL, OSCT_EDITOR_TOKEN
   osct targets prepare --experience <id> [--dry-run] [--force] [--all]
                                                make the targets' recognition data ahead (#306) on an instance
                                                (--all: switched-off targets too):
@@ -136,6 +149,49 @@ const storage = () =>
     zone: required('OSCT_BUNNY_STORAGE_ZONE'),
     accessKey: required('OSCT_BUNNY_STORAGE_PASSWORD'),
   });
+
+/**
+ * `osct content export` (#322): the export endpoint's answer for the draft, the live build or a published build, written
+ * as a content source folder (lib/content-export.ts)
+ */
+async function exportCommand(cli: CliArgs): Promise<void> {
+  const experience = requiredExperience(cli);
+  const out = cli.option('out') ? path.resolve(cli.option('out')!) : CONTENT_DIR;
+  if (!out) throw new Error('Name the folder: --out <dir> (or OSCT_CONTENT_DIR)');
+  const apiUrl = (process.env.OSCT_API_URL?.trim() || LOCAL_API).replace(/\/+$/, '');
+  const token = required('OSCT_EDITOR_TOKEN');
+  const get = async <T>(route: string): Promise<T> => {
+    const response = await fetch(`${apiUrl}${route}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error(`GET ${route} → ${response.status} ${(await response.text().catch(() => '')).slice(0, 300)}`);
+    return response.json() as Promise<T>;
+  };
+  const from = cli.option('from') ?? 'draft';
+  // The experience: where its content paths resolve (`assetsBase`), where it is live
+  const tree = await get<{ experience: { assetsBase?: string; live?: { env: string; build: string | null }[] } }>(`/editor/experiences/${encodeURIComponent(experience)}`);
+  let build: string | null = null;
+  if (from === 'live') {
+    const { env } = await get<{ env: string }>('/editor/environments');
+    build = tree.experience.live?.find(live => live.env === env)?.build ?? null;
+    if (!build) throw new Error(`${experience} is not live on this instance's environment (${env}) – export the draft or name a published build`);
+  } else if (from !== 'draft') {
+    if (!/^[0-9a-f]{12}$/.test(from)) throw new Error('--from takes draft, live or a published build (12 hex digits)');
+    build = from;
+  }
+  console.log(`📤 ${experience} on ${apiUrl} – ${build ? `build ${build}` : 'the draft'} → ${out}`);
+  const data = await get<ExperienceExport>(`/editor/experiences/${encodeURIComponent(experience)}/export${build ? `?build=${build}` : ''}`);
+  const plan = planExport(data);
+  const base = (cli.option('assets-base') ?? (tree.experience.assetsBase || new URL(apiUrl).origin)).replace(/\/+$/, '');
+  const download = async (url: string): Promise<Uint8Array> => {
+    const absolute = /^https?:\/\//i.test(url) ? url : `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+    const response = await fetch(absolute);
+    if (!response.ok) throw new Error(`GET ${absolute} → ${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
+  };
+  const result = await runExport(data, plan, { out, force: cli.flag('force'), download, instance: apiUrl, cliVersion: APP_VERSION, log: line => console.log(line) });
+  result.record.problems.forEach(problem => console.warn(`   ⚠️  ${problem}`));
+  console.log(`✅ ${result.out}: ${plan.texts.size} source files, ${result.record.files.length} files (${result.downloaded} downloaded, ${result.kept} kept from the previous export)` +
+    ` – build ${data.build}, hash ${data.hash.slice(0, 12)}${data.unknown ? `, ${data.unknown} files the instance knows nothing of` : ''}`);
+}
 
 /** The CDN URL of an experience's store: OSCT_CONTENT_BASE_URL (the environment's, `<pull zone>/<title>/<env>`) + the experience */
 const baseUrl = (experience: string) => {
@@ -334,6 +390,8 @@ async function main(): Promise<void> {
     }
     case 'move':
       return move(cli);
+    case 'export':
+      return exportCommand(cli);
     default:
       console.log(USAGE);
       process.exitCode = 1;

@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.3.0 – 2026-11-21
+
+### Added
+- `osct content export --experience <id> [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]` (#322
+  T2, docs/content.md "Export"): the editor's database → the content source folder – one YAML writer per source file (the
+  inverse of the content build, logic with its canvas), plugin sources, `layout/`, every file downloaded next to its YAML
+  (resumed by sha256 from the previous `export.json`), `EXPORT.md` and `export.json`; written into a temp folder and
+  swapped in as a whole, a folder without `EXPORT.md` only with `--force`. The round trip fixture → build → export →
+  build gives the same configuration (`scripts/test/content-export.test.ts`).
+- The content build reads what an export writes from the database: `groups.yaml` and a scene's `group`, `credits.yaml`
+  (the configuration's `credits` of the files it names), a target's `recognition: { image, width, height }`. `EXPORT.md`
+  and `export.json` do not count for the content hash.
+
 ## 4.2.0 – 2026-11-21
 
 ### Changed

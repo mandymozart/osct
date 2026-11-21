@@ -742,7 +742,7 @@ passes:                   # optional: post-processing over this scene (see above
 | scene | `surfaces` | `[{ id, label?, widthMm, heightMm, place? }]` – unique ids within the scene, sizes in mm. A double page is one surface (460 × 320), a cover one (230 × 320), a wall or a poster one. No left / right, no front / back |
 | surface | `place` | where it lies in the scene: `{ x, y, z, rx?, ry?, rz? }` – mm and degrees (Euler XYZ) in the **scene's coordinate system**: origin on the table at the middle of the first row, +x right, +y up, +z towards the reader; unrotated a surface lies flat, face up, its top edge away from the reader; a wall ahead is `rx: 90`. Without `place` the build lays the surfaces in a row, touching, flat, the row centred on the origin – the configuration always carries all six numbers |
 | surface | `label` | optional – what is printed on it; the reader shows it as an entry's place when the entry names the surface |
-| scene | `group` | the id of one of the configuration's `groups` (`[{ id, label }]` – several scenes under one label) – not written by the content build yet |
+| scene | `group` | the id of one of the configuration's `groups` (`[{ id, label }]` – several scenes under one label) – in a content folder `group:` in scene.yaml and the groups in `groups.yaml`, as an [export](#export) writes them |
 | entry | `scene` | required – the id of the entry's scene |
 | entry | `surface` | the id of one of its scene's surfaces – only when the scene has several |
 | target | `place` | where it is printed: `{ surface?, x, y, width, height? }` in mm from the surface's top left corner – `surface` (its id) is required when the scene has several |
@@ -927,7 +927,7 @@ editor's API assembles the experience (draft and publish) the configuration gets
 target image, an entry's picture, an entity's file – as `credits: { "<file path or URL>": "<line>" }` (content schema
 2.33, #292); a credited file the experience does not use is left out. The reader lists them per scene (*Pages 2–3*, by page,
 each line once per scene; a scene without printed numbers by its title) on its **Image credits** page, reached from
-Info ("…in the margins of the book *here*"). An experience built from YAML has no credits – they live on the instance.
+Info ("…in the margins of the book *here*"). A hand-written content folder has no credits – they live on the instance; an [export](#export) writes them into `credits.yaml` (file → line), which the build reads.
 
 ### A model's map by texture quality
 
@@ -1142,7 +1142,49 @@ Run in `scripts/`:
 | `npm test` | Run the tests |
 | `npm run build` | Rebuild the tool after changing `scripts/src/` |
 | `npm run sounds` | Generate the placeholder app sounds |
+| `npm run osct -- content export --experience <id> [--from …] [--out <dir>] [--force]` | Write an experience from the editor's database as a content folder ([Export](#export)) |
 | `npm run import -- <delivery folder> import/<name>.yaml` | Import a publisher's delivery into `content/` (below) |
+
+### Export
+
+The editor's database is the truth (#322); a content folder is an **export** of it – a snapshot, a backup, the input of
+a local build. `osct content export` writes one experience from an instance's API in the content source format above,
+so `osct content build` turns the folder into the same configuration:
+
+```bash
+cd scripts
+OSCT_API_URL=http://127.0.0.1:8080/api OSCT_EDITOR_TOKEN=osct_… \
+  npm run osct -- content export --experience demo [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]
+```
+
+- **What it reads**: the export endpoint (`GET /editor/experiences/{id}/export[?build=]`, docs/server.md "Export") –
+  `--from draft` (the default), `live` (the build live on the instance's own environment) or a published build (12 hex
+  digits). `OSCT_API_URL` (default the local dev API) and `OSCT_EDITOR_TOKEN` (an editor token, AI connections) as for
+  `osct targets prepare`. Content paths without a host resolve below the experience's `assetsBase` (`--assets-base`
+  overrides it; neither: the API's origin).
+- **What it writes** (`--out`, default `OSCT_CONTENT_DIR`): `experience.yaml`, `scenes/<id>/scene.yaml` (with `logic`
+  and its **canvas** – authoring data, kept in the export; the build leaves it out of the configuration),
+  `entries/<id>/entry.yaml`, `entities/<ref>/entity.yaml`, `plugins/<id>/index.ts` (the Code tab's sources), `layout/`
+  (the print layout – the reader's card back reads `layout/layout.json`), every file next to the YAML that names it
+  (a Library URL becomes a file of that folder; a file named by its content path stays where it was), subtitles as
+  `<video>.<language>.vtt` next to their video, and – what only the database knows – `groups.yaml` (the scene groups,
+  `[{ id, label }]`, named by a scene's `group:`), `credits.yaml` (the Library's credit lines of the exported files,
+  file → line) and a target's `recognition: { image, width, height }` (#306). The content build reads all three.
+- **`EXPORT.md`** (instance, experience, draft or build, hash, time, app version – *do not edit, re-export*) and
+  **`export.json`** (per file its URL, sha256, size). Neither counts for the content hash.
+- **Whole folder**: it is written into `<out>.export-tmp` and swapped in as a whole – nothing hand-edited survives. A folder
+  without `EXPORT.md` is replaced only with `--force`; the test fixture (`FIXTURE.md`) never; the demo's `DEMO.md` is
+  carried over.
+- **Resume**: a file whose URL and sha256 the previous `export.json` already has – and the instance confirms (an upload's
+  sha256, an imported file's `v`) – is taken from the old folder, not downloaded again.
+- **What the source cannot hold** is listed in `EXPORT.md` and printed: an initial scene that is not the first one, a
+  plugin declared without a source in the database, an asset id the build would name differently, unknown fields.
+  The entries' order is the build's (scene, then title), not the database's position.
+- **The round trip** (`scripts/test/content-export.test.ts`): `fixtures/content` and `fixtures/demo` → build → export
+  → build give the same configuration, and an export of that export the same content hash. Media: the build's image
+  optimisation keeps an already-optimised JPEG as it is and never renames it (WebP files are not touched again), so the
+  configuration stays the same; a `.glb` is optimised again (its bytes change, its name does not) – no built names need
+  recording.
 
 ### Importing a delivery
 

@@ -65,6 +65,15 @@ export function buildEntries(scenes: SceneData[], entities: Record<string, Entit
         }
         if (t.enabled === false) target.enabled = false;
         if (t.recognitionOff === true) target.recognitionOff = true;
+        // The recognition data made ahead (#306) – an export writes it: { image, width, height } (px)
+        if (t.recognition !== undefined) {
+          const r = t.recognition;
+          if (typeof r.image === 'string' && Number.isInteger(r.width) && Number.isInteger(r.height) && (r.width as number) > 0 && (r.height as number) > 0) {
+            target.recognition = { imageSrc: contentFile('entries', id, r.image, `${label} target recognition`), width: r.width as number, height: r.height as number };
+          } else {
+            buildErrors.push(`${label} target: recognition needs image, width and height (whole px)`);
+          }
+        }
         entry.target = target;
       }
     }

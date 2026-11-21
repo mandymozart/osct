@@ -69,6 +69,8 @@ export function buildScenes(pluginPasses: ReadonlyMap<string, PassSpec> = new Ma
         scene: {
           id,
           label: s.label,
+          // The id of one of the configuration's groups (groups.yaml – written by an export, docs/content.md "Export")
+          ...(typeof s.group === 'string' && s.group ? { group: s.group } : {}),
           surfaces: buildSurfaces(s.surfaces, label),
           ...(passes !== undefined ? { passes } : {}),
           ...(logic !== undefined ? { logic } : {}),
