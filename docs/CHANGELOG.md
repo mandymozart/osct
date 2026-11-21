@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 4.5.0 – 2026-11-21
 
 ### Added
 - The export archive (#322, docs/content-cdn.md "The export archive", docs/content.md "Export archive"): every publish
