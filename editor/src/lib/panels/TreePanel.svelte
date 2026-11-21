@@ -7,7 +7,7 @@
   import { Stage } from "#lib/stage/stage.svelte.js";
   import { getPreview, isNodeHidden, nodeKey as hiddenKey, setNodeHidden, setTargetHidden, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
   import { selection } from "#lib/selection.svelte.js";
-  import { indentNode, isWithin, moveNode, nodeLabel, outdentNode, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "#lib/tree.js";
+  import { duplicateNode, groupNode, indentNode, isWithin, moveNode, nodeLabel, outdentNode, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "#lib/tree.js";
   import { isRowOn, parentRow, rowSelection, stepRow, treeRows, type TreeRow } from "#lib/tree-rows.js";
   import { entryRowHelp } from "#lib/entry-view.js";
   import { nodeAt } from "#lib/values.js";
@@ -135,6 +135,9 @@
   const shift = (direction: -1 | 1) => { const s = selectedNode(); return !!s && edit(s.target, tree => shiftNode(tree, s.path, direction)); };
   const indent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => indentNode(tree, s.path)); };
   const outdent = () => { const s = selectedNode(); return !!s && edit(s.target, tree => outdentNode(tree, s.path)); };
+  /** The footer's duplicate and group (#339): the selected node copied right after it / put into a new group */
+  const duplicate = () => { const s = selectedNode(); return !!s && edit(s.target, tree => duplicateNode(tree, s.path)); };
+  const group = () => { const s = selectedNode(); return !!s && edit(s.target, tree => groupNode(tree, s.path)); };
 
   // ── the Surfaces level (#314): the scene's surfaces under the scene row – a tap selects one (the Inspector shows it,
   // the stage highlights it), + adds a page / wall / custom one, Alt ↑ ↓ or the menu reorder ──
@@ -200,7 +203,7 @@
   const openAddMenu = (e: MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     addQuery = "";
-    addMenu = { at: { x: r.left, y: r.bottom } };
+    addMenu = { at: { x: r.left, y: r.top } };
   };
 
   /** Remove a surface: selected, its Inspector asks first (`surfaceRemoval`, #337) */
@@ -411,6 +414,14 @@
     if (s.path.length) selection.selectNode(s.target.id, next);
     else selection.selectTarget(s.target.id);
   };
+  /** Delete / Backspace and the footer's trash: an entry goes only after the confirmation (#198), a surface after its
+   *  Inspector asks (#337), a node at once (live on the stage, saved by itself) */
+  const removeRow = (row: TreeRow | undefined) => {
+    const entry = row?.kind === "entry" ? scene?.entries.find(e => e.id === row.entryId) : undefined;
+    if (entry) removeEntry(entry);
+    else if (row?.kind === "surface") askSurfaceRemoval(row.surfaceId);
+    else removeSelected();
+  };
   const entryOf = (targetId: string): Entry | undefined => scene?.entries.find(entry => entry.target?.id === targetId);
 
   // ── the keys: the rows as they are shown, in order – the scene, the entries, their targets and nodes (#227) ──
@@ -476,19 +487,17 @@
         if (!(event.shiftKey ? outdent() : indent())) return;
         break;
       case "Enter": case " ": if (row) onselect?.(row.kind); break;
-      case "Delete": case "Backspace": {
-        // An entry goes only after the confirmation (#198); a node at once (live on the stage, saved by itself)
-        const entry = row?.kind === "entry" ? scene?.entries.find(e => e.id === row.entryId) : undefined;
-        if (entry) removeEntry(entry);
-        else if (row?.kind === "surface") askSurfaceRemoval(row.surfaceId);
-        else removeSelected();
-        break;
-      }
+      case "Delete": case "Backspace": removeRow(row); break;
       default: return;
     }
     event.preventDefault();
     event.stopPropagation();
   };
+
+  /** What the footer's buttons act on: the selected row (#339) */
+  const currentTreeRow = $derived(rows.find(isOn));
+  const nodeSelected = $derived(currentTreeRow?.kind === "node");
+  const removable = $derived(nodeSelected || currentTreeRow?.kind === "entry" || currentTreeRow?.kind === "surface");
 
   // ── drag and drop: a node row onto another row (inside) or between two (before / after) – within its target's
   // tree. A mouse drags the whole row, a finger its type icon (the row itself scrolls the tree). ──
@@ -727,12 +736,24 @@
         {/if}
       {/if}
     {/each}
-    <div class="node add-target">
-      <span class="chevron"></span>
-      <button type="button" class="pick add" aria-haspopup="menu" aria-expanded={!!addMenu} onclick={openAddMenu}
-        title="Add to the scene: a surface, a target, an entry, or a node onto the selected target or node"
-        data-help-name="+" data-help="One menu of everything the scene can get: a surface (double page, single page, wall, custom), a target or an entry (their forms), and a node of every type – a group, a model, a video, an image, a text, a light and the experience's plugins' types. A node goes onto the selected target, entry or node (where the Inspector's + node puts it); without one it is greyed out. A type that takes a file asks for it in the Library. Type to filter, Enter adds; what was added is selected, so the Inspector shows it."><Icon name="plus" size="1em" /><span class="name">add</span></button>
-    </div>
+  </div>
+  <!-- The footer (#339), as in Photoshop's layers panel: always at the panel's foot, however far the tree scrolls –
+       add (one menu of everything), and for the selected row duplicate, group and remove -->
+  <div class="footer" role="toolbar" aria-label="Tree actions">
+    <button type="button" class="pick add" aria-haspopup="menu" aria-expanded={!!addMenu} onclick={openAddMenu}
+      title="Add to the scene: a surface, a target, an entry, or a node onto the selected target or node"
+      data-help-name="+" data-help="One menu of everything the scene can get: a surface (double page, single page, wall, custom), a target or an entry (their forms), and a node of every type – a group, a model, a video, an image, a text, a light and the experience's plugins' types. A node goes onto the selected target, entry or node (where the Inspector's + node puts it); without one it is greyed out. A type that takes a file asks for it in the Library. Type to filter, Enter adds; what was added is selected, so the Inspector shows it."><Icon name="plus" size="1em" /><span class="name">add</span></button>
+    <span class="actions">
+      <button type="button" class="icon-button" disabled={!nodeSelected} onclick={duplicate} aria-label="Duplicate the node"
+        title={nodeSelected ? "Duplicate the node with its children, right after it" : "Select a node to duplicate it"}
+        data-help-name="Duplicate" data-help="A copy of the selected node with its children right after it – live on the stage and saved by itself. The copy's names get a free number (door → door 2), since rules address nodes by name."><Icon name="copy" size="1em" /></button>
+      <button type="button" class="icon-button" disabled={!nodeSelected} onclick={group} aria-label="Group the node"
+        title={nodeSelected ? "Put the node into a new group in its place" : "Select a node to group it"}
+        data-help-name="Group" data-help="The selected node goes into a new group in its place; it stays where it is on the stage. Grouping the root makes the group the root."><Icon name="layers" size="1em" /></button>
+      <button type="button" class="icon-button" disabled={!removable} onclick={() => removeRow(currentTreeRow)} aria-label="Remove"
+        title={removable ? "Remove the selected row (Delete)" : "Select a node, an entry or a surface to remove it"}
+        data-help-name="Remove" data-help="Removes the selected node at once (Undo edits in the Inspector brings it back); an entry shows what goes and asks first; a surface's Inspector asks first."><Icon name="trash" size="1em" /></button>
+    </span>
   </div>
 {/if}
 
@@ -788,10 +809,13 @@
   .off { flex: none; display: inline-flex; align-items: center; }
   .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dot { font-size: .6em; }
-  .add-target { padding-left: calc(.25rem + var(--indent)); color: var(--muted); gap: .75rem; }
-  .add-target .pick.add { flex: none; }
+  /* The footer stays at the panel's foot while the tree scrolls (the panel's body is the scroller; its padding is undone) */
+  .footer { position: sticky; bottom: -.75rem; z-index: 1; display: flex; align-items: center; gap: .25rem; margin: auto -.5rem -.75rem; padding: .125rem .5rem;
+    border-top: 1px solid var(--line); background: var(--surface); color: var(--muted); }
+  .footer .pick.add { flex: none; height: var(--control-height); }
+  .footer .actions { margin-left: auto; display: flex; gap: .125rem; }
   @media (hover: hover) {
-    .add-target .pick.add:hover { color: var(--text); }
+    .footer .pick.add:hover { color: var(--text); }
   }
   @media (pointer: coarse) {
     .tree { --cell: 1.75rem; }
