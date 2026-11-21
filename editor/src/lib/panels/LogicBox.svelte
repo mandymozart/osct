@@ -99,7 +99,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div class="box {pill ? 'folded-group' : box.stub ? 'stub' : node!.kind}" class:selected={data.selected} class:flash={data.flash} class:dim={data.dim} class:hover={data.hover} class:problem={!!node?.problem}
+<div class="box {pill ? 'folded-group' : box.stub ? 'stub' : node!.kind}" class:selected={data.selected} class:flash={data.flash} class:dim={data.dim} class:pointed={data.hover} class:problem={!!node?.problem}
   class:never={data.never} class:far={!!node?.far || !!box.stub} class:folded={box.folded} class:pinned={box.pinned} class:labels
   style:height="{box.h}px" style:width="{box.w}px" style:--kind={kind}
   role="button" tabindex="0" aria-label="{word} {label} – {detail}{node?.problem ? ` – ${node.problem}` : ''}{enterable ? ' – Enter opens it' : ''}"
@@ -180,8 +180,8 @@
   .box.problem { border-color: var(--danger); }
   .box.problem .head { background: color-mix(in srgb, var(--danger) 12%, var(--control-background)); }
   .box.dim { opacity: .55; }
-  .box.hover:not(.selected) { border-color: var(--kind); }
-  .box.hover .enter, .box.hover .fold { color: var(--text); }
+  .box.pointed:not(.selected) { border-color: var(--kind); }
+  .box.pointed .enter, .box.pointed .fold { color: var(--text); }
   .box:focus-visible { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
   .enter, .expose, .fold {
     flex: none; display: grid; place-items: center; width: 1.125rem; height: 1.125rem; padding: 0; border: 0; border-radius: .25rem; background: none; color: var(--muted); cursor: pointer;
