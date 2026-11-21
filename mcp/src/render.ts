@@ -91,8 +91,8 @@ export class InFlight {
 
 /**
  * A request the picture waits for: not a stream that never ends by itself – a video or a sound (`Media`, ranges for as
- * long as it plays), a WebSocket, an event stream – and not a document (the page's is behind the ready state; an
- * iframe's finishes in the frame's own process, before its session is attached)
+ * long as it plays), a WebSocket, an event stream – and not a document (the page's is behind the ready state; the stage
+ * frame's finishes in the frame's own process, before its session is attached)
  */
 export const countsForLoad = (type: string | undefined): boolean => !["Document", "Media", "WebSocket", "EventSource"].includes(type ?? "");
 
@@ -239,7 +239,7 @@ export async function renderScene(options: RenderOptions): Promise<Rendered> {
       } else if (method === "Network.loadingFinished" || method === "Network.loadingFailed") {
         inFlight.end(key(params.requestId), Date.now());
       } else if (method === "Target.attachedToTarget") {
-        // a frame in a process of its own (an iframe a plugin or a page opens): its requests count too
+        // a frame in a process of its own (the sandboxed stage frame): its requests count too
         const child = params.sessionId as string;
         void client.send("Network.enable", {}, child).catch(() => {})
           .then(() => client.send("Runtime.runIfWaitingForDebugger", {}, child)).catch(() => {});

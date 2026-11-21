@@ -81,9 +81,9 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
  * configuration declares (`loadPlugins`), compiled by the content build; the editor also installs modules it
- * transpiled itself (`installPlugin`) – unchecked code. Both run in the editor's own page (#340, 5.0 – the stage frame
- * of #234 is gone): plugin code there acts with the signed-in editor's session, so the editor asks before it runs code
- * someone else saved last. Leaving the workspace clears the registry (`resetPlugins`).
+ * transpiled itself (`installPlugin`) – unchecked code. The editor runs both in its stage frame, a sandbox with an origin
+ * of its own and no session (#234); its page runs no plugin code and mirrors the registry's specs
+ * (`pluginRegistrySnapshot` → `mirrorPluginRegistry`).
  */
 
 /** A spec's parameters as its handler gets them: typed from the spec (`ParamsOf`), a texture parameter as a three.js texture or null */
@@ -800,10 +800,13 @@ export interface PluginRegistrySnapshot {
   failures: Record<string, string>;
 }
 
-/** A spec as plain data (what survives JSON) */
+/** A spec as plain data (what survives JSON – a structured clone never meets a function) */
 const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
 
-/** The registry as data: what a publish declares of the plugins that ran on the editor's stage (`publish-plugins.ts`) */
+/**
+ * The registry as data, for a realm that runs no plugin code (#234): the editor's stage frame runs the plugins and
+ * sends this to the editor's page, which mirrors it (`mirrorPluginRegistry`) so its panels read the specs as before.
+ */
 export const pluginRegistrySnapshot = (): PluginRegistrySnapshot => {
   const plugins: Record<string, PluginRegistrations> = {};
   installed.forEach((types, id) => {
@@ -839,16 +842,50 @@ export const pluginRegistrySnapshot = (): PluginRegistrySnapshot => {
   return { plugins, failures: Object.fromEntries(failures) };
 };
 
+/** What a mirrored registration runs: nothing – the code runs in the stage frame only */
+const MIRRORED = "a mirrored registration runs no code (the stage frame runs the plugin)";
+const notHere = (): never => {
+  throw new Error(MIRRORED);
+};
+
+/** The plugins mirrored here, by id → their registrations as JSON (an unchanged one is not installed again) */
+const mirrored = new Map<string, string>();
+
 /**
- * Every plugin leaves the registries, and the editor's marks go with them (#340): the plugins it installed itself
- * (`keepPlugin`), the compiled modules loaded, the text files read and the node types' build failures. The editor's
- * workspace calls it when it closes – the stage runs in the editor's page, and the next experience starts with an empty
- * registry, as a new page would.
+ * Mirror a registry snapshot (`pluginRegistrySnapshot` of the stage frame): every plugin of it is installed with its
+ * specs and code that never runs, a plugin no longer in it is uninstalled, and the build failures are the snapshot's.
+ * The specs pass the same checks as a plugin's own registration. Returns the problems (a plugin refused), empty when
+ * every plugin was mirrored.
  */
-export const resetPlugins = (): void => {
-  [...installed.keys(), ...installedNodeTypes.keys(), ...installedMaterials.keys(), ...installedTextures.keys()].forEach(id => uninstallPlugin(id));
-  keptPlugins.clear();
-  loaded.clear();
-  texts.clear();
+export const mirrorPluginRegistry = (snapshot: PluginRegistrySnapshot): string[] => {
+  const problems: string[] = [];
+  const wanted = new Map(Object.entries(snapshot.plugins).map(([id, registrations]) => [id, JSON.stringify(registrations)]));
+  mirrored.forEach((json, id) => {
+    if (wanted.get(id) === json) return;
+    uninstallPlugin(id);
+    mirrored.delete(id);
+  });
+  wanted.forEach((json, id) => {
+    if (mirrored.has(id)) return;
+    const registrations = snapshot.plugins[id];
+    try {
+      installPlugin(id, {
+        register: api => {
+          Object.entries(registrations.components ?? {}).forEach(([type, spec]) => api.registerComponent(type, spec, () => null));
+          Object.entries(registrations.layers ?? {}).forEach(([type, spec]) => api.registerLayer(type, spec, { glsl: "return rgba;" }));
+          Object.entries(registrations.nodeTypes ?? {}).forEach(([type, spec]) => api.registerNodeType(type, spec, () => null));
+          Object.entries(registrations.materials ?? {}).forEach(([type, spec]) => api.registerMaterial(type, spec, notHere));
+          Object.entries(registrations.textures ?? {}).forEach(([type, spec]) => api.registerTexture(type, spec, notHere));
+          Object.entries(registrations.passes ?? {}).forEach(([type, spec]) => api.registerPass(type, spec, notHere));
+          Object.entries(registrations.appearances ?? {}).forEach(([type, spec]) => api.registerAppearance(type, spec, notHere));
+        },
+      });
+      mirrored.set(id, json);
+    } catch (error) {
+      problems.push(error instanceof Error ? error.message : String(error));
+    }
+  });
   failures.clear();
+  Object.entries(snapshot.failures ?? {}).forEach(([type, why]) => failures.set(type, String(why)));
+  return problems;
 };

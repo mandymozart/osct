@@ -1,11 +1,11 @@
 /**
  * The **Log** tab's one timeline (three-free): the stage's events, the rules' lines (behaviour, goto) and the plugins'
- * lines from the stage, merged newest first by the page's clock; and the **problems** – the Logic issues and the plugins
+ * lines from the stage, merged newest first by the frame's clock; and the **problems** – the Logic issues and the plugins
  * that are not on the stage – a current state, not timed, pinned above. Filter chips show only the kinds picked; the
  * choice is kept per browser.
  */
 import type { StageEvent } from "./event-log";
-import type { StageLog } from "./stage-types";
+import type { FrameLog } from "./frame-protocol";
 import { readStoredJson, writeStoredJson } from "../storage";
 
 /** What a line is: a stage event, a rule's line, a plugin's line, a problem by its severity */
@@ -58,7 +58,7 @@ export const eventEntry = (e: StageEvent): LogEntry => ({
 });
 
 /** A plugin's line as a line of the timeline */
-export const pluginEntry = (log: StageLog): LogEntry => ({
+export const pluginEntry = (log: FrameLog): LogEntry => ({
   kind: "plugin",
   at: log.at ?? null,
   line: log.level,
@@ -68,9 +68,9 @@ export const pluginEntry = (log: StageLog): LogEntry => ({
 
 /**
  * The events (newest first, as the stage keeps them) and the plugins' lines (newest last, as they came) as one timeline,
- * newest first: merged by the page's clock (`t`); a line without one sorts as the oldest of its list
+ * newest first: merged by the frame's clock (`t`); a line without one sorts as the oldest of its list
  */
-export const mergeLog = (events: readonly StageEvent[], logs: readonly StageLog[]): LogEntry[] => {
+export const mergeLog = (events: readonly StageEvent[], logs: readonly FrameLog[]): LogEntry[] => {
   const a = events.map(e => ({ t: e.t ?? -Infinity, entry: eventEntry(e) }));
   const b = [...logs].reverse().map(l => ({ t: l.t ?? -Infinity, entry: pluginEntry(l) }));
   const merged: LogEntry[] = [];

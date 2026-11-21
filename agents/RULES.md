@@ -426,21 +426,21 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     a non-HttpOnly cookie or a URL; no `Authorization` header for the person's session in a browser. A new write route
     needs nothing extra – `Auth::user()` / `Auth::session()` check the CSRF token of a cookie session – but a new browser
     client sends the header. Bearer stays for non-browser clients and for the AI connections' tokens (`osct_…`), which
-    never become a cookie. The cookie does not separate plugin code on the site's pages from the session – plugin code
-    runs with it, in the editor after #35's guard (docs/server.md "Sessions, cookies and CSRF").
+    never become a cookie. The cookie alone does not separate plugin code on the site's pages from the session – in the
+    editor #35 does (docs/server.md "Sessions, cookies and CSRF").
 
-35. **Others' plugin code runs only after the person says so** (Tilman, 2026-11-21, #340: *"we can drop the sandbox.
-    since we trust the user, thats why we gave them access to the api. if we got plugins that need to change db game
-    state, that is fine. it is a huge security risk but only to the user who is logged in and their scope."*; it
-    supersedes 2026-10-31's #234 *"Make editors safe, please. Sandbox."*): the editor's stage and every experience plugin
-    run in the editor's own page, with the signed-in editor's session – no stage frame, no frame policy, no message
-    protocol. Before the stage runs plugin code that someone other than the signed-in editor saved last (`updatedBy`), or
-    a declared module nobody here saved, the editor asks once – *Run plugin code by <name>?*, each plugin and who saved
-    it – and keeps the answer per experience and source version; *Don't run* keeps those plugins off the stage and says
-    why. The person's own last-saved code runs without asking. A new place that runs experience code by itself (a preview,
-    a thumbnail, a test bench) goes through the same guard (`pluginGuard.check`); where nobody can be asked it runs only
-    what was answered Run. docs/editor.md "The stage in the page and the plugin guard". The reader runs published
-    plugins in its own page as before.
+35. **Plugin code never runs in the origin that holds the session** (Tilman, 2026-10-31, #234: "Make editors safe,
+    please. Sandbox."): the editor runs every book plugin – the draft's and the Code tab's Run – in its **stage frame**
+    (`/editor/stage-frame/`, an iframe with `sandbox="allow-scripts"` and never `allow-same-origin`, its policy from
+    `frameCsp`: no path of the API but its public `content/` route, every source with its path, never `'self'`). The
+    editor's page imports no plugin module and calls no `installPlugin`; it mirrors the registry's specs
+    (`mirrorPluginRegistry`). What crosses the boundary is data, checked where it arrives (`readFrameEvent`). Since edits
+    save themselves (#37), two checked events reach the draft – numbers only, for what the person has open in the page:
+    a gizmo's placement of the node the page itself selected, and a placement handle's move while the selected target's
+    placement is open. No other message from the frame makes the page call the API, none publishes, and the frame gets
+    the draft as text, never the session or the CSRF token. A new place that runs book code (a preview, a thumbnail, a test bench) runs it in such a frame. docs/editor.md
+    "The stage frame". The reader is the open exception: its scene runs the published plugins in its own page
+    (`agents/MEMORY.md` 2026-10-31).
 
 36. **Imports keep content paths** (Tilman, 2026-11-05, #252: "please save this as a rule for imports"): a configuration
     imported into the editor (`POST …/import`, the MCP's `import_experience`) names the content's files as `/assets/content/…`
@@ -448,7 +448,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     (`get_draft`, `GET …/draft/…` resolve every path below the book's current assets base). Before a draft is imported
     again – over a new content build, or after a merge with one – every `<base>/assets/content/<path>` goes back to
     `/assets/content/<path>` where the new build has that file; an absolute URL to an older build stays only for a file
-    the new build no longer has (#252). After the import, open
+    the new build no longer has (the stage frame admits such builds for images and media, #252). After the import, open
     one of the book's scenes in the editor and check that its targets' images show before handing it over.
 
 37. **Edits save themselves** (Tilman, 2026-11-14, #259: "autosave – it is confusing to save after adding uploads for

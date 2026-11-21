@@ -935,9 +935,9 @@ export interface Feedback {
  * Registrations are kept per plugin id: installing a plugin again (the editor's Run) replaces what it registered
  * before; an exception in `register` leaves the previous registration in place. The reader loads the plugins the
  * configuration declares (`loadPlugins`), compiled by the content build; the editor also installs modules it
- * transpiled itself (`installPlugin`) – unchecked code. Both run in the editor's own page (#340, 5.0 – the stage frame
- * of #234 is gone): plugin code there acts with the signed-in editor's session, so the editor asks before it runs code
- * someone else saved last. Leaving the workspace clears the registry (`resetPlugins`).
+ * transpiled itself (`installPlugin`) – unchecked code. The editor runs both in its stage frame, a sandbox with an origin
+ * of its own and no session (#234); its page runs no plugin code and mirrors the registry's specs
+ * (`pluginRegistrySnapshot` → `mirrorPluginRegistry`).
  */
 /** A spec's parameters as its handler gets them: typed from the spec (`ParamsOf`), a texture parameter as a three.js texture or null */
 export type PluginParams<S> = ParamsOf<S, THREE.Texture | null>;

@@ -6,7 +6,7 @@ import { noteBaseline } from "./baselines";
 import { treeBehaviourIssues } from "./behaviour-edit";
 import { content } from "./content.svelte";
 import { library } from "./library.svelte";
-import { REMOVED_ENTITY } from "#lib/stage/stage-types.js";
+import { REMOVED_ENTITY } from "#lib/stage/frame-protocol.js";
 import type { Stage } from "#lib/stage/stage.svelte.js";
 import { contentTree } from "./values";
 

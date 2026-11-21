@@ -1,57 +1,59 @@
 import { SvelteMap } from "svelte/reactivity";
+import { resolve } from "$app/paths";
 import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { ExperienceAppearance, Moment } from "@shared/types/appearance";
-import { getPlugins, getTarget } from "@engine/content/game-config";
-import { keepPlugin, resetPlugins } from "@engine/scene/plugins";
+import { getTarget } from "@engine/content/game-config";
+import { mirrorPluginRegistry } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
-import type { EntityData, NodeTimeline, PassData } from "@engine/types";
+import type { ArStatus, EntityData, NodeTimeline, PassData } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "#lib/values.js";
+import { content } from "#lib/content.svelte.js";
 import { plugins } from "#lib/plugins.svelte.js";
-import { adoptRecordedSpecs } from "#lib/plugins/recorded.js";
-import { LOG_MAX, NO_ANSWER, REMOVED_ENTITY, type RunResult, type SurfacePick, type SurfaceSnapshot } from "./stage-types";
+import { help } from "#lib/help.svelte.js";
+import {
+  type ContentSnapshot, FRAME_SANDBOX, type FrameEvent, type FrameInit, FrameRequests, type LayoutSnapshot, readFrameEvent, readFrameReply,
+  NO_ANSWER, REMOVED_ENTITY, REMOVED_WIRE, type RunResult, type SurfacePick, type SurfaceSnapshot, type TimelineSnapshot,
+} from "./frame-protocol";
 import type { SurfaceReferences } from "./surfaces";
-import type { GizmoPlacement, StageTool } from "./gizmo";
-import type { PickFilter, StagePick } from "./pick";
-import { runPluginCode } from "./plugin-run";
-import { type GhostPlace, StageCore } from "./stage-core.svelte";
+import type { StageTool } from "./gizmo";
+import type { PickFilter, PickKind, StagePick } from "./pick";
+import { applyPreviewSync, getPreview, previewSync, subscribePreview, type ShadingMode } from "./preview";
+import type { StageEvent } from "./event-log";
+import type { GhostPlace } from "./stage-core.svelte";
 
 export type { StageEvent } from "./event-log";
 export type { PickFilter, PickKind, StagePick } from "./pick";
 export type { GhostPlace } from "./stage-core.svelte";
 
-/** A console argument as text for the Code tab's log */
-const textOf = (value: unknown): string => {
-  if (typeof value === "string") return value;
-  if (value instanceof Error) return `${value.name}: ${value.message}`;
-  try {
-    return JSON.stringify(value) ?? String(value);
-  } catch {
-    return String(value);
-  }
-};
-
 /**
- * The editor's stage as the workspace sees it (#340, docs/editor.md "The stage"). It runs **in the editor's own page**:
- * the engine's `ArScene` over the mock stage (`StageCore`), and with it every plugin of the experience and the Code tab's
- * Run – in a layer of its own at the bottom of the stage's container (`.stage-host`), under the toolbar and the notices.
- * The stage frame of #234 (an iframe without `allow-same-origin`, its own policy, a postMessage protocol) is gone: plugin
- * code acts with the signed-in editor's session now, which is why the workspace asks before it runs code someone else
- * saved last (`plugin-guard.svelte.ts`; the ids it keeps off go into `keptPlugins`).
+ * The editor's stage as the workspace sees it (#234, docs/editor.md "The stage frame"). The stage itself – the engine's
+ * `ArScene` over the mock stage, and with it **every plugin of the experience and the Code tab's Run** – runs in an iframe
+ * sandboxed without `allow-same-origin` (`stage-core.svelte.ts` in `frame-host.svelte.ts`): an opaque origin, so plugin
+ * code has no session cookie, no CSRF token, no storage of the editor's and no way into this page. This class is the
+ * page's side: it puts the frame into the stage's container, sends it the draft (as text – the frame never asks the
+ * API), the preview, the environment and every live edit, and mirrors what the frame reports – its state, the plugins'
+ * variables and timeline, the plugin registry (as specs, so the panels read them), the layout and the models' timelines.
  *
- * The stage reads the draft the page loaded (the engine's content runtime is one per page) – nothing is copied. The live
- * overrides are the page's own (`overrides`, the tree's and the Inspector's source): every change goes to the stage, and
- * a gizmo drag writes the new placement of the node the page selected into its override. An override is an edit the
- * draft does not hold yet: the workspace saves it by itself (`tree-autosave.ts`) and `adopt` ends it.
- *
- * The plugins' lines (their `api.log`, the engine's lines about them, what they threw and nobody caught) go to the Code
- * tab and the Log tab (`plugins.addLog`) while the stage lives. Leaving the workspace empties the plugin registry
- * (`resetPlugins`), so the next experience starts with none of this one's code.
+ * The live overrides are the page's own (`overrides`, the tree's and the Inspector's source): every change is sent to the
+ * frame, and a gizmo drag in the frame only reports the new placement, which the page writes into its override. An
+ * override is an edit the draft does not hold yet: the workspace saves it by itself (`tree-autosave.ts`) and `adopt`
+ * ends it. What the frame sends is checked (`readFrameEvent`); the one thing of it that reaches the draft that way is
+ * a placement – three vectors of numbers – of the node the page itself selected, the node the gizmo sits on. A
+ * frame that loads again (a reload, another content base) is given everything again: the draft, the preview, the
+ * overrides, the selection, the scene.
  */
 export class Stage {
   /** The override that stands for "the entity is removed" (the root went): the stage shows nothing, the Inspector shows no node, the draft gets no entity */
   static readonly REMOVED: EntityData = REMOVED_ENTITY;
 
+  status = $state<ArStatus>("idle");
+  error = $state<string | null>(null);
+  sceneId = $state<string | null>(null);
+  /** Targets the tracker reports found right now */
+  found = $state<string[]>([]);
+  /** The subtitle line of the video that plays on the stage (English, or the first language its video has) */
+  subtitle = $state<string | null>(null);
   /** A tap on the stage picked something (the Inspector selects it) – or nothing (null) */
   onPick: ((hit: StagePick | null) => void) | null = null;
   /** A right click on the stage: what lies there (null = the page or the table) and where (the page's client px) */
@@ -62,199 +64,358 @@ export class Stage {
   onSurfacePick: ((hit: SurfacePick) => void) | null = null;
   /** A drag of the surface gizmo ended (#314): the surface's new place in its scene – the page saves it */
   onSurfacePlace: ((surfaceId: string, place: Required<SurfacePlace>) => void) | null = null;
+  /** What a click may pick – the select tool's filters: entities, targets, models, nodes; none on = anything */
+  pickFilter = $state<PickKind[]>([]);
+  /** The viewport's shading (stored with the preview settings) */
+  shading = $state<ShadingMode>(getPreview().shading);
+  /** The environment's world is drawn under the stage now (the toolbar says so) */
+  world = $state(false);
+  /** The tool in hand (the toolbar shows it): select – no gizmo – or a gizmo mode */
+  tool = $state<StageTool>("select");
+  /** The plugins' variables with their scopes (the Inspector lists them) */
+  vars = $state<Array<{ scope: VarScope; name: string; value: VarValue }>>([]);
+  /** The stage's event timeline, newest first */
+  events = $state<StageEvent[]>([]);
   /** Entities shown with other values than the draft's, by target id: edits not saved yet (the panels mark them) */
   overrides = new SvelteMap<string, EntityData>();
   /** The Live switch (#269): on, the entities move by themselves; off, their clock holds (the looks play on) */
   live = $state(true);
   /**
-   * The stage starts (its first scene opens): the Code tab's saved sources load now (#269, `plugins.autoLoad`) – while the
-   * first scene builds, so a scene that does not build keeps no code from loading
+   * A frame has started (answered `init`): the Code tab's saved sources load now (#269, `plugins.autoLoad`) – before or
+   * while the first scene builds, so a scene that does not build keeps no code from loading. Called again for every
+   * new frame (its registry starts empty).
    */
   onStarted: (() => void) | null = null;
-  /**
-   * The plugin ids whose content module the stage never loads, asked for once before the first scene opens: the Code
-   * tab's saved sources (theirs run instead, #269 – a declaration built against an older plugin API raises no refusal)
-   * and the plugins the guard keeps off (#340)
-   */
-  keptPlugins: () => string[] = () => [];
+  /** The Code tab's saved plugin ids, given to every frame that starts (`FrameInit.saved`): their saved sources win (#269) */
+  savedPlugins: () => string[] = () => [];
 
-  private core: StageCore;
-  private host: HTMLDivElement;
-  private selectedNode: [string | null, number[]] = [null, []];
-  private surfaceGizmoAsked: { surfaceId: string | null; mode: "translate" | "rotate" } = { surfaceId: null, mode: "translate" };
+  private frame: HTMLIFrameElement;
+  private requests: FrameRequests;
+  private layout = $state.raw<LayoutSnapshot>({ places: {}, surfaces: [] });
+  private timelines: Record<string, TimelineSnapshot> = {};
+  private timelineProxies = new Map<string, { clips: string; timeline: NodeTimeline }>();
+  /** What a frame that loads (again) is given: the content sent last, and the state the page set */
+  private sentContent: ContentSnapshot | null = null;
+  private passes: PassData[] | null | undefined = undefined;
+  private environment: { environment: EnvironmentData | null; previewing: boolean } | null = null;
+  /** The looks the appearance panel holds (#265), sent again to a new frame */
+  private appearance: { appearance: ExperienceAppearance | null } | null = null;
+  private lookUp = 0;
+  private selected: { node: [string | null, number[]]; target: string | null } = { node: [null, []], target: null };
+  private ghostPlace: GhostPlace | null = null;
+  private snapModifier = false;
+  private lastPreview = previewSync();
+  /** The frame said it is ready, answered `init`, and has been initialised before (a frame that loads again is given the state anew) */
+  private ready = false;
+  private initialised = false;
+  private initialising = false;
+  private initialisedBefore = false;
+  /** The frame was replaced here (another content base): its `ready` is expected */
+  private replaced = false;
   private cleanups: Array<() => void> = [];
   private disposed = false;
+  /** `onStarted` was called for this frame */
   private started = false;
-  private bumping = false;
 
-  /** `core` builds the stage in its layer – the engine's `StageCore` (a test gives a stand-in) */
-  constructor(container: HTMLElement, core: (host: HTMLElement) => StageCore = host => new StageCore(host)) {
-    this.host = document.createElement("div");
-    this.host.className = "stage-host";
-    container.prepend(this.host);
-    const c = (this.core = core(this.host));
-    c.onPick = hit => this.onPick?.(hit);
-    c.onContextMenu = (hit, x, y) => this.onContextMenu?.(hit, x, y);
-    c.onGhostChange = place => this.onGhostChange?.(place);
-    c.onSurfacePick = hit => this.onSurfacePick?.(hit);
-    // Only the surface the page put the gizmo on
-    c.onSurfacePlace = (surfaceId, place) => {
-      if (surfaceId === this.surfaceGizmoAsked.surfaceId) this.onSurfacePlace?.(surfaceId, place);
-    };
-    c.onPlacement = (selection, placement) => this.placed(selection.targetId, [...selection.path], placement);
-    this.cleanups.push(this.captureLogs(), $effect.root(() => {
-      // The declared plugins registered while the scene loaded: the panels read the registry again
-      $effect(() => {
-        if (c.status === "running") this.registryChanged();
-      });
-    }));
+  constructor(private container: HTMLElement) {
+    this.frame = this.makeFrame();
+    this.requests = new FrameRequests(request => this.frame.contentWindow?.postMessage(request, "*"));
+    window.addEventListener("message", this.onMessage);
+    this.cleanups.push(
+      () => window.removeEventListener("message", this.onMessage),
+      subscribePreview(state => {
+        this.shading = state.shading;
+        const sync = previewSync(state);
+        if (sync === this.lastPreview) return;
+        this.lastPreview = sync;
+        void this.requests.request("preview", [sync]).catch(() => undefined);
+      }),
+    );
   }
 
-  // ── what the stage is (the stage's own state, reactive) ──
-
-  get status() { return this.core.status; }
-  get error() { return this.core.error; }
-  get sceneId() { return this.core.sceneId; }
-  /** Targets the tracker reports found right now */
-  get found() { return this.core.found; }
-  /** The subtitle line of the video that plays on the stage (English, or the first language its video has) */
-  get subtitle() { return this.core.subtitle; }
-  /** What a click may pick – the select tool's filters: entities, targets, models, nodes; none on = anything */
-  get pickFilter() { return this.core.pickFilter; }
-  /** The viewport's shading (stored with the preview settings) */
-  get shading() { return this.core.shading; }
-  /** The environment's world is drawn under the stage now (the toolbar says so) */
-  get world() { return this.core.world; }
-  /** The tool in hand (the toolbar shows it): select – no gizmo – or a gizmo mode */
-  get tool() { return this.core.tool; }
-  /** The plugins' variables with their scopes (the Inspector lists them) */
-  get vars() { return this.core.vars; }
-  /** The stage's event timeline, newest first */
-  get events() { return this.core.events; }
-
-  /** The registry may have changed (a plugin loaded, a node built or failed): the panels read it again – once, after the change */
-  private registryChanged(): void {
-    if (this.bumping) return;
-    this.bumping = true;
-    queueMicrotask(() => {
-      this.bumping = false;
-      plugins.version += 1;
-    });
+  /** The frame, sandboxed: scripts only, its own opaque origin – first in the container, under the toolbar and the notices */
+  private makeFrame(): HTMLIFrameElement {
+    const frame = document.createElement("iframe");
+    frame.className = "stage-frame";
+    frame.title = "Stage";
+    frame.setAttribute("sandbox", FRAME_SANDBOX);
+    frame.src = resolve("/stage-frame");
+    this.container.prepend(frame);
+    return frame;
   }
 
-  /** A gizmo drag moved the selected node: the placement goes into the page's override (the gizmo sits on that node alone) */
-  private placed(targetId: string, path: number[], placement: GizmoPlacement): void {
-    const [selectedTarget, selectedPath] = this.selectedNode;
-    if (targetId !== selectedTarget || path.join(".") !== selectedPath.join(".")) return;
-    const base = this.overrides.get(targetId) ?? getTarget(targetId)?.entity;
-    const node = base && base !== Stage.REMOVED ? nodeAt(base, path) : undefined;
-    if (base && node) void this.override(targetId, withNode(base, path, { ...node, params: { ...node.params, ...placement } }));
+  // ── what the frame sends ──
+
+  private onMessage = (event: MessageEvent): void => {
+    if (event.source !== this.frame.contentWindow) return;
+    const reply = readFrameReply(event.data);
+    if (reply) {
+      this.requests.settle(reply);
+      return;
+    }
+    const message = readFrameEvent(event.data);
+    if (message) this.handle(message);
+  };
+
+  private handle(message: FrameEvent): void {
+    switch (message.name) {
+      case "ready":
+        // A frame that loaded again by itself answers nothing it was asked before (a frame replaced here starts clean)
+        if (this.initialisedBefore && !this.replaced) this.requests.close("the stage frame loaded again");
+        this.replaced = false;
+        this.ready = true;
+        this.initialised = false;
+        void this.initialise();
+        break;
+      case "state": {
+        const state = message.data;
+        this.status = state.status;
+        this.error = state.error;
+        this.found = state.found;
+        this.subtitle = state.subtitle;
+        this.pickFilter = state.pickFilter;
+        this.world = state.world;
+        this.tool = state.tool;
+        break;
+      }
+      case "vars":
+        this.vars = message.data as typeof this.vars;
+        break;
+      case "events":
+        this.events = message.data;
+        break;
+      case "registry":
+        mirrorPluginRegistry(message.data).forEach(problem => console.warn(`[stage] the registry's ${problem}`));
+        plugins.version += 1;
+        break;
+      case "layout":
+        this.layout = message.data;
+        break;
+      case "timelines":
+        this.timelines = message.data;
+        break;
+      case "pick":
+        this.onPick?.(message.data);
+        break;
+      case "contextMenu": {
+        const rect = this.frame.getBoundingClientRect();
+        this.onContextMenu?.(message.data.hit, message.data.x + rect.left, message.data.y + rect.top);
+        break;
+      }
+      case "placement": {
+        const { targetId, path, placement } = message.data;
+        // The gizmo sits on the selected node alone: a placement of any other node is no drag of the person's
+        const [selectedTarget, selectedPath] = this.selected.node;
+        if (targetId !== selectedTarget || path.join(".") !== selectedPath.join(".")) break;
+        const base = this.overrides.get(targetId) ?? getTarget(targetId)?.entity;
+        const node = base && base !== Stage.REMOVED ? nodeAt(base, path) : undefined;
+        if (base && node) this.override(targetId, withNode(base, path, { ...node, params: { ...node.params, ...placement } }));
+        break;
+      }
+      case "ghostChange":
+        this.onGhostChange?.(message.data);
+        break;
+      case "surfacePick":
+        this.onSurfacePick?.(message.data);
+        break;
+      case "surfacePlace":
+        // Only the surface the page put the gizmo on: any other is no drag of the person's
+        if (message.data.surfaceId === this.surfaceGizmo.surfaceId) this.onSurfacePlace?.(message.data.surfaceId, message.data.place);
+        break;
+      case "preview":
+        this.lastPreview = message.data;
+        applyPreviewSync(message.data);
+        break;
+      case "key":
+        // The page's shortcuts, as if pressed here (the frame forwards only the keys `FORWARDED_KEYS` lists)
+        this.frame.dispatchEvent(new KeyboardEvent(message.data.type, { ...message.data, bubbles: true, cancelable: true }));
+        break;
+      case "log":
+        plugins.addLog(message.data);
+        break;
+      case "hover":
+        help.hover(this.frame);
+        break;
+    }
   }
 
   /**
-   * The plugins' lines for the Code tab and the Log tab while the stage lives: their `api.log` and the engine's lines
-   * about them (`[plugin …` / `[plugins]`), and what a plugin's module threw that nobody caught – a module the Code tab
-   * ran (a `blob:` URL) or a declared plugin's – with the timeline's clocks, so the Log tab places them among the events
+   * The frame is ready: the draft (the newest the content loaded) and the preview go first; then what waited for it.
+   * A frame that loads again (a reload, a new frame for another content base) is also given everything the page set:
+   * the overrides, the passes, the environment, the modes, the selection, the ghost and the scene.
    */
-  private captureLogs(): () => void {
-    const add = (level: "info" | "warn" | "error", text: string) =>
-      plugins.addLog({ level, text: text.slice(0, LOG_MAX), t: performance.now(), at: this.core.elapsed() });
-    const original = { info: console.info, warn: console.warn, error: console.error };
-    (["info", "warn", "error"] as const).forEach(level => {
-      console[level] = (...args: unknown[]) => {
-        original[level].apply(console, args);
-        if (typeof args[0] === "string" && args[0].startsWith("[plugin")) add(level, args.map(textOf).join(" "));
-      };
-    });
-    const fromPlugin = (where: string) => where.includes("blob:") || getPlugins().some(p => !!p.src && where.includes(p.src));
-    const onError = (event: ErrorEvent) => {
-      const stack = event.error instanceof Error ? (event.error.stack ?? "") : "";
-      if (fromPlugin(`${event.filename ?? ""} ${stack}`)) add("error", `Uncaught ${textOf(event.error ?? event.message)}`);
-    };
-    const onRejection = (event: PromiseRejectionEvent) => {
-      if (event.reason instanceof Error && fromPlugin(event.reason.stack ?? "")) add("error", `Uncaught (in promise) ${textOf(event.reason)}`);
-    };
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
-    return () => {
-      Object.assign(console, original);
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onRejection);
-    };
+  private async initialise(): Promise<void> {
+    const snapshot = content.snapshot ?? this.sentContent;
+    if (!this.ready || this.initialised || this.initialising || !snapshot) return;
+    this.initialising = true;
+    this.requests.hold();
+    try {
+      await this.requests.first("init", [{ content: snapshot, preview: previewSync(), saved: this.savedPlugins() } satisfies FrameInit]);
+    } catch (e) {
+      this.status = "error";
+      this.error = e instanceof Error ? e.message : String(e);
+      return;
+    } finally {
+      this.initialising = false;
+    }
+    this.initialised = true;
+    this.sentContent = snapshot;
+    const opening = this.requests.waiting("open");
+    this.requests.open();
+    // The frame's registry is there now (empty in a new frame): the experience's code loads, whether a scene builds or not
+    this.markStarted();
+    if (!this.initialisedBefore) {
+      this.initialisedBefore = true;
+      return;
+    }
+    this.overrides.forEach((entity, targetId) => void this.send("override", [targetId, this.wire(entity)]));
+    if (this.passes !== undefined) void this.send("overridePasses", [this.passes]);
+    if (this.appearance) void this.send("overrideAppearance", [this.appearance]);
+    if (this.environment) void this.send("showEnvironment", [this.environment.environment, this.environment.previewing]);
+    if (this.lookUp) void this.send("setLookUp", [this.lookUp]);
+    void this.send("setPickFilter", [this.pickFilter]);
+    void this.send("setTool", [this.tool]);
+    void this.send("surfaceMarks", [this.marks.outlined, this.marks.highlighted]);
+    void this.send("surfaceGizmo", [this.surfaceGizmo.surfaceId, this.surfaceGizmo.mode]);
+    void this.send("selectNode", this.selected.node);
+    void this.send("selectTarget", [this.selected.target]);
+    if (this.ghostPlace) void this.send("ghost", [this.ghostPlace]);
+    if (!this.live) void this.send("setLive", [false]);
+    if (this.sceneId && !opening) await this.send("open", [this.sceneId]);
   }
 
-  /** The first scene opens: the kept plugins are marked before their content modules could load, then `onStarted` */
-  private start(): void {
+  /** The frame is up: the first time for this frame, `onStarted` */
+  private markStarted(): void {
     if (this.started || this.disposed) return;
     this.started = true;
-    this.keptPlugins().forEach(id => keepPlugin(id));
     this.onStarted?.();
+  }
+
+  /** A request whose failure is logged, not thrown (a fire-and-forget change) */
+  private send(method: Parameters<FrameRequests["request"]>[0], args: unknown[] = []): Promise<unknown> {
+    return this.requests.request(method, args).catch(e => {
+      // A change sent while the workspace closes is no failure
+      if (!this.disposed) console.warn(`[stage] ${method}: ${e instanceof Error ? e.message : e}`);
+    });
+  }
+
+  private wire(entity: EntityData | null): EntityData | typeof REMOVED_WIRE | null {
+    return entity === Stage.REMOVED ? REMOVED_WIRE : entity ? ($state.snapshot(entity) as EntityData) : null;
+  }
+
+  /**
+   * The draft as the content loaded it last goes to the frame before the stage builds from it. A draft whose files
+   * moved to another base needs a new frame (its policy names the bases it may load from): the frame is replaced.
+   */
+  private async syncContent(): Promise<void> {
+    const snapshot = content.snapshot;
+    if (!snapshot || snapshot === this.sentContent) return;
+    // Not initialised yet: `init` takes the newest draft
+    if (!this.initialised) return this.initialise();
+    try {
+      await this.requests.request("content", [snapshot]);
+      this.sentContent = snapshot;
+    } catch (e) {
+      if (!(e instanceof Error) || e.message !== "content-bases-changed") throw e;
+      this.reload(snapshot);
+    }
+  }
+
+  /** A new frame for this content: everything else follows once it is ready */
+  private reload(snapshot: ContentSnapshot): void {
+    this.requests.close("the stage frame was replaced");
+    this.replaced = true;
+    this.started = false;
+    this.ready = false;
+    this.initialised = false;
+    this.sentContent = snapshot;
+    this.frame.remove();
+    this.frame = this.makeFrame();
   }
 
   // ── the stage's API for the workspace ──
 
   /** Show a scene on the stage (the scene runs as soon as it is asked to) */
   async open(sceneId: string): Promise<void> {
-    this.start();
-    await this.core.open(sceneId);
-    this.registryChanged();
+    this.sceneId = sceneId;
+    this.found = [];
+    await this.syncContent();
+    // Ahead of the scene, in the same order: the frame lays the references on its surfaces
+    void this.send("surfaceReferences", [this.surfaceReferences]);
+    void this.send("surfaceMarks", [this.marks.outlined, this.marks.highlighted]);
+    await this.requests.request("open", [sceneId]);
   }
 
   /** The draft changed (a save): the scene is built again from it; overrides stay until cleared */
   async refresh(): Promise<void> {
-    await this.core.refresh();
-    this.registryChanged();
+    await this.syncContent();
+    await this.requests.request("refresh");
   }
 
   /** The open scene's surfaces changed in the draft: the stage lays them out again at once */
   relayout(): void {
-    this.core.relayout();
+    // The frame lays out from its draft: the newest goes first (a scene's surfaces changed, #314)
+    void this.syncContent()
+      .catch(e => console.warn(`[stage] content: ${e instanceof Error ? e.message : e}`))
+      .then(() => this.send("relayout"));
   }
 
   /**
    * The surfaces' reference images (#314) by scene id and surface id – `{ url, fit }` from the scenes overview's
-   * `surfaces[].reference`; the open scene's lie on its surfaces at once
+   * `surfaces[].reference` – sent again with every scene opened; the open scene's lie on its surfaces at once
    */
+  private surfaceReferences: SurfaceReferences = {};
+
   setSurfaceReferences(references: SurfaceReferences): void {
-    this.core.setSurfaceReferences(references);
+    this.surfaceReferences = $state.snapshot(references) as SurfaceReferences;
+    void this.send("surfaceReferences", [this.surfaceReferences]);
   }
 
   /** The surfaces marked on the stage (#314, the Surface mode): `outlined` thin, `highlighted` the selected one – ids of the open scene's surfaces */
+  private marks: { outlined: string[]; highlighted: string | null } = { outlined: [], highlighted: null };
+
   setSurfaceMarks(outlined: readonly string[], highlighted: string | null): void {
-    this.core.setSurfaceMarks([...outlined], highlighted);
+    this.marks = { outlined: [...outlined], highlighted };
+    void this.send("surfaceMarks", [this.marks.outlined, highlighted]);
   }
 
   /** The surface gizmo asked for (#314): shown in the Surface mode on that surface of a free scene */
+  private surfaceGizmo: { surfaceId: string | null; mode: "translate" | "rotate" } = { surfaceId: null, mode: "translate" };
+
   setSurfaceGizmo(surfaceId: string | null, mode: "translate" | "rotate" = "translate"): void {
-    if (this.surfaceGizmoAsked.surfaceId === surfaceId && this.surfaceGizmoAsked.mode === mode) return;
-    this.surfaceGizmoAsked = { surfaceId, mode };
-    this.core.setSurfaceGizmo(surfaceId, mode);
+    if (this.surfaceGizmo.surfaceId === surfaceId && this.surfaceGizmo.mode === mode) return;
+    this.surfaceGizmo = { surfaceId, mode };
+    void this.send("surfaceGizmo", [surfaceId, mode]);
   }
 
   /** The open scene's surfaces as the stage lays them (#314): their ids and sizes; `flat` = on the table */
   surfaces(): SurfaceSnapshot[] {
-    return this.core.surfaceFrames().map(f => ({ id: f.id, widthMm: f.widthMm, heightMm: f.heightMm, flat: f.flat }));
+    return this.layout.surfaces;
   }
 
-  /** Show a target's entity with other values than the content's (live edit), `null` = the content's again; resolves once the stage built it */
-  async override(targetId: string, entity: EntityData | null): Promise<void> {
+  /** Show a target's entity with other values than the content's (live edit), `null` = the content's again; resolves once the frame built it */
+  override(targetId: string, entity: EntityData | null): Promise<void> {
     if (entity) this.overrides.set(targetId, entity);
     else this.overrides.delete(targetId);
-    this.core.override(targetId, entity);
-    this.registryChanged();
+    return this.send("override", [targetId, this.wire(entity)]).then(() => undefined);
   }
 
   /**
-   * The draft holds a target's live tree now (its save ran): the stage keeps showing the tree – no rebuild, clips and
-   * videos play on – and the tree is no override any more. A tree edited again meanwhile stays one.
+   * The draft holds a target's live tree now (its save ran): the frame gets the draft and keeps showing the tree – no
+   * rebuild, clips and videos play on – and the tree is no override any more. A tree edited again meanwhile stays one.
+   * The save never waits for the frame.
    */
   async adopt(targetId: string, saved: EntityData): Promise<void> {
+    // A frame that is not up yet takes the newest draft when it starts; one that fails here keeps showing the tree
+    // and gets the draft with the next scene – the save itself is done either way
+    if (this.initialised) await this.syncContent().catch(e => console.warn(`[stage] content: ${e instanceof Error ? e.message : e}`));
     if (this.overrides.get(targetId) === saved) this.overrides.delete(targetId);
   }
 
   /** Show the scene with these post-processing passes instead of the draft's (live edit), `null` = the draft's again */
   overridePasses(passes: PassData[] | null): void {
-    this.core.overridePasses(passes);
+    this.passes = passes;
+    void this.send("overridePasses", [passes]);
   }
 
   /**
@@ -262,12 +423,13 @@ export class Stage {
    * the experience names none, the default look plays everywhere
    */
   overrideAppearance(appearance: ExperienceAppearance | null): void {
-    this.core.overrideAppearance({ appearance });
+    this.appearance = { appearance };
+    void this.send("overrideAppearance", [this.appearance]);
   }
 
   /** Play a moment's look on the stage's shown targets: the first find, a later find, the page lost */
   playMoment(moment: Moment): void {
-    this.core.playMoment(moment);
+    void this.send("playMoment", [moment]);
   }
 
   overrideOf(targetId: string): EntityData | undefined {
@@ -307,100 +469,129 @@ export class Stage {
 
   /** The experience's environment on the stage (it replaces the HDRI sky box); `previewing` while the Environment tab is open */
   showEnvironment(environment: EnvironmentData | null, previewing = false): void {
-    this.core.showEnvironment(environment, previewing);
+    this.environment = { environment, previewing };
+    void this.send("showEnvironment", [environment, previewing]);
   }
 
   /** How far the previewing camera looks up from the experience (degrees) */
   setLookUp(degrees: number): void {
-    this.core.setLookUp(degrees);
+    this.lookUp = degrees;
+    void this.send("setLookUp", [degrees]);
   }
 
   /** The gizmo and the light helpers follow the selection (null = none) */
   selectNode(targetId: string | null, path: number[] = []): void {
-    this.selectedNode = [targetId, [...path]];
-    this.core.selectNode(targetId, [...path]);
+    this.selected.node = [targetId, [...path]];
+    void this.send("selectNode", this.selected.node);
   }
 
   /** The selected target: its printed image wears the selection's outline; null = none */
   selectTarget(targetId: string | null): void {
-    this.core.selectTarget(targetId);
+    this.selected.target = targetId;
+    void this.send("selectTarget", [targetId]);
   }
 
   setPickFilter(filter: PickFilter): void {
-    this.core.setPickFilter([...filter]);
+    this.pickFilter = [...filter];
+    void this.send("setPickFilter", [[...filter]]);
   }
 
   setTool(tool: StageTool): void {
-    this.core.setTool(tool);
+    this.tool = tool;
+    void this.send("setTool", [tool]);
   }
 
   /** Shift or Ctrl held (true) or let go: snapping is turned around while it is held */
   setSnapModifier(held: boolean): void {
-    this.core.setSnapModifier(held);
+    if (held === this.snapModifier) return;
+    this.snapModifier = held;
+    void this.send("setSnapModifier", [held]);
   }
 
-  /** A model node's timeline (the animation component), null for other nodes or before the stage built it */
+  /**
+   * A model node's timeline (the animation component), null for other nodes or before the frame built it – its clips
+   * and state as the frame reported them last, its play / pause / seek sent to the frame
+   */
   timeline(targetId: string, path: number[]): NodeTimeline | null {
-    return this.core.timeline(targetId, path);
+    const key = `${targetId}|${path.join(".")}`;
+    const snapshot = this.timelines[key];
+    if (!snapshot) {
+      this.timelineProxies.delete(key);
+      return null;
+    }
+    const clips = JSON.stringify(snapshot.clips);
+    const known = this.timelineProxies.get(key);
+    if (known?.clips === clips) return known.timeline;
+    const timeline: NodeTimeline = {
+      clips: snapshot.clips,
+      state: () => (this.timelines[key] ?? snapshot).state,
+      play: clip => void this.send("timeline", [targetId, path, "play", clip]),
+      pause: () => void this.send("timeline", [targetId, path, "pause"]),
+      seek: time => void this.send("timeline", [targetId, path, "seek", time]),
+    };
+    this.timelineProxies.set(key, { clips, timeline });
+    return timeline;
   }
 
   /** The colour under a point of the stage (CSS px from the container's top left), `#rrggbb` or null */
-  async sampleColor(x: number, y: number): Promise<string | null> {
-    try {
-      return this.core.sampleColor(x, y);
-    } catch {
-      return null;
-    }
+  sampleColor(x: number, y: number): Promise<string | null> {
+    return this.requests.request<string | null>("sampleColor", [x, y]).catch(() => null);
   }
 
   /** Where a target lies on the stage as the content places it (its own place, else the stage's fallback) */
   placeOf(targetId: string): TargetPlace | null {
-    return this.core.placeOf(targetId);
+    return this.layout.places[targetId]?.place ?? null;
   }
 
   /** Show where a target would be printed, with handles; null = none (`StageCore.ghost`) */
   ghost(target: GhostPlace | null): void {
-    this.core.ghost(target);
+    this.ghostPlace = target;
+    void this.send("ghost", [target ? $state.snapshot(target) : null]);
   }
+
 
   /** Every shown target is locked again, hidden, and found anew: the unlock animation plays */
   replayUnlock(targetIds?: readonly string[]): void {
-    this.core.replayUnlock(targetIds);
+    void this.send("replayUnlock", targetIds ? [[...targetIds]] : []);
   }
 
   /** A new game: every variable cleared, nothing unlocked, the timeline empty, the scene's targets found anew */
   resetNarrative(): void {
-    this.core.resetNarrative();
+    void this.send("resetNarrative");
   }
 
   /** The Live switch (#269): off holds the entities' clock on the stage, on lets it run */
   setLive(live: boolean): void {
     this.live = live;
-    this.core.setLive(live);
+    void this.send("setLive", [live]);
   }
 
-  /** Set (or delete with `null`) a variable by hand, through the plugin API. The API's refusal as text, null when written */
+  /** Set (or delete with `null`) a variable by hand, through the plugin API in the frame. The API's refusal as text, null when written */
   async setVar(name: string, value: VarValue | null, scope: VarScope): Promise<string | null> {
-    return this.core.setVar(name, value, scope);
+    try {
+      return await this.requests.request<string | null>("setVar", [name, value, scope]);
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
   }
 
   /** Tap a found target's entity without aiming at it – the reader's tap; false when nothing was tapped */
-  async tap(targetId: string): Promise<boolean> {
-    return this.core.tap(targetId);
+  tap(targetId: string): Promise<boolean> {
+    return this.requests.request<boolean>("tap", [targetId]).catch(() => false);
   }
 
   /** Empty the timeline (variables and progress stay) */
   clearEvents(): void {
-    this.core.clearEvents();
+    this.events = [];
+    void this.send("clearEvents");
   }
 
   /**
-   * The Code tab's Run: the transpiled module imported and installed in the stage's registry (`plugin-run.ts`). With
-   * `timeoutMs`, a module that does not settle in time is a failed run, not a wait for ever (code that blocks the page
-   * blocks it – the auto-load's mark skips that source at the next open, `plugins.autoLoad`).
+   * The Code tab's Run in the frame: the transpiled module imported and installed there (`plugin-run.ts`). With
+   * `timeoutMs`, a frame that does not answer in time (the code hangs it) is a failed run, not a wait for ever.
    */
   runPlugin(id: string, code: string, timeoutMs?: number): Promise<RunResult> {
-    const run = runPluginCode(id, code);
+    const run = this.requests.request<RunResult>("runPlugin", [id, code]);
     if (!timeoutMs) return run;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const late = new Promise<RunResult>(resolve => {
@@ -409,16 +600,12 @@ export class Stage {
     return Promise.race([run, late]).finally(() => clearTimeout(timer));
   }
 
-  /** The workspace closes: the stage goes, the plugins' lines stop, the registry is emptied (the draft's recorded specs stay known) */
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
     this.cleanups.forEach(cleanup => cleanup());
     this.cleanups = [];
-    await this.core.dispose();
-    this.host.remove();
-    resetPlugins();
-    adoptRecordedSpecs(getPlugins());
-    plugins.version += 1;
+    this.requests.end();
+    this.frame.remove();
   }
 }

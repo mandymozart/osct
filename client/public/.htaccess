@@ -20,6 +20,17 @@
   RewriteRule ^ index.html [L]
 </IfModule>
 
+# The editor's stage frame (docs/editor.md "The stage frame") is a sandbox with an opaque origin: it fetches the editor's
+# scripts and static files and the content served with the app with `Origin: null`. These public files may be read by
+# any origin (no credentials – the API answers for itself).
+<IfModule mod_headers.c>
+  <If "%{REQUEST_URI} =~ m#^/(editor|assets/content)/#">
+    Header set Access-Control-Allow-Origin "*"
+    # SvelteKit's version check (`_app/version.json`) asks with these: its preflight must allow them
+    Header set Access-Control-Allow-Headers "cache-control, pragma"
+  </If>
+</IfModule>
+
 # The pages themselves (the app's and the editor's index.html, also when a route is rewritten to them) are asked for
 # again on every load: a cached one names the hashed chunks of an older build, and the editor ran a build behind after a
 # deploy (3.3.0 on staging). The chunks keep their own long cache – their names change with every build

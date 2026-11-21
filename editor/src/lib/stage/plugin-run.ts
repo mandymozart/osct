@@ -1,11 +1,11 @@
 import { installPlugin, keepPlugin, PluginError, pluginTypes, type PluginModule } from "@engine/scene/plugins";
 import { importPluginCode } from "#lib/plugins/compile.js";
-import type { RunResult } from "./stage-types";
+import type { RunResult } from "./frame-protocol";
 
 /**
- * The stage's half of the Code tab's **Run**: the TypeScript was transpiled (`transpilePlugin`); here the module is
- * imported from a blob URL and installed in the stage's registry under the plugin's id – in the editor's page, with its
- * session (#340; the guard asks before code someone else saved runs by itself, `plugin-guard.svelte.ts`) – replacing its previous registrations – and the content's compiled module of that id
+ * The stage frame's half of the Code tab's **Run** (#234): the page transpiled the TypeScript (`transpilePlugin`); here,
+ * in the sandboxed frame and nowhere else, the module is imported from a blob URL and installed in the frame's
+ * registry under the plugin's id, replacing its previous registrations – and the content's compiled module of that id
  * is not loaded over it later (`keepPlugin`). The answer is data: the types it registered,
  * or why it did not run – the module did not load, or `register` refused or threw.
  */

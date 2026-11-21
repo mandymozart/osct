@@ -257,8 +257,8 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
   save's answer never writes over it. *Undo edits* takes the entry back. What keeps the save back is listed under the
   form (the API's checks before it is asked) and named in the top bar.
 - **The preview** is the reader's renderer (`shared/text/entry-text.ts` `renderEntryText`) – the same Markdown, the same
-  escaping. On the stage the variables have their current values: the stage's `vars`, read innermost scope first like
-  `api.vars.get`. Under the preview the variables the
+  escaping. On the stage the variables have their current values: the page's mirror of the stage frame's `vars` (#234 –
+  data from the frame, never code), read innermost scope first like `api.vars.get`. Under the preview the variables the
   text reads are listed with their value and scope (or *not set*), and every construct that does not parse is named
   (`exprMessage`).
 - **entry…** in the Tree footer's **+ add** menu (#237, #337) makes an entry without a printed image on the scene – read in the
@@ -815,8 +815,7 @@ Info view.
 
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws the scene at the desk in the same three.js scene as the
 entities; the **mock tracker** reports its targets as found, and the editor simulates the game around the scene. It runs
-in the editor's own page with the experience's plugins – after a prompt for code someone else saved ([The stage in the
-page and the plugin guard](#the-stage-in-the-page-and-the-plugin-guard-340)).
+in a sandboxed frame ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-234)).
 
 ### The desk, the scene and the printed images
 
@@ -1077,63 +1076,61 @@ points); dark grey, orange while selected, drawn through everything, never in th
 (`editor/src/lib/stage/light-helper.ts`). A click on the bulb picks the light. The HDRI dims only the scene's own
 lights; a light node keeps the author's intensity in every shading.
 
-### The stage in the page and the plugin guard (#340)
+### The stage frame: plugins in a sandbox (#234)
 
-The stage runs **in the editor's own page** (5.0, Tilman 2026-11-21, #340: *"we can drop the sandbox. since we trust the
-user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is fine. it is
-a huge security risk but only to the user who is logged in and their scope."* · *"performance will definitely
-increase."*). From 1.58.0 to 4.x it ran in a sandboxed iframe (#234: no `allow-same-origin`, its own Content Security
-Policy, a postMessage protocol, the draft copied in as text, the plugin registry mirrored back as specs); all of that is
-gone.
+An experience's plugins are code any editor of the experience can write, and the stage runs it – the draft's plugins and the Code
+tab's **Run**. So the stage does not run in the editor's page: it runs in an **iframe sandboxed with `allow-scripts`
+only** – no `allow-same-origin` – at the editor's own route `/editor/stage-frame/` (`editor/src/routes/stage-frame/`,
+outside the `(app)` routes with their sign-in gate). Its origin is **opaque**: plugin code there has no cookie and no
+storage of the editor's (`document.cookie`, `localStorage` throw), cannot reach into the page (`parent.document` is
+another origin's), and a request to the API carries no session – an opaque origin is another site, so the browser
+withholds the `SameSite=Strict` cookie, and CORS refuses a credentialed read. The CSRF token and every API call stay in
+the page.
 
-- **`stage/stage.svelte.ts`** (`Stage`, the workspace's side) keeps the API the panels use – the overrides
-  (`overrides`, `treeOf`, `editTree`, `removeNode`: the page's own), the selection, the gizmo's and the pick's modes, the
-  environment, the ghost, the narrative (`setVar`, `tap`, `replayUnlock`, `resetNarrative`), the Live switch, the
-  eyedropper (`sampleColor`), the model nodes' timelines (`timeline`) – and calls **`stage/stage-core.svelte.ts`**
-  (`StageCore`, the stage itself) directly. The stage's state (`status`, `found`, `vars`, `events`, `tool`, …) is the
-  core's own reactive state. The core draws into a layer of its own (`.stage-host`) first in the stage's container, under
-  the toolbar and the notices; the page's shortcuts, the Info view's help and the eyedropper see the pointer and the keys
-  directly – nothing is forwarded.
-- **The draft** is the one the page loaded (`content.svelte.ts`; the engine's content runtime is one per page) – the
-  stage reads it directly, nothing is recorded or replayed. **The plugin registry is the page's**: the Inspector, *add
-  pass*, the texture rows and *make it code* read it as the stage fills it; a publish declares what ran
-  (`pluginRegistrySnapshot`). A gizmo drag writes the placement of the node the page selected into the page's live tree –
-  a drag of any other node is not taken.
-- **Plugins**: the draft's declared modules load with the scene; the Code tab's saved sources load when the stage starts
-  (`plugins.autoLoad`) and **Run** installs a module in the same registry (`stage/plugin-run.ts`). A saved source's id is
-  marked before the first scene opens (`Stage.keptPlugins` → `keepPlugin`), so its compiled module – maybe built against
-  an older plugin API – never loads over it; the API's draft leaves such a declaration's recorded specs out (4.6.2).
-- **The plugins' lines** (`api.log`, the engine's `[plugins]` lines, what a plugin module threw that nobody caught – a
-  `blob:` module of the Code tab or a declared module's URL) go to the Code tab's log and the Log tab while the stage lives.
-- **Leaving the workspace** disposes the stage and empties the plugin registry (`resetPlugins` – the next experience
-  starts with none of this one's code, as a new page would); the draft's recorded specs are adopted again.
-- **What plugin code can do now**: it runs with the signed-in editor's session – `fetch("/api/…")` carries the cookie,
-  so it reads whatever that person may (the draft, the experience's data, an admin's users), and `GET /api/user` answers
-  the session's CSRF token, so it can write what the person may write too. Treat it as
-  **the person's own rights in the plugin's hands**: scoped to the signed-in user, accepted by Tilman. Hence the guard.
-
-#### The plugin guard
-
-Before the stage starts (`[experience]/[scene]/+page.svelte` → `pluginGuard.check`; `plugin-guard.ts`,
-`plugin-guard.svelte.ts`), the workspace looks at the experience's plugin code: every **stored source someone other than
-the signed-in editor saved last** (the API's `updatedBy` – the email of `plugins.updated_by`), and every **declared module
-without a stored source** (it came with an imported content build; nobody here saved it). If any of them has no answer
-yet, a small prompt (`PluginGuardPrompt.svelte`) asks once – *Run plugin code by ben?* (the local part of the address;
-*Run plugin code you did not save?* when several people or an imported module are listed) with each plugin and who saved
-it last – **Run** or **Don't run**, for all of them; Esc is Don't run. The person's own last-saved code runs without
-asking.
-
-- **The answer is kept in this browser** (`localStorage` `osct-plugin-guard:<experience>`) per plugin and **source
-  version** – the save's time, its author and its size; a declared module's URL (a new content build is another). A new
-  save by someone else asks again; answers for older versions are dropped.
-- **Don't run**: those plugins stay off the stage – a saved source is not auto-loaded (`plugins.declined`; the Code tab's
-  status line says *not loaded: ben saved it last and you chose Don't run – Run in the Code tab runs it now*), a declared
-  module is not loaded (`keepPlugin`), and the Log tab has a line per plugin. **Run** in the Code tab still runs one: the
-  person's own click on code they can read.
-- **The render view** (`?render`, the MCP's `render_scene` – nobody to ask) runs only what the person answered Run for in
-  that browser before; the rest stays off and nothing is kept.
-- Code saved through the MCP with a person's token is saved *by that person* (`updated_by`): their own browser runs it
-  without asking.
+- **The page's side** (`stage/stage.svelte.ts`, `Stage`): puts the frame first into the stage's container, under the
+  toolbar and the notices, and keeps the API the panels used before – the overrides (`overrides`, `treeOf`, `editTree`,
+  `removeNode`: the page's own), the selection, the gizmo's and the pick's modes, the environment, the ghost, the
+  narrative (`setVar`, `tap`, `replayUnlock`, `resetNarrative`), the eyedropper (`sampleColor`) – sent to the frame;
+  what reads the frame (`sampleColor`, `setVar`, `tap`) answers a promise. It mirrors what the frame
+  reports: the state, the variables and the timeline, the layout of the targets (`pageFormat`, `placeOf`,
+  `printedPlace`), the model nodes' timelines (`timeline`), and the **plugin registry as specs** – the engine's
+  `pluginRegistrySnapshot` in the frame, `mirrorPluginRegistry` here, so the Inspector, *add pass*, the texture rows and
+  *make it code* read the engine's registries as before while no plugin code runs in the page.
+- **The frame's side** (`stage/frame-host.svelte.ts` with `stage/stage-core.svelte.ts`, the stage itself): reads the
+  draft from the text the page sends (the page fetched it with its session; the frame never asks the API), loads the
+  draft's plugins and runs the Code tab's modules (`stage/plugin-run.ts`), and answers the page's requests. It
+  accepts requests only from its parent at the editor's origin and posts its events only there.
+- **The protocol** (`stage/frame-protocol.ts`): requests with an id and their replies, events with a name and their
+  data. The page acts only on events whose shape it checked (`readFrameEvent`). Since edits save themselves (#259),
+  **two events reach the draft**, both numbers only, both for what the person has open in the page: a gizmo drag's
+  placement (three vectors) – taken only for the node the page itself selected, the one the gizmo sits on – which the
+  page writes into its own live tree, and a placement handle's move (surface, x, y, width) while the selected target's
+  placement rows are open. Nothing else does: a pick selects, a key the frame forwards is one of the page's shortcuts
+  (`FORWARDED_KEYS`: Shift, Ctrl, ← →, W E R, Delete, Escape – Delete removes the node the page selected, which is
+  saved like every edit). Publish stays the person's click in the page.
+- **The frame's policy**: before the draft and its plugins load, the frame takes a Content Security Policy
+  (`frameCsp`, as a `<meta>` – it names the experience's content bases, which only the draft knows, so no static header can
+  say it): its own scripts and the editor's static files under `/editor/`, the Library's files under
+  `/api/content/`, the experience's content under `<content base>/assets/content/`,
+  `blob:` (the Code tab's module) and `data:` – every source with its path, never `'self'`, so no request reaches the
+  rest of the API. On a CDN instance the uploads lie in no content base: the frame admits **the experience's own Library
+  folder** (`…/assets/<experience>/`, the experience's `libraryBase` – a file uploaded and picked for a node shows at once, before
+  any saved row names it, #258) and the folders of other experiences' uploads the draft names, for files and requests, never
+  for scripts; other content builds the draft still names only for images and media. Nothing may be framed, posted or
+  opened; no worker. A draft whose files move to another base gets a new frame (a policy cannot widen).
+- **Serving it**: the opaque frame loads the editor's module scripts and static files with `Origin: null`, so they are
+  served with `Access-Control-Allow-Origin: *` – `client/public/.htaccess` for `/editor/` and `/assets/content/`, the
+  editor's and the reader's dev servers allow `null` (`server.cors`). The Library's media already allow any origin
+  (`ContentStore::serve`); the content CDN answers CORS for the reader anyway.
+- **What it costs**: on a desktop (headless Edge, 1280 × 800) the stage renders at the same 60 fps with the same
+  main-thread time per frame as in the page (≈ 1.25 ms on *The switch*, ≈ 1.5 ms on *The key*).
+- **What it does not do**: plugin code can still send what it sees – the draft, which its author can read anyway –
+  away by navigating its own frame, and it can post stage events (a placement, a pick, a forwarded key): with them it
+  can move the node the person has selected, or the target whose placement is open, in this experience's draft – visible on
+  the stage, taken back with *Undo edits* – and nothing more; it cannot publish, write anything else or read anything
+  of the session. In the editor a plugin
+  reaches only the content and the Library (`api.loadText`), no other origin. **The reader runs plugins in its own
+  page** – not sandboxed yet ([server](server.md#sessions-cookies-and-csrf) "What the cookie does not do").
 
 ## The panels
 
@@ -1443,8 +1440,8 @@ first names), the scene's open at first, *set* closed:
   experience's rule names its home instead (`home: "scene" · scene: "door" · rule: 0 …`). A **goto** line is a rule
   asking for another scene (`ArSceneOptions.navigate`): the stage stays on its scene – following it would leave the
   author's open scene behind – and the line's link (*open Epilogue*) opens that scene as the Scenes panel does.
-- **plugin log** – the plugins' `api.log` lines and their errors on the stage (each with the timeline's clocks, so it
-  sits among the events; a plugin the guard kept off says so here; `plugins.journal`, the last 100 – a Run does not empty it).
+- **plugin log** – the plugins' `api.log` lines and their errors on the stage (the frame posts each with the timeline's
+  clocks, so it sits among the events; `plugins.journal`, the last 100 – a Run does not empty it).
 
 ### Environment
 
@@ -1635,23 +1632,22 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   three's own types, so completion, hover documentation and type errors inline are the build's; Tab indents,
   Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day / night tokens. **Download** gives the plugin's
   folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`).
-- **The saved sources are part of the live stage** (#269): every stage that starts – the workspace opens – gets each
-  stored source the guard did not keep off by itself (#340, [The plugin guard](#the-plugin-guard), `plugins.autoLoad`):
-  the text last run in this page if there is one, else the saved one, transpiled and installed one after the other, then
-  the scene built once – while the first scene builds, so a scene that does not build keeps no code from loading. A source stored under the id of a plugin the
+- **The saved sources are part of the live stage** (#269): every frame that starts – the workspace opens, the frame
+  loads again – gets each stored source by itself (`plugins.autoLoad`): the text last run in this page if there is one,
+  else the saved one, transpiled and installed one after the other, then the scene built once – as soon as the frame
+  answers, so a scene that does not build keeps no code from loading. A source stored under the id of a plugin the
   content declares wins over its compiled module (`keepPlugin`: the engine does not install that module over it).
   **Save** runs the saved text too. So the looks, components and node types of the experience's code are known to the pickers and the
   Inspector without a Run, on every visit. A line under the picker says what of the open plugin runs on the stage:
   *the saved version*, *edits not saved* (a Run), *failed* with the error – what ran before stays registered – or *not
   loaded*; another stored source that is not on the stage is named below it. A picker whose value no plugin registers
   says why instead of *unknown*: *loading the experience's code…*, *not loaded – reveal failed*, or *unknown – no plugin
-  registers it*. **The way out of a hang**: a source whose module does not settle within 10 s stops the auto-load
+  registers it*. **The way out of a hang**: a source the frame does not answer for within 10 s stops the auto-load
   (the rest wait), and its mark stays in this browser (`osct-code-autoload:<experience>`), so the next open skips it and
-  says so – fix it, then Run it by hand. Code that blocks the page (an endless loop) blocks the whole editor (#340); the
-  mark is what gets the next open past it.
+  says so – fix it, then Run it by hand.
 - **Run** tries the open text, saved or not: it transpiles the TypeScript in the browser (sucrase, types erased – no type check, that is the build's half);
-  the stage imports the module and installs it in the stage's registry under the plugin's id (a second Run
-  replaces the first) – in the editor's page, with the person's session ([The stage in the page](#the-stage-in-the-page-and-the-plugin-guard-340)) –,
+  the stage frame imports the module and installs it in the stage's registry under the plugin's id (a second Run
+  replaces the first) – the code runs there, never in the editor's page ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-234)) –,
   then builds the scene again: a material layer tints the video at once, a component shows under *add component* in
   the Inspector, a pass under *add pass*. Errors show under the editor and as a marker on their line (a transpile
   error, a plugin that imports a module – plugins import nothing, three.js is `api.three` – an invalid spec, an
@@ -1724,15 +1720,15 @@ design tokens):
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`), where its files are served, the dev flag and the reader's graphics options ([tracking](tracking.md) "What the app gives the engine") |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the workspace's `Stage`, in the page since #340), `stage-types.ts` (what the stage and the panels share), `plugin-run.ts` (Run's half: import and install), `stage-core.svelte.ts` (the stage itself: the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the scene's timeline, variables and tap buttons in the Inspector) |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the page's side of the stage frame, #234), `frame-host.svelte.ts` and `frame-protocol.ts` (the frame's side and the messages, the frame's policy), `plugin-run.ts` (Run's half in the frame), `stage-core.svelte.ts` (the stage in the frame: the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the scene's timeline, variables and tap buttons in the Inspector) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
 | Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes, the Log (`LogPanel`, its lines in `stage/log-entries.ts`) and the Variables (`StageVariables`) tabs (#337); `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308), the tabs' arrangement in `float-tabs.ts` (#318); the rows from the contract; the rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts` (a condition and a set value in `components/ExpressionField.svelte`), a scene's and the experience's rules in `LogicRules.svelte` with `logic-edit.svelte.ts` (their saves), the variables in `VariablesEditor.svelte` with `variables-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), a tile's drag onto the tree and the rename rule in `library-drag.ts` / `library-drag.svelte.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` (#239, #334) with its canvas `LogicCanvas.svelte` / `LogicBox.svelte` (`@xyflow/svelte`, lazy) and the pure logic model in `lib/logic/` (`project.ts`, `navigation.ts`, `flow.ts`, `layout.ts`, the ops in `apply.ts`, what fits in `palette.ts`), its menu `LogicMenu.svelte`, the Library's `LibraryNodes.svelte` and their drag in `logic-drag.svelte.ts` |
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
-| The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` on the stage, rebuild), the plugins' log; `plugin-guard.ts`, `plugin-guard.svelte.ts`, `components/PluginGuardPrompt.svelte` – the prompt before others' code (#340) |
+| The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
-| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `admin/` |
+| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `admin/`; `stage-frame/` – the stage frame's document, outside the gate |
 | The API | `server/api/src/Experiences.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php`, `ExperienceTexts.php` | [server](server.md) "Editor data", "Plugin sources", "Texts" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |
 

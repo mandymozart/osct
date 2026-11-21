@@ -898,45 +898,26 @@ const rendered = (object: Object3D): boolean => {
 Wire and Solid swap the entities' materials for the stage's own; Textured keeps them – only this value tells Textured
 from Rendered.
 
-## Where it runs: the page, with the session (5.0)
+## Where it runs: the stage's sandbox
 
-In the editor a plugin runs **in the editor's own page** (#340, Tilman 2026-11-21: *"we can drop the sandbox. since we
-trust the user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is
-fine. it is a huge security risk but only to the user who is logged in and their scope."*). The sandboxed stage frame of
-#234 (1.58.0 to 4.x) is gone, and with it its limits: a plugin may use the page's `fetch` – **with the session of the
-editor who has the experience open**:
+In the editor a plugin runs in the **stage frame** – an iframe sandboxed without `allow-same-origin`, an origin of its
+own with no session ([editor](editor.md) "The stage frame", #234). For a plugin that changes nothing about the API
+above – the stage, the registries, `api.three`, the events, the variables, the progress, `api.loadText`, the feedback
+buffers and the passes all work as before. What a plugin **cannot** do there, by design:
 
-```ts
-// read the experience as the person sees it – or change its data, the game state, whatever they may change
-const response = await fetch("/api/user");                   // the cookie goes along: it is the person's session
-const { csrfToken } = await response.json();                 // writes need the session's CSRF token
-await fetch(`/api/editor/experiences/${id}/…`, { method: "PUT", headers: { "X-CSRF-Token": csrfToken, … }, body });
-```
+- **act as the person who has the experience open** – a request to the API carries no session (`fetch("/api/user",
+  { credentials: "include" })` is refused before it leaves: the frame's policy allows no path of the API but its public
+  content route, and there the browser withholds the cookie);
+- **read the session or the editor's storage** – `document.cookie`, `localStorage` and `sessionStorage` throw;
+- **reach the editor's page** – `parent.document` belongs to another origin; the page acts only on the stage's own
+  messages, and none of them saves or publishes;
+- **load from other origins** – files come from the experience's content and the Library (`api.loadText`, a texture
+  parameter, a model's file); `fetch` to another host, an `import()` from a CDN, a worker, an `<iframe>`, a form or a
+  popup are blocked;
+- **show a dialog** – `alert`, `confirm` and `prompt` do nothing in the sandbox; log with `api.log`, which the Code tab
+  shows under the editor (with the plugin's errors on the stage).
 
-**The risk, plainly**: plugin code runs with the rights of **whoever opens the experience** in the editor. Code one
-editor saved runs as another editor – or an admin – when they open the stage: it can read and change what they may (the
-draft, other experiences they edit, users if they are an admin), send it elsewhere, and do it without a click. The scope
-is the signed-in person's own; nothing more. That is why the editor **asks before it runs code someone else saved
-last** ([editor](editor.md) "The plugin guard"): *Run plugin code by ben?* lists the plugins and who saved each, the
-answer is kept per experience and source version (a new save by someone else asks again), and *Don't run* leaves those
-plugins off the stage – the Code tab and the Log tab say why. The person's own last-saved code runs without asking;
-**Run** in the Code tab always runs what is open.
-
-What else follows from running in the page:
-
-- **`api.log`** shows in the Code tab's log and the Log tab (and the console); so do the engine's lines about a plugin
-  and an error a plugin's module throws that nobody catches.
-- **A plugin that blocks** (an endless loop) blocks the whole editor, not a frame: the auto-load's mark skips that source
-  the next time the editor opens ([editor](editor.md) "Code").
-- **Other origins**: the editor's page sets no Content Security Policy of its own, so the browser's defaults apply
-  (CORS) – but use the experience's content and the Library for files (`api.loadText`, a texture parameter, a model's
-  file), so the plugin works the same in the reader.
-- **Leaving the workspace** uninstalls every plugin (`resetPlugins`): code that keeps something outside the registries
-  alive (a timer, a listener on `window`) should clean it up in its component's or node's `dispose`.
-- **The plugin API stays 3.1**: `api` itself did not change. What changed is where the code runs, and the reader had
-  the session within reach of a published plugin before (one cookie for the site, #207).
-
-The reader runs the published plugins in its own page – the same API, the same session within reach.
+The reader runs the published plugins in its own page – the same API, without this sandbox (yet).
 
 ## Shipping it: the content build
 

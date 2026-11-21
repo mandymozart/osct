@@ -6,7 +6,7 @@ import { deletePlugin, errorText, getPlugin, listPlugins, putPlugin, replacePlug
 import { library } from "./library.svelte";
 import { transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
 import type { Stage } from "#lib/stage/stage.svelte.js";
-import { NO_ANSWER, type StageLog } from "#lib/stage/stage-types.js";
+import { NO_ANSWER, type FrameLog } from "#lib/stage/frame-protocol.js";
 import { trackUnsaved } from "#lib/unsaved.js";
 import { unsavedPlugin } from "#lib/library-code.js";
 import { nodeAt, withNode } from "./values";
@@ -58,7 +58,7 @@ const writeHung = (experienceId: string, id: string | null): void => {
   }
 };
 
-/** What a Run needs of the stage: its runner, a refresh and the overrides (a node made code switches through them) */
+/** What a Run needs of the stage: the frame's runner, a refresh and the overrides (a node made code switches through them) */
 export type RunStage = Pick<Stage, "runPlugin" | "refresh" | "treeOf" | "overrideOf" | "override">;
 
 /**
@@ -104,9 +104,8 @@ export const JOURNAL_LINES = 100;
  * The Code tab's plugins (docs/plugins.md "Trying it: the Code tab"): the sources stored for the experience (the
  * API's `plugins`), the plugins the content declares (compiled by the content build, loaded by the engine with the
  * scene), and **Run** – transpile in the browser, then import and install in the stage's registry under the plugin's
- * id – in the editor's page, with its session (#340) –, build the scene again. `version` counts the runs and the
- * registry's changes the stage reports: the Inspector's rows follow the registry through it. A stored source someone else
- * saved last runs by itself only after the guard's prompt (`plugin-guard.svelte.ts`); the ones kept off are `declined`.
+ * id, in the stage frame (the page runs no plugin code, #234), build the scene again. `version` counts the runs and the
+ * registry's changes the frame reports: the Inspector's rows follow the registry (mirrored from the frame) through it.
  * `logs` are the plugins' lines from the stage (`api.log`, their errors), newest last, for the Code tab; `journal` the
  * same lines for the Log tab.
  * The Library lists the same sources as its scripts (#186): it uploads a script file as a new source, replaces one
@@ -134,12 +133,7 @@ class Plugins {
   /** The Code tab's open source, kept while the tab is closed */
   readonly code = new CodeBuffer();
   /** The plugins' lines from the stage, newest last (at most `LOG_LINES`) */
-  logs = $state<StageLog[]>([]);
-  /**
-   * The plugins the guard keeps off the stage (#340: the person answered *Don't run* to code someone else saved last), by
-   * id, with why – the auto-load skips them and the Code tab says so; a Run in the Code tab still runs one
-   */
-  readonly declined = new SvelteMap<string, string>();
+  logs = $state<FrameLog[]>([]);
   /** The sources run here, by plugin id: what is installed, saved or not */
   private ran = new Map<string, string>();
   /** Each stored source on the stage (#269): loaded by itself, run, failed – the Code tab and the pickers say it */
@@ -153,10 +147,10 @@ class Plugins {
    * The same lines for the Log tab's timeline, newest last (at most `JOURNAL_LINES`): not emptied by a Run, only by the
    * Log tab's *clear*
    */
-  journal = $state<StageLog[]>([]);
+  journal = $state<FrameLog[]>([]);
 
-  /** A line from the stage (a plugin's log, its error) */
-  addLog(line: StageLog): void {
+  /** A line from the stage frame (a plugin's log, its error) */
+  addLog(line: FrameLog): void {
     this.logs = [...this.logs.slice(-(LOG_LINES - 1)), line];
     this.journal = [...this.journal.slice(-(JOURNAL_LINES - 1)), line];
   }
@@ -176,7 +170,6 @@ class Plugins {
         this.status.clear();
         this.storedText.clear();
         this.pending = null;
-        this.declined.clear();
         this.code.reset();
         this.journal = [];
       }
@@ -221,8 +214,8 @@ class Plugins {
   }
 
   /**
-   * The Code tab's code is part of the live stage (#269): a stage that starts (the workspace opens) gets every stored
-   * source the guard did not keep off (`declined`, #340) – the text last run here if there is one, else the saved one – transpiled, imported and
+   * The Code tab's code is part of the live stage (#269): a frame that starts (the editor opens, the frame loads again)
+   * gets every stored source – the text last run here if there is one, else the saved one – transpiled, imported and
    * installed as a Run would, one after the other, then the scene built once. A source that fails keeps what ran
    * before and says why (`status`); one that does not answer in `AUTO_LOAD_TIMEOUT_MS` counts as hanging the stage,
    * and a page that froze on it (the mark stays in the browser) skips it the next time it opens. The Code tab's log
@@ -236,16 +229,11 @@ class Plugins {
       if (this.experienceId !== experienceId) return;
       const hung = readHung(experienceId);
       let loaded = 0;
-      /** The source the stage stopped answering at: the rest wait (the stage is likely still in it) */
+      /** The source the stage stopped answering at: the rest wait (the frame is likely still in it) */
       let stuck: string | null = null;
       for (const { id } of this.stored) {
         if (stuck) {
           this.status.set(id, { state: "failed", error: `not loaded – the stage stopped answering at ${stuck}` });
-          continue;
-        }
-        const declined = this.declined.get(id);
-        if (declined) {
-          this.status.set(id, { state: "skipped", error: declined });
           continue;
         }
         if (id === hung) {
@@ -354,7 +342,7 @@ class Plugins {
   }
 
   /**
-   * Run a plugin's source on the stage: transpile, then import and install it in the stage's registry (replacing the
+   * Run a plugin's source on the stage: transpile here, then import and install it in the stage frame (replacing the
    * plugin's previous registrations), build the scene again so its effect shows. Returns true when it ran; the error
    * is in `runError` otherwise. The log starts anew with every Run.
    */
@@ -412,7 +400,7 @@ class Plugins {
       return true;
     }
     const before = stage.overrideOf(pending.targetId) ?? null;
-    // The stage builds the node (the build's failure lands in the registry) before this resolves
+    // The frame builds the node and reports its registry (the build's failure with it) before this resolves
     await stage.override(pending.targetId, withNode(tree, pending.path, pending.node));
     const failure = nodeTypeFailure(pending.type);
     if (!failure) {

@@ -21,10 +21,8 @@
    * Run transpiles them – not type-checked (#78, #266). The Library lists the stored sources as its scripts and opens one here
    * (`plugins.focus`); **Delete** is refused while the draft uses what the plugin registers (*Delete anyway* forces it).
    * The picker names each plugin alone, the one with unsaved edits with an asterisk (`pluginLabel`, #232); the open source
-   * is kept in `plugins.code`, so a tab switch loses no edit. The code runs on the stage in this page, with the person's
-   * session (#340): its `api.log` lines and its errors there show as the **log** under the editor, newest last, empty with
-   * each Run. A source someone else saved last loads by itself only after the guard's prompt (`plugin-guard.svelte.ts`) –
-   * one kept off says so on its status line.
+   * is kept in `plugins.code`, so a tab switch loses no edit. The code runs in the stage frame, never in this page (#234):
+   * its `api.log` lines and its errors there come back as the **log** under the editor, newest last, empty with each Run.
    * The stored sources load onto the stage by themselves whenever it starts and run again on Save (#269,
    * `plugins.autoLoad`); the line under the picker says what of the open plugin runs there (`plugins.status`).
    */
@@ -265,7 +263,7 @@
   <p class="small muted message">{notice}</p>
 {/if}
 {#if plugins.logs.length}
-  <ol class="log small" aria-label="The plugins' log" data-help-name="Log" data-help="What the experience's code says on the stage, newest last: a plugin's api.log lines and its errors (a build that failed, an error nothing caught). Every Run starts it anew.">
+  <ol class="log small" aria-label="The plugins' log" data-help-name="Log" data-help="What the experience's code says on the stage, newest last: a plugin's api.log lines and its errors (a build that failed, an error nothing caught). The stage runs the code in a sandbox of its own, so this is where its lines show. Every Run starts it anew.">
     {#each plugins.logs as line, i (i)}<li class:danger={line.level === "error"}>{line.text}</li>{/each}
   </ol>
 {/if}

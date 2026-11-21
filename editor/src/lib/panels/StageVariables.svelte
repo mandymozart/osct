@@ -11,7 +11,7 @@
 
   /**
    * The **Variables** tab (#337): the plugins' live variables on the stage, each with its scope and type, a control for
-   * its value and a delete; a form to set one by hand (both written through the plugin API on the stage, so the
+   * its value and a delete; a form to set one by hand (both written through the plugin API in the stage frame, so the
    * plugins hear `varChanged` as from a plugin's set); *reset* for a new game. The experience's declared variables
    * (name, type, default) are the experience's Inspector's (`VariablesEditor`) – these are the values while it plays.
    * Each scope is a section of its own (its count and first names when closed): the scene's open at first, the others
@@ -26,7 +26,7 @@
   let newScope = $state<VarScope>("scene");
   let newType = $state<VarType>("boolean");
   let newValue = $state<VarValue>(initialValue("boolean"));
-  /** Write a variable through the plugin API on the stage (null deletes); true when it was written */
+  /** Write a variable through the plugin API in the stage frame (null deletes); true when it was written */
   const write = async (name: string, value: VarValue | null, scope: VarScope): Promise<boolean> => {
     varError = stage ? await stage.setVar(name, value, scope) : "the stage is not running";
     return varError === null;

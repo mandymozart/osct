@@ -23,7 +23,7 @@ import { showsWorld } from "./sky";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
-import { REMOVED_ENTITY } from "./stage-types";
+import { REMOVED_ENTITY } from "./frame-protocol";
 import { modelOf, nearPointer, nodeOf, PICK_KINDS, pickable, pickByFilter, pickForMenu, samePick, type PickFilter, type PickKind, type StageHit, type StagePick } from "./pick";
 import { DEFAULT_ASPECT, draggedPlace, grabOffset, placeHeight, type PlacementDrag, type Surfaces } from "./placement";
 import { SceneSnapper } from "./snap-scene";
@@ -45,16 +45,16 @@ const REPLAY_GAP_MS = 900;
 const DRAGGED_PLACE_MS = 6000;
 
 /**
- * The editor's stage in the editor's page (#340 – the stage frame of #234 is gone; the workspace talks to it through
- * `stage.svelte.ts`): the engine's `ArScene` with the mock tracker and the mock stage
+ * The editor's stage as it runs in the stage frame (#234, `frame-host.svelte.ts` – the sandbox the experience's plugins run
+ * in; the page talks to it through `stage.svelte.ts`): the engine's `ArScene` with the mock tracker and the mock stage
  * instead of a camera, and the editor's simulation of the game around it – which scene is open, which targets the
  * "camera" sees, which were found for the first time (the unlock animation plays once per target, *replay* plays it
  * again), and the reader's progress for the experience's plugins (`StageProgress`: unlocked targets, experience variables – the
  * engine's `api.progress`). The reader's store does none of this here: the editor owns its state. For the Inspector it
  * keeps the plugins' variables and the stage's event timeline (`vars`, `events` – each event timed from the scene's
  * opening), and lets the author act like the experience's code or a reader would: set a variable through the plugin API
- * (`setVar`), tap a found target without aiming at it (`tap`). The live overrides are the page's: it hands each one
- * over (`override`), and a gizmo drag only reports the placement (`onPlacement`) for the page to write.
+ * (`setVar`), tap a found target without aiming at it (`tap`). The live overrides are the page's: it sends each one
+ * (`override`), and a gizmo drag only reports the placement (`onPlacement`) for the page to write.
  */
 
 /**
