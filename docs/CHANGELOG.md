@@ -23,6 +23,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   - **API** – which API for what, the logic system (rules, events, actions, variables, expressions, addresses), the
     plugin API 3.1 (what a plugin registers, specs and parameters, hooks, events and variables, files, the sandbox,
     shipping) and the MCP server (connecting, what a token may do, the tools by area, the two-step confirmations).
+- The site **looks like the editor** (and the SCUTOONS creator and deck editor): monochrome, day and night following the
+  system, system type, square corners, labels in small capitals.
 - The editor's account menu has **Documentation**, which opens the site in a new tab.
 
 ### Changed

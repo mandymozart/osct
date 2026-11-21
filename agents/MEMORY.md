@@ -223,6 +223,9 @@ system works and mcp as well"*.
   source the pages are written from (RULES #31) – a page never copies their detail.
 - **The long page at `/docs/tutorials/` stays** as it is (RULES #1), linked as *Content and demo walkthrough*; the new
   tutorials live beside it (`tutorials/editor/`, `tutorials/admin/`).
+- **Styled like the editor** (Tilman, the same day: *"can we please style the docs in the way the creator and deck editor
+  are styled?"*): the editor's monochrome palette with day and night, system type, square corners, small-capital labels
+  (`docs.css`) – not the reader's black and gold, which the first draft took from the long walkthrough.
 - The folder is `guide/`, not `editor/`: `/docs/editor/…` would read like the editor app's own address.
 - The editor's account menu has *Documentation* (opens `/docs/` in a new tab).
 - Screenshots: the local editor on the demo, re-imported from `…/osct/staging/demo` (build e04673e65644) into the local
