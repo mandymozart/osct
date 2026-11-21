@@ -37,6 +37,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   stage and the Code tab and the Log tab say why (Run in the Code tab still runs one). The person's own code runs without
   asking. The render view asks nobody and runs only what was answered Run before.
 
+## 4.12.2 – 2026-11-21
+
+### Fixed
+- **The Logic view's … settings open under their button** (#334): in a narrow panel the … wraps to the bar's second
+  row, and the settings opened left of it, outside the panel; they now open from the button's left edge, kept on the
+  screen.
+
 ## 4.12.1 – 2026-11-21
 
 ### Changed

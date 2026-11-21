@@ -138,14 +138,15 @@
   /** The newest line seen: the timeline as it stands when the panel opens counts as seen – nothing is replayed */
   let liveSeen = untrack(() => markSeen(stage?.events ?? []));
   let livePulse = 0;
-  /** The view settings' popover (Follow, Trace): under its … button, right-aligned to it */
+  /** The view settings' popover (Follow, Trace): under its … button, from its left edge */
   let viewButton = $state<HTMLButtonElement>();
   let viewPop = $state<HTMLDivElement>();
   let viewAt = $state({ x: 0, y: 0 });
   const placeViewPop = (e: Event) => {
     if ((e as ToggleEvent).newState !== "open" || !viewButton || !viewPop) return;
     const r = viewButton.getBoundingClientRect();
-    viewAt = { x: Math.max(8, r.right - (viewPop.offsetWidth || 160)), y: r.bottom + 4 };
+    // From the button's left edge (it may sit first in a wrapped bar), kept on the screen
+    viewAt = { x: Math.max(8, Math.min(r.left, window.innerWidth - (viewPop.offsetWidth || 160) - 8)), y: r.bottom + 4 };
   };
   const setLive = (on: boolean) => {
     liveOn = on;
