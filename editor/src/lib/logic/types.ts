@@ -215,8 +215,11 @@ export type RulePlace = { doc: "entity"; target: string; path: number[] } | { do
  * level's view (`[box, port]`, an edge's id); the others name the document place (`Home`). `verb`: the verb of the action a
  * `connect` from a rule's `do` to a node makes (show by default).
  */
-export type Op =
-  | { op: "addRule"; at: RulePlace; on?: string }
+export type Op = (
+  /** `when` / `do`: the new rule comes with a condition and actions (the add menu's action with no rule selected, #334) */
+  | { op: "addRule"; at: RulePlace; on?: string; when?: string | null; do?: BehaviourAction[] }
+  /** What a rule hears (a wire dropped from its on on the empty canvas, #334) */
+  | { op: "setEvent"; home: Home; on: string }
   | { op: "connect"; from: [string, string]; to: [string, string]; verb?: BehaviourAction["action"] }
   | { op: "disconnect"; edge: string }
   /** `when`: the condition's expression (null: always) – type-checked before it is written (B8) */
@@ -224,4 +227,11 @@ export type Op =
   | { op: "addAction"; home: Home; action: BehaviourAction }
   | { op: "removeAction"; home: Home }
   | { op: "removeRule"; home: Home }
-  | { op: "canvas"; edit: CanvasEdit };
+  | { op: "canvas"; edit: CanvasEdit }
+) & {
+  /**
+   * Pin the box the op creates where it was asked for (a wire let go on the empty canvas, a right click there – flow
+   * coordinates, schema 5.2): a new rule's box, else the first box new to the level (a variable, an event)
+   */
+  pin?: { x: number; y: number };
+};

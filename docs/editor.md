@@ -525,13 +525,41 @@ writes is type-checked first (B8).
   side is another scene or a plugin's code, and a derived goto between scenes, are refused with the reason. Delete and
   Backspace in the panel never reach the workspace.
 - **The menu** – a right click on the empty canvas, the panel's **+**, or a node type dragged from the Library's **Nodes**:
-  what fits here (`logic/palette.ts`, the one list the menu and the Library read): a rule on the selected node (picked on
-  the canvas or in the tree; on a target's level its own; on the scene level with no node selected the scene's own, on the
-  experience level the experience's – they offer bus events only), an action (play / pause / stop / show / hide a named
-  node of the rule's subtree or, for a scene rule, an address of its scene's targets; set a variable to a typed value; emit
-  an event; **goto** a scene) or a condition term for the rule selected on the canvas. A filter field on
-  top narrows it; typing `emit name`, `set name`, `when name` or `rule on name` offers a new name. A right click on a box
-  offers *Open its level*, *Select*, *Add …* and *Delete the rule*; on a wire *Disconnect*.
+  **every type** (`logic/palette.ts`, the one list the menu and the Library read; #334), grouped by family under a
+  header – *Events*, *Conditions*, *Actions*, then *Not added here*. Its head is just *Add* (*Add event* for a type dropped
+  from the Library) – where it goes is the breadcrumb's. Each row is one line: the thing chosen on the left (`keyRattled`,
+  `when hasKey`, `goto 3–4`, `set hasKey = true`), its type on the right as the legend draws it (the signal's pin and
+  colour – `SignalPin.svelte`, the legend's own – and a word: event, condition, action, node rule …); the detail is the
+  row's tooltip. An **event** makes a new rule hearing it on the selected node (picked on the canvas or in the tree; on a
+  target's level its own; on the scene level with no node selected the scene's own, on the experience level the
+  experience's – they offer bus events only). An **action** (play / pause / stop / show / hide a named node of the rule's
+  subtree or, for a scene rule, an address of its scene's targets; set a variable to a typed value; emit an event; **goto**
+  a scene) or a **condition** term goes to the rule selected on the canvas – and with **no rule selected** to a **new
+  rule** on the same place that hears its first event (`firstEvent`: a node's rule `found` – the target is seen –, a
+  scene's or the experience's `sceneChanged` – the scene opens; the header says which, e.g. *Actions – a new rule on
+  found*); wire another event to its on to change it. Only what cannot be made on the canvas stays a grey line: a node
+  (the tree), a plugin (Code), a scene or a group (Scenes); on the experience level the node verbs (pick the node in the
+  Inspector). A filter field on top narrows it by any word of the row and the words people type for it (`rule`, `on`);
+  typing `emit name`, `set name`, `when name` or `rule on name` offers a new name. A new box made from a right click on
+  the canvas is **pinned where the menu was opened**. A right click on a box offers *Open its level*, *Select*, *Add …*
+  and *Delete the rule*; on a wire *Disconnect*.
+- **A wire let go on the empty canvas** (over no pin, #334) opens the same menu at the drop point, listing what can be
+  made **and wired to that port** – by the rules of the strict connect (`wireChoices`): from a rule's **+** an action
+  (to that rule), back from its **on** an event to hear (`setEvent`), from its **when** a condition; from an event's outlet
+  a new rule hearing it (on the selected node and on the scene); back from an event's inlet a new rule emitting it (not a
+  core event); from a variable a new rule reading it, back from its *set* one setting it; from a node's verb inlet a new
+  rule acting on it (its own rule, or the scene's by address); at the experience level from a scene's *arrives* a goto.
+  A value inlet no rule action writes yet (a parameter, a file) is a grey line with the reason. The new box – the rule,
+  else the variable or event it names – is **pinned where the wire was let go** (`op.pin`, saved with the rules: one
+  step in History).
+- **Selecting** (the deck's way, #334): a drag on the empty canvas draws a **selection box** – every box and wire it
+  touches is selected (xyflow's partial mode), Shift adds to the selection – so **Group** / **Ctrl+G** and **Delete** act
+  on them; Delete removes the selected wires, then the selected rules from the last one up, in one go (a node, an event
+  or a variable stays). Panning moves to the **middle button**, **Space + drag** and the wheel or the trackpad. Copy and
+  paste are graph fragments (L-T16), not here yet.
+- **A plugin's ports** (hears, emits, reads, sets, goto, arrives, drives) are drawn from its code's declared uses: they are
+  read-only – an outline pin, never lit as a taker while a wire is dragged (`takesWire`), and a click (or a wire let go
+  on one) opens the plugin in the Code tab instead of a refusal.
 - **After each op** its trees go to the stage as the Inspector's edits do (`stage.override`): live at once, saved by the
   autosave (`tree-autosave.ts`, held while a rule is incomplete), a step in History that undo reverts. A scene's or the
   experience's rules go to `logic-edit.svelte.ts`, which saves them by themselves (`PUT …/scenes/{sid}` `{ logic }`,

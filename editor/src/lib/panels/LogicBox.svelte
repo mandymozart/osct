@@ -74,7 +74,15 @@
   const lit = (id: string) => (data.takes ? (data.takes.has(id) ? " takes" : " refuses") : "");
   const pinClass = (p: FlowPort, extra = "") => `pin shape-${SIGNAL_STYLES[p.deck].shape} sig-${p.deck}${p.kind ? ` kind-${p.kind}` : ""}${extra}${lit(handleId(p))}`;
   const pinStyle = (p: FlowPort, top: number) => `top: ${top}px; --pin: var(${signalToken(p.deck)})`;
-  const portTitle = (p: FlowPort) => `${p.owner ? `${p.owner} · ` : ""}${p.label || p.deck}${p.detail ? ` – ${p.detail}` : ""}`;
+  /**
+   * A plugin's bus ports (hears, emits, reads, sets, goto, arrives, drives) are drawn from its code's declared uses: read-only
+   * (#334) – no wire starts or ends there, the pin is an outline, a click opens the plugin in the Code tab
+   */
+  const usesOnly = $derived(!pill && !box.stub && node!.kind === "plugin");
+  const portTitle = (p: FlowPort) => (usesOnly
+    ? `${p.label}: from ${label}'s code (uses) – click to open it in the Code tab`
+    : `${p.owner ? `${p.owner} · ` : ""}${p.label || p.deck}${p.detail ? ` – ${p.detail}` : ""}`);
+  const pinOf = (p: FlowPort, extra = "") => pinClass(p, `${extra}${usesOnly ? " uses" : ""}`);
 
   const keydown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && enterable) {
@@ -125,19 +133,19 @@
     {/if}
   </span>
   {#each headIns as p, i (p.id)}
-    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinClass(p)} style={pinStyle(p, headTop(i, headIns.length))} isConnectable={data.editable} title={portTitle(p)} />
+    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, headTop(i, headIns.length))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
   {/each}
   {#each headOuts as p, i (p.id)}
-    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinClass(p, p.id === "do" ? " add" : "")} style={pinStyle(p, headTop(i, headOuts.length))} isConnectable={data.editable}
+    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p, p.id === "do" ? " add" : "")} style={pinStyle(p, headTop(i, headOuts.length))} isConnectable={data.editable && !usesOnly}
       title={p.id === "do" ? "Drag to a node, a variable or an event: a new action" : portTitle(p)} />
   {/each}
   {#each rows.ins as p, i (`in:${p.id}`)}
     <span class="pin-label in" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title={portTitle(p)}>{p.label}</span>
-    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinClass(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable} title={portTitle(p)} />
+    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
   {/each}
   {#each rows.outs as p, i (`out:${p.id}`)}
     <span class="pin-label out" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title={portTitle(p)}>{p.label}</span>
-    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinClass(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable} title={portTitle(p)} />
+    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
   {/each}
 </div>
 
@@ -203,6 +211,8 @@
   }
   .box :global(.pin.add::after) { content: "+"; color: var(--text); pointer-events: none; }
   .box :global(.pin.connectable) { cursor: crosshair; }
+  /* A plugin's port from its code's uses: an outline, no wire starts or ends there (a click opens the Code tab) */
+  .box :global(.pin.uses) { background: var(--control-background); border: 1px solid var(--pin); cursor: pointer; }
   /* While a wire is dragged: what takes it heavy, the rest faded */
   .box :global(.pin.takes) { outline: 2px solid var(--text); outline-offset: 1px; clip-path: none; }
   .box :global(.pin.refuses) { opacity: .25; }

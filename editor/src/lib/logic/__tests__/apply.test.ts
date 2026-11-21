@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { behaviourRules, type EntityData } from "@engine/types";
-import { apply, type OpResult } from "../apply";
-import { addChoices, fitsHere, palette } from "../palette";
+import { apply, takesWire, type OpResult } from "../apply";
+import { addChoices, fitsHere, palette, wireChoices } from "../palette";
 import { project, type LogicContent } from "../project";
 import type { Context, Home, Op } from "../types";
 import { content } from "./fixture";
@@ -193,12 +193,16 @@ describe("which node types fit here (#334 L-T4)", () => {
     expect(entries.find(e => e.kind === "goto")?.addable).toBe(true);
   });
 
-  it("a rule needs a node, an action or a condition needs a rule, the upper levels none", () => {
+  it("an action or a condition needs a rule or a place for a new one, the group level nothing", () => {
     const place = { doc: "entity" as const, target: "door", path: [] };
     const ruleRef = { doc: "entity" as const, target: "door", path: [], component: 1, rule: 0 };
     expect(fitsHere("rule", { context: scene, place: null, rule: null })).toMatch(/Select a node/);
     expect(fitsHere("rule", { context: scene, place, rule: null })).toBeNull();
-    expect(fitsHere("show", { context: scene, place, rule: null })).toMatch(/Select a rule/);
+    // No rule selected: a new rule on the place carries it (#334)
+    expect(fitsHere("show", { context: scene, place, rule: null })).toBeNull();
+    expect(fitsHere("show", { context: scene, place: null, rule: null })).toMatch(/Select a node/);
+    expect(fitsHere("show", { context: { level: "experience" }, place: { doc: "experience" }, rule: null })).toMatch(/Inspector/);
+    expect(fitsHere("set", { context: { level: "experience" }, place: { doc: "experience" }, rule: null })).toBeNull();
     expect(fitsHere("show", { context: scene, place, rule: ruleRef })).toBeNull();
     expect(fitsHere("show", { context: { level: "group", group: "ch1" }, place, rule: ruleRef })).toMatch(/read-only/);
     expect(fitsHere("plugin", { context: scene, place, rule: ruleRef })).toMatch(/Code tab/);
@@ -209,14 +213,98 @@ describe("which node types fit here (#334 L-T4)", () => {
     const shows = addChoices(a, { query: "show" });
     expect(shows.map(c => c.label)).toEqual(["show its own node", "show door", "show hint"]);
     expect(shows[2].op).toEqual({ op: "addAction", home: { doc: "entity", target: "door", path: [], component: 1, rule: 0, part: "do" }, action: { action: "show", node: "hint" } });
-    expect(addChoices(a, { query: "rule on bellR" }).map(c => c.label)).toEqual(["rule on bellR", "rule on bellRang"]);
-    expect(addChoices(a, { query: "rule on bellRang" }).map(c => c.label)).toEqual(["rule on bellRang"]);
+    // An event entry names the event; the words people type for it ("rule", "on") still find it
+    expect(addChoices(a, { query: "rule on bellR" }).map(c => c.label)).toEqual(["bellR", "bellRang"]);
+    expect(addChoices(a, { query: "rule on bellRang" }).map(c => c.label)).toEqual(["bellRang"]);
+    expect(addChoices(a, { query: "bellRang" })[0]).toMatchObject({ group: expect.stringMatching(/^Events/), signal: "event", type: "event" });
     expect(addChoices(a, { query: "emit fooBar" })[0]).toMatchObject({ label: "emit fooBar", detail: "a new event" });
     expect(addChoices(a, { kind: "variable" }).map(c => c.label)).toContain("when hasKey");
-    // Without a rule: one line says why the actions are not offered
+    // Without a rule: every type is offered – an action or a condition makes a new rule on the place's first event (#334)
     const none = addChoices({ ...a, rule: null });
-    expect(none.filter(c => c.disabled).map(c => c.label)).toEqual(["variable, play, pause, stop, show, hide, set, emit, goto"]);
+    expect(none.filter(c => c.disabled).map(c => c.label)).toEqual(["node", "plugin", "scene", "group"]);
+    expect([...new Set(none.map(c => c.group))]).toEqual(["Events – a new rule on door hears it", "Conditions – a new rule on found", "Actions – a new rule on found", "Not added here"]);
+    const hint = none.find(c => c.label === "show hint")!;
+    expect(hint.op).toEqual({ op: "addRule", at: { doc: "entity", target: "door", path: [] }, do: [{ action: "show", node: "hint" }] });
+    expect(hint).toMatchObject({ signal: "address", type: "action" });
+    const made = ok(apply(hint.op!, content, entity));
+    expect(doorRules(made.content).at(-1)).toEqual({ on: "found", when: null, do: [{ action: "show", node: "hint" }] });
+    expect(none.find(c => c.label === "when hasKey")?.op).toEqual({ op: "addRule", at: { doc: "entity", target: "door", path: [] }, when: "hasKey" });
+    expect(addChoices({ ...a, rule: null }, { query: "set fooBar" })[0].op).toEqual({ op: "addRule", at: { doc: "entity", target: "door", path: [] }, do: [{ action: "set", name: "fooBar", value: "true" }] });
+    for (const choice of none.filter(c => c.op)) expect(apply(choice.op!, content, entity).ok, choice.label).toBe(true);
     // Every op it offers applies
     for (const choice of addChoices(a).filter(c => c.op)) expect(apply(choice.op!, content, entity).ok, choice.label).toBe(true);
+  });
+});
+
+describe("which ports take a dragged wire (#334)", () => {
+  it("a plugin's bus ports never do – they come from its code's uses", () => {
+    const epilogue: Context = { level: "scene", scene: "epilogue" };
+    const view = project(content, epilogue);
+    const plugin = view.nodes.find(n => n.kind === "plugin")!;
+    expect(plugin).toBeTruthy();
+    const variable = view.nodes.find(n => n.kind === "variable")!;
+    const takes = takesWire(content, epilogue, [variable.id, "get"], "out");
+    expect(takes.has(plugin.id)).toBe(false);
+    // A rule's when does take it
+    expect([...takes.values()].some(ports => ports.has("when"))).toBe(true);
+    expect(takesWire(content, epilogue, [plugin.id, "emits"], "out").size).toBe(0);
+  });
+});
+
+describe("a wire let go on the empty canvas (#334)", () => {
+  const place = { doc: "entity" as const, target: "door", path: [] };
+  const a = { content, context: scene, place, rule: null };
+  const box = (id: string) => project(content, scene).nodes.find(n => n.id === id)!;
+
+  it("from a rule's + : the actions for that rule, each wiring an action", () => {
+    const choices = wireChoices(a, { node: box("rule:door/#0"), port: "do", dir: "out" });
+    expect(choices.every(c => !c.op || c.op.op === "addAction")).toBe(true);
+    expect(choices.map(c => c.label)).toContain("emit bellRang");
+    for (const c of choices.filter(c => c.op)) expect(apply(c.op!, content, scene).ok, c.label).toBe(true);
+  });
+
+  it("from an event's outlet: a rule hearing it, on the selected node and on the scene – pinned where it was let go", () => {
+    const choices = wireChoices(a, { node: box("event:bellRang"), port: "out", dir: "out" });
+    expect(choices.map(c => c.op)).toEqual([
+      { op: "addRule", at: place, on: "bellRang" }, { op: "addRule", at: { doc: "scene", scene: "door" }, on: "bellRang" },
+    ]);
+    const result = ok(apply({ ...choices[1].op!, pin: { x: 100, y: 37 } }, content, scene));
+    const view = project(result.content, scene);
+    const rule = view.nodes.find(n => n.kind === "rule" && n.home?.doc === "scene")!;
+    expect(result.content.scenes[1].canvas?.positions?.[rule.id]).toEqual({ x: 96, y: 32 });
+    expect(view.edges.some(e => e.from[0] === "event:bellRang" && e.to[0] === rule.id)).toBe(true);
+    expect(result.canvas).toHaveLength(1);
+  });
+
+  it("from a rule's on and when: an event to hear, a condition to read", () => {
+    const on = wireChoices(a, { node: box("rule:door/#0"), port: "on", dir: "in" });
+    const bell = on.find(c => c.label === "bellRang")!;
+    expect(doorRules(ok(apply(bell.op!, content, scene)).content)[0].on).toBe("bellRang");
+    expect(on.some(c => c.label === "found")).toBe(false);
+    const when = wireChoices(a, { node: box("rule:door/#0"), port: "when", dir: "in" });
+    expect(when.map(c => c.label)).toContain("when hasKey");
+  });
+
+  it("from a variable: a new rule reading it, or setting it", () => {
+    const reads = wireChoices(a, { node: box("var:hasKey"), port: "get", dir: "out" });
+    expect(reads[0].op).toMatchObject({ op: "addRule", when: "hasKey" });
+    const sets = wireChoices(a, { node: box("var:hasKey"), port: "set", dir: "in" });
+    expect(sets[0].op).toMatchObject({ op: "addRule", do: [{ action: "set", name: "hasKey", value: "true" }] });
+    for (const c of [...reads, ...sets].filter(c => c.op)) expect(apply(c.op!, content, scene).ok, c.label).toBe(true);
+  });
+
+  it("into a node's verb inlet: a rule acting on it; a value inlet no action writes is a grey line", () => {
+    const view = project(content, scene);
+    const hint = view.nodes.find(n => n.kind === "node" && n.label === "hint")!;
+    const choices = wireChoices(a, { node: hint, port: "in", dir: "in" });
+    expect(choices.map(c => c.label)).toContain("show hint · hint");
+    for (const c of choices.filter(c => c.op)) expect(apply(c.op!, content, scene).ok, c.label).toBe(true);
+    const door = view.nodes.find(n => n.ports.some(p => p.kind === "param"));
+    if (door) {
+      const param = door.ports.find(p => p.kind === "param")!;
+      const grey = wireChoices(a, { node: door, port: param.id, dir: "in" });
+      expect(grey).toHaveLength(1);
+      expect(grey[0].disabled).toMatch(/no rule action sets a component's parameter/);
+    }
   });
 });
