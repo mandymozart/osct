@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+### Changed
+- The demo lives in the staging database like in SCUTOONS (#322 decision (b)): `fixtures/demo` is now its committed
+  export (`osct content export --experience demo --from draft`) – *The Demo Book* with print data, nine scenes (the Cat
+  Pope poster SCUTOONS test and *Mark the Page* among them) and twenty plugins. `DEMO.md`, carried over by the export,
+  says what each part shows now that the YAML has no comments.
+- `.github/workflows/demo.yml` only builds `fixtures/demo` as a check; it no longer syncs it to staging, where it competed
+  with the editor's Publish (docs/content-cdn.md, docs/editor.md). The CLI still refuses a demo build for production.
+- The content build's zero-plane check (#189) reads the bounds of models the build optimised: positions stored as
+  normalized integers (KHR_mesh_quantization, as gltfpack writes them with meshopt) are dequantized instead of read as
+  metres; the demo's test names the models that still float or sink in the exported content.
+
 ## 4.6.0 – 2026-11-21
 
 ### Added

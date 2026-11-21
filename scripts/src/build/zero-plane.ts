@@ -8,7 +8,8 @@ import { buildWarnings } from '../lib/errors';
 /**
  * The page is the book's zero plane (#189): every model that stands on a page has its lowest point at z = 0 of its
  * target (the paper) – not floating above it, not sunk into it. The check reads each model's bounding box from its glTF
- * file (the accessors' min / max of its meshes' positions through the scene's node transforms), carries it through the
+ * file (the accessors' min / max of its meshes' positions – dequantized when the build stored them as normalized
+ * integers – through the scene's node transforms), carries it through the
  * placement of every node above it in the entity's tree, and warns when its lowest point is further from the page than
  * `ZERO_PLANE_TOLERANCE`, with the z position that would put it there. A model meant to float (a bird, a lamp on a wire)
  * keeps the warning – the author decides; nothing is refused.
@@ -26,8 +27,23 @@ interface Gltf {
   scenes?: Array<{ nodes?: number[] }>;
   nodes?: GltfNode[];
   meshes?: Array<{ primitives: Array<{ attributes: Record<string, number> }> }>;
-  accessors?: Array<{ min?: number[]; max?: number[] }>;
+  accessors?: Array<{ min?: number[]; max?: number[]; componentType?: number; normalized?: boolean }>;
 }
+
+/**
+ * The largest value of a normalized integer component type (glTF 2.0 §3.11): BYTE, UNSIGNED_BYTE, SHORT, UNSIGNED_SHORT.
+ * A model the build optimised (meshopt with KHR_mesh_quantization, #87) stores its positions as normalized integers –
+ * the accessor's min / max are those integers, the node above the mesh scales them back.
+ */
+const NORMALIZED_MAX: Record<number, number> = { 5120: 127, 5121: 255, 5122: 32767, 5123: 65535 };
+
+/** An accessor's min or max as the floats the mesh shows: normalized integers dequantized (signed: max(c / max, -1)) */
+export const accessorBound = (accessor: { componentType?: number; normalized?: boolean }, values: number[]): Vector3 => {
+  const divisor = accessor.normalized ? NORMALIZED_MAX[accessor.componentType ?? 0] : undefined;
+  const signed = accessor.componentType === 5120 || accessor.componentType === 5122;
+  const value = (v: number) => (divisor ? (signed ? Math.max(v / divisor, -1) : v / divisor) : v);
+  return new Vector3(value(values[0]), value(values[1]), value(values[2]));
+};
 
 /** The JSON of a glTF file: a .glb's first chunk, or a .gltf as it is; null when it is neither */
 export const readGltfJson = (bytes: Buffer): Gltf | null => {
@@ -62,7 +78,7 @@ export const gltfBounds = (gltf: Gltf): Box3 | null => {
     for (const primitive of node.mesh !== undefined ? gltf.meshes?.[node.mesh]?.primitives ?? [] : []) {
       const accessor = gltf.accessors?.[primitive.attributes.POSITION];
       if (!accessor?.min || !accessor.max) continue;
-      box.union(new Box3(new Vector3(...accessor.min), new Vector3(...accessor.max)).applyMatrix4(world));
+      box.union(new Box3(accessorBound(accessor, accessor.min), accessorBound(accessor, accessor.max)).applyMatrix4(world));
     }
     (node.children ?? []).forEach(child => visit(child, world, depth + 1));
   };

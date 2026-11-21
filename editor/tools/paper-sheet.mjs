@@ -1,11 +1,12 @@
 /**
- * The demo experience's sheet of paper (`fixtures/demo/entries/screen/sheet.glb`): a slightly bent plane the `paper` component
+ * The demo experience's sheet of paper (`fixtures/demo/entries/screen/v1.glb` – the export's name for it, #322): a slightly bent plane the `paper` component
  * (`fixtures/demo/plugins/paper`) shows the screen's video on. Written as glTF 2.0 binary directly – no Blender, no
  * dependencies – so the file is the same on every machine and a test can rebuild it.
  *
  *     node editor/tools/paper-sheet.mjs [out.glb]
  *
- * Writes the demo's `sheet.glb` unless another path is given.
+ * Writes the demo's sheet (`v1.glb`) unless another path is given. The demo lives in the staging database (#322): a
+ * changed sheet is uploaded in the editor, then the demo exported again.
  *
  * The file is laid out as a sheet comes out of Blender, so the component is tried on what an artist delivers: a plane of
  * 9 × 9 vertices lying on the floor (glTF's XZ plane, Y up), its near edge on the X axis, sized and turned by its node
@@ -127,7 +128,7 @@ export const buildSheetGlb = ({ flat = false } = {}) => {
 };
 
 /** Where the demo experience keeps the sheet, from the repository's root */
-export const SHEET_MODEL_PATH = "fixtures/demo/entries/screen/sheet.glb";
+export const SHEET_MODEL_PATH = "fixtures/demo/entries/screen/v1.glb";
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const out = process.argv[2] ?? fileURLToPath(new URL(`../../${SHEET_MODEL_PATH}`, import.meta.url));

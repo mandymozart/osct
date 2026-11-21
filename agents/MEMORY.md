@@ -209,6 +209,19 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-21 – fixtures/demo is the staging demo's export; demo.yml no longer syncs (#322 decision (b))
+
+- `fixtures/demo` = `osct content export --experience demo --from draft` from staging (the DB side won – Tilman's
+  plugins and scenes kept; the export carries all 20 plugins). The CI workflow `demo.yml` only builds it: its sync to
+  `osct/staging/demo/` competed with the editor's Publish. Re-export and commit after demo changes worth keeping.
+- The zero-plane reader misread quantized `.glb` files (normalized SHORT positions from gltfpack) as metres; now
+  dequantized. Real findings left in the exported content, asserted by name in the demo test (Tilman's call – fix in the
+  editor, then drop them from the test):
+  - [ ] `entities/catpope-overlay` children 1–19 float 0.01–0.46 target widths (the poster's figures – likely on purpose)
+  - [ ] `entries/key` floats 0.1627 (its `position` z 0.1627; with 0 it stands on the page)
+  - [ ] `entries/mark` dips 0.0159 below the page at its lowest baked frame (position z 0.004)
+- [ ] The export warns that the catpope parts' asset ids (`part-00`…) do not start with `catpope-overlay-<n>-`.
+
 ## 2026-11-21 – Logic canvas: free placement, groups and the deck's node styles with colour (#334 L-T7/L-T8)
 
 - Tilman: *"free placement on canvas. and grouping like we have in the scutoons deck. also adopt the node styles we

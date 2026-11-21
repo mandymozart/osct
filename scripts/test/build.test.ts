@@ -265,7 +265,7 @@ describe('the test fixture', () => {
 });
 
 describe('the demo', () => {
-  it('builds without errors: every node type, the covers, a shared entity, fourteen plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file, two with looks)', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, twenty plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file, two with looks)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
@@ -323,7 +323,19 @@ describe('the demo', () => {
       ...Object.entries(build.entities.buildEntities()).map(([ref, node]) => ({ label: `entities/${ref}`, node })),
       ...entries.flatMap(e => (e.target?.entity && !('ref' in e.target.entity) ? [{ label: `entries/${e.id}`, node: e.target.entity }] : [])),
     ];
-    expect(trees.flatMap(({ node, label }) => zeroPlaneFindings(node, label, contentModelBounds))).toEqual([]);
+    // The demo is the staging database's export (#322): its models are the CDN-optimised files (meshopt, quantized
+    // positions – the bounds reader dequantizes them). What still floats or sinks is the database content as edited, not a
+    // reader bug – known findings, each named, for Tilman to keep or fix in the editor (then remove it here):
+    // - entities/catpope-overlay children[1..19]: the Cat Pope poster's layers (SCUTOONS test), stacked above the page
+    // - entries/key: lifted by its position z 0.1627 (with 0 it stands on the page)
+    // - entries/mark: the baked paper frames dip 0.016 target widths below the page at their lowest (position z 0.004)
+    const findings = trees.flatMap(({ node, label }) => zeroPlaneFindings(node, label, contentModelBounds));
+    expect(findings.map(f => [f.label, f.lowest])).toEqual([
+      ...[0.2013, 0.0098, 0.0323, 0.1724, 0.4623, 0.1145, 0.1294, 0.1892, 0.1178, 0.2595, 0.1392, 0.2193, 0.2309, 0.044, 0.2189, 0.4332, 0.2659, 0.3192, 0.1823]
+        .map((lowest, i) => [`entities/catpope-overlay children[${i + 1}]`, lowest]),
+      ['entries/key', 0.1627],
+      ['entries/mark', -0.0159],
+    ]);
   });
 });
 

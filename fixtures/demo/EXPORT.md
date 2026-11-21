@@ -9,11 +9,11 @@ export – change the experience in the editor and export it again. `osct conten
 | Instance | https://osct.porschuetz.de/api |
 | Experience | demo – The Demo Book |
 | From | the draft |
-| Build | 2070ccd02195 |
-| Hash | 2070ccd02195f8e2b90b0215c56bb5bbd839de8dc8ac07c64faed2efd4dd6612 |
+| Build | e7a73c9e236f |
+| Hash | e7a73c9e236f0054980938080076ba77ecdc9f871a077ca407b0bada3981f849 |
 | Content schema | 5.0 |
-| Exported | 2026-11-21T09:49:24.713Z |
-| App version | 4.4.1 (instance), 4.4.1 (osct CLI) |
+| Exported | 2026-11-21T10:21:51.407Z |
+| App version | 4.6.1 (instance), 4.6.0 (osct CLI) |
 | Files | 62 (export.json: URL, sha256, size of each) |
 
 What the content source cannot hold (left out or changed):

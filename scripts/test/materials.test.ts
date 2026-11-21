@@ -154,6 +154,18 @@ describe('the zero plane (#189)', () => {
     expect(box.max.toArray()).toEqual([2, 4, 2]);
   });
 
+  it('dequantizes positions the build stored as normalized integers (KHR_mesh_quantization, #322)', () => {
+    // As gltfpack writes them: normalized SHORT positions, the node above the mesh scales them back
+    const box = gltfBounds({
+      scene: 0, scenes: [{ nodes: [0] }],
+      nodes: [{ children: [1] }, { mesh: 0, translation: [0, 0.5, 0], scale: [0.5, 0.5, 0.5] }],
+      meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+      accessors: [{ componentType: 5122, normalized: true, min: [-16384, -32767, -32768], max: [16384, 32767, 3277] }],
+    })!;
+    expect(box.min.toArray().map(v => Math.round(v * 1000) / 1000)).toEqual([-0.25, 0, -0.5]);
+    expect(box.max.toArray().map(v => Math.round(v * 1000) / 1000)).toEqual([0.25, 1, 0.05]);
+  });
+
   it('a .glb whose JSON chunk is broken reads as no glTF, it does not throw', () => {
     const text = Buffer.from('{"asset": ');
     const header = Buffer.alloc(20);

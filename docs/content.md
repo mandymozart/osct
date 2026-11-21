@@ -1161,6 +1161,11 @@ OSCT_API_URL=http://127.0.0.1:8080/api OSCT_EDITOR_TOKEN=osct_… \
   npm run osct -- content export --experience demo [--from draft|live|<build>] [--out <dir>] [--force] [--assets-base <url>]
 ```
 
+- **The demo** (#322 decision (b)): `fixtures/demo` is the export of the staging database's `demo`, `--from draft`
+  (`OSCT_API_URL=https://osct.porschuetz.de/api`, an editor token). The demo is edited and published in the staging
+  editor; re-export and commit what should stay. CI only builds the folder (`.github/workflows/demo.yml`), it does not
+  sync it – the editor's Publish is the one path to the demo's store. Its YAML has no comments (an export writes none):
+  what it shows is in `fixtures/demo/DEMO.md`, which the export carries over.
 - **What it reads**: the export endpoint (`GET /editor/experiences/{id}/export[?build=]`, docs/server.md "Export") –
   `--from draft` (the default), `live` (the build live on the instance's own environment) or a published build (12 hex
   digits). `OSCT_API_URL` (default the local dev API) and `OSCT_EDITOR_TOKEN` (an editor token, AI connections) as for
