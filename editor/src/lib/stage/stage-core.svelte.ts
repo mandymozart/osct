@@ -5,7 +5,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
-import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
+import { allVars, ArScene, type HandRun, observeEvents, resetVars, type RuleHome, runRuleByHand, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { setDeviceStorage } from "@engine/utils/device-storage";
 import { getExperience, getTarget, getTargets } from "@engine/content/game-config";
@@ -124,6 +124,10 @@ export class StageCore {
   private sceneOpenedAt = performance.now();
   /** The plugin API's variables, as the Inspector writes them – the same checks and `varChanged` as a plugin's `set` */
   private panelVars = runtimeApi("stage").vars;
+  /** The plugin API's events, as the Logic panel fires one by hand (#334) – the same checks as a plugin's `emit` */
+  private panelEvents = runtimeApi("stage").events;
+  /** The event whose next line the timeline marks *by hand* (`fire`, `runRule`), null when none is awaited */
+  private byHand: string | null = null;
   /** Entities shown with other values than the draft's, by target id (the page's overrides, as it sent them) */
   private overrides = new Map<string, EntityData>();
   private replayTimer = 0;
@@ -211,7 +215,11 @@ export class StageCore {
       observeEvents((event, payload) => {
         const now = performance.now();
         if (event === "sceneChanged") this.sceneOpenedAt = now;
-        this.events = logEvent(this.events, { event, detail: describePayload(payload), at: now - this.sceneOpenedAt, t: now });
+        // The line of what the Logic panel set off by hand (#334) says so – only the first line of that name, not what it set off
+        const byHand = this.byHand === event;
+        if (byHand) this.byHand = null;
+        const detail = describePayload(payload);
+        this.events = logEvent(this.events, { event, detail: byHand ? (detail ? `${detail} · by hand` : "by hand") : detail, at: now - this.sceneOpenedAt, t: now });
         if (event === "varChanged" || event === "sceneChanged") this.vars = allVars();
       }),
     );
@@ -870,6 +878,40 @@ export class StageCore {
       return null;
     } catch (error) {
       return (error instanceof Error ? error.message : String(error)).replace(/^stage: /, "");
+    }
+  }
+
+  /**
+   * Fire an event on the bus by hand (the Logic panel's *Fire on stage*, #334) as a plugin's `emit` does: the open scene's
+   * and the experience's rules that hear it run, every plugin hears it, the timeline marks its line *by hand*. Only the
+   * running stage changes, never the draft. The refusal as text (the stage is not running, a core event, no event name),
+   * null when fired
+   */
+  fire(event: string, payload?: Record<string, unknown>): string | null {
+    if (this.status !== "running") return "The stage is not running.";
+    this.byHand = event;
+    try {
+      this.panelEvents.emit(event, payload);
+      return null;
+    } catch (error) {
+      return (error instanceof Error ? error.message : String(error)).replace(/^stage: /, "");
+    } finally {
+      this.byHand = null;
+    }
+  }
+
+  /**
+   * Run one rule on the stage as if its event had come (the Logic panel's *Run this rule*, #334 – `runRuleByHand`): its
+   * condition applies, its actions run, the timeline marks its `behaviour` line *by hand*. `rule`: its index in its list.
+   * `stopped` while the stage does not run
+   */
+  runRule(home: RuleHome, rule: number): HandRun | "stopped" {
+    if (this.status !== "running") return "stopped";
+    this.byHand = "behaviour";
+    try {
+      return runRuleByHand(home, rule);
+    } finally {
+      this.byHand = null;
     }
   }
 

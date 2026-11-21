@@ -222,6 +222,36 @@ Verbatim from the archived entries (the entry title and archive file in front of
   (`OSCT_CONTENT_DIR=fixtures/demo npm run content`), import via `POST …/import` with `assetsBase` 5174, the sources via
   `PUT …/plugins/<id>`; mail codes are rate-limited (a few per hour) – set a test password in the local DB instead.
 
+## 2026-11-21 – Logic canvas: setting things off on the stage by hand (5.1.0, #334)
+
+- Tilman: *"is there a way i can manually trigger an event from the nodes to test what firing them would look like down the
+  line?"* – the proposal agreed (*"ja vorschlag ist gut"*): a box's right-click menu on the Logic canvas – an event box
+  **Fire on stage** / **Fire with a payload…** (and a ▶ on its head where a pointer hovers), a node's own `tap` box **Tap on
+  stage**, a variable box **Set on stage…**, a rule box **Run this rule**. Items: `editor/src/lib/logic/fire.ts` (pure,
+  `__tests__/fire.test.ts`); stage: `Stage.fire` / `Stage.runRule` (two additive methods, `StageCore.fire` emits through
+  `runtimeApi("stage").events`); engine: `runRuleByHand` in `behaviour.ts` (a module-level set of the rule lists on the stage,
+  each registered while built – exported from `@engine/scene`). Docs: `docs/editor.md` ("Testing on the stage"), the docs
+  site's Logic guide ("Setting things off by hand").
+- Decided (*mine*): **Run this rule** runs as if its `on` came – its **when applies** (false: "nothing ran"), no other rule
+  of that event runs; the menu's detail says *as if <event> came – its when (…) applies*. A **core event** cannot be fired
+  (the runtime refuses an `emit` of one; firing `targetFound` by hand would lie about the stage) – the item says what to do
+  instead. A node's `found` / `lost` / `unlocked` boxes are disabled too (the stage's hooks); `tap` is the reader's tap on
+  the target (`stage.tap` – every node of it hears it, so not only that node's rule).
+- Decided: an **event box of another scene** still fires – the bus is the stage's, so the open scene's rules, the
+  experience's and every plugin hear it; the detail says *<scene>'s own rules are not on the stage*. A scene's or a node's
+  **rule** of another scene is disabled (*open it to run its rules*). Read-only levels allow all of it (testing, not
+  editing); only the running stage changes, Restart resets it. The Log marks the fired event's line and the hand-run rule's
+  `behaviour` line ` · by hand` (only that first line; `parseDetail` skips it). A variable's set has no mark – it is the
+  Variables tab's write.
+- A node's rule is found on the stage by target + node name (the engine's behaviour knows no path – as Trace's matching);
+  two nodes of one name with rules in a target are refused with the reason.
+- Fixed on the way: Trace pulsed the **rule after** the one that ran – the engine numbers `behaviour` lines from 1, the
+  documents from 0 (`liveHit` takes one off now; the tests had the same mistake). The docs site's Logic guide said *Live*
+  where the toggle is *Trace*.
+- [ ] Not checked in a running editor (no local API in this session): the menus, the payload field's focus, the ▶ on hover.
+- [ ] Open: a hand-fired *tap* and a variable set carry no *by hand* mark in the Log (`targetTapped` / `varChanged` come from
+  the engine / the API) – add one if Tilman wants it.
+
 ## 2026-11-21 – the stage sandbox dropped: the stage runs in the editor's page, a prompt before others' plugin code (5.0.0, #340)
 
 - **Tilman** (decided in the OSCT session after the SCUTOONS XR session relayed it): *"we can drop the sandbox. since we

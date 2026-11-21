@@ -4,7 +4,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { ExperienceAppearance, Moment } from "@shared/types/appearance";
 import { getPlugins, getTarget } from "@engine/content/game-config";
 import { keepPlugin, pluginRegistryRevision, resetPlugins } from "@engine/scene/plugins";
-import type { VarScope, VarValue } from "@engine/scene";
+import type { HandRun, RuleHome, VarScope, VarValue } from "@engine/scene";
 import type { EntityData, NodeTimeline, PassData } from "@engine/types";
 import { nodeAt, removeNode, withNode } from "#lib/values.js";
 import { plugins } from "#lib/plugins.svelte.js";
@@ -403,6 +403,16 @@ export class Stage {
   /** Set (or delete with `null`) a variable by hand, through the plugin API. The API's refusal as text, null when written */
   async setVar(name: string, value: VarValue | null, scope: VarScope): Promise<string | null> {
     return this.core.setVar(name, value, scope);
+  }
+
+  /** Fire an event on the bus by hand (the Logic panel, #334): rules and plugins hear it, the Log marks it *by hand*. The refusal as text, null when fired */
+  fire(event: string, payload?: Record<string, unknown>): string | null {
+    return this.core.fire(event, payload);
+  }
+
+  /** Run one rule on the stage as if its event had come – its condition applies (the Logic panel, #334) */
+  runRule(home: RuleHome, rule: number): HandRun | "stopped" {
+    return this.core.runRule(home, rule);
   }
 
   /** Tap a found target's entity without aiming at it – the reader's tap; false when nothing was tapped */

@@ -184,7 +184,8 @@ export const liveHit = (index: LiveIndex, line: LiveLine): LiveHit => {
     }
   } else if (line.event === "behaviour") {
     const f = parseDetail(line.detail);
-    const rule = typeof f.rule === "number" ? f.rule : null;
+    // The engine counts a rule from 1 (`rule 1` – `noteBehaviour`), the documents from 0
+    const rule = typeof f.rule === "number" ? f.rule - 1 : null;
     let key: string | null = null;
     if (rule !== null && typeof f.targetId === "string") key = ruleKey({ doc: "entity", target: f.targetId, node: typeof f.node === "string" ? f.node.trim() : "", rule });
     else if (rule !== null && f.home === "scene" && typeof f.scene === "string") key = ruleKey({ doc: "scene", scene: f.scene, rule });

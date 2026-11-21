@@ -50,7 +50,17 @@
     <li><b>A variable changes</b>: its wires light up, and its box shows the new value for a moment.</li>
     <li><b>A rule runs</b>: its box pulses, and the wires out of its actions light up.</li>
   </ul>
-  <p>Only what happens from now on shows – opening the panel does not replay the past. Tap a target on the stage and watch the logic move. If your system asks for reduced motion, the wires only brighten. Turn <b>Live</b> off to keep the canvas still.</p>
+  <p>Only what happens from now on shows – opening the panel does not replay the past. Tap a target on the stage and watch the logic move. If your system asks for reduced motion, the wires only brighten. Turn <b>Trace</b> off to keep the canvas still.</p>
+  <h3 id="test">Setting things off by hand</h3>
+  <p>To see what an event would set off down the line, right-click a box while the stage runs:</p>
+  <div class="table"><table>
+    <tr><th>Box</th><th>Item</th><th>What happens</th></tr>
+    <tr><td>An event</td><td class="wrap"><b>Fire on stage</b>, or <b>Fire with a payload…</b></td><td class="wrap">The event goes out on the stage as a plugin would send it: the rules that hear it run, the plugins hear it. Type a payload as <code>key: value</code> pairs, for example <code>door: front, tries: 2</code>. With a mouse, the <b>▶</b> on the box's head fires it at once.</td></tr>
+    <tr><td>A node's <b>tap</b></td><td class="wrap"><b>Tap on stage</b></td><td class="wrap">The reader's tap on that target – while it is found on the stage.</td></tr>
+    <tr><td>A variable</td><td class="wrap"><b>Set on stage…</b></td><td class="wrap">Pick true or false, or type a number or a text; the rules and plugins hear the change.</td></tr>
+    <tr><td>A rule</td><td class="wrap"><b>Run this rule</b></td><td class="wrap">Its actions, as if its event had come. Its condition still applies – if it is false, nothing runs. No other rule runs.</td></tr>
+  </table></div>
+  <p>The Log marks these lines <i>by hand</i>, and Trace lights the wires. Only the running stage changes, never your draft – <b>Restart</b> on the stage puts it back. It works on read-only levels too. Core events such as <b>targetFound</b> come from the stage itself: find or tap the target instead. A rule of another scene runs once that scene is open.</p>
 
   <h2 id="editing">Editing</h2>
   <p>You can edit on a scene's and an entity's level of the open scene, and on the experience level. The group level is read-only.</p>

@@ -7,6 +7,19 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 5.1.0 – 2026-11-21
+
+### Added
+- **Set things off on the stage from the Logic canvas** (Tilman, 2026-11-21, #334): right-click an event's box and
+  *Fire on stage* (or *Fire with a payload…*, typed as `key: value` pairs; with a mouse, the ▶ on its head) – the rules
+  that hear it run and the plugins hear it, as if a plugin had sent it. A variable's box *Set on stage…* takes a value by
+  its type; a rule's box *Run this rule* runs its actions as if its event had come (its condition still applies); a node's
+  *tap* box taps its target. The Log marks these lines *by hand* and Trace lights the wires. Only the running stage
+  changes, never the draft – Restart resets it; it works on read-only levels too.
+
+### Fixed
+- **Trace pulses the rule that ran**, not the one after it (the engine counts rules from 1).
+
 ## 5.0.2 – 2026-11-21
 
 ### Fixed

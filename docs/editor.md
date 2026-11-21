@@ -514,6 +514,27 @@ border pulses once (`LogicBox`). Another firing starts the pulse again. With `pr
 thicker state shows, without movement. Only lines new since the panel opened count – the history is never replayed; Clear
 in the Log tab starts again. **Trace** in the bar's **…** view settings (beside **Follow**) turns it off (on by default, kept in `localStorage`
 `osct-editor-logic-trace`).
+The engine numbers a rule from 1 in its `behaviour` line (`rule 1`), the documents from 0 – `liveHit` takes one off (5.1.0;
+before, Trace pulsed the rule after the one that ran).
+
+**Testing on the stage** (#334, Tilman 2026-11-21: *"is there a way i can manually trigger an event from the nodes to test
+what firing them would look like down the line?"*): a box's right-click menu sets things off on the **running** stage –
+the items come from `logic/fire.ts` (`stageItems`, pure and tested), the panel asks the stage:
+
+| Box | Item | What it does |
+|---|---|---|
+| A bus event | **Fire on stage**, **Fire with a payload…** | `Stage.fire(event, payload)` → `StageCore.fire`: the plugin API's `emit` as the stage (`runtimeApi("stage")`) – the open scene's and the experience's rules that hear it run, every plugin hears it. The payload is typed in the menu's field as `key: value` pairs (commas, new lines or ` · ` between them; each value JSON where it reads as JSON, else the text – `parsePayload`). On a hover-capable device a **▶** on the box's head fires it at once (CSS `@media (hover: hover)`). |
+| A core event (`targetFound`, `varChanged`, `sceneChanged` …) | disabled | The engine emits it (the runtime refuses an `emit`): find or tap a target, set a variable – a rule on it runs with *Run this rule*. |
+| A node's own `tap` | **Tap on stage** | `Stage.tap(target)` – the reader's tap: every node of the target hears `tap`, the plugins `targetTapped`. Only while the target is found. `found`, `lost`, `unlocked` are the stage's hooks – disabled, run the rule instead. |
+| A variable | **Set on stage…** | A value by its type (`logicTypes`): a boolean picks true / false, a number, integer or text is typed (`parseValue`); written with `Stage.setVar` as the Variables tab writes it (`varChanged`). Its scope: the stage's scope of it, else the declared one, else the scope its rules set it in, else `scene`. |
+| A rule | **Run this rule** | `Stage.runRule(home, index)` → the engine's `runRuleByHand` (`behaviour.ts`): the rule's actions as if its `on` came – **its when applies** (false: nothing runs, the panel says so), no other rule of that event runs. A node's rule is found by its target and its node's name (the engine knows no path): two nodes of one name with rules in a target are refused. |
+
+The Log marks the line of a fired event and of a rule run by hand ` · by hand` (only the first line of that name – not
+what it set off; `parseDetail` skips it, so Trace lights it as any line). Only the running stage changes, never the draft;
+**Restart** on the stage resets it. Read-only levels allow it (a test, not an edit). Disabled with the reason while the
+stage does not run (`status` ≠ `running`), for a scene's or a node's rule whose scene is not on the stage, and for a node's
+`tap` there. An event box at another scene's level still fires – the bus is the stage's, so the open scene's rules, the
+experience's and the plugins hear it, and the item's detail says that scene's own rules are not on the stage.
 
 **Scene and experience rules, goto** (content schema 5.0, #334 L-T5b): a scene's own rules (`scene.logic`) are boxes of
 its scene level (*scene rule 1*, a click selects the scene – its rules are in its Inspector), the experience's
