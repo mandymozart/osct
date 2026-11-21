@@ -33,13 +33,14 @@
   const deck = $derived(data?.deck ?? "event");
   const width = $derived(data?.never ? 1 : 1.4 * SIGNAL_STYLES[deck].weight);
   /* A wire's word is ringed in white (#334): in its signal's colour – but the event signal is near white at night, so its
-     word takes the event's day ink, dark in both themes, to read inside the white ring */
+     word takes the event's day ink, dark in both themes, in a white ring; the other words' ring is the theme's
+     `--wire-halo` – white round the day's dark inks, dark round the night's bright ones */
   const labelInk = $derived(deck === "event" ? SIGNAL_STYLES.event.day : `var(${signalToken(deck)})`);
   const wire = $derived(hangPath({ x: sourceX, y: sourceY }, { x: targetX, y: targetY }));
 </script>
 
 <path class="halo" class:selected d={wire.d} style:stroke-width="{width * 5}px" style:--wire="var({signalToken(deck)})" />
-<BaseEdge {id} path={wire.d} labelX={wire.x} labelY={wire.y} {label} labelStyle="--wire-label: {labelInk}"
+<BaseEdge {id} path={wire.d} labelX={wire.x} labelY={wire.y} {label} labelStyle="--wire-label: {labelInk};{deck === 'event' ? ' --wire-halo-ink: #fff;' : ''}"
   style="stroke: var({signalToken(deck)}); stroke-width: {width}px; stroke-opacity: .85;{data?.never ? ' stroke-dasharray: 1 4;' : ''}" />
 {#if data?.live}
   {#key data.live}
