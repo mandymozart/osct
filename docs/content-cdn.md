@@ -18,6 +18,7 @@ and in it **one immutable folder per content version**, served through the pull 
 <zone>/<title>/<env>/<experience>/<build>/game.config.json  the game configuration of that version
 <zone>/<title>/<env>/<experience>/<build>/files.json        size and checksum of every content file (whole-experience download)
 <zone>/<title>/<env>/<experience>/<build>/assets/content/…  the content files, same paths as in the app's public folder
+<zone>/<title>/<env>/<experience>/exports/<build>/…         the export archive of a published build (below) – never purged
 <zone>/assets/<experience>/…                                the editor Library's uploads (docs/server.md "Assets") – no title, no environment
 <zone>/fonts/abc-areal/…                                     the design font (below)
 ```
@@ -42,6 +43,21 @@ the reader build's `VITE_CONTENT_BASE_URL` – is `<pull zone>/<title>/<env>`, e
 `https://buildingfictions.b-cdn.net/osct/staging`. Everything that reads an experience adds the experience:
 `<base>/<experience>/latest.json`. The instance's **default experience** is `OSCT_EXPERIENCE` (the reader build's
 `VITE_EXPERIENCE`).
+
+### The export archive (#322)
+
+Every publish of an experience writes the **export of the build it published** into the same store:
+`<title>/<env>/<experience>/exports/<build>/` (`<env>/<experience>/exports/<build>/` in the directory store of an instance
+without CDN) – Tilman, 2026-11-21: the archive follows the CDN's rules. One folder per published build, **immutable**: a
+folder whose `export.json` is there is never written again (a publish of a build that has its archive writes nothing;
+`export.json` is written last, so a folder without it is incomplete and the next publish of that build writes it). It
+holds what `osct content export` writes – `experience.yaml`, `scenes/`, `entries/`, `entities/`, `groups.yaml`,
+`credits.yaml`, `plugins/<id>/index.ts`, `EXPORT.md`, `export.json` – **but no media**: `export.json` names every file the
+YAML names by its path in the folder and the immutable URL it is read from (the build's content files below
+`<title>/<env>/<experience>/<build>/assets/content/…`, the Library's uploads below `assets/<experience>/…`), and lists the
+content builds those URLs lie in (`builds`, the archived build included). The format, the restore and the manual run are
+[Content](content.md) "Export archive". The archive is readable through the pull zone like the versions: it names no
+person. The directory store does not serve it (`GET /content/…` serves the versions' json files and plugins only).
 
 ### The font folder
 
@@ -107,9 +123,13 @@ the build (`experience.id`; `--experience` may name it and must agree), **purge*
   - among the newest retired ones kept for rollback (`--keep`, default 1),
   - retired less than `--min-age` days ago (default 30 – the CDN cache time; an edge may still serve a
     `latest.json` that points at it).
+  - named by the **newest export archive** of the experience in any environment of the title (its `export.json`
+    `builds`, #322 – an archive's media are the builds' own files, so the newest archive per environment keeps them;
+    older archives may name builds that are gone).
   It refuses to purge anything when `latest.json` or `versions.json` is missing or unreadable, when they disagree,
-  when the current version's folder is missing, or when the CDN's `latest.json` cannot be read. Folders and files
-  that are not versions on record stay unless `--unknown` is given. Deleted files can stay at CDN edges until their
+  when the current version's folder is missing, when the CDN's `latest.json` cannot be read, or when an archive's
+  `export.json` cannot be read. Folders and files that are not versions on record stay unless `--unknown` is given –
+  `exports/` (the archives) always stays, `--unknown` included. Deleted files can stay at CDN edges until their
   cache time ends – readers on an old version do not break at once.
 
 | Variable | Meaning |

@@ -113,6 +113,11 @@ export interface PublishResult {
   build: string;
   hash: string;
   publishedAt: string;
+  /**
+   * The build's export archive (#322, `ExportArchive`): `exports/<build>` in the experience's store – `written` false when
+   * that build's archive was there already, or with `error` when writing it failed (the publish itself went through)
+   */
+  export: { path: string; written: boolean; error?: string };
 }
 
 /** A row of the publish log (`GET /editor/experiences/{id}/versions`, newest first) */
@@ -169,6 +174,32 @@ export interface ExperienceExport {
   plugins: PluginSource[];
   /** Every credit line of the Library, by file URL */
   credits: Record<string, string>;
+}
+
+/**
+ * `exports/<build>/export.json` of an export archive (#322, docs/content.md "Export archive"): written by a publish
+ * (`ExportArchive`) or `osct content export --archive`. The media are not copied: every file the archive's YAML names is
+ * listed with its path in the folder and the immutable URL it is read from; `builds` are the content builds those URLs lie
+ * in (and the archived build itself) – what `osct content purge` keeps for the newest export of an experience.
+ */
+export interface ExportArchiveRecord {
+  archive: true;
+  experience: string;
+  /** The API that wrote it, or the CLI's API URL */
+  instance: string;
+  title: string;
+  env: string;
+  /** Never a person: the archive is readable through the pull zone */
+  source: ExperienceExport["source"];
+  build: string;
+  hash: string;
+  schema: string;
+  appVersion: string;
+  writtenBy: "publish" | "cli";
+  exportedAt: string;
+  files: { path: string; url: string; origin: ExportFile["origin"]; sha256: string | null; v: string | null; size: number | null }[];
+  builds: { env: string; build: string }[];
+  problems: string[];
 }
 
 /** A row of the change log (`GET /editor/experiences/{id}/changes`, newest first); `token` = the AI connection's name, else null */
