@@ -206,7 +206,7 @@
   <textarea class="field body" rows="8" value={draft.body} aria-label="Text" spellcheck="true" oninput={e => edit({ body: e.currentTarget.value })}
     data-help-name="Text" data-help="Markdown: a blank line starts a paragraph, *emphasis*, **strong**, [a link](https://…). The experience's variables in braces: {'{hasKey}'} prints a value, {'{hasKey: the door opens|it is locked}'} chooses a text – a variable that is not set shows as nothing, so the part after | is its fallback. A backslash before a brace writes the brace."></textarea></div>
 <div class="row top"><span class="label">preview</span>
-  <div class="preview" data-help-name="Preview" data-help="The text as the reader shows it – the reader's own renderer. On the stage the variables have their current values (set them in the scene's vars and events); on the Entries page none is set.">
+  <div class="preview" data-help-name="Preview" data-help="The text as the reader shows it – the reader's own renderer. On the stage the variables have their current values (set them in the Variables tab); on the Entries page none is set.">
     {#if rendered.html}<div class="reader">{@html rendered.html}</div>{:else}<span class="small muted">no text</span>{/if}
     {#if used.length}
       <p class="small muted vars">{#each used as v, i (v.name)}{i ? " · " : ""}<code>{v.name}</code> {v.value === undefined ? "not set" : `= ${shown(v.value)}${scopeOf(v.name) ? ` (${scopeOf(v.name)})` : ""}`}{/each}{vars === null ? " – no stage here" : ""}</p>

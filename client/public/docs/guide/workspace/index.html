@@ -22,7 +22,7 @@
     <tr><th>Panel</th><th>Where it starts</th><th>What it holds</th></tr>
     <tr><td>Tree</td><td>left</td><td class="wrap">The scene's surfaces, entries, targets and nodes.</td></tr>
     <tr><td>Tools</td><td>top, over the stage</td><td class="wrap">Undo, the tools, select filters, shading, grid and snap, view, live. <a href="/docs/guide/stage/">The stage</a></td></tr>
-    <tr><td>Inspector</td><td>right</td><td class="wrap">Tabs: <b>Inspector</b> (what is selected), <b>Environment</b>, <b>Library</b>, <b>Code</b>.</td></tr>
+    <tr><td>Inspector</td><td>right</td><td class="wrap">Tabs: <b>Inspector</b> (what is selected), <b>Environment</b>, <b>Library</b>, <b>Code</b>, <b>Log</b>, <b>Variables</b>.</td></tr>
     <tr><td>Scenes</td><td>bottom</td><td class="wrap">The experience's scenes as a filmstrip. <a href="/docs/guide/scenes/">Scenes</a></td></tr>
     <tr><td>Info</td><td>bottom left, folded</td><td class="wrap">Help for the control under the pointer.</td></tr>
     <tr><td>History, Logic</td><td>closed</td><td class="wrap">Open them from the panels menu (History also from the clock in the Tools).</td></tr>
@@ -43,12 +43,12 @@
       <ul>
         <li>A click on any row selects it.</li>
         <li>The <b>eye</b> switches a target off and on, as if the camera lost and found the page.</li>
-        <li><b>+ target</b> and <b>+ entry</b> at the end add one to the scene.</li>
+        <li><b>+ add</b> at the end opens one menu of everything the scene can get: a surface, a target, an entry, or a node of any type onto the selected target or node (greyed out without one). Type to filter; what you add is selected.</li>
         <li><b>Right click</b> a row for its menu: remove, move up or down, into or out of a node.</li>
         <li><b>Drag</b> a node row onto another to make it a child, or between rows to reorder.</li>
         <li>Drag a target row onto a surface row to move it to that surface.</li>
       </ul>
-      <p>Keys: <kbd>↑</kbd> <kbd>↓</kbd> walk the rows, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> reorder a node, <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> indent and outdent, <kbd>Delete</kbd> removes the selected node.</p>
+      <p>Keys: <kbd>↑</kbd> <kbd>↓</kbd> walk the rows, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, <kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd> reorder a node, <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> indent and outdent, <kbd>Delete</kbd> removes the selected node (on a surface, its Inspector asks first).</p>
     </div>
     <figure>
       <img src="/docs/img/tree.webp" width="264" height="460" alt="The tree of scene 1–2: surfaces, three entries with their targets and nodes." loading="lazy">
@@ -59,7 +59,7 @@
   <p>What you select decides what the Inspector shows:</p>
   <div class="table"><table>
     <tr><th>Selected</th><th>How</th><th>The Inspector shows</th></tr>
-    <tr><td>The scene</td><td class="wrap">its row, or a click on empty stage</td><td class="wrap">label, surfaces, post-processing, rules, vars and events</td></tr>
+    <tr><td>The scene</td><td class="wrap">its row, or a click on empty stage</td><td class="wrap">label, post-processing, rules, the narrative line</td></tr>
     <tr><td>A surface</td><td class="wrap">its row, or the Surface tool</td><td class="wrap">size, place, grid, reference image</td></tr>
     <tr><td>An entry</td><td class="wrap">its row</td><td class="wrap">the text form</td></tr>
     <tr><td>A target</td><td class="wrap">its row, or its printed image on the stage</td><td class="wrap">printed image and placement</td></tr>

@@ -273,10 +273,12 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     document.documentElement.removeEventListener("pointerenter", onEnter);
   });
 
-  // The plugins' lines for the Code tab: their `api.log` and the engine's lines about them, and what nobody caught
+  // The plugins' lines for the Code tab and the Log tab: their `api.log` and the engine's lines about them, and what nobody
+  // caught – with the timeline's clocks, so the Log tab places them among the events
+  const when = () => ({ t: performance.now(), ...(core ? { at: core.elapsed() } : {}) });
   const log = (level: "info" | "warn" | "error", args: unknown[]) => {
     if (typeof args[0] !== "string" || !args[0].startsWith("[plugin")) return;
-    post("log", { level, text: args.map(textOf).join(" ").slice(0, LOG_MAX) });
+    post("log", { level, text: args.map(textOf).join(" ").slice(0, LOG_MAX), ...when() });
   };
   const original = { info: console.info, warn: console.warn, error: console.error };
   (["info", "warn", "error"] as const).forEach(level => {
@@ -285,8 +287,8 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
       log(level, args);
     };
   });
-  const onError = (event: ErrorEvent) => post("log", { level: "error", text: `Uncaught ${textOf(event.error ?? event.message)}`.slice(0, LOG_MAX) });
-  const onRejection = (event: PromiseRejectionEvent) => post("log", { level: "error", text: `Uncaught (in promise) ${textOf(event.reason)}`.slice(0, LOG_MAX) });
+  const onError = (event: ErrorEvent) => post("log", { level: "error", text: `Uncaught ${textOf(event.error ?? event.message)}`.slice(0, LOG_MAX), ...when() });
+  const onRejection = (event: PromiseRejectionEvent) => post("log", { level: "error", text: `Uncaught (in promise) ${textOf(event.reason)}`.slice(0, LOG_MAX), ...when() });
   window.addEventListener("error", onError);
   window.addEventListener("unhandledrejection", onRejection);
   cleanups.push(() => {

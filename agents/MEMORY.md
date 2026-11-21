@@ -209,6 +209,32 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-21 – Log and Variables tabs, one unified log, surfaces only on selection, the Tree's one + (#337)
+
+Tilman decided which parts of the Inspector deserve their own tab:
+- **Log tab** (dock tab beside Inspector/Environment/Library/Code, floatable): one timeline, newest first – the stage's
+  events, the rules' behaviour/goto lines, the plugins' `api.log` lines and errors, and the **problems** (Logic errors and
+  warnings for the whole experience, plugins not on the stage) pinned above without a time. The plugin log merged into it
+  was his *"sehr gut"*; *"log in general could be unified with problems and errors, filters show only the respective
+  things"* → filter chips per kind (events, behaviour, plugin log, errors, warnings), kept per browser. *tap* lives in its
+  top bar. *Clear* empties the timed lines; the Code tab keeps its own log (a Run still empties that one only).
+- **Variables tab**: the live vars (scope, type, value control, delete), *set* by hand, *reset* (`StageVariables.svelte`).
+- The scene Inspector keeps **one line** at its level ("3 vars · 12 events") with links that open the two tabs.
+- *"some sections in a tab should be default collapsed otherwise these lists get hard to navigate"*: the Log's problems
+  start closed to their counts and first problem, the timeline open; the Variables tab has a section per scope (the
+  scene's open), *set* closed – every closed section's summary says what is in it.
+- **Surfaces leave the scene Inspector** (the `SurfaceList` section is gone): the Tree's Surfaces level adds (selects the
+  new surface, so its Inspector opens), reorders (menu, Alt ↑ ↓) and removes (menu *Remove surface…*, Delete – the
+  confirmation is the surface Inspector's); the surface Inspector shows only when a surface is selected or just created.
+- **The Tree's footer** (*+ target · + entry*) became **one + (add)** with a typeahead menu like the Logic panel's: surfaces,
+  target…, entry…, and every node type (built-in and the plugins'), nodes greyed out without a selected target.
+
+How: the plugins' lines carry the frame's clock (`t`) and the scene clock (`at`) like the events, so the Log merges them
+(`stage/log-entries.ts`); the experience's logic is built once in `logic-content.svelte.ts` for the Logic panel and the
+Log's problems; a problem's click asks the Logic panel for its box (`logicFocus`). Open: the docs site's screenshots
+(`vars.webp`, the tutorials' door scene) still show the old *vars and events* section – retake them with the next
+screenshot round.
+
 ## 2026-11-21 – A documentation site for users at /docs/ (#336)
 
 Tilman: *"i would love to have a route docs/ … a documentation that can work properly to figure out how stuff works in

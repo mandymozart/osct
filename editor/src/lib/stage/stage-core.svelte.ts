@@ -172,7 +172,8 @@ export class StageCore {
       // A rule's goto (content schema 5.0): the stage stays on its scene – the timeline logs it with a link that opens the
       // scene (`SceneView`); following it while the stage plays would leave the author's open scene behind
       navigate: address => {
-        this.events = logEvent(this.events, { event: "goto", detail: address, at: performance.now() - this.sceneOpenedAt });
+        const now = performance.now();
+        this.events = logEvent(this.events, { event: "goto", detail: address, at: now - this.sceneOpenedAt, t: now });
       },
       debug: import.meta.env.DEV,
     });
@@ -210,7 +211,7 @@ export class StageCore {
       observeEvents((event, payload) => {
         const now = performance.now();
         if (event === "sceneChanged") this.sceneOpenedAt = now;
-        this.events = logEvent(this.events, { event, detail: describePayload(payload), at: now - this.sceneOpenedAt });
+        this.events = logEvent(this.events, { event, detail: describePayload(payload), at: now - this.sceneOpenedAt, t: now });
         if (event === "varChanged" || event === "sceneChanged") this.vars = allVars();
       }),
     );
@@ -875,6 +876,11 @@ export class StageCore {
   /** Tap a found target's entity without aiming at it – the reader's tap (`onTap`, `targetTapped`); false when nothing was tapped */
   tap(targetId: string): boolean {
     return this.arScene.inspect()?.tap(targetId) ?? false;
+  }
+
+  /** Milliseconds since the scene on the stage opened (or the game was reset) – the timeline's clock */
+  elapsed(): number {
+    return performance.now() - this.sceneOpenedAt;
   }
 
   /** Empty the timeline (variables and progress stay) */

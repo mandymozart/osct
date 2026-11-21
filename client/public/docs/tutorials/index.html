@@ -420,7 +420,7 @@ npm run osct -- content status --env staging</code></pre>
   <p>The cover is a scene of the format <em>cover</em>: the stage shows the closed book. The <em>seal</em> is an image. Its two layers come from plugins: <code>tint</code> colours it towards the experience's gold, <code>pulse</code> makes it breathe.</p>
 
   <h4>1–2 · The key</h4>
-  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>animation</code> says how the model's clip <code>rattle</code> plays: once, and never by itself. The <code>behaviour</code> holds one rule, made without code: <em>on tap</em> it plays <code>rattle</code>, sets the experience variable <code>hasKey</code> – kept with the reader's progress – and sends the event <code>keyRattled</code>. To tap it without aiming, select the scene – its row at the top of the tree – and use <b>tap</b> in the Inspector's <b>vars and events</b>.</p>
+  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>animation</code> says how the model's clip <code>rattle</code> plays: once, and never by itself. The <code>behaviour</code> holds one rule, made without code: <em>on tap</em> it plays <code>rattle</code>, sets the experience variable <code>hasKey</code> – kept with the reader's progress – and sends the event <code>keyRattled</code>. To tap it without aiming, use <b>tap</b> in the <b>Log</b> tab.</p>
   <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any scene.</p>
   <figure class="shot">
     <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key scene in the editor, close to the left page: the brass key stands upright on its printed image, selected; the Inspector's breadcrumb reads key › model, then its components – spin with speed 40 °/s and axis y, animation with the model's timeline, the clip rattle and plays on never, and behaviour with rule 1: tap pressed, + condition, do play rattle on this node, then set hasKey true in the experience scope, then emit keyRattled, + action and + rule.">
@@ -451,7 +451,7 @@ npm run osct -- content status --env staging</code></pre>
   <h3 class="sec" id="demo-story">The story across the pages</h3>
   <p>The editor can play the story without a phone. Try it:</p>
   <ol>
-    <li>Open <b>1–2 · The key</b>. The Inspector shows the scene; open <b>vars and events</b> and press <b>reset</b>: a new game.</li>
+    <li>Open <b>1–2 · The key</b>. Open the <b>Variables</b> tab and press <b>reset</b>: a new game.</li>
     <li>Press <b>tap</b> → <b>The key</b>. The key rattles and <code>hasKey</code> appears as an <em>experience</em> variable; the timeline shows the rule that ran.</li>
     <li>Press <kbd>›</kbd> to go to <b>3–4 · The door</b>. The door lifts, <code>doorOpen</code> is set and the lamp lights.</li>
   </ol>
@@ -584,7 +584,7 @@ npm run osct -- content status --env staging</code></pre>
   </figure>
 
   <h3 class="sec" id="tools-new-target">A new target</h3>
-  <p><b>+ target</b> at the end of the tree opens the form for a new target on the scene. It keeps two choices apart: <b>what appears on the page</b> – none, model, video, image, text, group or light, with its file – and the <b>entry category</b>, where the reader's consultation menu lists the entry. The category follows what appears – a video makes a video entry, everything else a glossary term – until you set it by hand. Below them, where it is printed: the surface, x and y, and the width in millimetres; the stage shows a ghost of the image there, with handles to drag.</p>
+  <p><b>target…</b> in the <b>+ add</b> menu at the end of the tree opens the form for a new target on the scene. It keeps two choices apart: <b>what appears on the page</b> – none, model, video, image, text, group or light, with its file – and the <b>entry category</b>, where the reader's consultation menu lists the entry. The category follows what appears – a video makes a video entry, everything else a glossary term – until you set it by hand. Below them, where it is printed: the surface, x and y, and the width in millimetres; the stage shows a ghost of the image there, with handles to drag.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/05-new-target.webp" width="1280" height="800" loading="lazy" alt="The new target form on the switch scene: title, page 5 or 6, the image with Library… and Upload…; What appears on the page with video pressed and its file; Entry category with video pressed; Printed on the page with the surface left, x 40 mm, y 60 mm and width 80 mm, and Create target; the Info view explains What appears on the page.">
     <figcaption><em>video</em> chosen under <b>What appears on the page</b>: the <b>Entry category</b> followed it to <em>video</em>.</figcaption>
@@ -726,7 +726,7 @@ npm run osct -- content status --env staging</code></pre>
 
   <h3 class="sec" id="texts-entries">Finding and adding entries</h3>
   <p>The search in the top bar finds things in the whole book: entries by their title or text, scenes by their title or a page number, targets and named nodes – accents and case do not matter. The hits are grouped by kind, each with its scene and page. Choose one with ↑ ↓ and Enter, or a click: the editor goes to that scene and selects it, an entry with its form in the Inspector. <b>/</b> or <b>Ctrl+K</b> puts the cursor in the search; on a phone the search is the magnifier in the top bar.</p>
-  <p><b>+ entry</b> in the tree, next to <b>+ target</b>, makes an entry without a printed image on the scene – a glossary term only read in the list: its title, category and page, then its form opens.</p>
+  <p><b>entry…</b> in the tree's <b>+ add</b> menu makes an entry without a printed image on the scene – a glossary term only read in the list: its title, category and page, then its form opens.</p>
 
   <h3 class="sec" id="texts-experience">The experience</h3>
   <p>The ⚙ after the experience's name in the top bar selects the experience: the Inspector shows its title and its <b>printed book</b> – the reader's splash, home page and onboarding show them. The printed book has a switch in its head: on, the experience accompanies a printed book and the section holds its author and publisher; off, it is no book – a wall, a room, an exhibition – and the reader shows neither. Switching a saved book off asks first, because it removes author and publisher from the draft. Every experience adds and removes scenes. The onboarding itself – the steps a reader goes through on the first start – is part of the app, translated with it; it is not edited in the editor.</p>

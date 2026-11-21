@@ -22,18 +22,18 @@
     <li><p>Open <a href="/editor/"><code>/editor</code></a>, sign in, and click <b>The Demo</b>. If it is not there, <a href="/docs/guide/experiences/#import">import it</a> first.</p></li>
     <li><p>In the Scenes panel at the bottom, click the scene <b>1–2</b>. Drag on the stage to orbit, use the wheel to zoom.</p></li>
     <li><p>In the tree, click <b>model</b> under <i>The key</i>. The Inspector shows its placement and its components.</p></li>
-    <li><p>Click the scene's row (<b>1–2</b>) at the top of the tree. In the Inspector open <b>vars and events</b> and press the tap button <b>The key</b>. The key rattles, <code>hasKey</code> becomes <i>true</i>, and the timeline lists what happened.</p></li>
+    <li><p>Click the scene's row (<b>1–2</b>) at the top of the tree. Open the <b>Log</b> tab (the <i>log</i> link in the scene's Inspector) and press the tap button <b>The key</b>. The key rattles, <code>hasKey</code> becomes <i>true</i>, and the timeline lists what happened.</p></li>
     <li><p>Open scene <b>3–4</b>. Because <code>hasKey</code> is true, the door opens. Press <b>Restart</b> in the Tools to start over: the door stays shut and shows its hint.</p></li>
   </ol>
   <figure>
-    <img src="/docs/img/vars.webp" width="400" height="376" alt="Vars and events after the tap." loading="lazy">
+    <img src="/docs/img/vars.webp" width="400" height="376" alt="The narrative after the tap." loading="lazy">
     <figcaption>Step 4: the variable and the timeline after the tap.</figcaption>
   </figure>
 
   <h2 id="target">2 · Add a target with AR content</h2>
   <p>A target is a printed image plus what appears on it.</p>
   <ol class="steps">
-    <li><p>Open the scene the image is printed on. At the end of the tree, click <b>+ target</b>.</p></li>
+    <li><p>Open the scene the image is printed on. At the end of the tree, click <b>+ add</b> and choose <b>target…</b>.</p></li>
     <li><p>Fill in the form: a <b>title</b>, the printed <b>image</b> (<i>Upload…</i> or <i>Library…</i>), the <b>content</b> that appears on it (a model, video, image, text, group, light, or none yet) with its file, and <b>listed in</b>: the category the reader's menu shows it under.</p></li>
     <li><p>Set where it is printed: the <b>surface</b>, <b>x · y</b> and the <b>width</b> in mm. Or drag the translucent image on the stage and pull its corner square for the width.</p></li>
     <li><p>Create it. The stage shows the target with its content at once.</p></li>
@@ -48,7 +48,7 @@
     <li><p>To make the text depend on what the reader did, use a variable: <code>{hasKey: You hold the key.|Find the key first.}</code></p></li>
     <li><p>Add a <b>picture</b> with its <b>caption</b>, or a <b>link</b>, if the entry has one. Everything saves itself.</p></li>
   </ol>
-  <p>For a text without a printed image, e.g. a glossary term, use <b>+ entry</b> in the tree.</p>
+  <p>For a text without a printed image, e.g. a glossary term, use <b>+ add</b> › <b>entry…</b> in the tree.</p>
 
   <h2 id="rule">4 · Make something react: a rule</h2>
   <p>Goal: a tap on a model plays its clip and remembers that it happened.</p>
@@ -57,7 +57,7 @@
     <li><p>Add the component <b>behaviour</b>. In rule 1 press <b>tap</b>.</p></li>
     <li><p><b>+ action… → play</b>, and choose the clip.</p></li>
     <li><p><b>+ action… → set</b>: name <code>tapped</code>, value <code>true</code>, scope <b>experience</b> so it is kept with the reader's progress.</p></li>
-    <li><p>Test it: select the scene, open <b>vars and events</b>, press the target's tap button. The timeline shows a <b>behaviour</b> line.</p></li>
+    <li><p>Test it: open the <b>Log</b> tab, press the target's tap button. The timeline shows a <b>behaviour</b> line.</p></li>
     <li><p>Use it elsewhere: on another node add a behaviour with <b>found</b>, <b>when</b> <code>tapped</code>, and an action such as <b>show</b>.</p></li>
   </ol>
   <figure>

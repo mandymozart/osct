@@ -833,13 +833,13 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-Try it in the editor: tap the key (its rule sets `hasKey` – the Inspector's *vars and events* lists it while the scene is selected, experience
-scope, a boolean), walk to the door's scene with › – the door's rules emit `openDoor`, the door opens, the timeline
+Try it in the editor: tap the key (its rule sets `hasKey` – the **Variables** tab lists it, experience
+scope, a boolean), walk to the door's scene with › – the door's rules emit `openDoor`, the door opens, the **Log** tab's timeline
 shows `openDoor` and `doorOpened` with the time since the scene opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
-To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
+To test a branch without playing up to it, change a variable in the Variables tab or **set** one (name, scope, type, value):
 it is written through `api.vars.set`, so your `api.vars.on` listeners and `varChanged` fire as for a plugin's write.
-**tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
-([editor](editor.md) "Vars and events").
+the Log tab's **tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
+([editor](editor.md) "Variables and Log").
 
 ## Behaviour and plugins
 

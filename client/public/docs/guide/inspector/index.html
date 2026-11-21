@@ -76,7 +76,7 @@
         <li><b>Variables in the text</b>: <code>{hasKey: The door opens.|It is locked.}</code> shows one text or the other. The preview uses the stage's current values.</li>
         <li><b>Picture, caption, link.</b></li>
       </ul>
-      <p><b>+ entry</b> in the tree makes an entry without a target: it shows in the reader's list only.</p>
+      <p><b>entry…</b> in the tree's <b>+ add</b> menu makes an entry without a target: it shows in the reader's list only.</p>
     </div>
     <figure>
       <img src="/docs/img/inspector-entry.webp" width="400" height="680" alt="The entry form with its text and preview." loading="lazy">
@@ -86,10 +86,10 @@
   <h2 id="scene">The scene</h2>
   <p>With the scene selected, the Inspector has collapsible sections:</p>
   <ul>
-    <li><b>Scene</b> and <b>Surfaces</b>: label, group, surfaces. <a href="/docs/guide/scenes/">Scenes and surfaces</a></li>
+    <li><b>Scene</b>: label, group, targets, arrange the surfaces in a row. The surfaces themselves are in the tree. <a href="/docs/guide/scenes/">Scenes and surfaces</a></li>
     <li><b>Post-processing</b>: passes over the rendered picture.</li>
     <li><b>Rules</b>: the scene's own rules.</li>
-    <li><b>Vars and events</b>: test the narrative.</li>
+    <li><b>Narrative</b>: one line with the count of variables and events, and links to the <b>Variables</b> and <b>Log</b> tabs.</li>
   </ul>
 
   <h3 id="post">Post-processing</h3>
@@ -103,17 +103,17 @@
     </figure>
   </div>
 
-  <h3 id="vars">Vars and events</h3>
+  <h3 id="vars">Variables and Log</h3>
   <div class="beside">
     <div>
+      <p>Two tabs beside the Inspector test the narrative. Long lists are sections that open with a click.</p>
       <ul>
-        <li><b>Tap</b>: a button per target taps it as a reader would.</li>
-        <li><b>Vars</b>: every variable with its scope and value; change one to test a branch. <b>Set</b> makes a new one. <b>Reset</b> starts a new game.</li>
-        <li><b>Events</b>: the timeline, newest first. A <b>behaviour</b> line is a rule that ran, with what it did.</li>
+        <li><b>Log</b>: <b>tap</b> – a button per target taps it as a reader would. Below, one timeline, newest first: the stage's events, the rules that ran (<b>behaviour</b>, with what they did), the plugins' log lines and errors. The problems – the Logic panel's errors and warnings, plugins not on the stage – sit above it; a click goes to the box or the plugin. Chips show only the kinds you pick. <b>Clear</b> empties the timeline.</li>
+        <li><b>Variables</b>: every variable by scope with its type and value; change one to test a branch. <b>Set</b> makes a new one. <b>Reset</b> starts a new game.</li>
       </ul>
     </div>
     <figure>
-      <img src="/docs/img/vars.webp" width="400" height="376" alt="Vars and events after a tap on the key." loading="lazy">
+      <img src="/docs/img/vars.webp" width="400" height="376" alt="The narrative after a tap on the key." loading="lazy">
       <figcaption>After a tap on the key: the rule ran, set <code>hasKey</code> and emitted <code>keyRattled</code>.</figcaption>
     </figure>
   </div>

@@ -19,6 +19,13 @@
   import { errorText } from "#lib/api.js";
   import { SURFACE_PRESETS, liesOn, surfaceName, type SurfacePreset } from "#lib/surface-edit.js";
   import { addSceneSurface, arrangeSceneInRow, canArrangeInRow, moveSceneSurface, moveTargetToSurface } from "#lib/surface-actions.js";
+  import { surfaceRemoval } from "#lib/surface-removal.svelte.js";
+  import { ENTITY_TYPES, pluginNodeTypes } from "@engine/types";
+  import { nodeAssetKinds } from "#lib/library-pick.js";
+  import { plugins } from "#lib/plugins.svelte.js";
+  import { nodeAdd } from "#lib/node-add.svelte.js";
+  import { filterTreeAdd, treeAddItems, type TreeAddItem } from "#lib/tree-add.js";
+  import LogicMenu from "./LogicMenu.svelte";
 
   /**
    * The scene as a tree in the style of Blender's outliner: a chevron column, a type icon before every name, guide
@@ -35,7 +42,7 @@
    * Hierarchy (#163): a node row is dragged onto another row (its child) or between two rows (its sibling, the
    * order set) – with a finger by its type icon; the keys: ↑ ↓ walk all rows, ← → fold / unfold (← elsewhere steps up
    * a level), Alt + ↑ ↓ move the node among its siblings, Tab / Shift + Tab indent / outdent, Enter opens the row's
-   * panel, Delete removes the node – on an entry row it asks first (#198's confirmation). An entry, target or node
+   * panel, Delete removes the node – on an entry row it asks first (#198's confirmation), on a surface row its Inspector asks (#337). An entry, target or node
    * row's menu (`ContextMenu`: a right click, a long press, or the menu key for the selected row) has the same moves
    * and the removal; the scene row has one too – *Arrange in a row* (#319) and *Add a scene after*
    * (#238). Changes are live on the stage
@@ -46,9 +53,9 @@
     stage: Stage | null; sceneId: string;
     /** A row was chosen (a tap, Enter): the workspace shows the Inspector */
     onselect?: (kind: TreeRow["kind"]) => void;
-    /** "+ target": the workspace opens the form */
+    /** The + menu's *target…*: the workspace opens the form */
     onaddtarget?: () => void;
-    /** "+ entry" (an entry without a printed image, #237): the workspace opens the form */
+    /** The + menu's *entry…* (an entry without a printed image, #237): the workspace opens the form */
     onaddentry?: () => void;
     /** The scene row's menu *Add a scene after* (#238 – every experience adds scenes, #320): the workspace opens the creation step */
     onaddscene?: (after: string) => void;
@@ -155,6 +162,53 @@
     void runSurface(() => moveSceneSurface(sceneId, id, direction));
     return true;
   };
+  // ── the Tree's + (#337, `tree-add.ts`): one menu of everything that can be added – surfaces, a target, an entry, a node of
+  // every type (onto the selected target, entry or node; else greyed out with why), filtered by typing ──
+  let addMenu = $state<{ at: Point } | null>(null);
+  let addQuery = $state("");
+  const addTarget = $derived.by((): Target | null => {
+    const id = selection.target;
+    return id ? (scene?.entries.find(e => e.target?.id === id)?.target ?? null) : null;
+  });
+  const addItems = $derived.by((): TreeAddItem[] => {
+    void plugins.version;
+    const t = addTarget;
+    const tree = t ? treeOf(t) : undefined;
+    const path = selection.node;
+    const node = t && tree && !selection.onTarget ? nodeAt(tree, path) : undefined;
+    return filterTreeAdd(treeAddItems({
+      target: t?.id ?? null, hasEntity: !!tree, node: t && node ? rowName(node, t, path) : null,
+      builtIn: ENTITY_TYPES, plugins: pluginNodeTypes(), takesFile: type => !!nodeAssetKinds(type),
+      canAddTarget: !!onaddtarget, canAddEntry: !!onaddentry,
+    }), addQuery);
+  });
+  const runAdd = (item: TreeAddItem) => {
+    const a = item.add;
+    if (a.add === "surface") void addSurfaceRow(a.preset);
+    else if (a.add === "target") onaddtarget?.();
+    else if (a.add === "entry") onaddentry?.();
+    else {
+      const t = addTarget;
+      if (!t) return;
+      // Onto the target's AR content: the selected node stays, an entry or the target itself selects the root (none: the target)
+      if (treeOf(t)) { if (selection.onTarget || selection.entry) selection.selectNode(t.id, []); }
+      else selection.selectTarget(t.id);
+      nodeAdd.ask(a.type);
+      onselect?.("node");
+    }
+  };
+  const openAddMenu = (e: MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    addQuery = "";
+    addMenu = { at: { x: r.left, y: r.bottom } };
+  };
+
+  /** Remove a surface: selected, its Inspector asks first (`surfaceRemoval`, #337) */
+  const askSurfaceRemoval = (surfaceId: string) => {
+    selection.selectSurface(sceneId, surfaceId);
+    surfaceRemoval.ask(sceneId, surfaceId);
+    onselect?.("surface");
+  };
   const PRESET_HELP: Record<SurfacePreset, string> = {
     double: "A double page: one surface twice the page's width (460 × 320 mm), flat beside the others.",
     single: "A single page (230 × 320 mm), flat beside the others.",
@@ -259,6 +313,8 @@
           help: "Moves the surface one place later in the scene." },
         { label: "Edit in the Inspector", icon: "surface", select: () => onselect?.("surface"),
           help: "Shows the surface in the Inspector: its label, size, place, reference image – and remove surface." },
+        { label: "Remove surface…", icon: "trash", keys: "Delete", danger: true, select: () => askSurfaceRemoval(m.surfaceId),
+          help: "Shows the surface in the Inspector with its removal's confirmation – what lies on it falls back to the first surface; nothing goes before you confirm." },
         { label: "Arrange the scene in a row", icon: "surface", disabled: !canArrangeInRow(sceneId) && "The surfaces lie in a row already.", select: () => void runSurface(() => arrangeSceneInRow(sceneId)),
           help: "Lays the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places." },
       ];
@@ -424,6 +480,7 @@
         // An entry goes only after the confirmation (#198); a node at once (live on the stage, saved by itself)
         const entry = row?.kind === "entry" ? scene?.entries.find(e => e.id === row.entryId) : undefined;
         if (entry) removeEntry(entry);
+        else if (row?.kind === "surface") askSurfaceRemoval(row.surfaceId);
         else removeSelected();
         break;
       }
@@ -552,12 +609,12 @@
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div class="tree" class:dragging={!!drag?.active} role="tree" aria-label="Scene tree" tabindex="0" onkeydown={onKey} bind:this={treeElement}
     onpointerdown={dragDown} onpointermove={dragMove} onpointerup={dragUp} onpointercancel={dragUp} onlostpointercapture={dragUp} onclickcapture={dragClick} onclick={rowClick}
-    data-help-name="Tree" data-help="A tap anywhere on a row selects the scene, a surface, an entry, a target, its entity or a node: the row is highlighted and the Inspector shows it; an entry with a target and a target are outlined on the stage, a node carries the gizmo, the scene clears both. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk the rows, ← → fold or step a level up and down, Alt + ↑ ↓ move a node, Tab / Shift + Tab indent / outdent, Enter opens the row's panel, Delete removes a node – on an entry it shows what goes and asks first. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
+    data-help-name="Tree" data-help="A tap anywhere on a row selects the scene, a surface, an entry, a target, its entity or a node: the row is highlighted and the Inspector shows it; an entry with a target and a target are outlined on the stage, a node carries the gizmo, the scene clears both. Drag a node onto a row to make it that node's child, between two rows to make it a sibling there (with a finger, drag its icon). Keys: ↑ ↓ walk the rows, ← → fold or step a level up and down, Alt + ↑ ↓ move a node, Tab / Shift + Tab indent / outdent, Enter opens the row's panel, Delete removes a node – on an entry it shows what goes and asks first, on a surface its Inspector asks first. A row's menu – a right click, a long press, or the menu key – has the moves and the removal.">
     <div class="node" class:on={sceneOn} class:pressing={pressing === "scene"} role="treeitem" aria-expanded="true" aria-selected={sceneOn} aria-level={1}>
       <span class="chevron"></span>
       <span class="type"><Icon name="book" size="1em" stroke={2} /></span>
       <button type="button" class="pick" onclick={() => pick({ kind: "scene" })} aria-haspopup="menu" {@attach sceneMenu()}
-        title="The scene – a tap selects it: the Inspector shows its label, group, surfaces, post-processing, vars and events; its menu arranges the surfaces in a row">
+        title="The scene – a tap selects it: the Inspector shows its label, group, post-processing, rules and the narrative line; its menu arranges the surfaces in a row">
         <span class="name">{sceneLabel(scene)}</span>
       </button>
       <span class="eye"></span>
@@ -670,20 +727,19 @@
         {/if}
       {/if}
     {/each}
-    {#if onaddtarget || onaddentry}
-      <div class="node add-target">
-        <span class="chevron"></span>
-        <span class="type"><Icon name="plus" size="1em" /></span>
-        {#if onaddtarget}
-          <button type="button" class="pick add" onclick={onaddtarget} title="A tap opens the form for a new entry with a printed image on this scene"><span class="name">+ target</span></button>
-        {/if}
-        {#if onaddentry}
-          <button type="button" class="pick add" onclick={onaddentry} data-help-name="+ entry"
-            title="A tap opens the form for a new entry without a printed image on this scene – read in the reader's list only, like a glossary term"><span class="name">+ entry</span></button>
-        {/if}
-      </div>
-    {/if}
+    <div class="node add-target">
+      <span class="chevron"></span>
+      <button type="button" class="pick add" aria-haspopup="menu" aria-expanded={!!addMenu} onclick={openAddMenu}
+        title="Add to the scene: a surface, a target, an entry, or a node onto the selected target or node"
+        data-help-name="+" data-help="One menu of everything the scene can get: a surface (double page, single page, wall, custom), a target or an entry (their forms), and a node of every type – a group, a model, a video, an image, a text, a light and the experience's plugins' types. A node goes onto the selected target, entry or node (where the Inspector's + node puts it); without one it is greyed out. A type that takes a file asks for it in the Library. Type to filter, Enter adds; what was added is selected, so the Inspector shows it."><Icon name="plus" size="1em" /><span class="name">add</span></button>
+    </div>
   </div>
+{/if}
+
+{#if addMenu}
+  <LogicMenu at={addMenu.at} head="Add to the scene" filter placeholder="Filter – surface, target, entry, a node type"
+    items={addItems.map(item => ({ key: item.key, label: item.label, detail: item.detail, group: item.group, disabled: item.disabled, select: () => runAdd(item) }))}
+    bind:query={addQuery} onclose={() => (addMenu = null)} />
 {/if}
 
 {#if menu}
