@@ -54,7 +54,12 @@ describe("the logic view per level (#334)", () => {
     expect(edge(view, "rule:door/#1", "node:door/1")).toHaveLength(1);
     expect(edge(view, "rule:door/#2", "node:door/1")).toHaveLength(1);
     // A plugin's use is derived: no home
-    expect(edge(view, "plugin:narrative", "node:door/")[0]).toMatchObject({ label: "door", home: null });
+    // What a plugin drives is a display row with a reference, not a wire (#334)
+    expect(edge(view, "plugin:narrative", "node:door/")).toEqual([]);
+    expect(view.refs).toContainEqual({ id: "ref:plugin:narrative:drives>node:door/", from: ["plugin:narrative", "drives"], to: "node:door/", dir: "out" });
+    expect(view.nodes.find(n => n.id === "plugin:narrative")?.rows).toEqual([
+      { id: "sets", names: ["doorOpen"] }, { id: "drives", names: ["door"] },
+    ]);
     expect(view.nodes.find(n => n.id === "node:door/1")?.enter).toEqual({ level: "entity", scene: "door", target: "door", path: [] });
     expect(view.canvas).toEqual({ nodes: [], wires: [] });
   });
@@ -121,12 +126,13 @@ describe("the logic view per level (#334)", () => {
       "var:hasKey > scene:door: reads",
       "event:sceneChanged > scene:epilogue: on",
       "var:hasKey > scene:epilogue: reads",
-      "plugin:narrative > var:doorOpen: sets",
       "scene:cover > scene:door: keyRattled",
       "scene:door > scene:epilogue: openDoor",
       "scene:door > plugin:narrative: openDoor",
     ]);
     expect(view.edges.every(e => e.home === null)).toBe(true);
+    // The plugin's set is a row and its reference line (#334)
+    expect(view.refs).toEqual([{ id: "ref:plugin:narrative:sets>var:doorOpen", from: ["plugin:narrative", "sets"], to: "var:doorOpen", dir: "out" }]);
     expect(view.problems.map(p => p.message)).toEqual(["doorOpened is emitted, but nothing in the experience hears it"]);
   });
 

@@ -8,6 +8,8 @@ import { conditionWords, project, type LogicContent, type LogicScene, type Logic
 interface LogicGraph {
   nodes: Array<{ id: string; kind: string; label: string; detail: string; pick: unknown; problem?: string }>;
   edges: Array<{ from: string; to: string; label: string }>;
+  /** A display row's references (#334): `from|row|to` */
+  refs: string[];
   problems: string[];
 }
 const sceneLogic = (content: LogicContent, sceneId: string): LogicGraph => {
@@ -19,6 +21,7 @@ const sceneLogic = (content: LogicContent, sceneId: string): LogicGraph => {
   return {
     nodes: view.nodes.map(({ id, kind, label, detail, pick, problem }) => ({ id, kind, label, detail, pick, ...(problem ? { problem } : {}) })),
     edges,
+    refs: view.refs.map(r => `${r.from[0]}|${r.from[1]}|${r.to}`),
     problems: view.problems.map(p => p.message),
   };
 };
@@ -71,7 +74,7 @@ describe("a scene's logic as a graph (#239)", () => {
     expect(has(graph, "rule:key/#0", "event:keyRattled", "emit")).toBe(true);
     expect(has(graph, "rule:key/#0", "node:key/", "play rattle")).toBe(true);
     // The spin component is the narrative plugin's: it drives the key's node
-    expect(has(graph, "plugin:narrative", "node:key/", "spin")).toBe(true);
+    expect(graph.refs).toContain("plugin:narrative|drives|node:key/");
     expect(graph.nodes.find(n => n.id === "var:hasKey")?.detail).toBe("variable · experience");
     expect(graph.nodes.find(n => n.id === "event:key/:tap")?.pick).toEqual({ kind: "node", target: "key", path: [] });
   });
@@ -83,8 +86,9 @@ describe("a scene's logic as a graph (#239)", () => {
     expect(has(graph, "var:hasKey", "rule:door/#1", "when")).toBe(true);
     expect(has(graph, "event:openDoor", "plugin:narrative", "hears")).toBe(true);
     expect(has(graph, "plugin:narrative", "event:doorOpened", "emits")).toBe(true);
-    expect(has(graph, "plugin:narrative", "var:doorOpen", "sets")).toBe(true);
-    expect(has(graph, "plugin:narrative", "node:door/", "door")).toBe(true);
+    // What it sets and drives: display rows with references, not wires (#334)
+    expect(has(graph, "plugin:narrative", "var:doorOpen", "sets")).toBe(false);
+    expect(graph.refs).toEqual(expect.arrayContaining(["plugin:narrative|sets|var:doorOpen", "plugin:narrative|reads|var:doorOpen", "plugin:narrative|drives|node:door/"]));
     expect(graph.nodes.find(n => n.id === "node:door/1")).toMatchObject({ label: "hint", pick: { kind: "node", target: "door", path: [1] } });
     expect(graph.nodes.find(n => n.id === "rule:door/#1")?.detail).toBe("hasKey");
     // hasKey is set on the key's scene, openDoor heard by the plugin: no problem – doorOpened is heard by nothing
@@ -120,7 +124,7 @@ describe("a scene's logic as a graph (#239)", () => {
 
   it("leaves out targets without entities and nodes without logic", () => {
     const plain: EntityData = { type: "model", assets: [], children: [{ type: "text", assets: [], text: "x" }] };
-    expect(sceneLogic({ scenes: [scene("s", [{ id: "a" }, { id: "b", entity: plain }])] }, "s")).toEqual({ nodes: [], edges: [], problems: [] });
+    expect(sceneLogic({ scenes: [scene("s", [{ id: "a" }, { id: "b", entity: plain }])] }, "s")).toEqual({ nodes: [], edges: [], refs: [], problems: [] });
   });
 });
 

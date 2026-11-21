@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## 4.8.2 – 2026-11-21
+## 4.9.1 – 2026-11-21
 
 ### Added
 - **Reference pages for the APIs** on the documentation site (Tilman, 2026-11-21, #336), generated from the code:
@@ -23,6 +23,17 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - The reference pages follow the APIs: `npm run plugin-api` in `editor/` writes the plugin API's page with the
   declaration file, `npm run docs-reference` in `mcp/` writes the tools' and the content model's, and the Checks
   workflow fails when a committed page is not what its generator gives.
+
+## 4.9.0 – 2026-11-21
+
+### Changed
+- Logic view: a plugin box keeps only the pins a wire can change – **emits** into a rule's on (the rule hears its event)
+  and a rule's do into **hears** (the rule emits what it hears; several events: a menu picks one). What its code reads,
+  sets and drives are plain display rows under a divider (*reads hasKey*, *sets doorOpen*, *drives spin*), each joined to
+  its box by a fine dotted reference line – not a wire, not selectable or deletable; a click opens the plugin in the Code
+  tab. The add menu and the dragged-wire lighting follow; the layout and card height count the rows (#334).
+- Logic view: a wire's word has an outline in the canvas's background, its signal's colour and a heavier weight, so it
+  reads where wires cross – day and night (#334).
 
 ## 4.8.1 – 2026-11-21
 
