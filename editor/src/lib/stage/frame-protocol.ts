@@ -56,6 +56,11 @@ export type PreviewSync = string;
 export interface FrameInit {
   content: ContentSnapshot;
   preview: PreviewSync;
+  /**
+   * The Code tab's saved plugin ids (#269): their declared compiled modules are never loaded on the stage – the saved
+   * source runs instead (`plugins.autoLoad`), so a declaration built against an older plugin API raises no refusal
+   */
+  saved?: string[];
 }
 
 /** The stage's state as the page shows it */

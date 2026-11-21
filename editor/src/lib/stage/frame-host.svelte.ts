@@ -1,6 +1,6 @@
 import { entityNodes, getTargets, loadGameConfiguration } from "@engine/content/game-config";
 import { untrack } from "svelte";
-import { pluginRegistrySnapshot } from "@engine/scene/plugins";
+import { keepPlugin, pluginRegistrySnapshot } from "@engine/scene/plugins";
 import type { VarScope, VarValue } from "@engine/scene";
 import type { EntityData, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
@@ -141,8 +141,9 @@ export const startStageFrame = (container: HTMLElement, options: FrameHostOption
     postIfChanged("layout", layout());
   };
 
-  const start = async ({ content, preview }: FrameInit) => {
+  const start = async ({ content, preview, saved }: FrameInit) => {
     if (core) return;
+    if (Array.isArray(saved)) saved.filter(id => typeof id === "string").forEach(keepPlugin);
     await loadContent(content);
     lastPreview = previewSync(JSON.parse(preview));
     applyPreviewSync(preview);
