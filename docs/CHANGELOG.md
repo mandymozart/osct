@@ -14,6 +14,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   draft leaves out such a declaration's `registered` (the saved source registers its own, #269), so the editor page
   loads the Demo Book again ("entries[4]…of: expected one of book, spread, got experience" – 4.4.2 fixed the stage
   only). A publish still declares what it carries.
+- The Scenes strip's **+** is a card high and level with the cards' pictures (it stretched over the whole strip).
 
 ## 4.6.1 – 2026-11-21
 
