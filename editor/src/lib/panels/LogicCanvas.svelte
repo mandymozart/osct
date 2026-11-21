@@ -81,7 +81,12 @@
   const edgeTypes = { logic: LogicWire };
 
   // A box hovered on the level before (it went away under the pointer) lights nothing here
-  const lit = $derived(!dragging && hovered && flow.boxes.some(b => b.id === hovered) ? new Set(flow.wires.filter(w => w.source === hovered || w.target === hovered).flatMap(w => [w.source, w.target])) : null);
+  // A box with no wire lights nothing and dims nothing; the hovered box itself is never dimmed
+  const lit = $derived.by(() => {
+    if (dragging || !hovered || !flow.boxes.some(b => b.id === hovered)) return null;
+    const touching = flow.wires.filter(w => w.source === hovered || w.target === hovered);
+    return touching.length ? new Set([hovered, ...touching.flatMap(w => [w.source, w.target])]) : null;
+  });
 
   /** What is selected on the canvas, kept across a new flow (a hover or an op draws the boxes again) */
   let chosen = $state<{ nodes: Set<string>; edges: Set<string> }>({ nodes: new Set(), edges: new Set() });
@@ -113,7 +118,7 @@
       connectable: editable && !box.stub && !box.pill, selectable: editable && !box.stub && !box.pill,
       selected: chosen.nodes.has(box.id),
       data: {
-        box, selected: selected(box), flash: flash === box.id, dim: !!lit && !lit.has(box.id), never: neverBox.has(box.id), editable,
+        box, selected: selected(box), flash: flash === box.id, dim: !!lit && !lit.has(box.id), hover: hovered === box.id, never: neverBox.has(box.id), editable,
         takes: dragging ? dragging.get(box.id) ?? NONE : null, onpick, onenter, onexpose, onfold,
       },
     }));
@@ -261,7 +266,7 @@
   /* A frame lies under the boxes and the wires; only its head takes the pointer */
   .flow :global(.svelte-flow__node-frame) { cursor: default; pointer-events: none; }
   .flow :global(.logic-wire.lit path.svelte-flow__edge-path) { stroke-width: 2.5px !important; stroke-opacity: 1 !important; }
-  .flow :global(.logic-wire.dim) { opacity: .25; }
+  .flow :global(.logic-wire.dim) { opacity: .45; }
   .flow :global(.svelte-flow__edge-label) { font-size: .625rem; padding: 0 .125rem; border-radius: .25rem; }
   /* While a wire is dragged: the inlets that would take it are drawn heavy */
   .flow :global(.svelte-flow__handle.connectingto), .flow :global(.svelte-flow__handle.valid) { outline: 2px solid var(--text); }
