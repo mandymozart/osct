@@ -4,12 +4,12 @@
   "source": {
     "kind": "draft"
   },
-  "build": "724b108f4cc6",
-  "hash": "724b108f4cc6c319df3fcaf5e367d266b5cdac238f0a8db643ad24ad63ad7062",
+  "build": "2070ccd02195",
+  "hash": "2070ccd02195f8e2b90b0215c56bb5bbd839de8dc8ac07c64faed2efd4dd6612",
   "schema": "5.0",
-  "appVersion": "4.4.0",
-  "cliVersion": "4.4.0",
-  "exportedAt": "2026-11-21T09:41:24.475Z",
+  "appVersion": "4.4.1",
+  "cliVersion": "4.4.1",
+  "exportedAt": "2026-11-21T09:49:24.713Z",
   "files": [
     {
       "path": "entities/beacon/beacon.glb",

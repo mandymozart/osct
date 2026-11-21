@@ -306,7 +306,7 @@ describe('the demo', () => {
     // The behaviour (#88): the key takes itself on a tap, the door's rules decide when the narrative plugin opens it
     const componentsOf = (id: string) => (entries.find(e => e.id === id)?.target?.entity as { components?: Array<{ type: string; rules?: unknown[] }> } | undefined)?.components ?? [];
     expect(componentsOf('key').find(c => c.type === 'behaviour')?.rules).toEqual([
-      { on: 'keyRattled', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'experience' }, { emit: 'keyRattled' }] },
+      { on: 'tap', do: [{ play: 'rattle' }, { set: { hasKey: true }, scope: 'experience' }, { emit: 'keyRattled' }] },
     ]);
     expect(componentsOf('door').map(c => c.type)).toEqual(['door', 'behaviour', 'reveal']);
     // The paper (#263): a component whose parameter is a model file – recorded as such, the file next to the node as its content path
