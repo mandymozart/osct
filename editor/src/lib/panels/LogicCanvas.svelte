@@ -300,7 +300,15 @@
 </div>
 
 <style>
-  .flow { position: relative; flex: 1; min-height: 8rem; }
+  /* The canvas runs to the panel's sides (and its foot, when nothing lies below) and fades out there instead of stopping in a gap;
+     the fade lies on the renderer, so the view controls stay crisp */
+  .flow { position: relative; flex: 1; min-height: 8rem; margin: 0 -.5rem; --edge-fade: 1.5rem; }
+  .flow:last-child { margin-bottom: -.5rem; }
+  .flow :global(.svelte-flow__renderer) {
+    mask-image: linear-gradient(to right, transparent, #000 var(--edge-fade), #000 calc(100% - var(--edge-fade)), transparent),
+      linear-gradient(to bottom, #000 calc(100% - var(--edge-fade)), transparent);
+    mask-composite: intersect;
+  }
   .flow :global(.svelte-flow) {
     --xy-background-color: transparent; --xy-edge-stroke: var(--muted); --xy-edge-stroke-width: 1.4; --xy-handle-background-color: var(--surface);
     --xy-edge-label-background-color: var(--surface); --xy-edge-label-color: var(--muted); --xy-controls-button-background-color: var(--surface);
