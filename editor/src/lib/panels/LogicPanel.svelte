@@ -15,6 +15,7 @@
   import { project, type LogicContent } from "#lib/logic/project.js";
   import { flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
   import { DECK_SIGNALS, SIGNAL_STYLES, signalToken } from "#lib/logic/signals.js";
+  import { issueRows, issueSummary, issuesOpen, type IssueRow } from "#lib/logic/issues.js";
   import type { LogicCanvas } from "@engine/types";
   import {
     decodeContext, encodeContext, followSelection, levelName, parentLevel, pickSelected, sameContext, sceneOfContext, searchIndex, searchLogic,
@@ -53,7 +54,9 @@
    *   the group level is read-only.
    * - What a plugin hears, emits, reads and sets is what its specs declare (schema 5.1, `declaredUses`); only for a plugin
    *   that declares nothing it is read from its source (stored, else the compiled module).
-   *   Problems across the experience are listed under the graph, in the error colour.
+   *   Problems sit in the **issues bar** under the graph (`logic/issues.ts`, the SCUTOONS deck's Problems, more minimal): one
+   *   line – a mark and the counts, the first issue beside – that opens a list (remembered per session); a row is the box's
+   *   name and the short words, a click marks the box and goes to its level. Only an error has colour (RULES #38).
    * - **Ports from the specs** (L-T6): a node's box shows its wired ports; its **+** (or its right-click menu) shows one of
    *   the hidden ones, *Hide unused ports* (Ctrl+H for every box) hides them again – the level's canvas keeps the choice
    *   (`logicEdit.setCanvas`). While a wire is dragged the inlets that take it light up; one let go where it does not fit
@@ -441,6 +444,20 @@
     import("./LogicCanvas.svelte").then(m => (Canvas = m.default)).catch(e => (canvasError = String(e?.message ?? e)));
   });
 
+  // ── The issues bar ──
+  const issues = $derived(issueRows(view.problems));
+  const issueErrors = $derived(issues.filter(i => i.severity === "error").length);
+  let issuesShown = $state(issuesOpen.read());
+  const toggleIssues = () => {
+    issuesShown = !issuesShown;
+    issuesOpen.write(issuesShown);
+  };
+  /** A row goes to its box: marked here, or at the level it is drawn at (a scene's box at the experience level) */
+  const goToIssue = (issue: IssueRow) => {
+    if (issue.context && !sameContext(issue.context, context)) go(issue.context, { mark: issue.node });
+    else flash = issue.node;
+  };
+
   const never = $derived(flow.wires.some(w => w.never));
   /** The signals OSCT draws, and what each stands for here (DESIGN.md "Logic canvas: signals") */
   const LEGEND = DECK_SIGNALS;
@@ -528,10 +545,30 @@
   {:else}
     <p class="muted small">Loading the graph…</p>
   {/if}
-  {#if view.problems.length}
-    <ul class="problems" aria-label="Problems">
-      {#each view.problems as p, i (i)}<li class="danger small">{p.message}</li>{/each}
-    </ul>
+  {#if issues.length}
+    <section class="issues small" class:open={issuesShown} aria-label="Issues">
+      <button type="button" class="issues-line" aria-expanded={issuesShown} onclick={toggleIssues}
+        title={issuesShown ? "Hide the issues" : "Show the issues"}
+        data-help-name="Issues" data-help="What is wrong with the logic, across the experience: errors (a name that is not there, a type the rule refuses – in the error colour) and warnings (an event nothing hears, a variable nothing sets – it never does anything). A click opens the list; a row marks its box and goes to its level.">
+        <span class="mark {issueErrors ? 'error' : 'warning'}" aria-hidden="true"></span>
+        <span class="count">{issueSummary(issues)}</span>
+        {#if !issuesShown}
+          <span class="first">{issues[0].place ? `${issues[0].place} · ` : ""}{issues[0].text}</span>
+        {/if}
+        <span class="chevron" aria-hidden="true"><Icon name={issuesShown ? "down" : "up"} /></span>
+      </button>
+      {#if issuesShown}
+        <ul class="issue-list">
+          {#each issues as issue, i (i)}
+            <li><button type="button" class="issue" class:error={issue.severity === "error"} title={issue.message} disabled={!issue.node} onclick={() => goToIssue(issue)}>
+              <span class="mark {issue.severity}" aria-label={issue.severity}></span>
+              {#if issue.place}<span class="place">{issue.place}</span>{/if}
+              <span class="text">{issue.text}</span>
+            </button></li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
   {/if}
   {#if menu}
     <LogicMenu at={menu.at} head={menu.head} items={menuItems} filter={!!menu.add} bind:query={menuQuery} onclose={() => (menu = null)} />
@@ -575,5 +612,28 @@
   .wire line { stroke: var(--muted); stroke-width: 1.5; }
   .wire.never line { stroke-dasharray: 1 4; stroke-width: 1; }
   .status { margin: 0; overflow-wrap: anywhere; }
-  .problems { margin: 0; padding: 0 0 0 1rem; display: flex; flex-direction: column; gap: .125rem; max-height: 6rem; overflow-y: auto; }
+  /* The issues bar: one quiet line under the graph, a list when open; colour only for an error (RULES #38) */
+  .issues { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin: 0 -.5rem -.5rem; }
+  .issues-line, .issue {
+    display: flex; align-items: center; gap: .375rem; width: 100%; min-width: 0; border: 0; background: none; padding: 0 .5rem;
+    font: inherit; color: var(--muted); text-align: left; cursor: pointer; white-space: nowrap;
+  }
+  .issues-line { height: 1.5rem; }
+  .issues-line .count { color: var(--text); flex: none; }
+  .issues-line .first { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .issues-line .chevron { margin-left: auto; display: inline-flex; flex: none; }
+  .issues-line .chevron :global(svg) { width: .75rem; height: .75rem; }
+  .issue-list { list-style: none; margin: 0; padding: 0 0 .25rem; max-height: 7.5rem; overflow-y: auto; }
+  .issue { height: 1.25rem; padding-left: 1rem; }
+  .issue:disabled { cursor: default; }
+  .issue .place { color: var(--text); flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+  .issue .text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  @media (hover: hover) {
+    .issues-line:hover, .issue:not(:disabled):hover { background: var(--hover-background); }
+  }
+  .issues-line:focus-visible, .issue:focus-visible { background: var(--hover-background); outline: none; }
+  /* an error: a filled dot in the error colour; a warning: a hollow muted ring (the shape tells it apart, not a colour) */
+  .mark { flex: none; width: .4375rem; height: .4375rem; border-radius: 50%; box-sizing: border-box; }
+  .mark.error { background: var(--danger); }
+  .mark.warning { border: 1.5px solid var(--muted); }
 </style>

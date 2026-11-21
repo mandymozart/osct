@@ -7,6 +7,16 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.7.0 – 2026-11-21
+
+### Changed
+- The Logic panel's problems sit in an **issues bar** under the graph, like the SCUTOONS deck's, more minimal (#334,
+  Tilman 2026-11-21): one line – a mark, *1 error · 2 warnings* and the first issue – that opens a compact list on a
+  click (remembered per session). A row is the box's name and short words (*keyRattled · emitted, nothing hears it*); a
+  click marks the box and, for a scene's problem at a wider level, opens the scene's level. Errors (a missing node or
+  scene, a refused type) keep the error colour; warnings (nothing hears, sets or emits it) are grey with a hollow mark,
+  and their box's border is dashed instead of red (RULES #38).
+
 ## 4.6.5 – 2026-11-21
 
 ### Fixed
