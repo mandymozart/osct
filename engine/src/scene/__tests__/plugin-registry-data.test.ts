@@ -5,7 +5,7 @@ import {
 } from "../../types/index";
 import { materialRegistration } from "../materials";
 import {
-  buildPluginNode, installedPlugins, installPlugin, keepPlugin, loadPlugins, nodeTypeFailure, nodeTypeRegistration, pluginRegistrySnapshot, pluginTypes,
+  buildPluginNode, installedPlugins, installPlugin, keepPlugin, pluginRegistryRevision, loadPlugins, nodeTypeFailure, nodeTypeRegistration, pluginRegistrySnapshot, pluginTypes,
   type PluginModule, resetPlugins, uninstallPlugin,
 } from "../plugins";
 import { PLUGIN_API_VERSION } from "../../types/index";
@@ -87,5 +87,25 @@ describe("resetPlugins (#340: the editor's workspace closes)", () => {
     expect(importer).toHaveBeenCalledTimes(1);
     expect(pluginTypes("fx")).toEqual(["spin"]);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("pluginRegistryRevision (#340: the editor's panels read the registry again only when it changed)", () => {
+  it("moves with an install, an uninstall and a node type's build failing or building again – not with a build that changes nothing", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const start = pluginRegistryRevision();
+    installFx();
+    const installed = pluginRegistryRevision();
+    expect(installed).toBeGreaterThan(start);
+    buildPluginNode({ type: "sparkle", assets: [] }, target({ type: "sparkle", assets: [] }), () => undefined);
+    expect(pluginRegistryRevision()).toBe(installed);
+    installPlugin("broken", { register: api => api.registerNodeType("crash", SPARKLE, () => { throw new Error("no fish"); }) });
+    const broken = pluginRegistryRevision();
+    buildPluginNode({ type: "crash", assets: [] }, target({ type: "crash", assets: [] }), () => undefined);
+    expect(pluginRegistryRevision()).toBe(broken + 1);
+    buildPluginNode({ type: "crash", assets: [] }, target({ type: "crash", assets: [] }), () => undefined);
+    expect(pluginRegistryRevision()).toBe(broken + 1);
+    uninstallPlugin("broken");
+    expect(pluginRegistryRevision()).toBe(broken + 2);
   });
 });

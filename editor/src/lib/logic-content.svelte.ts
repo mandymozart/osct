@@ -17,6 +17,9 @@ import type { Stage } from "./stage/stage.svelte";
  * and the variables as edited (`logicEdit`). Called in a component's script: it reads its sources while that component
  * lives.
  */
+/** The plugins' sources read so far, by experience, plugin and version (`readSource`) */
+const sources = new Map<string, Promise<string | null>>();
+
 export const logicContent = (props: () => { experienceId: string; sceneId: string; stage: Stage | null }) => {
   /** What each plugin's code uses, by plugin id */
   let code = $state<Record<string, PluginUses>>({});
@@ -27,8 +30,10 @@ export const logicContent = (props: () => { experienceId: string; sceneId: strin
     return getPlugins();
   });
 
-  const readSource = async (experienceId: string, plugin: PluginData): Promise<string | null> => {
+  const fetchSource = async (experienceId: string, plugin: PluginData): Promise<string | null> => {
     try {
+      // A stored source: the one read the auto-load made (one request per saved version); else the declared module's
+      if (plugins.stored.some(p => p.id === plugin.id)) return await plugins.savedSource(experienceId, plugin.id);
       return (await getPlugin(experienceId, plugin.id)).plugin.source;
     } catch {
       try {
@@ -39,11 +44,28 @@ export const logicContent = (props: () => { experienceId: string; sceneId: strin
       }
     }
   };
+  /**
+   * A source read once per version (#340: the panels re-read the registry often – the source is asked for again only when
+   * it was saved again, or the declared module is another): its stored row's save time, else the module's URL
+   */
+  const readSource = (experienceId: string, plugin: PluginData): Promise<string | null> => {
+    const row = plugins.stored.find(p => p.id === plugin.id);
+    const key = `${experienceId}|${plugin.id}|${row ? `${row.updatedAt}|${row.size}` : plugin.src}`;
+    let reading = sources.get(key);
+    if (!reading) {
+      reading = fetchSource(experienceId, plugin);
+      sources.set(key, reading);
+    }
+    return reading;
+  };
 
   $effect(() => {
     const list = declared.filter(p => !declaredUses(p.registered));
     const experienceId = props().experienceId;
     void plugins.stored;
+    // The stored sources are not listed yet: which ones are stored decides how each is read – wait for the list (#340: else
+    // every source was asked for twice, once before the list and once after)
+    if (plugins.experienceId !== experienceId || plugins.loading) return;
     let current = true;
     void Promise.all(list.map(async p => [p.id, await readSource(experienceId, p)] as const)).then(read => {
       if (current) code = Object.fromEntries(read.flatMap(([id, source]) => (source === null ? [] : [[id, pluginCodeUses(source)]])));

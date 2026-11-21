@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readStored, readStoredJson, writeStored, writeStoredJson } from "../storage";
+import { deviceStorage, readStored, readStoredJson, writeStored, writeStoredJson } from "../storage";
 
 describe("the editor's settings in localStorage", () => {
   afterEach(() => {
@@ -35,5 +35,19 @@ describe("the editor's settings in localStorage", () => {
     expect(readStored("osct-preview")).toBeNull();
     expect(readStoredJson("osct-preview")).toBeUndefined();
     expect(() => writeStoredJson("osct-preview", { grid: true })).not.toThrow();
+  });
+});
+
+describe("the stage's switches keep out of the reader's storage (#340: the stage runs on the reader's origin)", () => {
+  afterEach(() => localStorage.clear());
+
+  it("stores the engine's switches under a namespace of its own, never the reader's keys", () => {
+    localStorage.setItem("osct-camera-lens", "reader's");
+    localStorage.setItem("osct-progress:demo", "{\"format\":4}");
+    expect(deviceStorage.get("camera-lens")).toBeNull();
+    deviceStorage.set("camera-lens", "wide");
+    expect(localStorage.getItem("osct-editor-stage-camera-lens")).toBe("wide");
+    expect(localStorage.getItem("osct-camera-lens")).toBe("reader's");
+    expect(deviceStorage.get("progress:demo")).toBeNull();
   });
 });

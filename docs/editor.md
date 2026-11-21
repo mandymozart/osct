@@ -1105,6 +1105,9 @@ gone.
   an older plugin API – never loads over it; the API's draft leaves such a declaration's recorded specs out (4.6.2).
 - **The plugins' lines** (`api.log`, the engine's `[plugins]` lines, what a plugin module threw that nobody caught – a
   `blob:` module of the Code tab or a declared module's URL) go to the Code tab's log and the Log tab while the stage lives.
+- **Storage**: the stage is on the reader's origin now, so the engine's switches for it live under
+  `osct-editor-stage-…` (`storage.ts` `deviceStorage`) – never the reader's `osct-…` keys or its progress record. The
+  panels read the plugin registry again only when its revision moved (`pluginRegistryRevision`), not on every edit.
 - **Leaving the workspace** disposes the stage and empties the plugin registry (`resetPlugins` – the next experience
   starts with none of this one's code, as a new page would); the draft's recorded specs are adopted again.
 - **What plugin code can do now**: it runs with the signed-in editor's session – `fetch("/api/…")` carries the cookie,
@@ -1637,8 +1640,9 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`).
 - **The saved sources are part of the live stage** (#269): every stage that starts – the workspace opens – gets each
   stored source the guard did not keep off by itself (#340, [The plugin guard](#the-plugin-guard), `plugins.autoLoad`):
-  the text last run in this page if there is one, else the saved one, transpiled and installed one after the other, then
-  the scene built once – while the first scene builds, so a scene that does not build keeps no code from loading. A source stored under the id of a plugin the
+  the text last run in this page if there is one, else the saved one, transpiled and installed one after the other –
+  **before the first scene builds** (5.0.2: its nodes find what the code registers; every open waits for it), and each
+  saved version is read once (`plugins.savedSource`, shared with the Logic view and the Log tab). A source stored under the id of a plugin the
   content declares wins over its compiled module (`keepPlugin`: the engine does not install that module over it).
   **Save** runs the saved text too. So the looks, components and node types of the experience's code are known to the pickers and the
   Inspector without a Run, on every visit. A line under the picker says what of the open plugin runs on the stage:

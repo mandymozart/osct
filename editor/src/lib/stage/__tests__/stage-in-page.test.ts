@@ -103,6 +103,44 @@ describe("the stage in the editor's page", () => {
     expect(importer).not.toHaveBeenCalled();
   });
 
+  it("builds the first scene only after the saved sources are installed – its nodes find what they register (#340)", async () => {
+    const { stage, core } = make();
+    let release!: () => void;
+    const order: string[] = [];
+    stage.onStarted = () => new Promise<void>(resolve => {
+      release = () => {
+        installPlugin("fx", { register: api => api.registerComponent("spin", SPIN, () => ({})) });
+        order.push("plugins");
+        resolve();
+      };
+    });
+    const opening = stage.open("a");
+    // A second open while the code loads waits too
+    const again = stage.open("b");
+    await Promise.resolve();
+    expect(core.calls.filter(c => c[0] === "open")).toEqual([]);
+    expect(stage.sceneId).toBe("b");
+    release();
+    await Promise.all([opening, again]);
+    order.push(...core.calls.filter(c => c[0] === "open").map(c => `open ${c[1]}`));
+    expect(order).toEqual(["plugins", "open a", "open b"]);
+  });
+
+  it("tells the panels to read the registry again only when it changed", async () => {
+    const { stage } = make();
+    await stage.open("a");
+    await new Promise(resolve => setTimeout(resolve));
+    const version = plugins.version;
+    void stage.override("door", DOOR);
+    void stage.override("door", { ...DOOR, name: "again" });
+    await new Promise(resolve => setTimeout(resolve));
+    expect(plugins.version).toBe(version);
+    installPlugin("fx", { register: api => api.registerComponent("spin", SPIN, () => ({})) });
+    void stage.override("door", DOOR);
+    await new Promise(resolve => setTimeout(resolve));
+    expect(plugins.version).toBe(version + 1);
+  });
+
   it("writes a gizmo's placement into the page's own override and hands it to the stage", () => {
     const { stage, core } = make();
     void stage.override("door", DOOR);

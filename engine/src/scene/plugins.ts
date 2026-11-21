@@ -372,6 +372,7 @@ export const uninstallPlugin = (id: string): void => {
   dropPluginListeners(id);
   removeRegistrations(id);
   disposePluginFeedbacks(id);
+  revision += 1;
 };
 
 const removeRegistrations = (id: string): void => {
@@ -536,6 +537,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   installedNodeTypes.set(id, [...staged.nodeTypes.keys()]);
   installedMaterials.set(id, [...staged.materials.keys()]);
   installedTextures.set(id, [...staged.textures.keys()]);
+  revision += 1;
 };
 
 /** The ids of the plugins installed right now */
@@ -555,6 +557,22 @@ export const nodeTypeRegistration = (type: string): NodeTypeRegistration | undef
 
 /** The node types whose last build failed, with why (a build that works, or the type registered anew, clears it) */
 const failures = new Map<string, string>();
+
+/** Counts every change of the registry: a plugin installed or uninstalled, a node type's build failing or building again */
+let revision = 0;
+/** A node type's failure, counted only when it changes */
+const setFailure = (type: string, why: string | null): void => {
+  if ((failures.get(type) ?? null) === why) return;
+  if (why === null) failures.delete(type);
+  else failures.set(type, why);
+  revision += 1;
+};
+
+/**
+ * The registry's revision: it changes with every installed or uninstalled plugin and every node type's build that failed
+ * or built again – the editor reads its panels' specs again only then (#340)
+ */
+export const pluginRegistryRevision = (): number => revision;
 
 /** Why the last build of a plugin's node type failed, undefined when it built (the editor shows it with the type's code) */
 export const nodeTypeFailure = (type: string): string | undefined => failures.get(type);
@@ -584,20 +602,20 @@ export const buildPluginNode = (
     [instance, feedbacks] = collectFeedbacks(() => registration.build({ node, params: textures.values, asset: file ? asset(file.id) : undefined, target, three: THREE, emit: specEmitter(registration.plugin, registration.spec, target, node.type) }));
   } catch (error) {
     console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) failed on ${target.id}:`, error);
-    failures.set(node.type, error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+    setFailure(node.type, error instanceof Error ? `${error.name}: ${error.message}` : String(error));
     textures.dispose();
     return null;
   }
   if (!instance || !(instance.object instanceof THREE.Object3D)) {
     if (instance) {
       console.error(`[plugins] the node type ${node.type} (plugin ${registration.plugin}) returned no three.js object on ${target.id}`);
-      failures.set(node.type, "its build returned no three.js object");
+      setFailure(node.type, "its build returned no three.js object");
     }
     feedbacks?.dispose();
     textures.dispose();
     return null;
   }
-  failures.delete(node.type);
+  setFailure(node.type, null);
   const built = instance;
   const owned = feedbacks;
   owned?.own(built.object);
@@ -851,4 +869,5 @@ export const resetPlugins = (): void => {
   loaded.clear();
   texts.clear();
   failures.clear();
+  revision += 1;
 };
