@@ -232,6 +232,25 @@ Verbatim from the archived entries (the entry title and archive file in front of
   the pull zone). Open: a restore command (download export.json's files into place); old archives keep naming builds a
   purge has removed (only the newest per environment is protected).
 
+## 2026-11-21 – Do not run `content move --delete-old` yet (#87)
+
+- The staging demo's draft still names files in the old folders (`https://buildingfictions.b-cdn.net/demo/<build>/…`,
+  e.g. entry targets' `imageSrc`). `--delete-old` on `demo/` (and likely `staging/`) would break those references.
+  First rewrite the draft's references to the store per experience (or the Library), then delete.
+- Staging demo data fixed by the orchestrator on 2026-11-21: `tally` and `colophon` `of: "book"` → `"experience"`; the
+  key's rule `on: keyRattled` (it emitted keyRattled itself – a loop) → `on: tap` (Tilman: "Ja, auf tap").
+
+## 2026-11-21 – Demo plugins stuck at plugin API 1.6 on staging
+
+- Tilman saw "[plugins] aquarium … was built against plugin API 1.6, this engine runs 3.1 – not loaded" for the 11
+  fixture plugins. Cause: the demo's draft configuration still declared them from its first import (api 1.6, old
+  `plugin.js`), but the database had **no source** for them – a publish injects (recompiles) only plugins with a saved
+  source, so the old declarations went through unchanged. Fix: their sources from `fixtures/demo/plugins/` were added to
+  the staging demo (PUT …/plugins/{id}, additive, 2026-11-21); the next Publish of the demo in the editor compiles them
+  against 3.1. The osct experience's live build declares only 3.1 plugins.
+- [ ] Guard: a publish (and the import) should refuse or report a declared plugin without a saved source whose API
+  MAJOR the engine does not run, instead of passing it through.
+
 ## 2026-11-21 – Demo: the staging database and `fixtures/demo` have drifted apart (#322 decision (b))
 
 - The staging DB's demo has 9 plugins (contact-shadow, cutout-shadow, hover, lifts, my-model-look, my-sparkle-look,

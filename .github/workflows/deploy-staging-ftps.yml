@@ -14,6 +14,9 @@ name: Deploy staging over FTPS (temporary)
 on:
   push:
     branches: [develop]
+    # The FTPS upload is not atomic – the API answers 500 while it runs: a push that changes only notes, docs or the
+    # agents' files deploys nothing
+    paths-ignore: ['agents/**', 'docs/**', '**/*.md']
   workflow_dispatch:
 
 concurrency:
