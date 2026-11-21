@@ -18,6 +18,12 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   the pulse again; with reduced motion the wires only brighten. The bar's **Live** switch turns it off (on by default,
   remembered in this browser).
 
+## 4.11.1 – 2026-11-21
+
+### Fixed
+- **An event wire's word reads again** (#334): the event signal is near white at night, so in 4.11.0's white ring its
+  word ("hears", "emits", "on") was a white blot; it now takes the event's day ink, dark in both themes.
+
 ## 4.11.0 – 2026-11-21
 
 ### Added
