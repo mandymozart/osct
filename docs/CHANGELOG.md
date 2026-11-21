@@ -7,6 +7,15 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 5.0.1 – 2026-11-21
+
+### Changed
+- **The Logic canvas fades out on all four sides, over 1rem** (Tilman, 2026-11-21, #334): faster than 4.9.3's 1.5rem,
+  and now at the top too.
+- **A wire's word gets a ring that contrasts with it, thinner** (Tilman, 2026-11-21, #334): dark round the night's bright
+  inks, white round the day's dark ones and round the event's ink (`--wire-halo`); the ring is 0.6px instead of 1px with
+  a glow.
+
 ## 5.0.0 – 2026-11-21
 
 ### Removed
