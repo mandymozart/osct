@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.12.1 – 2026-11-21
+
+### Changed
+- **The Logic view's settings sit in a … menu** (Tilman, 2026-11-21, #334): *Follow* and the live feedback's switch are
+  settings of the view, not actions, so they left the bar for its **…** view settings. The live feedback's switch is
+  now **Trace** – *Live* is the stage's pause / play, a different thing.
+
 ## 4.12.0 – 2026-11-21
 
 ### Added

@@ -24,7 +24,7 @@
    * with an outline in the canvas's background (Tilman, 2026-11-21: "values on wires need an outline so they stick out
    * more") – `LogicCanvas.svelte` styles it.
    *
-   * **Live** (#334): while the stage just lit it (`data.live`), a glow in its own colour runs once along it from its source to
+   * **Trace** (#334): while the stage just lit it (`data.live`), a glow in its own colour runs once along it from its source to
    * its target (a dash travelling on `pathLength` 100) over a wider halo that fades out in a second; a new firing starts it
    * again. With reduced motion, only the halo – no movement, no fade.
    */

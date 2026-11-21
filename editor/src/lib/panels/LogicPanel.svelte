@@ -77,7 +77,7 @@
    *   that point), on a box's (beside it, moving with it), or **N** with the pointer over the canvas. A new note opens for
    *   typing; its author is the signed-in person. Notes are selected and dragged like boxes; Delete removes them (an empty
    *   text too). Each is a canvas op (History, Undo).
-   * - **Live feedback** (#334, Tilman 2026-11-21): while *Live* is on (the bar's switch, kept in this browser), each new line
+   * - **Live feedback** (#334, Tilman 2026-11-21): while *Trace* is on (the bar's … view settings, kept in this browser), each new line
    *   of the stage's timeline (`stage.events`) lights what it touches at this level for a second – an event its wires and
    *   box, a `varChanged` its variable's wires and box (with the new value), a `behaviour` line its rule's box and wires
    *   (`logic/live.ts`: the index once per flow, a hit per line). The timeline as it stands when the panel opens counts as
@@ -129,7 +129,7 @@
   const levelKey = $derived(encodeContext(context));
 
   // ── Live feedback (#334, Tilman 2026-11-21): the stage's new lines light their wires and boxes for a moment ──
-  const LIVE_KEY = "osct-editor-logic-live";
+  const LIVE_KEY = "osct-editor-logic-trace";
   /** On by default; off is kept in this browser */
   let liveOn = $state(untrack(() => readStored(LIVE_KEY) !== "off"));
   /** What is lit now (`logic/live.ts`): a pulse per wire and box, the value a variable box shows */
@@ -138,6 +138,15 @@
   /** The newest line seen: the timeline as it stands when the panel opens counts as seen – nothing is replayed */
   let liveSeen = untrack(() => markSeen(stage?.events ?? []));
   let livePulse = 0;
+  /** The view settings' popover (Follow, Trace): under its … button, right-aligned to it */
+  let viewButton = $state<HTMLButtonElement>();
+  let viewPop = $state<HTMLDivElement>();
+  let viewAt = $state({ x: 0, y: 0 });
+  const placeViewPop = (e: Event) => {
+    if ((e as ToggleEvent).newState !== "open" || !viewButton || !viewPop) return;
+    const r = viewButton.getBoundingClientRect();
+    viewAt = { x: Math.max(8, r.right - (viewPop.offsetWidth || 160)), y: r.bottom + 4 };
+  };
   const setLive = (on: boolean) => {
     liveOn = on;
     writeStored(LIVE_KEY, on ? null : "off");
@@ -672,16 +681,19 @@
     <button type="button" class="pill" disabled={!editable || !pinnedHere} onclick={() => canvasOp({ edit: "tidy" })}
       title={editable ? (pinnedHere ? "Lay the level out again: every box you placed goes back into the layout" : "Nothing placed by hand at this level") : readOnlyHint ?? ""}
       data-help-name="Tidy" data-help="A box dragged by its head stays where you let it go (on the 1rem grid). Tidy drops those places at this level: the automatic layout places every box again.">Tidy</button>
-    <span class="follow">
-      <Toggle on={follow} label="Follow" onchange={on => (follow = on)}
-        help="On: selecting a scene, a group or a node elsewhere (the stage, the tree, the Scenes panel) moves the Logic view to its level. Off: the view stays where you put it." />
-      <span class="small">Follow</span>
-    </span>
-    <span class="follow">
-      <Toggle on={liveOn} label="Live" onchange={setLive}
-        help="On: what happens on the stage shows on the canvas as it happens – a wire that carries an event lights up in its colour when the event fires, the wires of a variable when it changes (its box shows the new value for a moment), and a rule that ran pulses with the wires out of its actions. Only what happens from now on; off keeps the canvas still. Remembered in this browser." />
-      <span class="small">Live</span>
-    </span>
+    <!-- The view's settings (#334, Tilman 2026-11-21: "clearly a setting for this view, not an action"): Follow and Trace -->
+    <button bind:this={viewButton} type="button" class="icon-button" aria-haspopup="true" aria-label="View settings" title="View settings: Follow, Trace"
+      onclick={() => viewPop?.togglePopover()} data-help-name="View settings" data-help="The Logic view's own settings: Follow (the view moves to what is selected elsewhere) and Trace (the stage's events light their wires; kept in this browser)."><Icon name="more" /></button>
+    <div bind:this={viewPop} class="view-pop" popover="auto" ontoggle={placeViewPop} style:left="{viewAt.x}px" style:top="{viewAt.y}px">
+      <label class="setting">
+        <Toggle on={follow} label="Follow" onchange={on => (follow = on)} help="On: selecting a scene, a group or a node elsewhere (the stage, the tree, the Scenes panel) moves the Logic view to its level. Off: the view stays where you put it." />
+        <span>Follow</span>
+      </label>
+      <label class="setting">
+        <Toggle on={liveOn} label="Trace" onchange={setLive} help="On: what happens on the stage shows on the canvas as it happens – a wire that carries an event lights up in its colour when the event fires, the wires of a variable when it changes (its box shows the new value for a moment), and a rule that ran pulses with the wires out of its actions. Only what happens from now on; off keeps the canvas still. Remembered in this browser." />
+        <span>Trace</span>
+      </label>
+    </div>
   </div>
   <div class="legend small" aria-label="Legend: the signals">
     {#each LEGEND as signal (signal)}
@@ -768,7 +780,6 @@
   .hit-label { font-weight: 600; }
   .hit-where { font-size: var(--text-small); color: var(--muted); }
   .none { padding: .25rem .5rem; }
-  .follow { display: inline-flex; align-items: center; gap: .25rem; }
   .legend { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; color: var(--muted); }
   .sig { display: inline-flex; align-items: center; gap: .1875rem; margin-right: .25rem; }
   .wire { display: inline-flex; align-items: center; gap: .1875rem; margin-left: .25rem; }
@@ -800,4 +811,8 @@
   .mark { flex: none; width: .4375rem; height: .4375rem; border-radius: 50%; box-sizing: border-box; }
   .mark.error { background: var(--danger); }
   .mark.warning { border: 1.5px solid var(--muted); }
+  .view-pop { position: fixed; inset: auto; margin: 0; padding: .375rem .5rem; display: none; flex-direction: column; gap: .375rem; min-width: 9rem;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+  .view-pop:popover-open { display: flex; }
+  .setting { display: flex; align-items: center; gap: .5rem; cursor: pointer; }
 </style>

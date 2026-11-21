@@ -227,8 +227,8 @@ Verbatim from the archived entries (the entry title and archive file in front of
   an emptied timeline starts again; a clock that went back (a new frame) only moves the mark. A pulse lasts 1 s
   (`LIVE_MS`), a new firing restarts it (a pulse number keys the animation). Look: the wire's own signal colour, opaque
   and heavier, a dash glow running once from source to target over a fading halo (class `live`, apart from the hover's
-  `lit` / `dim`); reduced motion keeps only the brighter state. The bar's **Live** switch (on by default,
-  `osct-editor-logic-live`) turns it off.
+  `lit` / `dim`); reduced motion keeps only the brighter state. **Trace** in the bar's … view settings (on by default,
+  `osct-editor-logic-trace`) turns it off – renamed from Live, which the stage's pause/play already is (4.12.1).
 - [ ] Not checked in a running editor yet (no screenshot): the travelling dash on real wires, and the cost of re-drawing
   the canvas's nodes per pulse on a large level.
 
