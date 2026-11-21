@@ -7,6 +7,12 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 4.9.3 – 2026-11-21
+
+### Fixed
+- **The Logic canvas's edge fade now shows** (#334): 4.9.2 put the mask on a layer this xyflow version does not
+  have (`svelte-flow__renderer`); it now lies on `svelte-flow__zoom`.
+
 ## 4.9.2 – 2026-11-21
 
 ### Changed
