@@ -377,13 +377,13 @@
 </div>
 
 <style>
-  /* The canvas runs to the panel's sides (and its foot, when nothing lies below) and fades out there instead of stopping in a gap;
+  /* The canvas runs to the panel's sides (and its foot, when nothing lies below) and fades out on all four sides over 1rem instead of stopping in a gap;
      the fade lies on the zoom layer, not on the panel with the view controls, so they stay crisp */
-  .flow { position: relative; flex: 1; min-height: 8rem; margin: 0 -.5rem; --edge-fade: 1.5rem; }
+  .flow { position: relative; flex: 1; min-height: 8rem; margin: 0 -.5rem; --edge-fade: 1rem; }
   .flow:last-child { margin-bottom: -.5rem; }
   .flow :global(.svelte-flow__zoom) {
     mask-image: linear-gradient(to right, transparent, #000 var(--edge-fade), #000 calc(100% - var(--edge-fade)), transparent),
-      linear-gradient(to bottom, #000 calc(100% - var(--edge-fade)), transparent);
+      linear-gradient(to bottom, transparent, #000 var(--edge-fade), #000 calc(100% - var(--edge-fade)), transparent);
     mask-composite: intersect;
   }
   .flow :global(.svelte-flow) {
@@ -407,7 +407,8 @@
      in day and night alike */
   .flow :global(.svelte-flow__edge-label) {
     font-size: .625rem; font-weight: 500; padding: 0 .25rem; color: var(--wire-label, var(--text)); background: none;
-    text-shadow: 1px 0 0 #fff, -1px 0 0 #fff, 0 1px 0 #fff, 0 -1px 0 #fff, 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0 0 2px #fff;
+    --h: var(--wire-halo-ink, var(--wire-halo));
+    text-shadow: .6px 0 0 var(--h), -.6px 0 0 var(--h), 0 .6px 0 var(--h), 0 -.6px 0 var(--h), .6px .6px 0 var(--h), -.6px -.6px 0 var(--h), .6px -.6px 0 var(--h), -.6px .6px 0 var(--h);
   }
   .flow :global(.svelte-flow__edge.logic-ref) { pointer-events: none; }
   /* While a wire is dragged: the inlets that would take it are drawn heavy */
