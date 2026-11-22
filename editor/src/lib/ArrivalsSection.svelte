@@ -3,6 +3,7 @@
   import { errorText, getEntries, listArrivals, listExperiences, listScenes, type ArrivalSource } from "#lib/api.js";
   import { loadQr, qrModules, qrSvg } from "#lib/qr-svg.js";
   import Segmented from "#lib/components/Segmented.svelte";
+  import { readerAddress } from "#lib/new-experience.js";
 
   /**
    * The admin page's **QR codes and links** (#324, docs/admin.md): how many people came to the app from each printed QR
@@ -15,6 +16,7 @@
   /** The codes we printed or placed, by source */
   const KNOWN: Record<string, string> = {
     bk1: "The book – last page",
+    d1: "The demo",
     lp1: "Desktop landing page",
   };
   const WINDOWS = ["7", "30", "90", "365"] as const;
@@ -70,18 +72,27 @@
   const shortDate = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
   /**
-   * **A new code** (#326): a source, where the code leads – the start, Info, a scene, a category's list or an entry (the
-   * reader's links, docs/pages.md "Links") – and the address with `?s=` as a QR code in SVG, to copy or download for print
+   * **A new code** (#326): a source, the experience and where in it the code leads – the start, Info, a scene, a
+   * category's list or an entry (the reader's links, docs/pages.md "Links") – and the address with `?s=` as a QR code in
+   * SVG, to copy or download for print. Every experience is at its own path (#343): the address is
+   * `https://<instance>/<experience>/<route>?s=<source>`.
    */
   const appOrigin = typeof location === "undefined" ? "" : location.origin;
   interface Target { path: string; label: string }
   let targets = $state<{ scenes: Target[]; categories: Target[]; entries: Target[] }>({ scenes: [], categories: [], entries: [] });
   let path = $state("/");
-  const loadTargets = async () => {
+  let experienceIds = $state<{ id: string; title: string }[]>([]);
+  let experienceId = $state("");
+  const loadTargets = async (id?: string) => {
     try {
-      const { experiences } = await listExperiences();
-      const experience = experiences[0];
+      if (!experienceIds.length) {
+        const { experiences } = await listExperiences();
+        experienceIds = experiences.map(e => ({ id: e.id, title: e.title }));
+      }
+      const experience = experienceIds.find(e => e.id === id) ?? experienceIds.find(e => e.id === "osct") ?? experienceIds[0];
       if (!experience) return;
+      experienceId = experience.id;
+      path = "/";
       const [{ scenes }, { entries }] = await Promise.all([listScenes(experience.id), getEntries(experience.id)]);
       const categories = [...new Set(entries.map(e => e.category))].sort();
       targets = {
@@ -97,7 +108,9 @@
 
   const cleanCode = $derived(code.trim().toLowerCase());
   const codeValid = $derived(/^[a-z0-9][a-z0-9-]{0,31}$/.test(cleanCode));
-  const codeUrl = $derived(codeValid ? `${appOrigin}${path}?s=${cleanCode}` : "");
+  /** Where the code leads: the experience's path and the route in it (the start without an experience: an admin who is no editor) */
+  const leadsTo = $derived(experienceId ? readerAddress(appOrigin, experienceId, path) : `${appOrigin}${path}`);
+  const codeUrl = $derived(codeValid ? `${leadsTo}?s=${cleanCode}` : "");
   let svg = $state("");
   $effect(() => {
     const url = codeUrl;
@@ -123,7 +136,7 @@
   const download = () => {
     if (!svg) return;
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: `osct-qr-${cleanCode}${path === "/" ? "" : path.replace(/\//g, "-")}.svg` });
+    const a = Object.assign(document.createElement("a"), { href: url, download: `osct-qr-${cleanCode}${experienceId ? `-${experienceId}` : ""}${path === "/" ? "" : path.replace(/\//g, "-")}.svg` });
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -142,7 +155,7 @@
   {#if sources === null}
     <p class="muted">Loading…</p>
   {:else if sources.length === 0}
-    <p class="muted">No arrivals yet. The book's code is <code>{appOrigin}/?s=bk1</code>.</p>
+    <p class="muted">No arrivals yet. The book's code is <code>{appOrigin}/?s=bk1</code> (it opens <code>/osct/</code>).</p>
   {:else}
     <p class="muted small">{totals.window} arrival{totals.window === 1 ? "" : "s"} in the last {WINDOW_LABELS[days]} · {totals.all} in all</p>
     <table class="sources">
@@ -188,11 +201,17 @@
 
   <div class="make">
     <h2>A new code</h2>
-    <p class="muted small">Give each printed code or link its own source – a short code of a–z, 0–9 and dashes (a flyer <code>fl1</code>, a poster <code>po1</code>) –, choose where it leads, and print the QR code. It shows up here with its first arrival.</p>
+    <p class="muted small">Give each printed code or link its own source – a short code of a–z, 0–9 and dashes (a flyer <code>fl1</code>, a poster <code>po1</code>) –, choose the experience and where in it the code leads (<code>/&lt;experience&gt;/…</code>), and print the QR code. It shows up here with its first arrival.</p>
     <div class="maker">
       <div class="code-fields">
         <label class="row"><span class="muted small">source</span>
           <input class="field code-field" type="text" bind:value={code} placeholder="fl1" maxlength="32" autocomplete="off" spellcheck="false" /></label>
+        {#if experienceIds.length > 1}
+          <label class="row"><span class="muted small">experience</span>
+            <select class="field" value={experienceId} onchange={e => void loadTargets((e.currentTarget as HTMLSelectElement).value)} aria-label="The experience the code opens">
+              {#each experienceIds as e (e.id)}<option value={e.id}>{e.title} (/{e.id}/)</option>{/each}
+            </select></label>
+        {/if}
         <label class="row"><span class="muted small">leads to</span>
           <select class="field" bind:value={path} aria-label="Where the code leads">
             <option value="/">The start</option>
@@ -201,7 +220,7 @@
             {#if targets.categories.length}<optgroup label="Entry lists">{#each targets.categories as t (t.path)}<option value={t.path}>{t.label}</option>{/each}</optgroup>{/if}
             {#if targets.entries.length}<optgroup label="Entries">{#each targets.entries as t (t.path)}<option value={t.path}>{t.label}</option>{/each}</optgroup>{/if}
           </select></label>
-        <code class="url" class:muted={!codeUrl}>{codeUrl || `${appOrigin}${path}?s=…`}</code>
+        <code class="url" class:muted={!codeUrl}>{codeUrl || `${leadsTo}?s=…`}</code>
         <span class="row">
           <button type="button" class="pill framed" onclick={copy} disabled={!codeUrl}>{copied ? "Copied" : "Copy"}</button>
           <button type="button" class="pill framed" onclick={download} disabled={!svg}>Download SVG</button>

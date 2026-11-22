@@ -53,7 +53,7 @@ jobs:
           VITE_DEBUG: "true"
           # Content from the CDN (docs/content-cdn.md); empty = the commit's content is built and uploaded
           VITE_CONTENT_BASE_URL: ${{ vars.OSCT_CONTENT_BASE_URL }}
-          # The experience the reader opens by default (another one: /x/<experience>/, #87)
+          # The experience an address without one opens (/scene/…, a code without a known source – every experience is at /<experience>/, #343)
           VITE_EXPERIENCE: ${{ vars.OSCT_EXPERIENCE || 'osct' }}
         run: |
           npm ci

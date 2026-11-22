@@ -28,7 +28,7 @@
     <tr><td><a href="#look">Look</a></td><td class="wrap"><a href="#put_experience_passes"><code>put_experience_passes</code></a> · <a href="#put_experience_appearance"><code>put_experience_appearance</code></a> · <a href="#put_environment"><code>put_environment</code></a></td></tr>
     <tr><td><a href="#files">Files</a></td><td class="wrap"><a href="#list_assets"><code>list_assets</code></a> · <a href="#upload_asset"><code>upload_asset</code></a> · <a href="#rename_asset"><code>rename_asset</code></a> · <a href="#delete_asset"><code>delete_asset</code></a> · <a href="#set_asset_credits"><code>set_asset_credits</code></a> · <a href="#plan_asset_names"><code>plan_asset_names</code></a> · <a href="#apply_asset_names"><code>apply_asset_names</code></a></td></tr>
     <tr><td><a href="#plugins">Plugins</a></td><td class="wrap"><a href="#list_plugins"><code>list_plugins</code></a> · <a href="#get_plugin"><code>get_plugin</code></a> · <a href="#put_plugin"><code>put_plugin</code></a> · <a href="#upload_plugin"><code>upload_plugin</code></a> · <a href="#plugin_usages"><code>plugin_usages</code></a> · <a href="#delete_plugin"><code>delete_plugin</code></a></td></tr>
-    <tr><td><a href="#import">Import and deliveries</a></td><td class="wrap"><a href="#preview_import"><code>preview_import</code></a> · <a href="#import_experience"><code>import_experience</code></a> · <a href="#preview_delivery"><code>preview_delivery</code></a> · <a href="#import_delivery"><code>import_delivery</code></a> · <a href="#list_deliveries"><code>list_deliveries</code></a></td></tr>
+    <tr><td><a href="#import">New experiences, import and deliveries</a></td><td class="wrap"><a href="#create_experience"><code>create_experience</code></a> · <a href="#preview_import"><code>preview_import</code></a> · <a href="#import_experience"><code>import_experience</code></a> · <a href="#preview_delivery"><code>preview_delivery</code></a> · <a href="#import_delivery"><code>import_delivery</code></a> · <a href="#list_deliveries"><code>list_deliveries</code></a></td></tr>
     <tr><td><a href="#history">History</a></td><td class="wrap"><a href="#list_changes"><code>list_changes</code></a> · <a href="#list_versions"><code>list_versions</code></a> · <a href="#revert_change"><code>revert_change</code></a> · <a href="#revert_to"><code>revert_to</code></a></td></tr>
     <tr><td><a href="#seeing">Seeing and publishing</a></td><td class="wrap"><a href="#render_scene"><code>render_scene</code></a> · <a href="#publish"><code>publish</code></a> · <a href="#publish_status"><code>publish_status</code></a></td></tr>
   </table></div>
@@ -487,7 +487,16 @@
   </table></div>
   <details><summary>Details</summary><p>Refused while the draft uses a type it registers (409 plugin-in-use with the usages) unless <code>force</code>.</p></details>
 
-  <h2 id="import">Import and deliveries</h2>
+  <h2 id="import">New experiences, import and deliveries</h2>
+  <h3 id="create_experience"><code>create_experience</code> <span class="who">writes</span></h3>
+  <p>Makes a new, empty experience (#343).</p>
+  <pre><code>create_experience { slug, title }</code></pre>
+  <div class="table"><table>
+    <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
+    <tr id="create_experience-slug"><td><code>slug</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id and reader path /&lt;slug&gt;/: lower-case a–z, 0–9 and -, at most 64</td></tr>
+    <tr id="create_experience-title"><td><code>title</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's title (can be changed later: update_experience)</td></tr>
+  </table></div>
+  <details><summary>Details</summary><p>a draft with one scene (a double page) and nothing on it. <code>slug</code> is its id – its address in the reader (https://&lt;instance&gt;/&lt;slug&gt;/) and its content store's folder: lower-case letters, digits and dashes, none of the site's own paths (editor, api, docs, scene, entry, …; 400 reserved-slug), not an experience's id already (409 duplicate-id). Ask the person for the slug – it can't be changed once the experience is published (printed QR codes and shared links depend on it). To bring in an existing configuration instead: import_experience.</p></details>
   <h3 id="preview_import"><code>preview_import</code> <span class="who">reads</span></h3>
   <p>What an import would bring in, before anything is imported – read-only, takes import_experience's sources.</p>
   <pre><code>preview_import { url?, configuration?, assetsBase?, source?, experience? }</code></pre>

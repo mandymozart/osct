@@ -24,6 +24,9 @@
   </figure>
   <p>Click a cover to open the experience. Under each one a line says where it is live and since when, or <i>draft only</i>.</p>
 
+  <h2 id="new">A new experience</h2>
+  <p><b>New experience</b>, above the import form, makes an empty draft with one scene: give it a <b>title</b> and a <b>slug</b>. The slug is the experience's address in the reader – <code>https://&lt;installation&gt;/&lt;slug&gt;/</code>, shown as you type – and the name of its folder on the CDN: lower-case letters, digits and dashes. The form proposes one from the title. A few words are taken by the site itself (<code>editor</code>, <code>api</code>, <code>docs</code>, <code>scene</code>, …) and every experience needs its own. <b>The slug can't be changed later</b>: once the experience is published, printed QR codes and shared links depend on it.</p>
+
   <h2 id="import">Importing an experience</h2>
   <div class="beside wide">
     <div>
@@ -66,7 +69,7 @@
       <figcaption>The publish step on a local installation.</figcaption>
     </figure>
   </div>
-  <p>Readers open the installation's default experience at <code>/</code> and any other at <code>/x/&lt;experience&gt;/</code>.</p>
+  <p>Readers open every experience at its own address, <code>/&lt;slug&gt;/</code> – <code>/osct/</code>, <code>/demo/</code>. The slug is chosen when the experience is made (<b>New experience</b>: a title and a slug; the form shows the reader's address) and can't be changed once it is published – printed QR codes depend on it. Older codes and links without an experience still work: they open the installation's default experience, and the book's code its own.</p>
 
   <h2 id="ai">AI connections</h2>
   <div class="beside wide">

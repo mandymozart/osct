@@ -3,7 +3,7 @@ import { goldButton } from "@/components/buttons";
 import { MEDIA_QUERY } from "@/constants";
 import { LANDING_SOURCE, SOURCE_PARAM } from "@/services/ArrivalService";
 import { adoptDesignStyles } from "@/styles";
-import { escapeHtml, hideStaticSplash } from "@/utils";
+import { escapeHtml, experiencePrefix, hideStaticSplash } from "@/utils";
 import { bookCoverUrl } from "@/utils/book-cover";
 import { getExperience, getScenes } from "@/utils/game-config";
 import { ONBOARDING_ICON_SRC } from "@/utils/static-splash-html";
@@ -41,8 +41,9 @@ const pick = <T>(items: readonly T[], count: number, seed = 324): T[] => {
   return out.slice(0, count);
 };
 
-/** The address the landing page's QR code opens: the app here, with the landing page as its source (`?s=lp1`) */
-export const landingQrUrl = (origin: string = location.origin): string => `${origin}/?${SOURCE_PARAM}=${LANDING_SOURCE}`;
+/** The address the landing page's QR code opens: this experience here (`/<experience>/`, #343), with the landing page as its source (`?s=lp1`) */
+export const landingQrUrl = (origin: string = location.origin, prefix: string = experiencePrefix()): string =>
+  `${origin}${prefix}/?${SOURCE_PARAM}=${LANDING_SOURCE}`;
 
 /**
  * <desktop-landing>: the page for visitors who open the app on a computer (#293, redesigned #324 on the book's and the

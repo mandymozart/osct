@@ -12,6 +12,73 @@ declare(strict_types=1);
  */
 final class Experiences
 {
+    /**
+     * The site's own top-level paths – never an experience's id, which is its path `/<id>/` in the reader (#343,
+     * shared/api/experience-paths.ts `RESERVED_PATHS`; mcp/test/php-rules.test.ts compares the two). Compared lower-case.
+     */
+    public const RESERVED = [
+        'scene', 'scenes', 'entry', 'entries', 'tutorial', 'about', 'info', 'credits', 'error', 'not-found', 'splash', 'settings',
+        'login', 'logout', 'account', 'start', 'home', 'index',
+        'x',
+        'editor', 'admin', 'api', 'docs', 'mcp', 'assets', 'vendor', '_app', 'static', 'public', 'content',
+        'manifest', 'manifest.webmanifest', 'service-worker', 'service-worker.js', 'sw', 'sw.js', 'registersw.js', 'workbox',
+        'robots.txt', 'favicon.ico', 'index.html', 'icons', 'fonts',
+        'src', 'node_modules', '@vite', '@fs', '@id',
+        'app', 'www', 'help', 'status', 'health', 'well-known', '.well-known',
+    ];
+    /** A new experience's slug – its id, path and store folder: lower-case letters, digits and -, at most 64 (shared `EXPERIENCE_SLUG`) */
+    public const SLUG = '[a-z0-9][a-z0-9-]{0,63}';
+
+    /** Whether an id is one of the site's own paths (`RESERVED`, any case, and workbox-* files) */
+    public static function isReserved(string $id): bool
+    {
+        $lower = strtolower($id);
+        return in_array($lower, self::RESERVED, true) || str_starts_with($lower, 'workbox-');
+    }
+
+    /** 400 reserved-slug when a new experience's id is one of the site's own paths – the reader could never open it */
+    private static function requireFreePath(string $experienceId): void
+    {
+        if (self::isReserved($experienceId)) {
+            throw new ApiError(400, 'reserved-slug', "\"$experienceId\" is one of the site's own paths (/$experienceId/) – an experience needs another id.", ['slug' => $experienceId]);
+        }
+    }
+
+    /**
+     * POST /editor/experiences { id, title } → 201 { experience }: a new, empty experience (#343) – its draft has one
+     * scene (a double page) and nothing on it. `id` is its slug: its reader path `/<id>/` and its store's folder, chosen
+     * once (no rename – printed codes depend on it): 400 invalid-slug unless lower-case letters, digits and -
+     * (`SLUG`), 400 reserved-slug for one of the site's own paths (`RESERVED`), 409 duplicate-id when the experience
+     * exists. `title` 1–200 characters (400 invalid-title).
+     */
+    public static function create(): never
+    {
+        Editor::user();
+        $body = Editor::body();
+        $id = $body->id ?? null;
+        if (!is_string($id) || !preg_match('/^' . self::SLUG . '$/', $id)) {
+            throw new ApiError(400, 'invalid-slug', 'id (the slug) must be lower-case letters, digits and - (a letter or digit first, at most 64).');
+        }
+        self::requireFreePath($id);
+        $title = is_string($body->title ?? null) ? trim($body->title) : '';
+        if ($title === '' || mb_strlen($title) > 200) throw new ApiError(400, 'invalid-title', 'title must be 1–200 characters.');
+        $configuration = (object) [
+            'version' => (object) ['schema' => Editor::CONTENT_SCHEMA],
+            'experience' => (object) ['id' => $id, 'title' => $title],
+            'initialScene' => 'scene-1',
+            'scenes' => [(object) ['id' => 'scene-1', 'label' => Scenes::DEFAULT_LABEL, 'surfaces' => Scenes::presetSurfaces('double')]],
+            'entries' => [],
+        ];
+        $parts = self::parse($configuration);
+        Db::transaction(function () use ($id, $parts) {
+            if (Db::value('SELECT id FROM experiences WHERE id = :id' . Db::forUpdate(), ['id' => $id]) !== null) {
+                throw new ApiError(409, 'duplicate-id', "There is an experience \"$id\" already – choose another slug.", ['slug' => $id]);
+            }
+            self::store($id, $parts, new stdClass(), '', null);
+        });
+        Http::json(201, ['experience' => self::summary(self::experience($id))]);
+    }
+
     /** Environments whose content store could not be read in this request (ContentStore::live of an experience failed) */
     private static array $unreadable = [];
 
@@ -72,7 +139,8 @@ final class Experiences
      * `comparison` (what comes in against what the draft is based on and its edits since) and a `confirmation`
      * { id, expiresAt }; the same import again with `confirm: <id>` replaces the draft. The id is bound to the person (and
      * the AI connection), the incoming content and the draft as it was compared, and lasts Confirmation::SECONDS – any
-     * change meanwhile voids it (409 confirmation-void, with a new comparison). A new experience is imported at once.
+     * change meanwhile voids it (409 confirmation-void, with a new comparison). A new experience is imported at once –
+     * unless its id is one of the site's own paths (400 reserved-slug, `RESERVED`, #343).
      */
     public static function import(string $experienceId): never
     {
@@ -83,46 +151,12 @@ final class Experiences
         self::experienceIdOf($configuration, $experienceId);
         $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
         $existing = Db::one('SELECT * FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        if ($existing === null) self::requireFreePath($experienceId);
         if ($existing !== null) self::confirmImport($experienceId, $existing, $incoming, $user, $body->confirm ?? null);
-        $now = Db::now();
         $imported = Editor::encode(['build' => $incoming['build'], 'hash' => $incoming['hash'], 'date' => $incoming['date'], 'appVersion' => $incoming['appVersion'],
             'schema' => $incoming['schema'], 'source' => $source, 'from' => $incoming['from'], 'at' => Editor::nowMs(), 'by' => $user['email'] ?? null]);
 
-        Db::transaction(function () use ($experienceId, $parts, $files, $assetsBase, $now, $imported) {
-            foreach (['targets', 'entries', 'scenes', 'entities'] as $table) {
-                Db::run("DELETE FROM $table WHERE experience_id = :experience", ['experience' => $experienceId]);
-            }
-            $experience = $parts['experience'];
-            $params = [
-                'id' => $experienceId, 'title' => $experience->title, 'experience' => Editor::encode($experience),
-                'initial' => $parts['initialScene'], 'base' => $assetsBase,
-                'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
-                'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported, 'groups' => Editor::encode(array_values($parts['groups'])),
-            ];
-            if (Db::value('SELECT id FROM experiences WHERE id = :id', ['id' => $experienceId]) !== null) {
-                Db::run('UPDATE experiences SET title = :title, experience_json = :experience, initial_scene = :initial,
-                         assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, groups_json = :groups, updated_at = :now WHERE id = :id', $params);
-            } else {
-                Db::run('INSERT INTO experiences (id, title, experience_json, initial_scene, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, groups_json, created_at, updated_at)
-                         VALUES (:id, :title, :experience, :initial, :base, :files, :schema, :hash, :plugins, :imported, :groups, :created, :now)', $params + ['created' => $now]);
-            }
-            foreach ($parts['scenes'] as $s) {
-                Db::run('INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES (:experience, :id, :position, :label, :data)',
-                    ['experience' => $experienceId, 'id' => $s['id'], 'position' => $s['position'], 'label' => $s['data']->label, 'data' => Editor::encode($s['data'])]);
-            }
-            foreach ($parts['entities'] as $e) {
-                Db::run('INSERT INTO entities (experience_id, ref, position, type, data_json) VALUES (:experience, :ref, :position, :type, :data)',
-                    ['experience' => $experienceId, 'ref' => $e['ref'], 'position' => $e['position'], 'type' => $e['type'], 'data' => Editor::encode($e['data'])]);
-            }
-            foreach ($parts['entries'] as $e) {
-                Db::run('INSERT INTO entries (experience_id, id, scene_id, position, category, title, data_json) VALUES (:experience, :id, :scene, :position, :category, :title, :data)',
-                    ['experience' => $experienceId, 'id' => $e['id'], 'scene' => $e['scene'], 'position' => $e['position'], 'category' => $e['category'], 'title' => $e['title'], 'data' => Editor::encode($e['data'])]);
-            }
-            foreach ($parts['targets'] as $t) {
-                Db::run('INSERT INTO targets (experience_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:experience, :id, :entry, :image, :ref, :data)',
-                    ['experience' => $experienceId, 'id' => $t['id'], 'entry' => $t['entry'], 'image' => $t['image'], 'ref' => $t['ref'], 'data' => Editor::encode($t['data'])]);
-            }
-        });
+        Db::transaction(fn () => self::store($experienceId, $parts, $files, $assetsBase, $imported));
 
         $draft = ContentVersion::assemble($experienceId);
         Http::json(200, [
@@ -131,6 +165,48 @@ final class Experiences
             'draft' => ['build' => $draft['build'], 'hash' => $draft['hash']],
             'imported' => self::basedOn(Editor::decode($imported)),
         ]);
+    }
+
+    /**
+     * Writes an experience's rows from a parsed configuration (`parse`), replacing its content rows – inside the
+     * caller's transaction. `$imported` is the import's record (null for a new, empty experience).
+     */
+    private static function store(string $experienceId, array $parts, stdClass $files, string $assetsBase, ?string $imported): void
+    {
+        $now = Db::now();
+        foreach (['targets', 'entries', 'scenes', 'entities'] as $table) {
+            Db::run("DELETE FROM $table WHERE experience_id = :experience", ['experience' => $experienceId]);
+        }
+        $experience = $parts['experience'];
+        $params = [
+            'id' => $experienceId, 'title' => $experience->title, 'experience' => Editor::encode($experience),
+            'initial' => $parts['initialScene'], 'base' => $assetsBase,
+            'files' => Editor::encode($files), 'schema' => $parts['schema'], 'hash' => $parts['hash'], 'now' => $now,
+            'plugins' => Editor::encode($parts['plugins']), 'imported' => $imported, 'groups' => Editor::encode(array_values($parts['groups'])),
+        ];
+        if (Db::value('SELECT id FROM experiences WHERE id = :id', ['id' => $experienceId]) !== null) {
+            Db::run('UPDATE experiences SET title = :title, experience_json = :experience, initial_scene = :initial,
+                     assets_base = :base, files_json = :files, content_schema = :schema, imported_hash = :hash, plugins_json = :plugins, imported_json = :imported, groups_json = :groups, updated_at = :now WHERE id = :id', $params);
+        } else {
+            Db::run('INSERT INTO experiences (id, title, experience_json, initial_scene, assets_base, files_json, content_schema, imported_hash, plugins_json, imported_json, groups_json, created_at, updated_at)
+                     VALUES (:id, :title, :experience, :initial, :base, :files, :schema, :hash, :plugins, :imported, :groups, :created, :now)', $params + ['created' => $now]);
+        }
+        foreach ($parts['scenes'] as $s) {
+            Db::run('INSERT INTO scenes (experience_id, id, position, label, data_json) VALUES (:experience, :id, :position, :label, :data)',
+                ['experience' => $experienceId, 'id' => $s['id'], 'position' => $s['position'], 'label' => $s['data']->label, 'data' => Editor::encode($s['data'])]);
+        }
+        foreach ($parts['entities'] as $e) {
+            Db::run('INSERT INTO entities (experience_id, ref, position, type, data_json) VALUES (:experience, :ref, :position, :type, :data)',
+                ['experience' => $experienceId, 'ref' => $e['ref'], 'position' => $e['position'], 'type' => $e['type'], 'data' => Editor::encode($e['data'])]);
+        }
+        foreach ($parts['entries'] as $e) {
+            Db::run('INSERT INTO entries (experience_id, id, scene_id, position, category, title, data_json) VALUES (:experience, :id, :scene, :position, :category, :title, :data)',
+                ['experience' => $experienceId, 'id' => $e['id'], 'scene' => $e['scene'], 'position' => $e['position'], 'category' => $e['category'], 'title' => $e['title'], 'data' => Editor::encode($e['data'])]);
+        }
+        foreach ($parts['targets'] as $t) {
+            Db::run('INSERT INTO targets (experience_id, id, entry_id, image_src, entity_ref, data_json) VALUES (:experience, :id, :entry, :image, :ref, :data)',
+                ['experience' => $experienceId, 'id' => $t['id'], 'entry' => $t['entry'], 'image' => $t['image'], 'ref' => $t['ref'], 'data' => Editor::encode($t['data'])]);
+        }
     }
 
     /**

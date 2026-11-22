@@ -19,8 +19,8 @@ registry:
 # Built on the deploying machine from a clean clone of the commit – uncommitted changes never reach a server.
 # OSCT_CONTENT_BASE_URL (GitHub environment variable, docs/content-cdn.md): the environment's CDN URL
 # `<pull zone>/<title>/<env>` – the app loads an experience's content from `<base>/<experience>/`; empty = the content of
-# the commit is built into the image. OSCT_EXPERIENCE: the instance's default experience, the one the reader opens
-# without /x/<experience>/ (#87). The destination adds VITE_DEBUG.
+# the commit is built into the image. OSCT_EXPERIENCE: the instance's default experience, the one an address without
+# an experience opens (#343 – every experience at /<experience>/; production: always osct, RULES #39). The destination adds VITE_DEBUG.
 builder:
   arch: amd64
   args:

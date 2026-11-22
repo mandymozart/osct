@@ -14,6 +14,7 @@ import { checkAppearance, checkEntity, checkPasses, describeContentModel, usesPl
 import { fail, guard, text, type Result } from "./result.ts";
 import { editSurfaces, SURFACE_SIZE_PRESETS } from "./surfaces.ts";
 import { editorHref, type AppLinks } from "./services.ts";
+import { slugProblem } from "../../shared/api/experience-paths";
 import type { PluginData } from "../../shared/types/game-config";
 import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
 import { MEDIA_LEVELS } from "../../shared/types/media-levels";
@@ -268,6 +269,25 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     }
     return { configuration, ...(assetsBase ? { assetsBase } : {}) };
   };
+
+  server.registerTool(
+    "create_experience",
+    {
+      description:
+        "Makes a new, empty experience (#343): a draft with one scene (a double page) and nothing on it. `slug` is its id – its address in the reader (https://<instance>/<slug>/) and its content store's folder: lower-case letters, digits and dashes, none of the site's own paths (editor, api, docs, scene, entry, …; 400 reserved-slug), not an experience's id already (409 duplicate-id). Ask the person for the slug – it can't be changed once the experience is published (printed QR codes and shared links depend on it). To bring in an existing configuration instead: import_experience.",
+      inputSchema: z.object({
+        slug: z.string().describe("the experience's id and reader path /<slug>/: lower-case a–z, 0–9 and -, at most 64"),
+        title: z.string().min(1).max(200).describe("the experience's title (can be changed later: update_experience)"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    guard(async ({ slug, title }) => {
+      const problem = slugProblem(slug);
+      if (problem) return fail({ error: { code: "invalid-slug", message: problem } });
+      const result = await api.call<{ experience: { id: string } }>("POST", "/editor/experiences", { id: slug, title });
+      return text({ ...result, open: editorHref(links, result.experience.id), next: "Give the person the editor's link: the new experience opens on its one scene. It reaches readers at /<slug>/ with its first publish." });
+    }),
+  );
 
   server.registerTool(
     "import_experience",

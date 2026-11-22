@@ -6,7 +6,8 @@ import { isEntryCategory } from "@shared/guards/game-config";
 import { parseAddress } from "@shared/types/address";
 
 /**
- * Deep links: the app state as a plain URL.
+ * Deep links: the app state as a plain URL, below the experience's path (`/<experience>`, #343 –
+ * utils/experience-path.ts): the app writes the prefix into every link while it runs.
  *
  *   /                          start (onboarding on a first visit, else the splash → scan mode)
  *   /scene/<sceneId>           scan mode on that scene (#319: was /scene/<id> – no longer read)
@@ -16,8 +17,8 @@ import { parseAddress } from "@shared/types/address";
  *   /about                     info
  *   /credits                   image credits (#292)
  *   …?osct=<version>           the app version the link was made with
- *   /x/<experience>/…          every route of another experience than the instance's default (#87,
- *                              utils/experience-path.ts) – the app writes the prefix into every link while it runs
+ *   (`/osct/scene/s1`, `/demo/entry/<id>` – an address without an experience is moved to one before
+ *   the app starts: utils/experience-path.ts `redirectLegacyAddress`)
  *
  * Incoming links only route. A link to an entry the reader hasn't consulted yet opens scan mode on the
  * scene it belongs to (no shortcut past the game). An unknown route, scene, entry, category or step
@@ -40,7 +41,7 @@ export interface Link {
   version?: string;
 }
 
-/** URL path + query → link; null for the start page. The experience prefix (`/x/<experience>`) is not part of the route */
+/** URL path + query → link; null for the start page. The experience prefix (`/<experience>`) is not part of the route */
 export const parseLink = (pathname: string, search: string): Link | null => {
   const params = new URLSearchParams(search);
   const version = params.get(VERSION_PARAM) ?? undefined;
@@ -74,11 +75,11 @@ export const pathForRoute = (route: PageRoute | null, currentScene: string | nul
   }
 };
 
-/** Full link (experience prefix + path + version) for the current state; `prefix` = `/x/<experience>` of another experience than the default */
+/** Full link (experience prefix + path + version) for the current state; `prefix` = `/<experience>` (the start is `/<experience>/`) */
 export const linkForState = (state: Pick<GameState, "currentRoute" | "currentScene">, version: string, prefix = experiencePrefix()): string | null => {
   const path = pathForRoute(state.currentRoute, state.currentScene);
   if (path === null) return null;
-  return `${prefix && path === "/" ? prefix : `${prefix}${path}`}?${VERSION_PARAM}=${encodeURIComponent(version)}`;
+  return `${prefix}${path}?${VERSION_PARAM}=${encodeURIComponent(version)}`;
 };
 
 /**

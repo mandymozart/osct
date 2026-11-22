@@ -237,6 +237,35 @@ Verbatim from the archived entries (the entry title and archive file in front of
   that staging's FPM really continues after `fastcgi_finish_request` (the job keeps moving with the editor closed).
 - [ ] Open: staging's export archive of b49f09610206 is complete (export.json from the first publish) – nothing to repair.
 
+## 2026-11-22 – every experience at its own path; legacy codes and the PWA land in the right book (6.1.0, #343)
+
+- Tilman (2026-11-22): *"mein vorschlag, wir fangen eingehende legacy qr codes ab so das ?v=bk1 auf und ?v=d1 ../osct/
+  ../demo/ verweisen. auch bei der PWA."* – *"die subdomain ist erstmal keine option"* – *"eine zweite subdomain ist erst
+  machbar nach einer whitelabel loesung"*. Later: *"so i want to also be able to add new experiences in the schema under
+  their own slug... part of that refactor"*. **Subdomains only after a white-label solution.** Production follows only
+  once Asger has set our SSH key pair.
+- He wrote `?v=`; the printed book's code is `https://osct.buildingfictions.com/?s=bk1` – the arrivals' source `s`
+  (#324). Nothing in the code read `v`; `s` is the parameter.
+- Paths: `/<experience>/…` for every experience (the default too); `/x/<experience>/…` moves to `/<experience>/…`. The
+  experience is the first segment unless it is one of the site's own paths (`RESERVED_PATHS`,
+  `shared/api/experience-paths.ts`, PHP copy `Experiences::RESERVED`, pinned by `mcp/test/php-rules.test.ts`).
+- Legacy addresses move in the client before anything loads (`redirectLegacyAddress`, `history.replaceState`): `?s=` by
+  the source map (`bk<n>` → osct, `d<n>` → demo; unknown → default), a bare `/` → the experience the browser opened last
+  (`localStorage` `osct-experience`), else the default; any other route → the default's same route. No server redirect:
+  a bare `/` needs the browser's memory, and the SW serves index.html offline anyway.
+- PWA: the build's manifest stays (`id`/`start_url` `/` – the installed app stays the same app; its `/` opens the last
+  experience). Every other experience links `/api/experiences/<id>/manifest.webmanifest` (`ReaderManifest.php`: id, start,
+  scope `/<id>/`; the title only once published) – installing from `/demo/` installs the demo.
+- New experiences: `POST /editor/experiences { id, title }` → an empty draft (one *double* scene). The id is the slug
+  (`EXPERIENCE_SLUG`: lower-case, digits, dashes) – path, store folder and editor URL in one; no rename. Imports keep the
+  wider id rule (capitals, `_`, #205) but a new one may not take a reserved path. MCP: `create_experience`.
+- The sign-in email's link carries the experience the reader asked from (`POST /auth/request { experience }`).
+- [ ] Open: the installed default app (scope `/`) opens the experience opened *last* – after someone read the demo in the
+  browser, the osct app's icon opens the demo. A per-experience manifest for the default too would fix it, but would
+  install as a new app beside the one installed before #343 (Tilman's call).
+- [ ] Open: a path whose first segment is no experience of the instance (`/foo/`) loads `foo`'s store and shows the
+  startup error, not the not-found page.
+
 ## 2026-11-22 – listen, not hear: content schema 6.0, plugin API 4.0 (6.0.0, #341)
 
 - Tilman (2026-11-21): *"you use the word hear for events. i think it is listen"* – decided *"Komplett, inkl. API"*: every

@@ -439,6 +439,9 @@ export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", 
  * `details.comparison` (an `ImportComparison`) and `details.confirmation` – `confirmationStep(error, "import")` reads
  * them; the same call with `confirm` then imports.
  */
+/** A new, empty experience (#343, `POST /editor/experiences`): its id is its slug – its reader path `/<id>/` */
+export const createExperience = (body: { id: string; title: string }) => api<{ experience: ExperienceSummary }>("POST", "/editor/experiences", body);
+
 export const importExperience = (experienceId: string, body: ImportBody) => api<ImportResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/import`, body);
 
 /** This instance's environments (`GET /editor/environments`): the one it publishes to, each one's backend */

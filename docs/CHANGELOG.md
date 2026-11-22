@@ -31,6 +31,36 @@ staging answered *504 (unknown)* while it wrote on for 11 minutes).
   n / N files* – with a progress bar, follows a publish that already runs, and keeps going when it is closed.
 - MCP: `publish` follows the job up to 90 s; the new tool **`publish_status`** follows it after that.
 
+## 6.1.0 – 2026-11-22
+
+**Every experience at its own path** (Tilman, 2026-11-22, #343: *"wir fangen eingehende legacy qr codes ab so das ?v=bk1
+… und ?v=d1 ../osct/ ../demo/ verweisen. auch bei der PWA."* – *"so i want to also be able to add new experiences … under
+their own slug"*). Subdomains only after a white-label solution.
+
+### Changed
+- **The reader opens every experience at `/<experience>/…`** – `/osct/`, `/osct/scene/s1`, `/demo/entry/…` – the
+  instance's default too; the app writes the prefix into every link. `/x/<experience>/…` (#87) moves to `/<experience>/…`.
+- **Codes and links without an experience land in the right book** before anything loads: the printed book's
+  `/?s=bk1` → `/osct/`, `/?s=d1` → `/demo/` (the source map in `shared/api/experience-paths.ts`; an unknown source → the
+  default experience), the arrival still counted once with its source; `/scene/…`, `/entry/…`, `/about` (with or without
+  `?osct=`) → the same route of the default experience; a bare `/` → the experience this browser opened last, else the
+  default.
+- **The installed app**: its `/` opens the experience opened last; another experience than the default links its own
+  web app manifest (`/api/experiences/<id>/manifest.webmanifest` – id, start and scope `/<id>/`), so installing from
+  `/demo/` installs the demo. The page's title and description follow the experience.
+- The admin's *A new code* writes `https://<instance>/<experience>/<route>?s=<source>` and lets you choose the
+  experience; the desktop landing page's QR code opens the experience it is shown for; the sign-in email's link opens the
+  experience the reader asked from.
+
+### Added
+- **New experience** on the editor's Experiences page: a title and a **slug** make an empty draft with one scene; the
+  slug is the experience's id, its reader address (shown as it is typed) and its content folder, checked against the
+  site's own paths and the experiences there, and fixed once published. `POST /editor/experiences { id, title }`, the
+  MCP's `create_experience`.
+- **Reserved paths**: an experience's id is never one of the site's own top-level paths (`editor`, `api`, `docs`,
+  `assets`, `scene`, `entry`, `x`, …) – the API refuses a new one (400 `reserved-slug`), by import too.
+- `GET /api/experiences/{id}/manifest.webmanifest`.
+
 ## 6.0.0 – 2026-11-22
 
 **Content schema 6.0 and plugin API 4.0 – a MAJOR** (Tilman, 2026-11-21, #341: *"you use the word hear for events. i

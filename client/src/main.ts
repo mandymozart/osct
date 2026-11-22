@@ -11,11 +11,21 @@ import type {
   ErrorInfo,
   IGame,
 } from "@/types";
-import { hideStaticSplash, onboardingSteps, staticSplashStep, releaseStaticSplash, waitForDOMReady } from "@/utils";
+import {
+  activeExperience, defaultExperience, hideStaticSplash, onboardingSteps, redirectLegacyAddress, rememberExperience, staticSplashStep,
+  releaseStaticSplash, waitForDOMReady,
+} from "@/utils";
+import { applyExperienceMeta } from "@/utils/experience-meta";
 import { getExperience, getConfigurationError, loadGameConfiguration } from "@/utils/game-config";
 import i18next, { t } from "i18next";
 import { DEFAULT_LANGUAGE } from "@/i18n";
 import { setDeviceStorage } from "@engine/utils/device-storage";
+
+// Every experience at its own path (#343): an address without one (a code printed before – `/?s=bk1` –, `/scene/<id>`, the
+// installed app's `/`) moves to its experience before anything reads the address (utils/experience-path.ts)
+redirectLegacyAddress();
+// Another experience than the build's default links its own manifest: installing from /demo/ installs the demo
+applyExperienceMeta(document, { experience: activeExperience(), fallback: defaultExperience() });
 
 // The engine's switches for this device live in the reader's localStorage – before anything reads them
 setDeviceStorage(new LocalDeviceStorage());
@@ -218,4 +228,13 @@ export class ReaderApp extends HTMLElement {
 
 // The game configuration is loaded first (content CDN or the bundled copy); the static splash shows meanwhile.
 // The element is defined afterwards, so nothing reads the configuration before it is there.
-void loadGameConfiguration().then(() => customElements.define("reader-app", ReaderApp));
+// Once it loaded, the page takes the experience's title (another experience than the default) and the browser remembers
+// it – the installed app's `/` opens it next time.
+void loadGameConfiguration().then(() => {
+  if (!getConfigurationError()) {
+    const experience = getExperience();
+    applyExperienceMeta(document, { experience: activeExperience(), fallback: defaultExperience(), title: experience.title, author: experience.book?.author });
+    rememberExperience(activeExperience());
+  }
+  customElements.define("reader-app", ReaderApp);
+});
