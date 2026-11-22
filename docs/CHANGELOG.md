@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 6.2.2 – 2026-11-22
+
+### Changed
+- **A running publish covers the page and asks before you leave** (Tilman, 2026-11-22, #345): the Publish step becomes
+  an overlay in the middle of the dimmed page with the phase and a progress bar (an indeterminate one until the first
+  count), Cancel and Esc wait until it is done, and a reload, closing the tab or another page of the editor asks first –
+  on a host where the server cannot write on after its answer, the editor's polls write the rest.
+
 ## 6.2.1 – 2026-11-22
 
 ### Changed
