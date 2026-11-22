@@ -7,6 +7,13 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 6.1.1 – 2026-11-22
+
+### Changed
+- **Old codes and links move to their book before the app loads** (Tilman, 2026-11-22, #343): the redirect of 6.1.0
+  (`/?s=bk1` → `/osct/`, `/?s=d1` → `/demo/`, `/scene/…` → `/osct/scene/…`, `/x/demo/…` → `/demo/…`, a bare `/` → the
+  book opened last) is now an inline script first in index.html's head (`utils/legacy-redirect-html.ts`, written in at
+  build time from `shared/api/experience-paths.ts` – no database, no bundle); the app's own redirect stays behind it.
 ## 6.2.0 – 2026-11-22
 
 **A publish is a job – fast, and honest about how it goes** (Tilman, 2026-11-22, #345: publishing the osct book to
