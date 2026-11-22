@@ -36,6 +36,58 @@ final class Export
         Http::json(200, self::data($experienceId, is_string($build) && $build !== '' ? $build : null, $build !== null && !is_string($build)));
     }
 
+    /** The export file's format (#348): its `format` and `formatVersion` – an import body ({ configuration, files, assetsBase, sources }) with what it is of */
+    public const FILE_FORMAT = 'osct-export';
+    public const FILE_FORMAT_VERSION = 1;
+
+    /**
+     * GET /editor/experiences/{id}/export/file[?build=] (#348) → the experience as one JSON file to download
+     * (`Content-Disposition: attachment; filename="<id>-<build>.osct.json"`): `{ format: "osct-export", formatVersion: 1,
+     * experience, title, build, exportedAt, source, configuration, files, assetsBase?, sources }` – the draft (or a published
+     * build, `data`) with its files.json and the Code tab's sources. It is an import body as it is: the editor's Import
+     * (file) and `POST …/import` take it back (`configuration`, `files`, `assetsBase`, `sources`). The media are not in it –
+     * the configuration names them by URL (the CDN's, the Library's), so the file is small and the import points at the same
+     * files. Rights: those of the draft.
+     */
+    public static function file(string $experienceId): never
+    {
+        Editor::user();
+        Experiences::exists($experienceId);
+        $asked = $_GET['build'] ?? null;
+        $assetsBase = null;
+        if ($asked === null || $asked === '') {
+            $version = ContentVersion::assemble($experienceId);
+            [$build, $configuration, $files, $source] = [$version['build'], $version['configuration'], $version['files'], ['kind' => 'draft']];
+        } else {
+            $data = self::data($experienceId, is_string($asked) ? $asked : null, !is_string($asked));
+            $build = (string) $data['build'];
+            $configuration = $data['configuration'];
+            $source = $data['source'];
+            $env = (string) $source['env'];
+            $files = self::json(ContentStore::for($env, $experienceId)->get("$build/files.json"));
+            if (!$files instanceof stdClass) $files = new stdClass();
+            // A published version names its plugins' modules by content paths in its own folder
+            $assetsBase = self::versionBase($env, $experienceId, $build);
+        }
+        $experience = $configuration->experience ?? null;
+        $answer = [
+            'format' => self::FILE_FORMAT,
+            'formatVersion' => self::FILE_FORMAT_VERSION,
+            'experience' => $experienceId,
+            'title' => $experience instanceof stdClass && is_string($experience->title ?? null) ? $experience->title : $experienceId,
+            'build' => $build,
+            'appVersion' => Version::APP,
+            'exportedAt' => Editor::iso(),
+            'source' => $source,
+            'configuration' => $configuration,
+            'files' => $files,
+        ];
+        if ($assetsBase !== null) $answer['assetsBase'] = $assetsBase;
+        $answer['sources'] = array_map(static fn(array $plugin): array => ['id' => $plugin['id'], 'source' => $plugin['source']], Plugins::sources($experienceId));
+        header('Content-Disposition: attachment; filename="' . $experienceId . '-' . $build . '.osct.json"');
+        Http::json(200, $answer);
+    }
+
     /**
      * The answer of the endpoint: the draft (`$build` null) or a published build as the content store holds it
      * @return array<string, mixed>

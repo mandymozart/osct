@@ -81,6 +81,16 @@ final class PublishJob
         return self::state(self::row($id));
     }
 
+    /** The state of the experience's publish that runs in `$env` and is not abandoned, null when none (make live, #348) */
+    public static function running(string $experienceId, string $env): ?array
+    {
+        $nowMs = Editor::nowMs();
+        $running = Db::one("SELECT * FROM publish_jobs WHERE experience_id = :experience AND env = :env AND status = 'running' ORDER BY created_at DESC LIMIT 1",
+            ['experience' => $experienceId, 'env' => $env]);
+        if (!$running || ((int) $running['updated_at'] <= $nowMs - self::ABANDONED_MS && (int) $running['lease_until'] <= $nowMs)) return null;
+        return self::state($running);
+    }
+
     /**
      * The answer of `POST …/publish`: done → 200 with the outcome (and `job`); failed → the error's status with `job`;
      * running → 202 `{ job }`, and under PHP-FPM the request runs the job on after the answer.

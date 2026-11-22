@@ -80,8 +80,8 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `POST /editor/experiences` | `{ id, title }` | 201 `{ experience }` (the list's fields) – **a new, empty experience** (#343, [New experiences](#new-experiences)): a draft with one scene (a double page), nothing on it. 400 `invalid-slug`, `reserved-slug` (one of the site's own paths), `invalid-title` (1–200 characters); 409 `duplicate-id` |
 | `GET /editor/experiences` | | `{ experiences: [{ id, title, experience, initialScene, schema, assetsBase, libraryBase, importedHash, scenes, createdAt, updatedAt, lastPublish, live }], environments }` – `libraryBase` = the public folder of the experience's uploads (`…/assets/<id>/`, every Library file's URL lies below it; "" where the instance has no public URL for stored files); `lastPublish` `{ env, build, at }` or null; `live` = the environments serving the experience `[{ env, build, since }]` (empty: draft only, the tree's `experience` has it too); `environments` = what each environment serves `[{ env, experience, build, since }]` (`experience` null when it cannot be told), `{ env, error }` when its store cannot be read – only environments that serve something |
 | `GET /editor/environments` | | `{ env, environments: [{ env, store, publish, url, warning }] }` – this instance's environment (`ENV`, the only one it publishes to) first, then `staging` and `production` (`local` only where `ENV` is local); `store` = `cdn` (the storage zone) or `server` (the directory store this API serves); `publish` true for the own one only; `url` = where readers load it; `warning` = the line the editor shows wherever the directory store is the publish target, else null – [One environment per instance](#one-environment-per-instance) |
-| `POST /editor/import/preview` | `{ configuration, files?, assetsBase? }` or `{ source: "cdn" }` (the import's body) | `{ source, contentBase, manifest, incoming, counts, existing }` – what that import would bring in, **nothing imported** ([Import preview](#import-preview)). The import's access (AI connections too); 400 as the import (`invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id` – also for a configuration without `experience.id` or with one that is no id, `no-content-base`); it answers for the configuration's own `experience.id`, the id the import is then called with; 413 `body-too-large`; 502 `content-fetch-failed` with the failing `url` |
-| `POST /editor/experiences/{id}/import` | `{ configuration, files?, assetsBase?, confirm? }` or `{ source: "cdn", confirm? }` | `{ experience, counts, draft: { build, hash }, imported }` – replaces the experience's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json` – without it `<assetsBase>/files.json` is fetched (optional: a base without one, the reader's dev server, leaves no imported files in the Library; #244), `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`; `imported` = what the draft is now based on. **Over an experience that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). The configuration's `experience.id` must be `{id}` (the rows go under `{id}`, the configuration keeps its `experience`, and a publish names both): another id is 400 `invalid-configuration` naming both (#204). 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` (with the failing `url`) |
+| `POST /editor/import/preview` | `{ configuration, files?, assetsBase?, sources? }` or `{ source: "cdn", experience? }` (the import's body), either with `into?` | `{ source, contentBase, manifest, incoming, counts, existing }` – what that import would bring in, **nothing imported** ([Import preview](#import-preview)). The import's access (AI connections too); 400 as the import (`invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id` – also for a configuration without `experience.id` or with one that is no id, `no-content-base`); it answers for the configuration's own `experience.id`, the id the import is then called with – or for `into` (#348: the import goes there with `rename`); 413 `body-too-large`; 502 `content-fetch-failed` with the failing `url` |
+| `POST /editor/experiences/{id}/import` | `{ configuration, files?, assetsBase?, sources?, confirm? }` or `{ source: "cdn", experience?, confirm? }`, either with `rename?`, `title?`, `create?` (#348) | `{ experience, counts, draft: { build, hash }, imported }` – replaces the experience's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json` – without it `<assetsBase>/files.json` is fetched (optional: a base without one, the reader's dev server, leaves no imported files in the Library; #244), `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `experience` (default `{id}`) in its store below `CONTENT_BASE_URL`; `sources` = Code tab sources `[{ id, source }]` (an [export file](#export-file) carries them) saved with the rows, each a change; `rename: true` = the configuration becomes `{id}`'s (its `experience.id` is set to `{id}` – another experience's export or published version); `title` (1–200) replaces its title; `create: true` = a new experience only, checked as `POST /editor/experiences` (400 `invalid-slug` / `reserved-slug`, 409 `duplicate-id`); `imported` = what the draft is now based on. **Over an experience that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). The configuration's `experience.id` must be `{id}` (the rows go under `{id}`, the configuration keeps its `experience`, and a publish names both): another id is 400 `invalid-configuration` naming both (#204) – unless `rename`. 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` (with the failing `url`) |
 | `GET /editor/experiences/{id}` | | `{ experience, scenes: [{ …SceneData, entries: [{ id, category, title, scene, surface?, target }] }], groups }` – the tree ([Scenes](#scenes)); `target` = the entry's TargetData (id, imageSrc, place, entity inline or `{ ref }`) or null. An experience of content schema 2.x answers 409 `old-schema` |
 | `GET /editor/experiences/{id}/entities` | | `{ entities: { ref: EntityData } }` – the shared entities |
 | `PUT /editor/experiences/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in an experience with plugins – "Plugin sources"), no `assets` list |
@@ -91,6 +91,9 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `GET /editor/experiences/{id}/publish/{job}` | | `{ job }` – the job's `status` (`running` / `done` / `failed`), `phase` (`version` → `switch` → `archive` → `done`), `build`, `hash`, `live` (latest.json names the build), `done` / `total` files, `skipped` (on the store already), `parts` `{ build, archive }` (the files of the version folder and of the export archive: `total` = build + 2 for the switch + archive – the editor counts the archive with it), `startedAt`, `updatedAt`, `result` (done: the publish's answer) or `error` `{ code, message, status }` (failed; `abandoned`: no one continued it). A running job first runs on for `PUBLISH_STEP_SECONDS` unless another request runs it. 404 `unknown-job` (not a job of this experience) |
 | `GET /editor/experiences/{id}/publish` | | `{ job }` – the experience's newest job (null: none kept – ended jobs are kept 14 days); a running one runs on like a poll. Where the editor finds a publish whose start answer a gateway swallowed |
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
+| `POST /editor/experiences/{id}/versions/{build}/activate` | | `{ env, build, hash, activatedAt, previous, version }` – **make live** (#348, [Make a version live again](#make-a-version-live-again)): an older build of this instance's environment is current again; 403 `not-for-ai`, 404 `unknown-build`, 409 `already-live` / `publish-running` / `build-missing` / `unreadable-schema` |
+| `GET /editor/experiences/{id}/export/file[?build=]` | | the draft (or a published build) as one JSON file to download (#348, [Export file](#export-file)) – an import body as it is |
+| `GET /editor/recent?limit=` | | `{ changes: [{ experience, experienceTitle, kind, ref, scene, sceneLabel, entry, user, token, at }] }` – the newest changes across the instance's experiences (#348, [Recent places](#recent-places)); default 40, at most 200 |
 | `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
 | `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, delivery, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes, `delivery` the delivery that wrote it ([Deliveries](#deliveries)) and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
 | `GET /editor/experiences/{id}/deliveries?limit=` | | `{ deliveries: [{ id, name, source, counts, user, token, createdAt, changes }] }` – the applied deliveries, newest first (a comparison leaves no row); `changes` = how many changes of the log name it, `token` the AI connection it came through; `limit` default 50, at most 500 – [Deliveries](#deliveries) |
@@ -447,6 +450,41 @@ the files, the CLI downloads them. Rights: those of the draft (an editor). Typed
 - `credits` – every credit line of the Library by file URL (#277); the configuration's own `credits` carries only those of
   the files it uses.
 
+### Export file
+
+`GET /editor/experiences/{id}/export/file[?build=]` (#348, `Export::file`, the editor sheet's *Export*) answers the experience
+as one JSON file to download (`Content-Disposition: attachment; filename="<id>-<build>.osct.json"`): `{ format: "osct-export",
+formatVersion: 1, experience, title, build, appVersion, exportedAt, source, configuration, files, assetsBase?, sources }` – the
+draft (`ContentVersion::assemble`, its paths below the assets base as the draft endpoints give them) or a published build
+(`data`, with its version folder as `assetsBase`: its plugins' modules are content paths there), its `files.json` and the Code
+tab's sources `[{ id, source }]`. **It is an import body as it is**: `POST …/import` (and the editor's Import → File) takes
+`configuration`, `files`, `assetsBase` and `sources` from it – with `rename` under another id, so an export becomes a new
+experience or replaces another's draft. The media are not in it: the configuration names them by URL, so the file stays small
+and the import points at the same files (a file deleted from the CDN since is gone for the import too). Typed as `ExportDownload`
+in `shared/api/editor.ts`. The round trip (export, import as another id: the same configuration but its id, the sources) is
+in the API test.
+
+### Make a version live again
+
+`POST /editor/experiences/{id}/versions/{build}/activate` (#348, `Versions::activate`, the sheet's *make live*, the MCP's
+`activate_version`): `{build}` – a build the publish log names for this experience in **this instance's environment** (`ENV`) –
+is what readers get again, on their next start. Builds are immutable and stay in the store (a publish never deletes one; only
+`osct content purge` does, by hand), so the switch is the publish's own: `versions.json` (`ContentStore::activate` – the
+previous current version retired, this build current again from now), then `latest.json`, and a row in the publish log with
+the note `Made live again – the version of <its first publish>` and who did it. The draft is not touched. 404 `unknown-build`
+(not in this environment's publish log); 409 `already-live`, `publish-running` (a publish of the experience is writing – its
+`job`), `build-missing` (the store no longer has its `game.config.json` – purged; nothing switched), `unreadable-schema` (a
+content schema MAJOR today's reader cannot read); 403 `not-for-ai` – readers are reached only by a person, as with Publish.
+
+### Recent places
+
+`GET /editor/recent?limit=` (#348, `Versions::recent`, the experiences page's *Last worked on*): the newest rows of the change
+log across the instance's experiences, newest first, each with `experienceTitle` and the **scene** it is on – a scene's own
+change (and its reference images', ref `<scene>/<surface>`), an entry's, a target's entry's – with `sceneLabel` and, for an
+entry or a target, the entry's title (`entry`); null for what is no scene's (the experience's settings, a plugin, a file, a
+shared entity) and for a scene deleted since. `user`, `token` (an AI connection's name) and `at` as in the change log. The
+editor keeps one row per experience and scene.
+
 ### Publish jobs
 
 A publish of a big experience writes for minutes (the osct book: 1529 files, mostly its export archive – [Content and
@@ -515,12 +553,13 @@ to the instance's `EXPERIENCE` – none of either: 400 `invalid-experience`), it
   what its `latest.json` says (null for a configuration: a form that read a content base itself fills them in);
 - `incoming` – as in the comparison below (`experience`, `title`, `build`, `hash`, `date`, `appVersion`, `schema`, `source`,
   `from`); the experience's id comes from the configuration (`experience.id`), so the CDN needs no id from the person;
-- `counts` `{ scenes, entries, targets, entities }`;
+- `counts` `{ scenes, entries, targets, entities, plugins? }` (`plugins`: the Code tab sources the body carries);
 - `existing` – the comparison the import would answer for the draft of that id (below, without a confirmation), null
   for a new experience.
 
 A content base that cannot be read, or whose `latest.json` names no build, answers 502 `content-fetch-failed` with the
-`url` that failed. The import itself does not depend on a preview: it reads the source again, and over an experience that
+`url` that failed; anything else that goes wrong while reading the CDN answers 502 `content-fetch-failed` with what failed
+(the error log has where) – never the bare `server-error` (#348). The import itself does not depend on a preview: it reads the source again, and over an experience that
 exists its own comparison and confirmation decide.
 
 ### Import with a version comparison
@@ -535,7 +574,9 @@ alike (the shared [confirmation](#confirmations), as a removal's):
    (the same fields plus `importedAt`, `importedBy`; recorded in `experiences.imported_json` by every import, null for an experience
    imported before that column existed), its edits since that import (the change log after it: their number and the newest ten `{ kind, ref, user,
    token, at }`), its build now and where it is live (`current` = that environment serves the draft as it is); `same` =
-   the same build comes in – and `confirmation` `{ id, expiresAt }`.
+   the same build comes in; `counts` `{ incoming, draft, sourcesReplaced }` (#348) – scenes, entries, targets, shared entities
+   and Code tab sources each side (the incoming side's sources: the draft's after the import – it keeps its own and adds or
+   replaces those the body carries) and the ids whose code the import replaces – and `confirmation` `{ id, expiresAt }`.
 2. **Confirm.** The same import with `confirm: <id>` replaces the draft. The id lasts 10 minutes and is bound to the
    person (and the AI connection), the incoming content and the draft as it was compared (its import, its last change,
    its rows' state): anything that changed meanwhile, another person, or an expired id answer 409 `confirmation-void`

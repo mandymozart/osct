@@ -1111,6 +1111,105 @@ try {
     file_put_contents("$storeDir/local/osct/latest.json", $withBuild);
     check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/local/osct/latest.json" && str_contains($data['error']['message'], 'names no content version'),
         'a latest.json that names no build → 502 with the URL');
+
+    echo "editor: the experiences page's flows – from the CDN, an export file, make live, recent places (#348)\n";
+    // The CDN of another experience into a new slug: the source's store is read, the configuration becomes the new one's
+    [$status, $data] = $preview($cdnApi, ['source' => 'cdn', 'experience' => 'osct', 'into' => 'osct-copy']);
+    check($status === 200 && $data['incoming']['experience'] === 'osct-copy' && $data['existing'] === null && $data['contentBase'] === "$api/content/local/osct",
+        'preview of the CDN into another experience (into): the source\'s store, the incoming id is the target\'s, nothing to replace');
+    [$status, $data] = call($cdnApi, 'POST', '/editor/experiences/osct-copy/import', ['source' => 'cdn', 'experience' => 'osct'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'without rename the published osct cannot become osct-copy → 400');
+    foreach ([['Bad_Slug', 400, 'invalid-slug'], ['editor', 400, 'reserved-slug'], ['osct', 409, 'duplicate-id']] as [$slug, $want, $code]) {
+        [$status, $data] = call($cdnApi, 'POST', "/editor/experiences/$slug/import", ['source' => 'cdn', 'experience' => 'osct', 'rename' => true, 'create' => true], $editor);
+        check($status === $want && ($data['error']['code'] ?? null) === $code, "create: $slug → $want $code (the slug rule of POST /editor/experiences)");
+    }
+    [$status, $data] = call($cdnApi, 'POST', '/editor/experiences/osct-copy/import', ['source' => 'cdn', 'experience' => 'osct', 'rename' => true, 'create' => true, 'title' => 'The copy'], $editor);
+    check($status === 200 && $data['experience']['id'] === 'osct-copy' && $data['experience']['title'] === 'The copy' && $data['experience']['experience']['id'] === 'osct-copy'
+        && $data['imported']['source'] === 'cdn' && $data['imported']['from'] === "$api/content/local/osct/{$latest['build']}",
+        'import of the published osct as a new experience osct-copy (create, rename, title): its own id and title, the source\'s version folder as assets base');
+    [$status, $data] = call($cdnApi, 'POST', '/editor/experiences/osct-copy/import', ['source' => 'cdn', 'experience' => 'osct', 'rename' => true, 'create' => true], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', '… a second create of the same slug → 409 duplicate-id');
+
+    // The export file: an import body as it is – exported, then imported back (round trip)
+    $tintSource = 'export default function register(api) { api.registerLayer("tint", { params: {} }); }';
+    call($api, 'PUT', '/editor/experiences/osct-copy/plugins/tint', ['source' => $tintSource], $editor);
+    $context = stream_context_create(['http' => ['header' => "Authorization: Bearer $editor", 'ignore_errors' => true]]);
+    $raw = (string) file_get_contents("$api/editor/experiences/osct-copy/export/file", false, $context);
+    $disposition = implode("\n", array_filter($http_response_header, static fn(string $h): bool => stripos($h, 'content-disposition:') === 0));
+    $file = json_decode($raw, true);
+    [, $m] = call($api, 'GET', '/editor/experiences/osct-copy/draft/latest.json', null, $editor);
+    check(($file['format'] ?? null) === 'osct-export' && $file['formatVersion'] === 1 && $file['experience'] === 'osct-copy' && $file['build'] === $m['build']
+        && $file['source'] === ['kind' => 'draft'] && is_array($file['configuration']['entries'] ?? null) && is_array($file['files']) && !isset($file['assetsBase'])
+        && in_array(['id' => 'tint', 'source' => $tintSource], $file['sources'], true)
+        && str_contains($disposition, "attachment; filename=\"osct-copy-{$m['build']}.osct.json\""),
+        'export file of the draft: format, experience, build, the configuration, files.json, the Code tab sources – as a download');
+    $back = $file;
+    unset($back['format'], $back['formatVersion']);
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct-back/import', $back + ['rename' => true, 'create' => true], $editor);
+    [, $mBack] = call($api, 'GET', '/editor/experiences/osct-back/draft/latest.json', null, $editor);
+    [, $configBack] = call($api, 'GET', "/editor/experiences/osct-back/draft/{$mBack['build']}/game.config.json", null, $editor);
+    [, $configOwn] = call($api, 'GET', "/editor/experiences/osct-copy/draft/{$m['build']}/game.config.json", null, $editor);
+    [, $plugins] = call($api, 'GET', '/editor/experiences/osct-back/plugins', null, $editor);
+    unset($configBack['version'], $configOwn['version'], $configBack['experience']['id'], $configOwn['experience']['id']);
+    check($status === 200 && $data['counts']['plugins'] === count($file['sources']) && $configBack == $configOwn && in_array('tint', array_column($plugins['plugins'], 'id'), true),
+        'round trip: the export file of osct-copy imported as osct-back gives the same configuration (but its id) and brings the Code tab sources');
+    // Back over the experience itself: the comparison counts what comes in against the draft and names replaced sources
+    $changed = $back;
+    $changed['sources'] = [['id' => 'tint', 'source' => '// another text']];
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct-copy/import', $changed, $editor);
+    $counts = $data['error']['comparison']['counts'] ?? null;
+    check($status === 409 && $data['error']['code'] === 'confirm-import' && $counts['incoming']['scenes'] === $counts['draft']['scenes'] && $counts['incoming']['plugins'] === 1
+        && $counts['draft']['plugins'] >= 1 && $counts['sourcesReplaced'] === ['tint'], 'the comparison counts scenes … plugins each side and names the sources the import replaces');
+    [$status, $data] = call($api, 'GET', '/editor/experiences/osct/export/file?build=nope', null, $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-build', 'export file of a build that is none → 400');
+    $raw = (string) file_get_contents("$api/editor/experiences/osct/export/file?build={$first['build']}", false, $context);
+    $file = json_decode($raw, true);
+    check(($file['build'] ?? null) === $first['build'] && $file['source']['kind'] === 'published' && $file['assetsBase'] === "$api/content/local/osct/{$first['build']}",
+        'export file of a published build: its configuration, its version folder as the assets base (its plugins\' modules are there)');
+
+    // Make live: an older build of this instance's environment becomes current again
+    [, $before] = call($api, 'GET', '/content/local/osct/latest.json');
+    $logBefore = count(call($api, 'GET', '/editor/experiences/osct/versions', null, $editor)[1]['versions']);
+    $older = $before['build'] === $first['build'] ? $second['build'] : $first['build'];
+    [, $draftBefore] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/$older/activate", null, $editor);
+    [, $after] = call($api, 'GET', '/content/local/osct/latest.json');
+    [, $versions] = call($api, 'GET', '/content/local/osct/versions.json');
+    [, $log] = call($api, 'GET', '/editor/experiences/osct/versions', null, $editor);
+    $currentNow = array_values(array_filter($versions, static fn(array $v): bool => $v['retiredAt'] === null));
+    check($status === 200 && $data['build'] === $older && $data['previous'] === $before['build'] && $after['build'] === $older && $after['experience'] === 'osct'
+        && count($currentNow) === 1 && $currentNow[0]['build'] === $older && count($log['versions']) === $logBefore + 1 && $log['versions'][0]['build'] === $older
+        && str_starts_with((string) $log['versions'][0]['note'], 'Made live again – the version of ') && $log['versions'][0]['publishedBy'] === 'author@example.com',
+        'make live: latest.json and versions.json name the older build again, the publish log has a row for it (who, a note)');
+    [, $draftAfter] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
+    check($draftAfter['build'] === $draftBefore['build'] && is_dir("$storeDir/local/osct/{$before['build']}"), '… the draft untouched, the other build kept in the store');
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/$older/activate", null, $editor);
+    check($status === 409 && $data['error']['code'] === 'already-live', 'the live build again → 409 already-live');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/versions/ffffffffffff/activate', null, $editor);
+    check($status === 404 && $data['error']['code'] === 'unknown-build', 'a build the publish log does not name → 404 unknown-build');
+    [$status] = call($api, 'POST', "/editor/experiences/osct/versions/{$before['build']}/activate", null, $chief);
+    check($status === 403, 'make live: editors only');
+    rename("$storeDir/local/osct/{$before['build']}/game.config.json", "$storeDir/local/osct/{$before['build']}/game.config.json.away");
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/{$before['build']}/activate", null, $editor);
+    rename("$storeDir/local/osct/{$before['build']}/game.config.json.away", "$storeDir/local/osct/{$before['build']}/game.config.json");
+    check($status === 409 && $data['error']['code'] === 'build-missing', 'a build the store no longer has (purged) → 409 build-missing, nothing switched');
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/{$before['build']}/activate", null, $editor);
+    [, $restored] = call($api, 'GET', '/content/local/osct/latest.json');
+    check($status === 200 && $restored['build'] === $before['build'], 'and back: the build that was live before is live again');
+
+    // Recent places: the newest changes across the experiences, each with its scene
+    [$status, $data] = call($api, 'GET', '/editor/recent?limit=5', null, $editor);
+    $tint = $data['changes'][0] ?? [];
+    check($status === 200 && count($data['changes']) === 5 && $tint['experience'] === 'osct-back' && $tint['kind'] === 'plugin' && $tint['scene'] === null && $tint['user'] === 'author@example.com'
+        && is_string($tint['experienceTitle']) && is_string($tint['at']), 'recent: newest first, across experiences – a plugin is on no scene');
+    $entryId = $configuration['entries'][0]['id'];
+    call($api, 'PUT', "/editor/experiences/osct-copy/entries/$entryId", ['body' => 'Seen on the experiences page.'], $editor);
+    [, $data] = call($api, 'GET', '/editor/recent?limit=1', null, $editor);
+    $row = $data['changes'][0] ?? [];
+    check(($row['experience'] ?? null) === 'osct-copy' && $row['kind'] === 'entry' && $row['ref'] === $entryId && $row['scene'] === $configuration['entries'][0]['scene'] && is_string($row['entry']),
+        'recent: an entry\'s change names its scene and the entry\'s title');
+    [$status] = call($api, 'GET', '/editor/recent', null, $chief);
+    check($status === 403, 'recent: editors only');
     echo "editor: assets base\n";
     $base = 'https://cdn.example/osct/staging/0123456789ab';
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => "$base/"], $flags));
@@ -2859,6 +2958,8 @@ try {
         [$status, $data] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => $env], $aiToken);
         check($status === 403 && $data['error']['code'] === 'not-for-ai', "a token cannot publish to $env → 403 not-for-ai");
     }
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/versions/0123456789ab/activate', null, $aiToken);
+    check($status === 403 && $data['error']['code'] === 'not-for-ai', 'a token cannot make a version live → 403 not-for-ai (#348)');
     $refused = [
         ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],

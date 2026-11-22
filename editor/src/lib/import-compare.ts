@@ -4,7 +4,7 @@ import { date } from "./import-preview";
 /**
  * The import's version comparison (#183): before an import overwrites an experience's draft, the page shows what comes in
  * against what the draft is based on and its edits since that import – the person confirms there, never in a browser
- * dialog. These are the comparison's words; ImportForm draws them.
+ * dialog. These are the comparison's words; ImportCompare draws them (#348).
  */
 
 /** One row of the comparison: a property of the incoming build and of the draft's base */
@@ -28,7 +28,30 @@ export const comparisonRows = (c: ImportComparison): ComparisonRow[] => {
     row("Built", shown(c.incoming.date), shown(base.date)),
     row("App version", value(c.incoming.appVersion), value(base.appVersion)),
     row("Schema", value(c.incoming.schema), value(base.schema)),
+    ...countRows(c),
   ];
+};
+
+/**
+ * What comes in against what the draft holds (#348: scenes, targets, plugins changed): scenes, entries, targets, shared
+ * entities and Code tab sources each side – the draft's side is the draft now, not its base. [] when the API sent no counts.
+ */
+export const countRows = (c: ImportComparison): ComparisonRow[] => {
+  const counts = c.counts;
+  if (!counts) return [];
+  const row = (label: string, key: keyof typeof counts.incoming): ComparisonRow => {
+    const incoming = String(counts.incoming[key] ?? 0);
+    const draft = String(counts.draft[key] ?? 0);
+    return { label, incoming, draft, differs: incoming !== draft };
+  };
+  return [row("Scenes", "scenes"), row("Entries", "entries"), row("Targets", "targets"), row("Shared entities", "entities"), row("Plugin sources", "plugins")];
+};
+
+/** The draft's Code tab sources the import replaces with another text – null when none */
+export const sourcesLine = (c: ImportComparison): string | null => {
+  const replaced = c.counts?.sourcesReplaced ?? [];
+  if (!replaced.length) return null;
+  return `The import replaces the code of ${replaced.length === 1 ? "the plugin" : `${replaced.length} plugins`} ${replaced.join(", ")} with the export's.`;
 };
 
 /** Who imported the draft's base and when: `imported 30 Oct 2026, 10:00 by author@example.com` */

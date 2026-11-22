@@ -7,6 +7,43 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 6.3.0 – 2026-11-22
+
+### Changed
+- **The Experiences page: the books on the left, a context column on the right** (Tilman, 2026-11-22, #348: *"new is more
+  of a step by step … under the three dots under each experience one can select export, replace, versions … nothing is
+  clicked, the right side shows cards new experience and import and last worked on. so we use it as quick access menu"*):
+  each experience's cover with a **···** under it and a dashed **+** card; a click **selects** a book (outlined) and the
+  column shows its **sheet** – a double click or Enter opens it in the editor, the arrows move the selection, Esc clears it.
+  With nothing selected the column is **quick access**: *New experience*, *Import* and **Last worked on** – the newest
+  places across the instance's experiences from the server's change history (book · scene · entry or panel · when · who),
+  a click opens that place. *Connect an AI agent* stays under the books, more compact.
+- **New experience goes step by step** in the column: *Start* (Empty – one scene – or From an export: a file, a URL or a
+  published version), *Name* (the title and the address, the whole reader address shown; *Fixed once published – printed
+  codes depend on it.*), *Create* – then the editor opens it. **Import** (quick access, the ☰ menu's *Import…*) is New with
+  *From an export* chosen. The old right-column forms are gone; their sources (URL, file, the CDN – now *Published*, any
+  experience live on this instance), the preview, the comparison and the confirm live in the new flows.
+
+### Added
+- **A book's sheet**: title, author, reader address, **Open**, **Export** (the draft as one `.osct.json` file – its
+  configuration, files' list and plugin code: the import body Import reads back), **Replace…** step by step (source →
+  the comparison, now with scenes, entries, targets, shared entities and plugin sources each side → *Replace the draft*;
+  readers keep the live version until the next publish) and **Versions**: the publish log, which build is live per
+  environment, and **make live** for an older build of this instance's environment after a confirm (*Make the version of
+  … live on staging again? Readers get it on their next start. The draft is not changed.*).
+- API: `GET /editor/experiences/{id}/export/file[?build=]` (the export file), `POST /editor/experiences/{id}/versions/{build}/activate`
+  (make live: versions.json, latest.json, a publish log row – refused to an AI connection's token), `GET /editor/recent`
+  (the newest changes across the experiences with their scene); the import takes `rename`, `title`, `create`, `sources`
+  and, from the CDN, `experience`; the preview `into`. MCP: `activate_version`. The ☰ menu on the experiences page has
+  *New experience…* and *Import…*.
+
+### Fixed
+- **The reader address while the slug is empty** showed `https://…/%3Cslug%3E/`: now `https://<instance>/…/` until there
+  is a slug, then the whole address.
+- **Import from the CDN answered *Something went wrong on the server. (server-error)***: not reproduced (staging's preview
+  answers today, locally against staging's CDN too); anything unexpected while reading the CDN now answers 502
+  `content-fetch-failed` with what failed, and the error log has where – never the bare server-error.
+
 ## 6.2.5 – 2026-11-22
 
 ### Changed

@@ -207,6 +207,46 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-22 – the experiences page: books left, a context column right; export file, make live (6.3.0, #348)
+
+- Tilman (2026-11-22, on the experiences page screenshot): *"new is more of a step by step … under the three dots under
+  each experience one can select export, replace, versions … new and import can also go into the top right menu"* – *"the
+  right side is still smart"* – *"nothing is clicked, the right side shows cards new experience and import and last worked
+  on. so we use it as quick access menu"*. Confirmed afterwards: rollback = **make live with a confirm** ("rollback is
+  nice"), Last worked on **from the server's history**.
+- Built so: a click selects (the sheet), double click / Enter opens, arrows / Esc; quick access (New, Import, Last worked
+  on – `GET /editor/recent`, one row per experience and scene, five); New step by step (Start → Name → Create); Import = New
+  with *From an export*; the sheet (Open, Export, Replace…, Versions + make live). The old `ImportForm` / `NewExperienceForm`
+  are gone – their functions are in `ImportSource` (the one source reader: File / URL / Published), `ImportCompare`,
+  `NewExperienceFlow`, `ExperienceSheet`.
+- *My calls*: **the export file is an import body** (`{ format: "osct-export", configuration, files, assetsBase?, sources }`,
+  `GET …/export/file`) – no zip: the media stay on the CDN and are named by URL, so the file is small and Import (File) reads
+  it as it is. The Code tab sources travel in it and the import saves them (`sources`) – otherwise an export of a book
+  with unpublished plugin code could not come back. The import got `rename` (the configuration becomes `{id}`'s), `title`,
+  `create` (the slug rule of `POST /editor/experiences`, one implementation) and, from the CDN, `experience` – New from an
+  export / a published version and Replace with another experience's export need them. *Published* lists the experiences
+  live on this instance's environment (the CDN base is the own environment's), not only the default.
+- **Make live** (`POST …/versions/{build}/activate`): only this instance's environment (as Publish), refused to an AI
+  connection's token (as Publish – the MCP's `activate_version` works with a session sign-in only), 409 when the build's
+  `game.config.json` is gone (purged) or its schema MAJOR is not today's. The publish log gets a row with the note *Made live
+  again – the version of …*; no new column. A build stays in the store unless `osct content purge` removes it by hand.
+- **`%3Cslug%3E`**: the form passed the literal `<slug>` through `readerPath` (which encodes); now `addressPreview` shows
+  `https://<instance>/…/` until there is a slug.
+- **CDN import server-error**: not reproduced. Staging's `preview_import` (MCP, source cdn, osct and demo) answers 200 today;
+  locally the preview of staging's CDN works with and without an existing 1376-entry draft, and staging's server code has
+  not changed in that path since 6.2.3. I could not read staging's error log (SSH was refused here). The CDN read now turns
+  any unexpected error into 502 `content-fetch-failed` with its message and logs where – if it comes back, the editor shows
+  the real cause.
+- Checked locally (SQLite API with `CONTENT_BASE_URL` = staging's CDN, read only; headless Edge): quick access, New step 1
+  and 2, the ☰ entries, a sheet with versions, the make-live confirm, Replace's source and comparison – day and night. The
+  make-live itself and Replace were exercised against the local API only.
+- [ ] Open: the tutorials page's import screenshots (`client/public/docs/tutorials/import/*.webp`, `demo/01-experiences.webp`)
+  still show the old right-column form – the text is updated, the pictures need a retake with a book on the CDN.
+- [ ] Open: `php -S` answers one request at a time – locally a source whose *assets at* points at a dead port (the 5174
+  default) waits for the connection timeout before the preview; not an issue on a real host.
+- [ ] Open (Tilman's call): make live for production from the staging editor is not offered (an instance publishes to its
+  own environment only); production's editor shows the button for production.
+
 ## 2026-11-22 – Publish is one overlay: confirm, running, done; the rest behind Details (6.2.4, #345)
 
 - Tilman (2026-11-22): *"there is lot of information that is kind of useless on this dialog … i dont need to know the
@@ -233,8 +273,8 @@ Verbatim from the archived entries (the entry title and archive file in front of
 - Checked locally (SQLite API with `PUBLISH_STEP_SECONDS=0`, a 106-scene experience, headless Edge): all three states in
   day and night, the 2 s auto-close (2.2–2.4 s after Details was closed), focus back on the button. The docs site's
   `publish.webp` is the new confirm.
-- [ ] Open (Tilman's call, not in scope): **rollback** – re-activating an older build from the publish log is possible on
-  the CDN side (its version folder stays; versions.json + latest.json would switch back); no UI for it yet.
+- [x] Open (Tilman's call, not in scope): **rollback** – done in 6.3.0 (#348): *make live* on the experiences page's
+  Versions, `POST …/versions/{build}/activate`.
 
 ## 2026-11-22 – a publish is a job: where the 10 minutes went, what writes the rest (6.2.0, #345)
 
