@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeIndex, activeOption, closesOnResize, expandedGroups, groupWidth, menuPlace, menuStep, openFocus, toolbarWidth, type GroupShape, type ToolbarMetrics } from "../tool-groups";
+import { activeIndex, activeOption, closesOnResize, expandedGroups, fittingGroups, groupLength, groupWidth, menuPlace, menuStep, openFocus, toolbarWidth, type GroupShape, type ToolbarMetrics } from "../tool-groups";
 
 const shading = [
   { value: "wireframe", name: "Wire" },
@@ -112,5 +112,46 @@ describe("menuPlace", () => {
 
   it("keeps a column's menu on the screen at its lower edge", () => {
     expect(menuPlace(box(20, 700), menu, screen, true)).toEqual({ left: 50, top: 496 });
+  });
+});
+
+describe("the toolbar's overflow: what does not fit goes behind the … (#342)", () => {
+  const m: ToolbarMetrics = { button: 28, gap: 2, rule: 7, chrome: 6 };
+  // undo / redo / history, the tool, the filters, render quality, grid & snap, view, live – each with its rule
+  const lengths = [3, 1, 1, 1, 1, 1, 2].map((buttons, i) => groupLength(buttons, i === 0, m));
+  const total = lengths.reduce((a, b) => a + b, 0);
+  const more = groupLength(1, false, m);
+  const prefix = (n: number) => lengths.slice(0, n).reduce((a, b) => a + b, 0);
+
+  it("estimates a group from its buttons: the first with the toolbar's padding, the others with their rule", () => {
+    expect(groupLength(3, true, m)).toBe(3 * 28 + 2 * 2 + 3);
+    expect(groupLength(1, false, m)).toBe(28 + 2 + 7);
+    expect(groupLength(4, false, m, true)).toBe(4 * 28 + 2 + 7);
+  });
+
+  it("keeps every group and shows no … when all of them fit – exactly fitting too", () => {
+    expect(fittingGroups(lengths, 1000, more)).toBe(7);
+    expect(fittingGroups(lengths, total, more)).toBe(7);
+  });
+
+  it("keeps as many groups in order as fit beside the …", () => {
+    // a px short: Live (two buttons) goes, the … (one) takes its place
+    expect(fittingGroups(lengths, total - 1, more)).toBe(6);
+    expect(fittingGroups(lengths, prefix(6) + more - 1, more)).toBe(5);
+    expect(fittingGroups(lengths, prefix(3) + more, more)).toBe(3);
+    expect(fittingGroups(lengths, prefix(3) + more - 1, more)).toBe(2);
+  });
+
+  it("leaves only the … when not even the first group fits beside it", () => {
+    expect(fittingGroups(lengths, lengths[0] + more - 1, more)).toBe(0);
+    expect(fittingGroups(lengths, 0, more)).toBe(0);
+    expect(fittingGroups([], 0, more)).toBe(0);
+  });
+
+  it("does not depend on what is hidden now: the same room gives the same answer, growing gives more", () => {
+    const rooms = [100, 150, 200, 250, 300, total];
+    const fits = rooms.map(room => fittingGroups(lengths, room, more));
+    expect(fits).toEqual(rooms.map(room => fittingGroups(lengths, room, more)));
+    expect([...fits].sort((a, b) => a - b)).toEqual(fits);
   });
 });

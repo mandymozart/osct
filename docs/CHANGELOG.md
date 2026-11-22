@@ -7,6 +7,14 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 5.2.0 – 2026-11-22
+
+### Added
+- **The stage toolbar's … menu** (Tilman, 2026-11-22, #342): when the Tools panel has no room for all its groups – a
+  narrow window, a resized panel, a column on a short stage – the ones that do not fit move behind a **…** at its end
+  instead of being cut off. Its menu holds them, each working as in the toolbar (their own menus and panels open from
+  inside it); the keys work either way.
+
 ## 5.1.1 – 2026-11-22
 
 ### Changed

@@ -21,7 +21,7 @@
    * the pointer – a line marks where –, over another panel's body at its end, over the stage it becomes a panel of its own
    * there. A click (or a double-click) on a tab only shows it.
    */
-  let { floats, id, children, tab, extra, label }: {
+  let { floats, id, children, tab, extra, label, along }: {
     floats: Floats;
     id: string;
     /** The content of a panel without tabs */
@@ -32,6 +32,11 @@
     extra?: Snippet<[string]>;
     /** The accessible name (the spec's name by default) */
     label?: string;
+    /**
+     * A content-sized toolbar whose groups do not all fit (#342): its length along (px) with every group in it – the
+     * panel asks for that much, so hiding groups behind its … never shrinks the room it is given
+     */
+    along?: number;
   } = $props();
 
   const spec = $derived(floats.spec(id)!);
@@ -158,10 +163,19 @@
 
   // ── a content-sized panel (the toolbar) reports its content's size, the layout sizes the panel after it ──
   let content = $state<HTMLDivElement>();
+  const report = (el: HTMLElement) => {
+    const length = along ?? 0;
+    floats.measure(id, vertical ? { w: el.offsetWidth, h: Math.max(el.scrollHeight, length) } : { w: Math.max(el.scrollWidth, length), h: el.offsetHeight });
+  };
+  // The toolbar's whole length changed (#342) – nothing in the panel may have changed size
+  $effect(() => {
+    void along;
+    if (content && contentSized) report(content);
+  });
   $effect(() => {
     const el = content;
     if (!el || !contentSized) return;
-    const observer = new ResizeObserver(() => floats.measure(id, vertical ? { w: el.offsetWidth, h: el.scrollHeight } : { w: el.scrollWidth, h: el.offsetHeight }));
+    const observer = new ResizeObserver(() => report(el));
     const inner = el.firstElementChild;
     if (inner) observer.observe(inner);
     observer.observe(el);
