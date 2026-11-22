@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-22 – Which PDF is the book: the final preview spreads, not the litho print (#349)
+- Tilman's *very final* version is `OSCT_FULL_preview_spreads_HIGHRES.pdf` (Virginie's Dropbox "Higher Res Exports for
+  Tilman", 1 114 098 658 bytes – the same file as `osct-incoming-content/final-2026-11-19/`). `OSCT_LAST_LithographyPRINT.pdf`
+  (InDesign 2 Nov, single pages with 7.41 mm bleed) is an **older** layout: pictures moved, page 256 still has the paper
+  figure, the matter has embossed textures. Never take positions or backgrounds from the litho PDF.
+- Checked against the final: 1367 of 1368 targets on staging lie where it prints them (`p188-7` only not recognised by the
+  comparison); 133 of 135 backgrounds match. s1 and s256 had older page images (#251) – replaced with the final's pages.
+- The cover, the front and back matter and the pages next to 1 and 256 had no targets (the delivery ends at P255):
+  78 added on staging from the final's pictures, **all switched off** (Tilman), ids `<scene>-t<N>` (`front-2-t3`,
+  `back-cover-t1`), the sponsor logo and the QR code left out. Files and placements: `osct-incoming-content/2026-11-22-final-matter/`.
+
 ## Archive (read this first)
 
 Entries from before 2026-11-01 moved verbatim into `agents/archive/MEMORY-<year>-<month>.md` (#31, 2026-11-20);

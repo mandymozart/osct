@@ -3,7 +3,7 @@
   import Section from "#lib/components/Section.svelte";
   import { autosave } from "#lib/autosave.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
-  import { sceneName, targetsOf } from "#lib/scene-strip.js";
+  import { sceneName, targetsOf, targetsOff } from "#lib/scene-strip.js";
   import { errorText } from "#lib/api.js";
   import { selection } from "#lib/selection.svelte.js";
   import Icon from "#lib/components/Icon.svelte";
@@ -70,7 +70,7 @@
         title="Show the group in the Inspector" aria-label="Show the group"><Icon name="link" /></button>{/if}</div>
     <div class="row" data-help="The targets on this scene – the engine tracks at most 10 per scene (4 at the same moment).">
       <span class="label">targets</span>
-      <span class="value">{targetsOf(scene)} of 10</span></div>
+      <span class="value">{targetsOf(scene)} of 10{#if targetsOff(scene)}<span class="muted"> · {targetsOff(scene)} off</span>{/if}</span></div>
     <div class="row" data-help="Arrange in a row: the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places. Off while they lie so already.">
       <span class="label">surfaces</span>
       <button type="button" class="pill framed" disabled={!canArrangeInRow(sceneId)} onclick={() => void put(() => arrangeSceneInRow(sceneId))}

@@ -1406,7 +1406,7 @@ moves the entry) and, in a scene of several surfaces, its surface (`EntryData.su
 With the scene selected the Inspector shows `SceneView.svelte` (#227, #229 – the Stage tab's sections, moved there):
 
 - *scene* (#307 phase 3a, `SceneSection.svelte`): the scene's **label** (what the reader's switcher and lists show;
-  empty: its id), its **group** (or *self*), its targets of 10 and **arrange in a row**. The scene's **surfaces** are not
+  empty: its id), its **group** (or *self*), its targets switched on of 10 (the switched-off ones next to it, not counted – #349) and **arrange in a row**. The scene's **surfaces** are not
   listed here (#337): they are the Tree's Surfaces level – a row selects one and the Inspector shows it (above); its **+**
   adds a **double** page (460 × 320 mm, one surface) or a **single** page (230 × 320 mm) flat right beside the others, a
   **wall** (2000 × 1500 mm, standing ahead behind the flat surfaces, `rx` 90) or a **custom** one (300 × 300 mm) and

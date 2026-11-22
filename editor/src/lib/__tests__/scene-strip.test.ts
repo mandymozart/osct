@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bandDrop, dropAtEnd, dropMark, dropOver, GRID_COLUMN_FLOOR, GRID_COLUMN_MAX, GRID_COLUMN_MIN, gridColumns, gridSpan, groupedOf, newGroupLabel, pickModeOf, pickScenes, planDrop, runCounts, sceneName, sceneSpan,
-  stepScene, stripKey, stripRuns, surfaceParts, targetsOf, ungroupPlan, type StripScene,
+  stepScene, stripKey, stripRuns, surfaceParts, targetsOf, targetsOff, ungroupPlan, type StripScene,
 } from "../scene-strip";
 
 const scene = (id: string, group?: string, targets = 0, extra: Partial<StripScene> = {}): StripScene => ({
@@ -31,6 +31,15 @@ describe("the strip's runs and counts", () => {
     expect(runCounts(scenes.slice(2, 5))).toEqual({ scenes: 3, targets: 23, over: true });
     expect(runCounts(scenes.slice(2, 5), 30)).toEqual({ scenes: 3, targets: 23, over: false });
     expect(runCounts([])).toEqual({ scenes: 0, targets: 0, over: false });
+  });
+  it("counts only switched-on targets against the limits, the switched-off ones apart (#349)", () => {
+    const matter = scene("front-2", "g", 0, { entries: [
+      ...Array.from({ length: 13 }, (_, i) => ({ target: { id: `t${i}`, enabled: false } })),
+      { target: { id: "on" } }, { target: { id: "on2", enabled: true } }, { target: null },
+    ] });
+    expect(targetsOf(matter)).toBe(2);
+    expect(targetsOff(matter)).toBe(13);
+    expect(runCounts([matter], 1)).toEqual({ scenes: 1, targets: 2, over: true });
   });
   it("names a scene by its label, else its id – nothing counted from pages", () => {
     expect(sceneName(scene("a", undefined, 0, { label: " Studio wall " }))).toBe("Studio wall");

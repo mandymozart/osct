@@ -8,6 +8,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.3.2 – 2026-11-22
+
+### Fixed
+- **Target counts leave switched-off targets out** (#349): the scene's *targets N of 10*, the scene cards' count and a
+  group's targets against its loading window counted every target, so a scene with many switched-off targets (the front
+  and back matter's, all off) showed *13 of 10* and a ⚠. They now count the switched-on ones – as the reader tracks them
+  and the server's delivery check counts them (RULES #3) – and show the switched-off ones next to it (*· 13 off*).
+
 ## 6.3.1 – 2026-11-22
 
 ### Fixed
