@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ImportComparison } from "../api";
-import { comparisonRows, confirmLabel, editLabel, editsLine, importedLine, liveLine } from "../import-compare";
+import { comparisonRows, confirmLabel, editLabel, editsLine, importedLine, liveLine, sourcesLine } from "../import-compare";
 
 const comparison = (over: Partial<ImportComparison["draft"]> = {}, same = false): ImportComparison => ({
   experience: { id: "osct", title: "Test Experience" },
@@ -56,5 +56,22 @@ describe("the import's version comparison", () => {
   it("the button says what confirming does", () => {
     expect(confirmLabel(comparison())).toBe("Replace the draft");
     expect(confirmLabel(comparison({ edits: 0 }, true))).toBe("Import again");
+  });
+});
+
+// #348: the comparison also counts what comes in against the draft – scenes, targets, plugins changed
+describe("the comparison's counts", () => {
+  it("adds a row per count, the differences marked, and names replaced plugin code", () => {
+    const c: ImportComparison = { ...comparison(), counts: {
+      incoming: { scenes: 6, entries: 13, targets: 8, entities: 0, plugins: 2 },
+      draft: { scenes: 7, entries: 13, targets: 9, entities: 0, plugins: 1 },
+      sourcesReplaced: ["tint"],
+    } };
+    const rows = comparisonRows(c);
+    expect(rows.map(r => r.label)).toEqual(["Build", "Built", "App version", "Schema", "Scenes", "Entries", "Targets", "Shared entities", "Plugin sources"]);
+    expect(rows[4]).toEqual({ label: "Scenes", incoming: "6", draft: "7", differs: true });
+    expect(rows[5].differs).toBe(false);
+    expect(sourcesLine(c)).toBe("The import replaces the code of the plugin tint with the export's.");
+    expect(sourcesLine(comparison())).toBeNull();
   });
 });

@@ -1114,6 +1114,18 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
   );
 
   server.registerTool(
+    "activate_version",
+    {
+      description:
+        "Makes an older published version live again on this instance's own environment (#348, the editor's Versions → make live): `build` (list_versions) becomes the version readers get on their next start – versions.json and latest.json switch back, a row in the publish log says who did it. Builds are kept in the store, the draft is not changed. Ask the person first, naming the version's time and the environment. Signed in with an AI connection's token (osct_…) the API refuses it (403 not-for-ai): then the person does it in the editor (experiences page → the book's Versions). 404 unknown-build (not in this environment's publish log), 409 already-live, publish-running, build-missing (purged from the store), unreadable-schema (a content schema today's reader cannot read).",
+      inputSchema: z.object({ experience: EXPERIENCE, build: z.string().regex(/^[0-9a-f]{12}$/).describe("the version's build (list_versions)") }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    guard(async ({ experience, build }) =>
+      text({ ...(await api.call<Record<string, unknown>>("POST", `/editor/experiences/${encodeURIComponent(experience)}/versions/${build}/activate`)), open: editorHref(links, experience) })),
+  );
+
+  server.registerTool(
     "list_changes",
     { description: "The change log, newest first: id, kind (entity | target | entry | scene | order | groups | environment | passes | appearance | experience | plugin | asset), ref, before, after, user, when; `set` / `reverts` for a revert's changes, `notRevertable` = why revert_change cannot take it back (null: it can). `limit` default 50, at most 500.", inputSchema: z.object({ experience: EXPERIENCE, limit: z.number().int().min(1).max(500).optional() }), annotations: read },
     guard(async ({ experience, limit }) => text(await api.call<{ changes: Change[] }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/changes${limit ? `?limit=${limit}` : ""}`))),

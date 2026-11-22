@@ -155,6 +155,50 @@ export interface PublishJob {
 /** `POST …/publish` done in time: the outcome with its job; still running (202): the job alone */
 export type PublishStarted = (PublishResult & { job: PublishJob }) | { job: PublishJob };
 
+/** `POST /editor/experiences/{id}/versions/{build}/activate` (#348): the build that is live again, and the one it replaced */
+export interface VersionActivated {
+  env: string;
+  build: string;
+  hash: string;
+  activatedAt: string;
+  previous: string | null;
+  version: { publishedAt: string; note: string };
+}
+
+/** A change of `GET /editor/recent` (#348): across the instance's experiences, with the scene it is on (null: none) */
+export interface RecentChange {
+  experience: string;
+  experienceTitle: string;
+  kind: string;
+  ref: string;
+  scene: string | null;
+  sceneLabel: string | null;
+  /** The entry's title for an entry's or a target's change */
+  entry: string | null;
+  user: string | null;
+  token: string | null;
+  at: string;
+}
+
+/**
+ * The export file (#348, `GET /editor/experiences/{id}/export/file`): an import body as it is – `configuration`, `files`,
+ * `assetsBase` (a published build's folder) and the Code tab `sources` – with what it is of
+ */
+export interface ExportFile {
+  format: "osct-export";
+  formatVersion: number;
+  experience: string;
+  title: string;
+  build: string;
+  appVersion: string;
+  exportedAt: string;
+  source: { kind: "draft" } | { kind: "published"; env: string; publishedAt: string; publishedBy: string | null };
+  configuration: Record<string, unknown>;
+  files: Record<string, unknown>;
+  assetsBase?: string;
+  sources: { id: string; source: string }[];
+}
+
 /** A row of the publish log (`GET /editor/experiences/{id}/versions`, newest first) */
 export interface PublishedVersion {
   id: string;
@@ -331,6 +375,8 @@ export interface ImportCounts {
   entries: number;
   targets: number;
   entities: number;
+  /** The Code tab sources an import's `sources` (an export file) carries – only when it carries any (#348) */
+  plugins?: number;
 }
 
 /** `details.comparison` of a 409 confirm-import, and a preview's `existing`: what comes in against the draft */
@@ -346,6 +392,11 @@ export interface ImportComparison {
     live: { env: string; build: string | null; current: boolean }[];
   };
   same: boolean;
+  /**
+   * What comes in against what the draft holds (#348; null in a preview without a configuration): scenes, entries,
+   * targets, shared entities and Code tab sources each side, and the draft's sources the import's `sources` replace
+   */
+  counts?: { incoming: Required<ImportCounts>; draft: Required<ImportCounts>; sourcesReplaced: string[] } | null;
 }
 
 /**

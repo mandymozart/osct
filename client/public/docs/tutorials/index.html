@@ -262,7 +262,7 @@ npm run osct -- content sync --env staging</code></pre>
     </li>
     <li>
       <h3>Import the experience <span class="who">editor</span></h3>
-      <p>Open the editor, sign in, <b>Import an experience</b>, source <b>the CDN</b>: the form shows the experience and the build it found, and the button names them – <b>Import 1 experience: …</b>. The current version becomes the draft: its scenes, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the scene cards show their sheets. The other ways in – a URL or a file – are in <a href="#bringing-in">Bringing an experience in</a>.</p>
+      <p>Open the editor, sign in, <b>Import</b> (the quick access on the right), source <b>Published</b>: the column shows the experience and the build it found; <b>Next</b>, give it its title and address, <b>Create</b>. The current version becomes the draft: its scenes, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the scene cards show their sheets. The other ways in – a URL or a file – are in <a href="#bringing-in">Bringing an experience in</a>.</p>
     </li>
     <li>
       <h3>Edit and save <span class="who">editor</span></h3>
@@ -298,7 +298,7 @@ npm run osct -- content sync --env staging</code></pre>
   <p>An experience gets into an instance's editor by an <b>import</b>. The import reads a <b>game configuration</b> – <code>game.config.json</code>, what the content build makes from the content folder – and turns it into the experience's draft: scenes, entries, targets and AR nodes as rows in the database. One file is enough. The images, videos and models are not in it: they stay where they are, and the draft points at them.</p>
 
   <h3 class="sec" id="import-empty">An empty instance</h3>
-  <p>A new instance has no book. The Experiences page says so, names the three ways in and links to this chapter. The form <b>Import an experience</b> sits beside the list (under it on a phone). Under the experiences, <b>Connect an AI agent</b> gives you one prompt to paste into Claude, Codex, OpenCode, Cursor or any other MCP client – a fresh token in it – and the agent sets itself up; <b>Existing connections</b> lists the tokens to renew or revoke. The agent then saves drafts as you, and publishing stays your button.</p>
+  <p>A new instance has no book. The Experiences page says so, names the three ways in and links to this chapter. <b>New experience</b> and <b>Import</b> sit in the column beside the list (under it on a phone) – step by step, see the <a href="/docs/guide/experiences/">Experiences guide</a>. Under the experiences, <b>Connect an AI agent</b> gives you one prompt to paste into Claude, Codex, OpenCode, Cursor or any other MCP client – a fresh token in it – and the agent sets itself up; <b>Existing connections</b> lists the tokens to renew or revoke. The agent then saves drafts as you, and publishing stays your button.</p>
   <figure class="shot">
     <img src="/docs/tutorials/import/01-empty.webp" width="1280" height="800" loading="lazy" alt="The editor's Experiences page with no experience: the text No experience yet, import one with Import an experience – the CDN, a URL or a file, and the link How to bring an experience in; on the right the Import an experience form with the source the CDN selected and the Import button; the Info view names the CDN source.">
     <figcaption>No experience yet. On an instance the form starts on <b>the CDN</b>, and its fields are empty.</figcaption>
@@ -380,7 +380,7 @@ npm run osct -- content status --env staging</code></pre>
   <ol class="steps">
     <li>
       <h3>Import it into the editor <span class="who">editor</span></h3>
-      <p><b>Import an experience</b>, source <b>URL</b>, and the base URL <code>https://buildingfictions.b-cdn.net/demo</code>. That is enough: the form reads <code>latest.json</code> and fills in <em>assets at</em> itself. <b>Import</b>, and <em>The Demo</em> appears next to the other books.</p>
+      <p><b>Import</b>, source <b>URL</b>, and the base URL <code>https://buildingfictions.b-cdn.net/demo</code>. That is enough: the column reads <code>latest.json</code> and uses its version folder for the media. <b>Next</b>, the address <code>demo</code>, <b>Create</b>, and <em>The Demo</em> appears next to the other books.</p>
     </li>
     <li>
       <h3>Read it on a phone <span class="who">phone</span></h3>

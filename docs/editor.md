@@ -65,8 +65,8 @@ with SQLite and the local content store:
    `http://127.0.0.1:8080/api/admin/editors`.
 4. The editor: `cd editor && npm install && npm run dev` → http://localhost:5175/editor/ (its `/api` is proxied to
    the dev API). Sign in: the code is in the mail log.
-5. **Import an experience…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
-   configuration), *assets at* `http://localhost:5174` → Import. The experience appears with its scenes.
+5. **New** (the + card) → *From an export* → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
+   configuration), *assets at* `http://localhost:5174` → Next → the slug `demo` → Create. The experience opens with its scenes.
 6. Open *The key*: the stage shows the scene's targets with their entities, the key is found and unlocked – the
    **Inspector** shows the scene (selected when the workspace opens), and the **Log** tab (its *log* link) has the
    timeline of the finds. *tap* → *The key* takes it: its **behaviour** rule (#88, select the key to see it in the Inspector) plays
@@ -96,7 +96,7 @@ experience (#148) and tour the editor's tools, with screenshots of the editor (`
 `demo/`, `tools/`).
 
 On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the storage zone's credentials in the
-`staging` GitHub environment ([deploy](deploy.md)); *Import an experience… → the CDN* takes the current version, publishing
+`staging` GitHub environment ([deploy](deploy.md)); *Import → Published* takes an experience's current version, publishing
 (to `staging · CDN`) writes a new one, and the staging reader sees it on its next start.
 
 **The demo experience on staging** lives in the staging database like the book (#322 decision (b), as in SCUTOONS):
@@ -106,52 +106,74 @@ get ("A store per experience" below). `fixtures/demo` is its committed export �
 again (`osct content export --experience demo --from draft --out ../fixtures/demo --force` against the staging API,
 [content](content.md) "Export") and commit. The workflow *Demo book* (`.github/workflows/demo.yml`) only builds that
 export as a check; it no longer syncs (that competed with the editor's Publish). A fresh instance gets the demo by
-*Import an experience… → URL* with the store's base URL, or from the folder. On a phone, the staging reader opens it at `https://osct.porschuetz.de/demo/`
+*Import → URL* with the store's base URL, or from the folder. On a phone, the staging reader opens it at `https://osct.porschuetz.de/demo/`
 ([content on the CDN](content-cdn.md)).
 
 ## Experiences, import and publish
 
 ### The Experiences page
 
-`/editor/`: the instance's experiences – under each, where it is live (below) –, **New experience** and *Import an
-experience…*.
+`/editor/` (#153, #348 – `editor/src/routes/(app)/+page.svelte`, the words and rules in `editor/src/lib/experiences-page.ts`):
+**the books** on the left, **a context column** on the right.
 
-**New experience** (#343, `editor/src/lib/NewExperienceForm.svelte`, `POST /editor/experiences` – [server](server.md#new-experiences)):
-a title and a **slug** make an empty draft with one scene. The slug is the experience's id – its address in the reader,
-`https://<instance>/<slug>/` (the form shows it as it is typed), and the folder of its content on the CDN; the form
-proposes it from the title until one is typed and checks it as the API does (`editor/src/lib/new-experience.ts`:
-lower-case letters, digits and dashes, none of the site's own paths – `editor`, `api`, `docs`, `scene`, … –, no
-experience of that id yet). It can't be changed later – the form says so: once published, printed QR codes depend on it.
-
-*Import an experience…*: the CDN's current
-version, a `game.config.json` by URL or file, or a **content base URL** – an experience's CDN folder with `latest.json`, e.g.
-`…/osct/staging/demo` –
-whose current version is taken; *assets at* = where its `/assets/content/…` paths resolve (for a content base the
-version's folder) – every draft and publish points there, no media is copied. Under the experiences: **AI connections** and
-the MCP guide ([below](#ai-connections)).
+- **The books**: each experience as its cover (title, author, where it is live – below) with a **···** under it, and a
+  dashed **+** card (*New*) at the end. A click **selects** a book (outlined) and its sheet opens in the column; a double
+  click or **Enter** opens it in the editor. The arrows move the selection (↑ ↓ a row), Home / End the first / last, **Esc**
+  clears it. The cards are buttons with `aria-pressed`; the column is a region named after what it shows. Under the
+  books: **AI connections** and the MCP guide ([below](#ai-connections)).
+- **Nothing selected → quick access** (`QuickAccess.svelte`): the cards **New experience** (empty, step by step) and
+  **Import** (file, URL or published), and **Last worked on** – the newest places across the instance's experiences from the
+  server's change history (`GET /editor/recent` – [server](server.md#recent-places)): book · scene (· the entry, or the panel)
+  · when · who (when not you; an AI connection's name in brackets). One row per experience and scene, five rows; a click
+  opens that scene, a change on no scene (a plugin, a file, the environment) opens its panel (`?tab=code` …) on the first scene.
+- **New experience** (`NewExperienceFlow.svelte`; from the card, the + card or the ☰ menu's *New experience…*): **1 Start**
+  – *Empty* (one scene, nothing on it: `POST /editor/experiences` – [server](server.md#new-experiences)) or *From an export*
+  (the source below); **2 Name** – the title (an export's own until one is typed) and the **slug**: the experience's id, its
+  address in the reader shown whole – `https://<instance>/<slug>/`, nothing but `https://<instance>/…/` while there is no
+  slug (#348: the preview used to show `%3Cslug%3E`) – and the folder of its content on the CDN. It is proposed from the
+  title until one is typed and checked as the API does (`editor/src/lib/new-experience.ts`: lower-case letters, digits and
+  dashes, none of the site's own paths, no experience of that id yet); *Fixed once published – printed codes depend on it.*
+  **3 Create** makes it and opens it in the editor – from an export the import goes to the new slug (`rename`, `create`,
+  `title` – the API checks the slug as for an empty one).
+- **The source of an import** (`ImportSource.svelte`, the one place the editor reads one – New *From an export*, a book's
+  *Replace…*; the ☰ menu's *Import…* opens New with *From an export* chosen): **File** – an **export file** (below) or a bare
+  `game.config.json`; **URL** – a `game.config.json`, or a **content base URL** (an experience's CDN folder with `latest.json`,
+  e.g. `…/osct/staging/demo`) whose current version is taken; **Published** – the current version of an experience live on
+  this instance's environment, read by the server from its own store on the CDN. *assets at* = where a bare configuration's
+  `/assets/content/…` paths resolve (a content base and an export file bring their own) – every draft and publish points
+  there, no media is copied.
+- **A book's sheet** (`ExperienceSheet.svelte`; a click or its ···): title, author, the reader address; **Open** (primary);
+  **Export** – the draft as one file `<id>-<build>.osct.json` (`GET …/export/file` – [server](server.md#export-file)): its
+  configuration, its files' list and the Code tab's plugin sources, the import body Import reads back (here or on another
+  instance); the media stay where they are. **Replace…** step by step: the source, then the comparison below (`ImportCompare.svelte`
+  – the build, scenes, entries, targets, shared entities and plugin sources each side, the edits since the import that are
+  lost, plugin code the export replaces), then *Replace the draft*; *Readers keep the live version until you publish.*
+  **Versions**: the publish log (when, environment, who, its note), the live mark on what each environment's readers get, and
+  **make live** on every older build of this instance's own environment – after the confirm *Make the version of <time>
+  live on staging again? Readers get it on their next start. The draft is not changed.* (`POST …/versions/{build}/activate` –
+  [server](server.md#make-a-version-live-again)). Builds are kept in the store, so any of them can come back; the log gets a
+  row *Made live again*.
+- The **☰ menu** on the experiences page has *New experience…* and *Import…* (`experiences-menu.svelte.ts`).
 
 ### Import: what comes in
 
-Before the comparison, the form shows what an import would bring in (#182, `POST /api/editor/import/preview` –
+Before the comparison, the source step shows what an import would bring in (#182, `POST /api/editor/import/preview` –
 [server](server.md#import-preview)): *From* (the content base), the build with when it was built and became current on
 the CDN, the app and content schema version, the **one experience** in it (title · id) and what it holds (scenes, entries,
-targets, shared entities), and where its media resolve (*Assets at*). The button says it: *Import 1 experience: The Demo
-(build 7457f0c…)*. *The CDN* reads it at once (the server knows the content base), a URL once typing pauses (the browser
+targets, shared entities), and where its media resolve (*Assets at*). *Published* reads it at once (the server knows the content base), a URL once typing pauses (the browser
 reads the content base's `latest.json` or the `game.config.json`, the server checks it), a file when it is chosen; the
-import then sends exactly what was previewed. The experience's id is the configuration's `experience.id` – no id field and no
-browser prompt (a configuration without one is refused by the import anyway). When a draft with that id is here, the
-form says so first – *A draft of “The Demo Experience” (demo) is already here – importing replaces it.*, how many of its
-edits since its import are lost (unpublished, unless the draft as it is now is live) and where it is live; the
-comparison below follows on the button. A source that cannot be read – the CDN offline, no `latest.json`, one that
-names no build – shows the error with the URL and *Try again*.
+import then sends exactly what was previewed. The import goes to the experience the flow names – the new slug, or the
+selected book for *Replace…* (`rename`: the configuration's `experience.id` becomes that one's, so another experience's
+export or published version can be brought in under it). A source that cannot be read – the CDN offline, no `latest.json`,
+one that names no build – shows the error with the URL and *Try again*.
 
 ### Import: the version comparison
 
-Importing replaces an experience's draft, so over an experience that exists the form shows a **comparison** first and imports only
-when the person confirms there (#183): the incoming build against the build the draft is based on – its id, when it was
+Importing replaces an experience's draft, so over an experience that exists *Replace…* shows a **comparison** first and imports only
+when the person confirms there (#183, #348): the incoming build against the build the draft is based on – its id, when it was
 built, the app and the content schema version that built it (differences in bold) –, who imported the draft's base and
 when, the draft's **edits since that import** (their number, the newest five from the change log – who, what, when; an
-AI connection's edits name it) and whether the draft as it is now is live anywhere. **Replace the draft** (or *Import
+AI connection's edits name it), what each side holds (scenes, entries, targets, shared entities, plugin sources – the plugin code an export replaces is named) and whether the draft as it is now is live anywhere. **Replace the draft** (or *Import
 again* when the same build comes in and nothing was edited) imports; *Cancel* goes back to the form. The comparison is
 the API's first step (409 `confirm-import`), the button sends its confirmation – when the draft changed meanwhile, the
 form shows the new comparison and says so. Importing from any environment stays open.

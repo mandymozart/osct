@@ -156,6 +156,8 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     const details = { comparison: { experience: { id: "demo", title: "Demo" }, incoming: { build: "cdcdcdcdcdcd" }, draft: { basedOn: { build: "abababababab" }, edits: 3 } }, confirmation: { id: "1900000000.0123456789abcdef0123456789abcdef", expiresAt: "2030-03-17T17:46:40Z" } };
     return { status: 409, json: { error: { code: confirm ? "confirmation-void" : "confirm-import", message: confirm ? "The confirmation is void." : "Importing replaces the draft.", ...details } } };
   }
+  if (method === "POST" && path === "/editor/experiences/osct/versions/abcdef012345/activate") return { json: { env: "local", build: "abcdef012345", previous: "0123456789ab" } };
+  if (method === "POST" && path === "/editor/experiences/osct/versions/0123456789ab/activate") return { status: 409, json: { error: { code: "already-live", message: "Version 0123456789ab is live on local already." } } };
   if (path === "/editor/experiences/osct/versions") return { json: { versions: [{ env: "local", build: "abcdef012345" }] } };
   if (path.startsWith("/editor/experiences/osct/changes")) return { json: { changes: [{ kind: "entity", ref: "castle" }], limit: path } };
   if (path.startsWith("/editor/experiences/osct/assets") && method === "GET") return { json: { assets: [{ id: "a", kind: "image" }], query: path } };
@@ -190,7 +192,7 @@ describe("the content tools", () => {
         "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "put_surface", "delete_scene", "group_scenes", "rename_group", "ungroup",
         "set_surface_reference",
-        "revert_change", "revert_to", "publish_status",
+        "revert_change", "revert_to", "publish_status", "activate_version",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -795,6 +797,13 @@ describe("the content tools", () => {
     expect((await rec.call("list_versions", { experience: "osct" })).data.versions[0].env).toBe("local");
     expect((await rec.call("list_changes", { experience: "osct", limit: 5 })).data.limit).toBe("/editor/experiences/osct/changes?limit=5");
     expect((await rec.call("list_changes", { experience: "osct" })).data.limit).toBe("/editor/experiences/osct/changes");
+  });
+
+  it("activate_version: an older build live again, the API's refusal as it is (#348)", async () => {
+    const made = await rec.call("activate_version", { experience: "osct", build: "abcdef012345" });
+    expect(made.data).toMatchObject({ build: "abcdef012345", previous: "0123456789ab", open: expect.stringContaining("/osct/") });
+    const again = await rec.call("activate_version", { experience: "osct", build: "0123456789ab" });
+    expect(again.data.error.code).toBe("already-live");
   });
 
   it("revert_change and revert_to: the plan first, written only with apply (#312)", async () => {

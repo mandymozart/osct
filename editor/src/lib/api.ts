@@ -50,9 +50,13 @@ import type {
   ExperienceVariablesSaved,
   RemovalImpact,
   IncomingBuild,
+  PublishedVersion,
+  VersionActivated,
+  RecentChange,
+  ExportFile,
   ImportResult,
 } from "@shared/api/editor";
-export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishJob, PublishResult, PublishStarted, ImportComparison, ImportPreview, ExperienceSaved, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
+export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishJob, PublishResult, PublishStarted, ImportComparison, ImportPreview, ExperienceSaved, PublishedVersion, VersionActivated, RecentChange, ExportFile, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
@@ -428,11 +432,20 @@ export const getExperience = (experienceId: string, { fresh = false }: { fresh?:
 };
 
 /** What an import sends: a configuration, or the instance CDN's current version – `confirm` = the second step */
-export type ImportSource = { configuration: GameConfiguration; files?: unknown; assetsBase?: string } | { source: "cdn"; experience?: string };
-export type ImportBody = ImportSource & { confirm?: string };
+export type ImportSource =
+  | { configuration: GameConfiguration; files?: unknown; assetsBase?: string; sources?: { id: string; source: string }[] }
+  | { source: "cdn"; experience?: string };
+/**
+ * `rename` (#348): the configuration becomes the path experience's (another experience's export or published version);
+ * `title` replaces its title; `create`: a new experience only (the slug rule of `POST /editor/experiences`, 409 duplicate-id)
+ */
+export type ImportBody = ImportSource & { confirm?: string; rename?: boolean; title?: string; create?: boolean };
 
-/** What the import of this body would bring in and replace – read-only; 502 content-fetch-failed names the `url` */
-export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", "/editor/import/preview", body);
+/**
+ * What the import of this body would bring in and replace – read-only; 502 content-fetch-failed names the `url`. `into`
+ * (#348): the experience it goes to with `rename` – the comparison is that one's
+ */
+export const previewImport = (body: ImportSource & { into?: string }) => api<ImportPreview>("POST", "/editor/import/preview", body);
 
 /**
  * Imports into the experience. Over an experience that exists the API answers 409 `confirm-import` (or `confirmation-void`) with
@@ -443,6 +456,20 @@ export const previewImport = (body: ImportSource) => api<ImportPreview>("POST", 
 export const createExperience = (body: { id: string; title: string }) => api<{ experience: ExperienceSummary }>("POST", "/editor/experiences", body);
 
 export const importExperience = (experienceId: string, body: ImportBody) => api<ImportResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/import`, body);
+
+/** The publish log, newest first */
+export const listVersions = (experienceId: string) => api<{ versions: PublishedVersion[] }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/versions`);
+
+/** An older build of this instance's environment live again (#348) – readers get it on their next start, the draft stays */
+export const activateVersion = (experienceId: string, build: string) =>
+  api<VersionActivated>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/versions/${encodeURIComponent(build)}/activate`);
+
+/** The newest changes across the instance's experiences, each with its scene (#348: Last worked on) */
+export const recentChanges = (limit = 40) => api<{ changes: RecentChange[] }>("GET", `/editor/recent?limit=${limit}`);
+
+/** The export file's address (#348) – a plain link downloads it (the session's cookie goes with a GET) */
+export const exportFileUrl = (experienceId: string, build?: string): string =>
+  `${API_URL}/editor/experiences/${encodeURIComponent(experienceId)}/export/file${build ? `?build=${encodeURIComponent(build)}` : ""}`;
 
 /** This instance's environments (`GET /editor/environments`): the one it publishes to, each one's backend */
 export const listEnvironments = () => api<EnvironmentsInfo>("GET", "/editor/environments");

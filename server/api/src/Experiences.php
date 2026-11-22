@@ -45,6 +45,35 @@ final class Experiences
     }
 
     /**
+     * A new experience's slug (#343, the one rule of `create` and an import with `create`): 400 invalid-slug unless
+     * lower-case letters, digits and - (`SLUG`), 400 reserved-slug for one of the site's own paths
+     * @phpstan-assert string $id
+     */
+    private static function requireNewSlug(mixed $id): void
+    {
+        if (!is_string($id) || !preg_match('/^' . self::SLUG . '$/', $id)) {
+            throw new ApiError(400, 'invalid-slug', 'id (the slug) must be lower-case letters, digits and - (a letter or digit first, at most 64).');
+        }
+        self::requireFreePath($id);
+    }
+
+    /** A title as `create` and an import's `title` take it: 1–200 characters, trimmed (400 invalid-title) */
+    private static function titleOf(mixed $value): string
+    {
+        $title = is_string($value) ? trim($value) : '';
+        if ($title === '' || mb_strlen($title) > 200) throw new ApiError(400, 'invalid-title', 'title must be 1–200 characters.');
+        return $title;
+    }
+
+    /** 409 duplicate-id when the experience exists (`$lock`: inside the transaction that creates it) */
+    private static function requireUnused(string $id, bool $lock = false): void
+    {
+        if (Db::value('SELECT id FROM experiences WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $id]) !== null) {
+            throw new ApiError(409, 'duplicate-id', "There is an experience \"$id\" already – choose another slug.", ['slug' => $id]);
+        }
+    }
+
+    /**
      * POST /editor/experiences { id, title } → 201 { experience }: a new, empty experience (#343) – its draft has one
      * scene (a double page) and nothing on it. `id` is its slug: its reader path `/<id>/` and its store's folder, chosen
      * once (no rename – printed codes depend on it): 400 invalid-slug unless lower-case letters, digits and -
@@ -56,12 +85,8 @@ final class Experiences
         Editor::user();
         $body = Editor::body();
         $id = $body->id ?? null;
-        if (!is_string($id) || !preg_match('/^' . self::SLUG . '$/', $id)) {
-            throw new ApiError(400, 'invalid-slug', 'id (the slug) must be lower-case letters, digits and - (a letter or digit first, at most 64).');
-        }
-        self::requireFreePath($id);
-        $title = is_string($body->title ?? null) ? trim($body->title) : '';
-        if ($title === '' || mb_strlen($title) > 200) throw new ApiError(400, 'invalid-title', 'title must be 1–200 characters.');
+        self::requireNewSlug($id);
+        $title = self::titleOf($body->title ?? null);
         $configuration = (object) [
             'version' => (object) ['schema' => Editor::CONTENT_SCHEMA],
             'experience' => (object) ['id' => $id, 'title' => $title],
@@ -71,9 +96,7 @@ final class Experiences
         ];
         $parts = self::parse($configuration);
         Db::transaction(function () use ($id, $parts) {
-            if (Db::value('SELECT id FROM experiences WHERE id = :id' . Db::forUpdate(), ['id' => $id]) !== null) {
-                throw new ApiError(409, 'duplicate-id', "There is an experience \"$id\" already – choose another slug.", ['slug' => $id]);
-            }
+            self::requireUnused($id, true);
             self::store($id, $parts, new stdClass(), '', null);
         });
         Http::json(201, ['experience' => self::summary(self::experience($id))]);
@@ -129,12 +152,17 @@ final class Experiences
     }
 
     /**
-     * POST /editor/experiences/{id}/import { configuration, files?, assetsBase?, confirm? } | { source: "cdn", confirm? }
-     * → { experience, counts, draft, imported }
-     * The configuration's `experience.id` must be `{id}` (400 invalid-configuration naming both, `experienceIdOf`).
+     * POST /editor/experiences/{id}/import { configuration, files?, assetsBase?, sources?, confirm? } | { source: "cdn", experience?, confirm? },
+     * either with `rename?`, `title?`, `create?` → { experience, counts, draft, imported }
+     * The configuration's `experience.id` must be `{id}` (400 invalid-configuration naming both, `experienceIdOf`) – unless
+     * `rename: true` (#348): then the configuration becomes `{id}`'s (its `experience.id` is set to it – an export or a
+     * published version of another experience brought in under this one). `title` (1–200) replaces the configuration's title.
+     * `create: true` = a new experience only, as `POST /editor/experiences` checks it: 400 invalid-slug / reserved-slug,
+     * 409 duplicate-id when it exists.
      * Replaces the experience's content rows in one transaction (the logs stay). `assetsBase` is where the configuration's
-     * `/assets/content/…` paths resolve; `source: "cdn"` imports the current version of `{id}` on CONTENT_BASE_URL
-     * (`<base>/{id}/latest.json`).
+     * `/assets/content/…` paths resolve; `source: "cdn"` imports the current version of `experience` (default `{id}`) on
+     * CONTENT_BASE_URL (`<base>/<experience>/latest.json`). `sources` = Code tab plugin sources [{ id, source }] (an export
+     * file carries them, `Export::file`): saved with the rows, each a change of the experience.
      * An experience that exists is overwritten only in two steps: without `confirm` the answer is 409 confirm-import with the
      * `comparison` (what comes in against what the draft is based on and its edits since) and a `confirmation`
      * { id, expiresAt }; the same import again with `confirm: <id>` replaces the draft. The id is bound to the person (and
@@ -146,25 +174,76 @@ final class Experiences
     {
         $user = Editor::user();
         $body = Editor::body();
-        [$configuration, $files, $assetsBase, $source] = self::source($body, $experienceId);
-        $parts = self::parse($configuration, Plugins::hasSources($experienceId));
+        $create = ($body->create ?? false) === true;
+        if ($create) {
+            self::requireNewSlug($experienceId);
+            self::requireUnused($experienceId);
+        }
+        $from = $body->experience ?? $experienceId;
+        if (!is_string($from) || !preg_match('/^' . Editor::ID . '$/', $from)) throw new ApiError(400, 'invalid-experience', 'experience (whose store to read from the CDN) must be an experience id.');
+        [$configuration, $files, $assetsBase, $source] = self::source($body, $from);
+        self::renamed($configuration, $body, $experienceId);
+        $sources = self::sourcesOf($body->sources ?? null);
+        $parts = self::parse($configuration, $sources !== [] || Plugins::hasSources($experienceId));
         self::experienceIdOf($configuration, $experienceId);
-        $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
+        $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source, $sources);
         $existing = Db::one('SELECT * FROM experiences WHERE id = :id', ['id' => $experienceId]);
         if ($existing === null) self::requireFreePath($experienceId);
-        if ($existing !== null) self::confirmImport($experienceId, $existing, $incoming, $user, $body->confirm ?? null);
+        if ($existing !== null) self::confirmImport($experienceId, $existing, $incoming, $user, $body->confirm ?? null, $parts, $sources);
         $imported = Editor::encode(['build' => $incoming['build'], 'hash' => $incoming['hash'], 'date' => $incoming['date'], 'appVersion' => $incoming['appVersion'],
             'schema' => $incoming['schema'], 'source' => $source, 'from' => $incoming['from'], 'at' => Editor::nowMs(), 'by' => $user['email'] ?? null]);
 
-        Db::transaction(fn () => self::store($experienceId, $parts, $files, $assetsBase, $imported));
+        Db::transaction(function () use ($experienceId, $parts, $files, $assetsBase, $imported, $create, $sources, $user) {
+            if ($create) self::requireUnused($experienceId, true);
+            self::store($experienceId, $parts, $files, $assetsBase, $imported);
+            foreach ($sources as $pluginId => $code) Plugins::save($experienceId, $pluginId, $code, $user);
+        });
 
         $draft = ContentVersion::assemble($experienceId);
         Http::json(200, [
             'experience' => self::summary(self::experience($experienceId)),
-            'counts' => ['scenes' => count($parts['scenes']), 'entries' => count($parts['entries']), 'targets' => count($parts['targets']), 'entities' => count($parts['entities'])],
+            'counts' => self::partCounts($parts, $sources !== [] ? count($sources) : null),
             'draft' => ['build' => $draft['build'], 'hash' => $draft['hash']],
             'imported' => self::basedOn(Editor::decode($imported)),
         ]);
+    }
+
+    /** `rename` / `title` of an import or a preview (#348): the configuration becomes `$experienceId`'s, maybe under a new title */
+    private static function renamed(stdClass $configuration, stdClass $body, string $experienceId): void
+    {
+        $rename = ($body->rename ?? false) === true;
+        $title = isset($body->title) ? self::titleOf($body->title) : null;
+        if (!$rename && $title === null) return;
+        if (!($configuration->experience ?? null) instanceof stdClass) throw new ApiError(400, 'invalid-configuration', 'experience must be an object.');
+        if ($rename) $configuration->experience->id = $experienceId;
+        if ($title !== null) $configuration->experience->title = $title;
+    }
+
+    /**
+     * An import's `sources` (#348): the Code tab sources an export file carries, [{ id, source }] → { id: source }; 400
+     * invalid-plugin for a broken one (the Code tab's own rule, `Plugins::check`)
+     * @return array<string, string>
+     */
+    private static function sourcesOf(mixed $value): array
+    {
+        if ($value === null) return [];
+        if (!is_array($value)) throw new ApiError(400, 'invalid-plugin', 'sources must be a list of { id, source }.');
+        $sources = [];
+        foreach ($value as $i => $item) {
+            $id = $item instanceof stdClass ? ($item->id ?? null) : null;
+            $code = $item instanceof stdClass ? ($item->source ?? null) : null;
+            Plugins::check($id, $code, "sources[$i]");
+            $sources[$id] = $code;
+        }
+        return $sources;
+    }
+
+    /** What a parsed configuration holds, as the import and its preview count it */
+    private static function partCounts(array $parts, ?int $sources = null): array
+    {
+        $counts = ['scenes' => count($parts['scenes']), 'entries' => count($parts['entries']), 'targets' => count($parts['targets']), 'entities' => count($parts['entities'])];
+        if ($sources !== null) $counts['plugins'] = $sources;
+        return $counts;
     }
 
     /**
@@ -210,15 +289,16 @@ final class Experiences
     }
 
     /**
-     * POST /editor/import/preview { configuration, files?, assetsBase? } | { source: "cdn", experience? }
+     * POST /editor/import/preview { configuration, files?, assetsBase?, sources? } | { source: "cdn", experience? }, either with `into?`
      * → { source, contentBase, manifest, incoming, counts, existing }
      * What the same import body would bring in, before anything is imported – read-only, the import's access. The
      * configuration is checked as the import checks it (the same 400s); `source: "cdn"` reads the current version of the
      * experience `experience` (default: the instance's, EXPERIENCE) on CONTENT_BASE_URL (`contentBase` = that experience's
      * store, `<base>/<experience>`; `manifest` = its latest.json { url, build, activatedAt }) – 502
      * content-fetch-failed with the `url` that failed. `incoming` as in the import's comparison, `counts` the scenes,
-     * entries, targets and entities it holds; `existing` = the comparison the import would answer (the draft of that id
-     * it replaces, its edits since its import, where it is live), null when the experience is new.
+     * entries, targets and entities it holds (and `plugins`, the Code tab sources it carries); `existing` = the comparison
+     * the import would answer (the draft of that id it replaces, its edits since its import, where it is live), null when
+     * the experience is new. `into` (#348) = the experience the import goes to with `rename` – the comparison is of that one.
      */
     public static function preview(): never
     {
@@ -228,19 +308,23 @@ final class Experiences
         if (($body->source ?? null) === 'cdn' && (!is_string($named) || !preg_match('/^' . Editor::ID . '$/', $named))) {
             throw new ApiError(400, 'invalid-experience', 'Name the experience to preview from the CDN (experience) – this instance has no default (EXPERIENCE).');
         }
+        $into = $body->into ?? null;
+        if ($into !== null && (!is_string($into) || !preg_match('/^' . Editor::ID . '$/', $into))) throw new ApiError(400, 'invalid-experience', 'into must be an experience id.');
         [$configuration, $files, $assetsBase, $source, $manifest] = self::source($body, is_string($named) ? $named : '');
+        if ($into !== null) self::renamed($configuration, (object) ['rename' => true], $into);
+        $sources = self::sourcesOf($body->sources ?? null);
         $experienceId = self::experienceIdOf($configuration);
-        $parts = self::parse($configuration, Plugins::hasSources($experienceId));
-        $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source);
+        $parts = self::parse($configuration, $sources !== [] || Plugins::hasSources($experienceId));
+        $incoming = self::incoming($configuration, $parts, $files, $assetsBase, $source, $sources);
         $existing = Db::one('SELECT * FROM experiences WHERE id = :id', ['id' => $experienceId]);
-        $comparison = $existing !== null ? self::comparison($experienceId, $existing, $incoming, self::editsSince($experienceId, $existing)) : null;
+        $comparison = $existing !== null ? self::comparison($experienceId, $existing, $incoming, self::editsSince($experienceId, $existing), $parts, $sources) : null;
         unset($incoming['digest']);
         Http::json(200, [
             'source' => $source,
             'contentBase' => $manifest !== null ? $manifest['base'] : null,
             'manifest' => $manifest !== null ? ['url' => $manifest['url'], 'build' => $manifest['build'], 'activatedAt' => $manifest['activatedAt']] : null,
             'incoming' => $incoming,
-            'counts' => ['scenes' => count($parts['scenes']), 'entries' => count($parts['entries']), 'targets' => count($parts['targets']), 'entities' => count($parts['entities'])],
+            'counts' => self::partCounts($parts, $sources !== [] ? count($sources) : null),
             'existing' => $comparison,
         ]);
     }
@@ -271,7 +355,15 @@ final class Experiences
     private static function source(stdClass $body, string $experienceId): array
     {
         if (($body->source ?? null) === 'cdn') {
-            [$configuration, $files, $assetsBase, $manifest] = self::fetchFromCdn($experienceId);
+            try {
+                [$configuration, $files, $assetsBase, $manifest] = self::fetchFromCdn($experienceId);
+            } catch (ApiError $error) {
+                throw $error;
+            } catch (Throwable $error) {
+                // Never the bare server-error for the CDN (#348): the editor shows what failed, the log has where
+                error_log('[osct] reading ' . $experienceId . ' from the CDN: ' . $error::class . ': ' . $error->getMessage() . ' in ' . $error->getFile() . ':' . $error->getLine());
+                throw new ApiError(502, 'content-fetch-failed', "The CDN's current version of $experienceId could not be read: " . $error->getMessage(), ['experience' => $experienceId]);
+            }
             return [$configuration, $files, $assetsBase, 'cdn', $manifest];
         }
         $configuration = $body->configuration ?? null;
@@ -302,7 +394,7 @@ final class Experiences
      * schema version that built it, where it comes from, and a digest of everything the import would write
      * @return array{experience: string, title: string, build: ?string, hash: ?string, date: ?string, appVersion: ?string, schema: string, source: string, from: ?string, digest: string}
      */
-    private static function incoming(stdClass $configuration, array $parts, stdClass $files, string $assetsBase, string $source): array
+    private static function incoming(stdClass $configuration, array $parts, stdClass $files, string $assetsBase, string $source, array $sources = []): array
     {
         $version = $configuration->version;
         $hash = is_string($parts['hash']) && $parts['hash'] !== '' ? $parts['hash'] : null;
@@ -316,7 +408,7 @@ final class Experiences
             'schema' => $parts['schema'],
             'source' => $source,
             'from' => $assetsBase !== '' ? $assetsBase : null,
-            'digest' => hash('sha256', Editor::encode([$configuration, $files, $assetsBase])),
+            'digest' => hash('sha256', Editor::encode($sources ? [$configuration, $files, $assetsBase, $sources] : [$configuration, $files, $assetsBase])),
         ];
     }
 
@@ -327,7 +419,7 @@ final class Experiences
      * @param array<string, mixed> $row
      * @param array<string, mixed> $user
      */
-    private static function confirmImport(string $experienceId, array $row, array $incoming, array $user, mixed $confirm): void
+    private static function confirmImport(string $experienceId, array $row, array $incoming, array $user, mixed $confirm, array $parts, array $sources): void
     {
         $edits = self::editsSince($experienceId, $row);
         // What the comparison showed: the draft's import, its last change and the rows' state, and what comes in
@@ -335,7 +427,7 @@ final class Experiences
         Confirmation::require("import|$experienceId", $user, $state, $confirm,
             ['confirm-import', 'Importing replaces the draft of ' . $row['title'] . ' – compare the versions, then import again with confirm: <confirmation id>.'],
             'The confirmation is expired, someone else\'s, or the draft or the incoming content changed since – compare again and confirm with the new id.',
-            fn() => ['comparison' => self::comparison($experienceId, $row, $incoming, $edits)]);
+            fn() => ['comparison' => self::comparison($experienceId, $row, $incoming, $edits, $parts, $sources)]);
     }
 
     /**
@@ -345,7 +437,7 @@ final class Experiences
      * @param array{count: int, last: ?string, since: ?int, recent: list<array<string, mixed>>} $edits
      * @return array<string, mixed>
      */
-    private static function comparison(string $experienceId, array $row, array $incoming, array $edits): array
+    private static function comparison(string $experienceId, array $row, array $incoming, array $edits, ?array $parts = null, array $sources = []): array
     {
         // A 2.x draft is no configuration of today's schema: its build is unknown until it is migrated (#319)
         $draft = Editor::isCurrentSchema((string) $row['content_schema']) ? ContentVersion::assemble($experienceId) : ['build' => null];
@@ -367,6 +459,29 @@ final class Experiences
                 'live' => $live,
             ],
             'same' => $basedOn !== null && $incoming['hash'] !== null && $basedOn['hash'] === $incoming['hash'],
+            'counts' => $parts !== null ? self::countsAgainst($experienceId, $parts, $sources) : null,
+        ];
+    }
+
+    /**
+     * What comes in against what the draft holds (#348, the comparison's rows): scenes, entries, targets, shared entities
+     * and Code tab sources each side (the incoming side: the draft's after the import – it keeps its own, adds and replaces those
+     * the body carries), and the draft's sources an import's `sources` would replace (another text, same id)
+     * @return array{incoming: array<string, int>, draft: array<string, int>, sourcesReplaced: list<string>}
+     */
+    private static function countsAgainst(string $experienceId, array $parts, array $sources): array
+    {
+        $params = ['experience' => $experienceId];
+        $count = static fn(string $table): int => (int) Db::value("SELECT COUNT(*) FROM $table WHERE experience_id = :experience", $params);
+        $saved = Plugins::sourceTexts($experienceId);
+        $replaced = array_values(array_filter(array_keys($sources), static fn(string $id): bool => isset($saved[$id]) && $saved[$id] !== $sources[$id]));
+        sort($replaced);
+        // The import keeps the draft's own sources and adds or replaces those it carries
+        $after = count(array_unique([...array_map('strval', array_keys($saved)), ...array_map('strval', array_keys($sources))]));
+        return [
+            'incoming' => self::partCounts($parts, $after),
+            'draft' => ['scenes' => $count('scenes'), 'entries' => $count('entries'), 'targets' => $count('targets'), 'entities' => $count('entities'), 'plugins' => count($saved)],
+            'sourcesReplaced' => $replaced,
         ];
     }
 

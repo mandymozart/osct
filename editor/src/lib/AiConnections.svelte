@@ -257,7 +257,7 @@
 </section>
 
 <style>
-  .ai { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); max-width: 46rem; }
+  .ai { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); max-width: 46rem; }
   p { margin: 0 0 .75rem; line-height: 1.45; }
   code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--text-small); }
 

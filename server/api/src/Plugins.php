@@ -227,6 +227,33 @@ final class Plugins
     }
 
     /** A new plugin or a new source in one transaction, the experience touched and the change recorded */
+    /**
+     * A source as an import's `sources` brings it (#348, Experiences::import): the id and the size the Code tab takes
+     * (400 invalid-plugin / 413 body-too-large, `$path` names it)
+     * @phpstan-assert string $id
+     * @phpstan-assert string $source
+     */
+    public static function check(mixed $id, mixed $source, string $path): void
+    {
+        if (!is_string($id) || !preg_match('/^' . self::ID . '$/', $id)) throw new ApiError(400, 'invalid-plugin', "$path.id: a plugin id is 1–40 lower-case letters, digits or -.");
+        if (!is_string($source)) throw new ApiError(400, 'invalid-plugin', "$path.source must be a string.");
+        if (strlen($source) > self::MAX_SOURCE_BYTES) throw new ApiError(413, 'body-too-large', "$path.source is larger than " . self::MAX_SOURCE_BYTES . ' bytes.');
+    }
+
+    /** Saves a source as `PUT …/plugins/{pid}` does (a change recorded) – inside the caller's transaction (an import, #348) */
+    public static function save(string $experienceId, string $pluginId, string $source, array $user): void
+    {
+        self::store($experienceId, $pluginId, $source, $user);
+    }
+
+    /** The saved sources by id (the import's comparison, #348) @return array<string, string> */
+    public static function sourceTexts(string $experienceId): array
+    {
+        $texts = [];
+        foreach (Db::run('SELECT id, source FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) $texts[(string) $row['id']] = (string) $row['source'];
+        return $texts;
+    }
+
     private static function store(string $experienceId, string $pluginId, string $source, array $user): void
     {
         $now = Editor::nowMs();
