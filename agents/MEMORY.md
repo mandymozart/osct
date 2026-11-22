@@ -237,6 +237,29 @@ Verbatim from the archived entries (the entry title and archive file in front of
   that staging's FPM really continues after `fastcgi_finish_request` (the job keeps moving with the editor closed).
 - [ ] Open: staging's export archive of b49f09610206 is complete (export.json from the first publish) – nothing to repair.
 
+## 2026-11-22 – the desktop landing from the skeleton; a manifest per experience (6.2.3, #343)
+
+- Tilman (2026-11-22): *"same thing goes for the browser redirect to that landing page. i assume we can write a small
+  script we put in the skeleton and run immediately ... this is stuff we do not need the database for"*. index.html's
+  head now runs three inline scripts in order: legacy redirect → manifest link → landing decision
+  (`<html data-osct-landing>`). The body carries the static landing (declarative shadow root, `landing-html.ts` –
+  `<desktop-landing>` renders the same function) before the static splash; CSS hides one or the other.
+- *My call* for another experience's path (`/demo/`): no static landing (the static page has the default's texts and
+  images) – the splash shows until `<desktop-landing>` decides, as before.
+- Takeover: the component renders underneath, waits for its hero images and the QR code (≤ 2 s), copies the scroll
+  position, removes `#static-landing`. If it decides otherwise than the head (window resized), it removes the static page
+  and the attribute, and the splash shows. The static page is English; in another language the texts swap at takeover.
+- The design primitives' CSS moved into the import-free `styles/design-css.ts` (`DESIGN_CSS` = spinner + it) so the build
+  can inline it; `gold-button.ts` and `desktop-visitor.ts` import relatively for the same reason.
+- Tilman (2026-11-22): *"ja, ein eigenes manifest pro experience why not"* – every experience links
+  `/api/experiences/<id>/manifest.webmanifest`, the default too, set by the inline script; vite-plugin-pwa's link is taken
+  out of the built page (an `enforce: 'post'` plugin after it). The root manifest only for an address naming no
+  experience. **An install made before (id `/`) stays a separate app** beside a new one – accepted (few installs before
+  production). This resolves the 6.1.0 open item about the default app opening the experience opened last for new
+  installs; old installs keep that behaviour.
+- [ ] Open: ReaderManifest names an experience by its id until it is published (the title from the DB); an instance
+  whose default experience is not published in its editor DB gets `osct` as the installed app's name.
+
 ## 2026-11-22 – every experience at its own path; legacy codes and the PWA land in the right book (6.1.0, #343)
 
 - Tilman (2026-11-22): *"mein vorschlag, wir fangen eingehende legacy qr codes ab so das ?v=bk1 auf und ?v=d1 ../osct/
@@ -260,7 +283,7 @@ Verbatim from the archived entries (the entry title and archive file in front of
   (`EXPERIENCE_SLUG`: lower-case, digits, dashes) – path, store folder and editor URL in one; no rename. Imports keep the
   wider id rule (capitals, `_`, #205) but a new one may not take a reserved path. MCP: `create_experience`.
 - The sign-in email's link carries the experience the reader asked from (`POST /auth/request { experience }`).
-- [ ] Open: the installed default app (scope `/`) opens the experience opened *last* – after someone read the demo in the
+- [x] (6.2.3: every experience links its own manifest, the default too – new installs start at `/<id>/`; installs from before keep this.) Open: the installed default app (scope `/`) opens the experience opened *last* – after someone read the demo in the
   browser, the osct app's icon opens the demo. A per-experience manifest for the default too would fix it, but would
   install as a new app beside the one installed before #343 (Tilman's call).
 - [ ] Open: a path whose first segment is no experience of the instance (`/foo/`) loads `foo`'s store and shows the

@@ -7,6 +7,25 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 6.2.3 – 2026-11-22
+
+### Changed
+- **A computer sees the landing page at once, not the phone's splash** (Tilman, 2026-11-22, #343: *"same thing goes for
+  the browser redirect to that landing page ... write a small script we put in the skeleton and run immediately"*): an
+  inline script in index.html's head, after the legacy redirect, decides as `<desktop-landing>` does (computer, not
+  skipped in this tab – `components/desktop-landing/landing-decision-html.ts`, a test keeps both equal) and marks
+  `<html data-osct-landing>`; the landing page itself is written into index.html at build time (`landing-html.ts`, the
+  component renders the same markup) from the build's content – title in the gold gradient, the Mark, the scattered
+  target images, the QR card, the three steps, the shop, the footer – in a declarative shadow root. "Open the app here"
+  works before the bundle. `<desktop-landing>` renders underneath when the bundle arrives and removes the static page
+  once its images and the QR code are there, keeping the scroll position – no flash. Another experience's path
+  (`/demo/`) keeps the splash until the component decides; phones, tablets and the installed app are unchanged.
+- **Every experience links its own web app manifest, the default too** (Tilman, 2026-11-22: *"ja, ein eigenes manifest
+  pro experience why not"*): `/api/experiences/<id>/manifest.webmanifest` (id, start and scope `/<id>/`) is linked by an
+  inline script in the head before the browser reads a manifest (`utils/manifest-link-html.ts`); vite-plugin-pwa's
+  link to the build's `/manifest.webmanifest` is taken out of the page, which keeps that manifest only for an address
+  naming no experience. Installing from `/osct/` now installs osct at `/osct/`; an app installed before (id `/`) stays a
+  separate app.
 ## 6.2.2 – 2026-11-22
 
 ### Changed
