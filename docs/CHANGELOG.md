@@ -7,6 +7,24 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 6.2.4 – 2026-11-22
+
+### Changed
+- **Publish asks in one overlay, on point, and shows the rest only on request** (Tilman, 2026-11-22, #345: *"there is lot
+  of information that is kind of useless on this dialog … a little log hidden behind a details expandable could be nice
+  … this first dropdown dialog should be much more on point. i think it can also just go into the overlay as well, as a
+  confirmation step before it starts"*): the dropdown step under the top bar is gone; the publish button opens one
+  centered overlay over the dimmed page with three states – *Publish “…” to staging?* (what readers get, *Last
+  published: today 07:53*, a danger line only when a saved plugin source does not compile; Esc or a click beside it
+  cancels), *Publishing…* (*Writing the build…* → *Live for readers ✓*, the export archive as a bar with *Archive 412 /
+  1522*, no Cancel, leaving the page asks first) and *Published* (*Live on staging. 3 files new, 1524 were already
+  there.*, Close, *Open reader*; it closes itself after 2 s unless the pointer is over it or Details is open) – or
+  *Publish failed* with the message. Build hashes, the replaced build, the transpiled plugins, the No CDN line and every
+  step with its time are in a collapsed **Details** log (**Ctrl+L** while the overlay is open). Its words:
+  `editor/src/lib/publish-overlay.ts` (tested); the old step's `publishStep` and `jobLine` are gone.
+- A publish job names its **parts** (`{ build, archive }` – the files of the version folder and of the export archive),
+  so the editor counts the archive on its own (`GET …/publish/{job}`, docs/server.md).
+
 ## 6.2.3 – 2026-11-22
 
 ### Changed

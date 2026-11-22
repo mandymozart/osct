@@ -2590,6 +2590,8 @@ try {
     $job = $started['job'] ?? [];
     check($status === 202 && ($job['status'] ?? null) === 'running' && $job['total'] > 3 && $job['done'] < $job['total'] && !isset($started['build']) && preg_match('/^[0-9a-f]{12}$/', $job['build']) === 1,
         'a publish that does not end within the step → 202 { job }: running, done / total, its build – no outcome yet');
+    check(($job['parts']['build'] ?? 0) >= 2 && ($job['parts']['archive'] ?? 0) > 0 && $job['parts']['build'] + 2 + $job['parts']['archive'] === $job['total'],
+        'the job names its parts: the files of the version folder and of the export archive – total = build + 2 (the switch) + archive');
     check((json_decode((string) file_get_contents("$zone/latest.json"), true)['build'] ?? null) !== $job['build'], 'latest.json is not switched while the version folder is written');
     [$status, $data] = call($stepped, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
     check($status === 409 && $data['error']['code'] === 'publish-running' && ($data['error']['job']['id'] ?? null) === $job['id'], 'a second publish while one runs → 409 publish-running with that job');
