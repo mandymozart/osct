@@ -7,7 +7,7 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
-## Unreleased
+## 6.0.0 – 2026-11-22
 
 **Content schema 6.0 and plugin API 4.0 – a MAJOR** (Tilman, 2026-11-21, #341: *"you use the word hear for events. i
 think it is listen"* – the whole way, including the API): a 5.x app refuses 6.0 content and a 6.0 app refuses 5.x
