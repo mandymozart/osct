@@ -120,6 +120,38 @@ export interface PublishResult {
   export: { path: string; written: boolean; error?: string };
 }
 
+/**
+ * A publish as a job (#345, server/api/src/PublishJob.php): `POST …/publish` answers 200 with the outcome and `job` when it
+ * ended within the server's step, else 202 `{ job }` – then `GET …/publish/{job}` reports it (and writes the next part
+ * where nothing runs on after an answer); `GET …/publish` = the experience's newest job (`{ job: null }`: none kept).
+ */
+export interface PublishJob {
+  id: string;
+  experience: string;
+  env: string;
+  status: "running" | "done" | "failed";
+  /** version (the build's folder) → switch (versions.json, latest.json) → archive (the export archive) → done */
+  phase: "version" | "switch" | "archive" | "done";
+  build: string;
+  hash: string;
+  /** latest.json names the build – readers get it; the export archive may still be written */
+  live: boolean;
+  /** Files written or found on the store already, of `total` (the two of the switch included) */
+  done: number;
+  total: number;
+  /** Files the store held already (not written again) */
+  skipped: number;
+  startedAt: string;
+  updatedAt: string;
+  /** done: what the publish answers */
+  result?: PublishResult;
+  /** failed: why (`abandoned`: no one continued it and a newer publish took its place) */
+  error?: { code: string; message: string; status: number };
+}
+
+/** `POST …/publish` done in time: the outcome with its job; still running (202): the job alone */
+export type PublishStarted = (PublishResult & { job: PublishJob }) | { job: PublishJob };
+
 /** A row of the publish log (`GET /editor/experiences/{id}/versions`, newest first) */
 export interface PublishedVersion {
   id: string;

@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MCP tools reference – OSCT docs</title>
-  <meta name="description" content="Every tool of the OSCT MCP server (53) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
+  <meta name="description" content="Every tool of the OSCT MCP server (54) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/docs/docs.css">
@@ -16,7 +16,7 @@
 <main class="reference">
   <p class="kicker">API</p>
   <h1>MCP tools reference</h1>
-  <p class="lead">All 53 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
+  <p class="lead">All 54 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <div class="table"><table>
     <tr><th>Area</th><th>Tools</th></tr>
@@ -30,7 +30,7 @@
     <tr><td><a href="#plugins">Plugins</a></td><td class="wrap"><a href="#list_plugins"><code>list_plugins</code></a> · <a href="#get_plugin"><code>get_plugin</code></a> · <a href="#put_plugin"><code>put_plugin</code></a> · <a href="#upload_plugin"><code>upload_plugin</code></a> · <a href="#plugin_usages"><code>plugin_usages</code></a> · <a href="#delete_plugin"><code>delete_plugin</code></a></td></tr>
     <tr><td><a href="#import">Import and deliveries</a></td><td class="wrap"><a href="#preview_import"><code>preview_import</code></a> · <a href="#import_experience"><code>import_experience</code></a> · <a href="#preview_delivery"><code>preview_delivery</code></a> · <a href="#import_delivery"><code>import_delivery</code></a> · <a href="#list_deliveries"><code>list_deliveries</code></a></td></tr>
     <tr><td><a href="#history">History</a></td><td class="wrap"><a href="#list_changes"><code>list_changes</code></a> · <a href="#list_versions"><code>list_versions</code></a> · <a href="#revert_change"><code>revert_change</code></a> · <a href="#revert_to"><code>revert_to</code></a></td></tr>
-    <tr><td><a href="#seeing">Seeing and publishing</a></td><td class="wrap"><a href="#render_scene"><code>render_scene</code></a> · <a href="#publish"><code>publish</code></a></td></tr>
+    <tr><td><a href="#seeing">Seeing and publishing</a></td><td class="wrap"><a href="#render_scene"><code>render_scene</code></a> · <a href="#publish"><code>publish</code></a> · <a href="#publish_status"><code>publish_status</code></a></td></tr>
   </table></div>
 
   <h2 id="start">Start</h2>
@@ -607,7 +607,16 @@
     <tr id="publish-env"><td><code>env</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the instance's own environment (default)</td></tr>
     <tr id="publish-note"><td><code>note</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap"></td></tr>
   </table></div>
-  <details><summary>Details</summary><p><code>local</code>, the staging API: <code>staging</code>; any other env → 403 other-environment). <code>env</code> may be left out: the instance's own. The answer's <code>store</code> says where it went: <code>cdn</code> (the CDN has priority where one is connected) or <code>server</code> (this API's own store, with <code>warning</code>: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the experience's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Every experience has its own store in the environment: a publish replaces only this experience's previous build there. The other refusals: 400 invalid-env, invalid-note; 404 not-found (no such experience); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.</p></details>
+  <details><summary>Details</summary><p><code>local</code>, the staging API: <code>staging</code>; any other env → 403 other-environment). <code>env</code> may be left out: the instance's own. The answer's <code>store</code> says where it went: <code>cdn</code> (the CDN has priority where one is connected) or <code>server</code> (this API's own store, with <code>warning</code>: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the experience's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Every experience has its own store in the environment: a publish replaces only this experience's previous build there. The other refusals: 400 invalid-env, invalid-note; 404 not-found (no such experience); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint. A publish is a job on the server (#345): the tool waits for it up to about 90 s and answers its outcome with <code>job</code> (status, phase, done / total files, skipped = files the store had already); a big experience may still run then – the answer has <code>job.status: running</code> and <code>next</code>: call publish_status with the job's id until it is done or failed (<code>job.live</code>: readers already get the build while the export archive is written). 409 publish-running: a publish of the experience runs already (its <code>job</code>) – follow it with publish_status instead of publishing again.</p></details>
+  <h3 id="publish_status"><code>publish_status</code> <span class="who">reads</span></h3>
+  <p>How a publish goes (#345).</p>
+  <pre><code>publish_status { experience, job? }</code></pre>
+  <div class="table"><table>
+    <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
+    <tr id="publish_status-experience"><td><code>experience</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id (list_experiences)</td></tr>
+    <tr id="publish_status-job"><td><code>job</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the job's id (publish's answer); left out: the newest publish of the experience</td></tr>
+  </table></div>
+  <details><summary>Details</summary><p>the job publish started – status running | done | failed, phase (version → switch → archive → done), done / total files, skipped (files the store had already), live (readers get the build; the export archive may still be written), the outcome when done (as publish answers it), the error when failed (abandoned: no one continued it and a newer publish took its place). Without <code>job</code> the experience's newest publish. Waits up to about 90 s while it runs (each poll writes the next part on the server where nothing runs on by itself); call again while <code>job.status</code> is running.</p></details>
   <footer id="pager"></footer>
 </main>
 </body>

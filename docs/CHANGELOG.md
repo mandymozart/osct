@@ -7,6 +7,30 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 6.2.0 – 2026-11-22
+
+**A publish is a job – fast, and honest about how it goes** (Tilman, 2026-11-22, #345: publishing the osct book to
+staging answered *504 (unknown)* while it wrote on for 11 minutes).
+
+### Fixed
+- **Publish no longer writes for minutes while the editor shows 504.** The time went into the build's export archive:
+  1522 small files, one PUT after another over a new connection each (~0.43 s a file); the version itself was on the
+  CDN within a second. A publish now writes only what the store does not have (one check per folder, one listing per
+  folder of an incomplete archive – files with the same checksum are skipped), 16 uploads at a time over kept
+  connections, `latest.json` still only after the whole version folder and `export.json` last.
+- A gateway's timeout is never shown as a failed publish: the Publish step finds the publish's job and follows it; only
+  when none turns up does it say the outcome is unknown.
+
+### Changed
+- **`POST …/publish` answers 202 `{ job }` when it does not end within `PUBLISH_STEP_SECONDS` (15)** – done in time, it
+  answers the outcome as before (with `job`). `GET …/publish/{job}` reports the job (phase, done / total files, `live`,
+  the outcome or the error) and, where nothing runs on after an answer (Apache mod_php), writes its next part;
+  `GET …/publish` = the experience's newest job. Under PHP-FPM the request writes on after its answer. 409
+  `publish-running` while a publish of the experience runs. New table `publish_jobs` (the deploy's migration adds it).
+- The Publish step shows where the publish is – *Writing build …*, *Live on staging … – writing the export archive,
+  n / N files* – with a progress bar, follows a publish that already runs, and keeps going when it is closed.
+- MCP: `publish` follows the job up to 90 s; the new tool **`publish_status`** follows it after that.
+
 ## 6.0.0 – 2026-11-22
 
 **Content schema 6.0 and plugin API 4.0 – a MAJOR** (Tilman, 2026-11-21, #341: *"you use the word hear for events. i

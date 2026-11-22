@@ -1004,7 +1004,8 @@ final class Experiences
     }
 
     /**
-     * POST /editor/experiences/{id}/publish { env, note? } → { env, store, build, hash, publishedAt }: the assembled version
+     * POST /editor/experiences/{id}/publish { env, note? } → { env, store, build, hash, publishedAt, export, job } (200) or
+     * { job } (202, still running – poll GET …/publish/{job}, `PublishJob`, #345): the assembled version
      * into the experience's own store in the environment (#87: `<title>/<env>/<id>/` – a publish never touches another
      * experience) – the version folder (unless that build is there already: a folder is never overwritten), then
      * versions.json, then latest.json (the switch) – and a row in the publish log. Then the build's export archive
@@ -1037,7 +1038,8 @@ final class Experiences
         $note = $body->note ?? null;
         if ($note !== null && !is_string($note)) throw new ApiError(400, 'invalid-note', 'note must be a string.');
 
-        $store = ContentStore::for($env, $experienceId);
+        // The store must be reachable by name (env and id checked) before anything is assembled
+        ContentStore::for($env, $experienceId);
 
         $injected = self::injectedPlugins($experienceId, $body->plugins ?? null);
         // Readers get no authoring data: the logic's canvas stays in the draft (#334)
@@ -1082,33 +1084,8 @@ final class Experiences
         if ($unknownLooks) {
             throw new ApiError(409, 'unknown-appearances', 'The experience\'s appearance or an entity\'s own looks name looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['appearances' => $unknownLooks]);
         }
-        $root = $version['build'];
-        $uploaded = $store->exists("$root/game.config.json");
-        if (!$uploaded) {
-            // The plugins' modules first: a version whose configuration is there is complete
-            foreach ($injected as $plugin) $store->put("$root/" . ltrim($plugin['declaration']->src, '/'), $plugin['code'], 'text/javascript');
-            $store->put("$root/files.json", Editor::encode($version['files']));
-            // Last in the folder: the configuration marks the version as complete
-            $store->put("$root/game.config.json", Editor::encode($version['configuration']));
-        }
-        $now = Editor::iso();
-        $current = $store->get('versions.json');
-        $versions = $current === null ? [] : json_decode($current, true);
-        if (!is_array($versions)) throw new ApiError(502, 'content-store-failed', "$env/$experienceId/versions.json is not readable – fix it before publishing.");
-        $store->put('versions.json', Editor::encode(ContentStore::activate($versions, $version, $now, !$uploaded, $experienceId), true));
-        $store->put('latest.json', Editor::encode(ContentVersion::manifest($version, $now, $experienceId), true));
-
-        Db::run('INSERT INTO experience_versions (id, experience_id, env, build, hash, published_by, published_at, note) VALUES (:id, :experience, :env, :build, :hash, :by, :at, :note)',
-            ['id' => Db::uuid(), 'experience' => $experienceId, 'env' => $env, 'build' => $version['build'], 'hash' => $version['hash'], 'by' => $user['id'], 'at' => Editor::nowMs(), 'note' => $note]);
-        // The export archive of the build (#322): once per build, after the switch – readers never wait for it, and a
-        // failure is reported, not a failed publish (the next publish of the build writes it)
-        try {
-            $archive = ExportArchive::write($store, Export::ofPublish($experienceId, $version, $env, $now), $env);
-        } catch (Throwable $error) {
-            error_log("[osct] export archive of $env/$experienceId/{$version['build']} failed: " . $error->getMessage());
-            $archive = ['path' => ExportArchive::FOLDER . '/' . $version['build'], 'written' => false, 'error' => $error->getMessage()];
-        }
-        Http::json(200, ['env' => $env, 'store' => $store->isLocal() ? 'server' : 'cdn', 'build' => $version['build'], 'hash' => $version['hash'], 'publishedAt' => $now, 'export' => $archive]);
+        // The writing is a job (#345, PublishJob): done within PUBLISH_STEP_SECONDS → 200 with the outcome, else 202 { job }
+        PublishJob::answer(PublishJob::start($experienceId, $env, (string) $user['id'], $note, $version, $injected));
     }
 
     /**

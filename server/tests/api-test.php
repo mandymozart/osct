@@ -2499,6 +2499,94 @@ try {
     $versions = json_decode((string) @file_get_contents("$bunnyDir/osct/osct/staging/osct/versions.json"), true);
     check(($latest['build'] ?? null) === $data['build'] && count($versions ?? []) === 1 && $versions[0]['build'] === $data['build'] && $versions[0]['retiredAt'] === null, 'latest.json and versions.json on the zone');
     check(($latest['experience'] ?? null) === 'osct' && ($versions[0]['experience'] ?? null) === 'osct', 'the zone\'s latest.json and versions.json name the experience');
+    echo "editor: publish as a job – only what the zone does not hold, the switch after the folder (#345)\n";
+    // The same zone through a test double that logs every request
+    $storageLog = "$tmp/storage.log";
+    $loggedPort = freePort();
+    $processes[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$loggedPort", __DIR__ . '/fake-storage.php'], $testLog, $pipes, __DIR__, ['STORAGE_DIR' => $bunnyDir, 'STORAGE_KEY' => 'zone-key', 'STORAGE_LOG' => $storageLog] + getenv());
+    for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $loggedPort); $i++) usleep(100000);
+    $logged = ['BUNNY_STORAGE_ENDPOINT' => "http://127.0.0.1:$loggedPort"] + $bunny;
+    $requests = function () use ($storageLog): array {
+        $lines = is_file($storageLog) ? file($storageLog, FILE_IGNORE_NEW_LINES) : [];
+        @unlink($storageLog);
+        return $lines;
+    };
+    $putsOf = fn(array $lines): array => array_values(array_filter($lines, fn(string $line) => str_starts_with($line, 'PUT ')));
+    $fast = startApi(['ENV' => 'staging'] + $logged + $settings);
+    $stepped = startApi(['ENV' => 'staging', 'PUBLISH_STEP_SECONDS' => '0'] + $logged + $settings);
+    $zone = "$bunnyDir/osct/osct/staging/osct";
+
+    $requests();
+    [$status, $again] = call($fast, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    $seen = $requests();
+    check($status === 200 && ($again['job']['status'] ?? null) === 'done' && $again['export']['written'] === false && $again['job']['done'] === $again['job']['total']
+        && $again['job']['skipped'] === $again['job']['total'] - 2 && count($seen) === 5 && count($putsOf($seen)) === 2,
+        'a build the zone has: 5 requests (folder check, versions.json read and write, latest.json, archive check), every file skipped – ' . count($seen) . ' requests');
+
+    // An archive a cut-off publish left incomplete: only what is missing or different is written, export.json last
+    $archiveDir = "$zone/exports/{$again['build']}";
+    unlink("$archiveDir/export.json");
+    unlink("$archiveDir/EXPORT.md");
+    file_put_contents("$archiveDir/experience.yaml", "changed: true\n");
+    [$status, $repaired] = call($fast, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    $puts = $putsOf($requests());
+    $archivePuts = array_values(array_filter($puts, fn(string $line) => str_contains($line, '/exports/')));
+    check($status === 200 && $repaired['export']['written'] === true && count($archivePuts) === 3 && str_ends_with((string) end($archivePuts), '/export.json')
+        && $repaired['job']['skipped'] === $repaired['job']['total'] - 5 && !str_contains((string) file_get_contents("$archiveDir/experience.yaml"), 'changed'),
+        'an incomplete archive: one listing per folder, only the 3 missing or changed files written, export.json last – ' . implode(', ', array_map(fn($l) => basename($l), $archivePuts)));
+
+    // A short step (PUBLISH_STEP_SECONDS 0): the POST answers 202 while the job runs, every poll writes the next slice
+    call($fast, 'PUT', '/editor/experiences/osct', ['title' => 'Test Experience (job)'], $editor);
+    [$status, $started] = call($stepped, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging', 'note' => 'stepped'], $editor);
+    $job = $started['job'] ?? [];
+    check($status === 202 && ($job['status'] ?? null) === 'running' && $job['total'] > 3 && $job['done'] < $job['total'] && !isset($started['build']) && preg_match('/^[0-9a-f]{12}$/', $job['build']) === 1,
+        'a publish that does not end within the step → 202 { job }: running, done / total, its build – no outcome yet');
+    check((json_decode((string) file_get_contents("$zone/latest.json"), true)['build'] ?? null) !== $job['build'], 'latest.json is not switched while the version folder is written');
+    [$status, $data] = call($stepped, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    check($status === 409 && $data['error']['code'] === 'publish-running' && ($data['error']['job']['id'] ?? null) === $job['id'], 'a second publish while one runs → 409 publish-running with that job');
+    [$status, $data] = call($stepped, 'GET', '/editor/experiences/osct/publish', null, $editor);
+    check($status === 200 && ($data['job']['id'] ?? null) === $job['id'], 'GET …/publish: the experience\'s newest job (where the editor finds a publish whose answer it missed)');
+    $polls = 0;
+    $progress = [];
+    do {
+        [$status, $data] = call($stepped, 'GET', "/editor/experiences/osct/publish/{$job['id']}", null, $editor);
+        $progress[] = $data['job']['done'] ?? -1;
+        $polls++;
+    } while ($status === 200 && ($data['job']['status'] ?? null) === 'running' && $polls < 300);
+    $final = $data['job'] ?? [];
+    $sorted = $progress;
+    sort($sorted);
+    check(($final['status'] ?? null) === 'done' && $final['phase'] === 'done' && $final['done'] === $final['total'] && $polls > 2 && $progress === $sorted
+        && $final['result']['build'] === $job['build'] && $final['result']['store'] === 'cdn' && $final['result']['export']['written'] === true && is_string($final['result']['publishedAt']),
+        "every poll writes the next slice and reports done / total ($polls polls); done: the outcome the POST answers when it ends in time");
+    $puts = $putsOf($requests());
+    $at = function (string $suffix) use ($puts): int {
+        foreach ($puts as $i => $line) if (str_ends_with($line, $suffix)) return $i;
+        return -1;
+    };
+    check((json_decode((string) file_get_contents("$zone/latest.json"), true)['build'] ?? null) === $job['build'] && $at("/{$job['build']}/game.config.json") >= 0
+        && $at("/{$job['build']}/game.config.json") < $at('/osct/latest.json') && $at('/osct/latest.json') < $at("/exports/{$job['build']}/export.json")
+        && $at("/exports/{$job['build']}/export.json") === count($puts) - 1,
+        'the order: the version folder (game.config.json last), then versions.json and latest.json, the archive last – its export.json the very last');
+    [, $data] = call($fast, 'GET', '/editor/experiences/osct/versions', null, $editor);
+    check($data['versions'][0]['build'] === $job['build'] && $data['versions'][0]['note'] === 'stepped' && $data['versions'][0]['publishedBy'] === 'author@example.com', 'the publish log has the job\'s publish, its note and who started it');
+    [$status, $data] = call($stepped, 'GET', '/editor/experiences/osct/publish/00000000-0000-4000-8000-000000000000', null, $editor);
+    check($status === 404 && $data['error']['code'] === 'unknown-job', 'an unknown job → 404 unknown-job');
+    [$status, $data] = call($stepped, 'GET', "/editor/experiences/demo/publish/{$job['id']}", null, $editor);
+    check($status === 404 && $data['error']['code'] === 'unknown-job', 'a job is read through its own experience only');
+
+    // A job no one continued (a closed editor on a host without fastcgi_finish_request) gives way to the next publish
+    call($fast, 'PUT', '/editor/experiences/osct', ['title' => 'Test Experience (left)'], $editor);
+    [$status, $left] = call($stepped, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    $pdo = connect('test');
+    $pdo->prepare('UPDATE publish_jobs SET updated_at = updated_at - 600000 WHERE id = ?')->execute([$left['job']['id'] ?? '']);
+    $pdo = null;
+    [$status, $taken] = call($fast, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    [, $data] = call($fast, 'GET', "/editor/experiences/osct/publish/{$left['job']['id']}", null, $editor);
+    check($status === 200 && $taken['build'] === $left['job']['build'] && ($data['job']['status'] ?? null) === 'failed' && $data['job']['error']['code'] === 'abandoned',
+        'a job no one moved for 2 minutes is abandoned: the next publish runs (and writes what it left)');
+    call($fast, 'PUT', '/editor/experiences/osct', ['title' => 'Test Experience'], $editor);
+    $requests();
     [, $data] = call($bunnyApi, 'GET', '/editor/experiences', null, $editor);
     check(in_array('staging', array_column(array_column($data['experiences'], null, 'id')['osct']['live'], 'env'), true), 'the experience list reads the zone: live on staging');
     [$status] = call($bunnyApi, 'GET', '/content/staging/osct/latest.json');

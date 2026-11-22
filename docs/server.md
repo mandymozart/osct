@@ -85,7 +85,9 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 | `PUT /editor/experiences/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in an experience with plugins – "Plugin sources"), no `assets` list |
 | `PUT /editor/experiences/{id}/targets/{targetId}` | `{ entity }` or `{ ref }` | `{ target }` – the target's entity: inline (`entity`, null removes it) or a shared one (`ref`, 400 `unknown-entity` when there is none); records a change. 404 for an unknown target |
 | `GET /editor/experiences/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
-| `POST /editor/experiences/{id}/publish` | `{ env, note?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, export }` – writes the assembled version to the experience's own store in `env` (#87: `<title>/<env>/<id>/` on the zone, `<env>/<id>/` in the directory store – a publish never touches another experience), which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log; then the build's **export archive** `exports/<build>/` in the same store unless it is there (`export` = `{ path, written, error? }` – a failure is reported here and in the error log, the publish stands; [Export](#export)). `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name); 502 `content-store-failed` |
+| `POST /editor/experiences/{id}/publish` | `{ env, note?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, export }` – writes the assembled version to the experience's own store in `env` (#87: `<title>/<env>/<id>/` on the zone, `<env>/<id>/` in the directory store – a publish never touches another experience), which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log; then the build's **export archive** `exports/<build>/` in the same store unless it is there (`export` = `{ path, written, error? }` – a failure is reported here and in the error log, the publish stands; [Export](#export)). `store` = where it went (`cdn` or `server`). The writing is a **job** ([Publish jobs](#publish-jobs), #345): when it ends within `PUBLISH_STEP_SECONDS` the answer is 200 with the outcome and `job`; else **202 `{ job }`** and the job runs on. 400 `invalid-env` (no environment name); 409 `publish-running` (a publish of the experience runs – its `job`); 502 `content-store-failed` (with `job`) |
+| `GET /editor/experiences/{id}/publish/{job}` | | `{ job }` – the job's `status` (`running` / `done` / `failed`), `phase` (`version` → `switch` → `archive` → `done`), `build`, `hash`, `live` (latest.json names the build), `done` / `total` files, `skipped` (on the store already), `startedAt`, `updatedAt`, `result` (done: the publish's answer) or `error` `{ code, message, status }` (failed; `abandoned`: no one continued it). A running job first runs on for `PUBLISH_STEP_SECONDS` unless another request runs it. 404 `unknown-job` (not a job of this experience) |
+| `GET /editor/experiences/{id}/publish` | | `{ job }` – the experience's newest job (null: none kept – ended jobs are kept 14 days); a running one runs on like a poll. Where the editor finds a publish whose start answer a gateway swallowed |
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
 | `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
 | `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, delivery, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes, `delivery` the delivery that wrote it ([Deliveries](#deliveries)) and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
@@ -300,6 +302,9 @@ The editor's keys:
   no limit** (`Config::limit`; 0 allows nothing), for local testing (`config.local.php.example`) – the same for
   `LOGIN_MAX_ATTEMPTS` (5 wrong codes) and `PASSWORD_MAX_FAILS_PER_EMAIL_HOUR` / `PASSWORD_MAX_FAILS_PER_IP_HOUR`
   (10 / 30). Tilman: "-1 ist besser als Limit für aus" (#83).
+- `PUBLISH_STEP_SECONDS` (`15`): how long a publish writes in its POST and in each poll before it answers ([Publish
+  jobs](#publish-jobs)) – keep it well below the gateway's timeout and PHP's `max_execution_time`; `0` = one slice per
+  request (the API test).
 - `CONTENT_STORE` (`local`): where the publishes and uploads go – `local` = the content store's folder (the directory
   store), `bunny` = the storage zone. A connected CDN has priority: with `bunny` every environment goes there except
   `local`, which always stays in the folder.
@@ -433,6 +438,32 @@ the files, the CLI downloads them. Rights: those of the draft (an editor). Typed
   also for a published build: the database keeps no source per version.
 - `credits` – every credit line of the Library by file URL (#277); the configuration's own `credits` carries only those of
   the files it uses.
+
+### Publish jobs
+
+A publish of a big experience writes for minutes (the osct book: 1529 files, mostly its export archive – [Content and
+CDN](content-cdn.md) "How a publish writes"); no gateway waits that long, and an answer that never comes (504) must not
+stand for a publish that runs on (#345, Tilman 2026-11-22). So `POST …/publish` checks the draft as before (every 4xx
+stays an answer of the POST), then writes what it will write into a row of **`publish_jobs`** (`plan_json`: the version
+folder's files, the export archive's files; emptied when the job ends) and runs it for at most **`PUBLISH_STEP_SECONDS`**
+(15) – done in that time, it answers 200 with the outcome as before (a small experience, the tests); else 202 `{ job }`.
+What runs the rest depends on the host, and both are plain PHP – no queue, no daemon, no cron:
+
+- **PHP-FPM** (staging's FTPS host): `fastcgi_finish_request()` sends the 202, the same request writes on with
+  `ignore_user_abort(true)` and no time limit. The gateway has its answer within the step.
+- **Apache mod_php** (the Docker image), the built-in server: nothing runs after an answer, so every **poll**
+  (`GET …/publish/{job}`) writes the next `PUBLISH_STEP_SECONDS` and answers the progress; the editor polls every 1.5 s.
+
+One runner at a time: a run takes a lease (`lease_until`, 90 s, renewed after every slice of 32 files) and a poll that
+finds it taken only reads. A runner that dies (an FPM worker killed by `request_terminate_timeout`, a closed editor on
+mod_php) leaves the lease to run out; the next poll goes on from the last saved slice. Each step is safe to repeat: a
+file written twice is the same file, the switch writes the same `latest.json`. A job no one moved for 2 minutes gives way
+to the next publish of the experience (`failed`, `abandoned`); that publish writes what it left (the archive's listing
+skips what is there). Failures: in the version folder or the switch the job fails with the store's error (502
+`content-store-failed` – nothing went live, or the switch is repeated by the next publish); in the archive the publish
+stands and `export.error` says why (as before). The editor (`editor/src/lib/publish-job.ts`) shows the phase and done /
+total, the real outcome, and after a gateway error on the POST it looks for the experience's new job
+(`GET …/publish`) instead of reporting a failure; the MCP's `publish` waits up to 90 s, then `publish_status` follows.
 
 ### One environment per instance
 

@@ -72,6 +72,11 @@ declare(strict_types=1);
  *   POST   /editor/experiences/{id}/publish     { env, note?, replace?, plugins? } → writes the version to the content store (env =
  *                                               this instance's own environment, else 403 other-environment); `plugins` = the
  *                                               Code tab's sources as the editor transpiled them [{ id, code, api, registered? }]
+ *                                               → 200 with the outcome when it is written within PUBLISH_STEP_SECONDS, else
+ *                                               202 { job } – the publish runs on as a job (#345, PublishJob)
+ *   GET    /editor/experiences/{id}/publish/{job}  the job: status, phase, done / total, result or error (a poll also
+ *                                               writes the next part where nothing runs on after the answer)
+ *   GET    /editor/experiences/{id}/publish     { job } the newest publish of the experience (null: none)
  *   GET    /editor/experiences/{id}/versions    the publish log
  *   GET    /editor/experiences/{id}/export[?build=]  everything an export needs (#322, Export): the draft's configuration or a
  *                                               published version's, the files it names (url, size, sha256 where known), the
@@ -103,7 +108,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Migration6', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'ExportArchive', 'Deliveries'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Migration6', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'ExportArchive', 'PublishJob', 'Deliveries'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -207,6 +212,8 @@ try {
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/experiences/($id)/publish$#", $route, $match) => Experiences::publish($match[1], Editor::body()),
+        (bool) preg_match("#^GET /editor/experiences/($id)/publish$#", $route, $match) => PublishJob::latest($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/publish/($uuid)$#", $route, $match) => PublishJob::poll($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/versions$#", $route, $match) => Experiences::versions($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/export$#", $route, $match) => Export::read($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/changes$#", $route, $match) => Experiences::changes($match[1]),
