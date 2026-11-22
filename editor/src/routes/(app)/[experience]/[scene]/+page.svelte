@@ -13,7 +13,7 @@
   import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
   import GridSnapMenu from "#lib/components/GridSnapMenu.svelte";
   import ViewMenu from "#lib/components/ViewMenu.svelte";
-  import { expandedGroups, type GroupShape } from "#lib/tool-groups.js";
+  import { closesOnResize, expandedGroups, fittingGroups, groupLength, menuPlace, type GroupShape, type ToolbarMetrics } from "#lib/tool-groups.js";
   import EntityPanel from "#lib/panels/EntityPanel.svelte";
   import TreePanel from "#lib/panels/TreePanel.svelte";
   import LibraryPanel from "#lib/panels/LibraryPanel.svelte";
@@ -53,7 +53,7 @@
   import { scenes } from "#lib/scenes.svelte.js";
   import FloatingPanel from "#lib/components/FloatingPanel.svelte";
   import { Floats, openFloats } from "#lib/components/floats.svelte.js";
-  import { at, type PanelSpec } from "#lib/components/floats.js";
+  import { at, chromeOf, type PanelSpec } from "#lib/components/floats.js";
   import type { TabSpec } from "#lib/components/float-tabs.js";
   import UndoRedo from "#lib/UndoRedo.svelte";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
@@ -796,6 +796,7 @@
     const button = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
     // The toolbar's CSS below: gap .125rem, a rule of .125rem margin + .25rem padding + 1px, padding .125rem and a 1px border
     const metrics = { button, gap: rem / 8, rule: (3 * rem) / 8 + 1, chrome: rem / 4 + 2 };
+    if (JSON.stringify(metrics) !== JSON.stringify(untrack(() => toolMetrics))) toolMetrics = metrics;
     // The Tools panel's room: the width it was resized to, else the room between the Tree and the Inspector
     // Less the groups that never fold: undo / redo / history (3 buttons, #312) and Live (2), each with its rule
     const fixed = 5 * button + 3 * metrics.gap + 2 * (metrics.gap + metrics.rule);
@@ -804,6 +805,127 @@
     const next = floats.vertical("tools") ? TOOL_SHAPES.map(() => false) : expandedGroups(TOOL_SHAPES, room, metrics);
     if (next.some((e, i) => e !== expanded[i])) expanded = next;
   });
+
+  // ── the toolbar's overflow (#342, Tilman 2026-11-22): the groups that do not fit the Tools panel – along its row or
+  // its column – go behind a … at its end, whose menu holds them, each working as in the row. The panel asks for the
+  // toolbar's whole length (every group in it, `along`), so the room it is given never depends on what is hidden: each
+  // group's length is measured where it last stood in the toolbar (an estimate from its buttons before that), the room
+  // is the panel's laid-out size less its chrome, and `fittingGroups` decides – no loop, no flicker ──
+  /** The toolbar's groups in order: undo / redo / history, the tool, the select filters, render quality, grid & snap, view, live */
+  const GROUP_COUNT = 7;
+  const VIEW_GROUP = 5;
+  let toolMetrics = $state<ToolbarMetrics>({ button: 28, gap: 2, rule: 7, chrome: 6 });
+  /** Each group's buttons, for its estimate (the tool and the filters side by side when expanded) */
+  const groupButtons = (i: number) => [3, expanded[0] ? TOOL_OPTIONS.length : 1, expanded[1] ? FILTER_OPTIONS.length : 1, 1, 1, 1, 2][i];
+  /** A measured length's key: a group's length depends on the orientation, a finger's button size and its expansion */
+  const lengthKey = (part: number | "more" | "end") => {
+    const at = `${floats.vertical("tools") ? "v" : "h"}${coarse ? "c" : "f"}`;
+    return typeof part === "number" ? `${at}${part}${(part === 1 && expanded[0]) || (part === 2 && expanded[1]) ? "x" : ""}` : `${at}${part}`;
+  };
+  /** The lengths measured along the toolbar (px), by `lengthKey` */
+  let lengths = $state<Record<string, number>>({});
+  const groupLengths = $derived(Array.from({ length: GROUP_COUNT }, (_, i) => lengths[lengthKey(i)] ?? groupLength(groupButtons(i), i === 0, toolMetrics)));
+  const moreLength = $derived(lengths[lengthKey("more")] ?? groupLength(1, false, toolMetrics));
+  const toolbarEnd = $derived(lengths[lengthKey("end")] ?? toolMetrics.chrome / 2);
+  /** The toolbar's length with every group in it: what the Tools panel asks for */
+  const toolbarAlong = $derived(groupLengths.reduce((sum, length) => sum + length, 0) + toolbarEnd);
+  /** The room along the toolbar (px): the Tools panel as laid out, less its grip and its button */
+  const toolbarRoom = $derived.by(() => {
+    const view = floats.views.tools;
+    const spec = floats.spec("tools");
+    if (!view || !spec) return Infinity;
+    const vertical = floats.vertical("tools");
+    const chrome = chromeOf(spec, floats.metrics, vertical);
+    return vertical ? view.rect.h - chrome.h : view.rect.w - chrome.w;
+  });
+  /** How many groups stay in the toolbar (a px of tolerance against subpixel rounding: the panel is as long as the toolbar) */
+  const toolbarFit = $derived(fittingGroups(groupLengths, toolbarRoom - toolbarEnd + 1, moreLength));
+  const shownGroups = $derived(Array.from({ length: toolbarFit }, (_, i) => i));
+  const hiddenGroups = $derived(Array.from({ length: GROUP_COUNT - toolbarFit }, (_, i) => toolbarFit + i));
+  // Measure every part of the toolbar where it stands: a part's length runs from the end of the one before
+  $effect(() => {
+    const bar = tools;
+    if (!bar) return;
+    const measure = () => {
+      const vertical = bar.getAttribute("aria-orientation") === "vertical";
+      const box = bar.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      let end = vertical ? box.top : box.left;
+      const next = { ...untrack(() => lengths) };
+      let changed = false;
+      const put = (key: string | undefined, length: number) => {
+        if (!key || Math.abs((next[key] ?? -1) - length) <= 0.5) return;
+        next[key] = length;
+        changed = true;
+      };
+      bar.querySelectorAll<HTMLElement>(":scope > .part").forEach((part, i) => {
+        const r = part.getBoundingClientRect();
+        const to = vertical ? r.bottom : r.right;
+        // The … alone (nothing fits beside it) has no rule before it: its length with the rule is the one that counts
+        if (i > 0 || part.dataset.length !== lengthKey("more")) put(part.dataset.length, to - end);
+        end = to;
+      });
+      put(bar.dataset.end, (vertical ? box.bottom : box.right) - end);
+      if (changed) lengths = next;
+    };
+    // Measured in the next frame – never in the same task, so nothing could ever hold the page in a loop
+    let frame = 0;
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    const observer = new ResizeObserver(later);
+    const watch = () => {
+      observer.observe(bar);
+      for (const part of bar.querySelectorAll(":scope > .part")) observer.observe(part);
+    };
+    // Groups come and go (the …'s menu takes them, a group's options expand): watch the new ones
+    const parts = new MutationObserver(() => {
+      watch();
+      later();
+    });
+    watch();
+    parts.observe(bar, { childList: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      parts.disconnect();
+    };
+  });
+  let moreButton = $state<HTMLButtonElement>();
+  let morePop = $state<HTMLDivElement>();
+  let moreOpen = $state(false);
+  let moreAt = $state({ left: 0, top: 0 });
+  /** The …'s menu at its button: below it in a row, beside it in a column – kept on the screen (`menuPlace`) */
+  const placeMore = () => {
+    if (!moreButton || !morePop) return;
+    moreAt = menuPlace(moreButton.getBoundingClientRect(), { width: morePop.offsetWidth, height: morePop.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight }, floats.vertical("tools"));
+  };
+  let moreWidthAtOpen = 0;
+  const moreToggle = (event: Event) => {
+    moreOpen = (event as ToggleEvent).newState === "open";
+    moreWidthAtOpen = window.innerWidth;
+    if (moreOpen) placeMore();
+  };
+  /** A window that changes its width moves the toolbar: the menu closes, as the groups' own menus do */
+  const moreResize = () => {
+    if (moreOpen && closesOnResize(moreWidthAtOpen, window.innerWidth)) morePop?.hidePopover();
+  };
+  // Everything fits again: the menu has nothing left to hold
+  $effect(() => {
+    if (toolbarFit === GROUP_COUNT) moreOpen = false;
+  });
+  /** The stage's menu *View settings…*: the view group's panel – from the …'s menu when the group is in there */
+  const openViewSettings = async () => {
+    if (toolbarFit <= VIEW_GROUP && morePop && !morePop.matches(":popover-open")) {
+      morePop.showPopover();
+      moreOpen = true;
+      placeMore();
+      await tick();
+    }
+    viewMenu?.open();
+  };
 
   /** The floating toolbar's room for its groups (px): its resized width, else between the Tree and the Inspector */
   const floatingRoom = (rem: number) => {
@@ -872,26 +994,29 @@
   };
 </script>
 
-<svelte:window onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnapModifier(false)} />
+<svelte:window onkeydown={onKey} onkeyup={onKeyUp} onresize={moreResize} onblur={() => stage?.setSnapModifier(false)} />
 
 
-{#snippet toolbar()}
+{#snippet toolGroup(i: number)}
   {#if stage}
-    <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
-         always one row (#180, #190, #229, #308) -->
-    <div class="tools" class:vertical={floats.vertical("tools")} role="toolbar" aria-orientation={floats.vertical("tools") ? "vertical" : "horizontal"}
-      data-app-ui aria-label="Stage tools" bind:this={tools}>
+    {#if i === 0}
       <UndoRedo onhistory={() => floats.showTab("history", true)} />
+    {:else if i === 1}
       <ToolGroup label="Tool" options={TOOL_OPTIONS} value={stage.tool} expanded={expanded[0]}
         onchoose={tool => stage?.setTool(tool as StageTool)} />
+    {:else if i === 2}
       <span class="tool-group filters" data-help-name="Select filters" data-help={FILTER_HELP}>
         <ToolGroup label="Select filters" options={FILTER_OPTIONS} selected={stage.pickFilter} icon="pointer" expanded={expanded[1]}
           onchoose={kind => stage?.setPickFilter(toggleKind(stage.pickFilter, kind as PickKind))} />
       </span>
+    {:else if i === 3}
       <ToolGroup label="Render quality" options={shadingOptions} value={stage.shading} stroke={1.75}
         onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
+    {:else if i === 4}
       <GridSnapMenu />
+    {:else if i === VIEW_GROUP}
       <ViewMenu bind:this={viewMenu} />
+    {:else}
       <!-- #269: the stage runs the experience live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
       <span class="tool-group live" role="group" aria-label="Live">
         <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
@@ -902,6 +1027,34 @@
           data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the scene's targets are found anew and play their reveal, as a reader meets the scene the first time.">
           <Icon name="replay" /></button>
       </span>
+    {/if}
+  {/if}
+{/snippet}
+
+{#snippet toolbar()}
+  {#if stage}
+    <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
+         always one row (#180, #190, #229, #308) or one column (#315) – what does not fit goes behind the … (#342) -->
+    <div class="tools" class:vertical={floats.vertical("tools")} role="toolbar" aria-orientation={floats.vertical("tools") ? "vertical" : "horizontal"}
+      data-app-ui aria-label="Stage tools" data-end={lengthKey("end")} bind:this={tools}>
+      {#each shownGroups as i (i)}
+        <span class="part" data-length={lengthKey(i)}>{@render toolGroup(i)}</span>
+      {/each}
+      {#if hiddenGroups.length}
+        <span class="part" data-length={lengthKey("more")}>
+          <button bind:this={moreButton} type="button" class="icon-button more-button" class:open={moreOpen} popovertarget="stage-tools-more"
+            aria-label="More tools" aria-haspopup="true" aria-expanded={moreOpen} title="More tools: the ones the toolbar has no room for"
+            data-help-name="More tools" data-help="The tools the toolbar has no room for, in a menu – each works as in the toolbar. Make the Tools panel longer (or the window wider) and they come back into it; their keys work either way.">
+            <Icon name="more" /></button>
+        </span>
+        <!-- The …'s menu (top layer): the hidden groups below each other, each as in the row; their own menus open beside it -->
+        <div bind:this={morePop} id="stage-tools-more" class="more-pop" popover="auto" role="toolbar" aria-orientation="vertical" aria-label="More tools"
+          data-app-ui ontoggle={moreToggle} style:left="{moreAt.left}px" style:top="{moreAt.top}px">
+          {#each hiddenGroups as i (i)}
+            <span class="part">{@render toolGroup(i)}</span>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 {/snippet}
@@ -985,7 +1138,7 @@
         <ContextMenu at={stageMenu} label="Stage" head={scene ? sceneLabel(scene) : sceneId} onclose={() => (stageMenu = null)} items={[
           { label: "+ target…", select: () => (addingTarget = true) },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
-          { label: "View settings…", select: () => viewMenu?.open() },
+          { label: "View settings…", select: () => void openViewSettings() },
         ]} />
       {/if}
     {/if}
@@ -1015,7 +1168,7 @@
       <FloatingPanel {floats} {id} tab={tabBody} extra={sceneExtra} />
     {/each}
     {#if stage && stage.status === "running"}
-      <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar()}</FloatingPanel>
+      <FloatingPanel {floats} id="tools" label="Stage tools" along={toolbarAlong}>{@render toolbar()}</FloatingPanel>
     {/if}
   <RevertPrompt />
   <PluginGuardPrompt />
@@ -1036,10 +1189,19 @@
   .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: .125rem; width: max-content; color: var(--text); }
   /* A column (#315): the groups below each other, a rule above each instead of beside it */
   .tools.vertical { flex-direction: column; align-items: center; width: auto; }
+  /* Each group in its part (the toolbar measures the parts, #342); a rule before each after the first */
+  .part { flex: none; display: flex; align-items: center; }
+  .tools > .part + .part { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
+  .tools.vertical > .part { flex-direction: column; }
+  .tools.vertical > .part + .part { margin: .125rem 0 0; padding: .25rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
   /* Every group stacks in a column – undo / redo / history and Live too, so the column stays one button wide */
-  .tools.vertical :global(.tool-group) { flex-direction: column; align-items: center; }
-  .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
-  .tools.vertical :global(.tool-group + .tool-group) { margin: .125rem 0 0; padding: .25rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
+  .tools.vertical > .part :global(.tool-group) { flex-direction: column; align-items: center; }
+  .more-button.open { background: var(--pressed-background); color: var(--pressed-color); }
+  /* The …'s menu (#342): the hidden groups below each other, each a row as in the toolbar, a rule between them */
+  .more-pop { position: fixed; inset: auto; margin: 0; padding: .25rem; display: none; flex-direction: column; align-items: stretch;
+    border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .more-pop:popover-open { display: flex; }
+  .more-pop > .part + .part { margin-top: .125rem; padding-top: .25rem; border-top: 1px solid var(--line); }
   .live, .filters { display: flex; gap: .125rem; }
   .live .on { color: var(--accent, currentColor); }
   .tree-body { padding: .25rem .375rem .75rem; }

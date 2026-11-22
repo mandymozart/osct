@@ -931,6 +931,19 @@ Tab out of it or a tap outside closes it; every control has the touch height wit
 view. All of it are preview settings, stored in this browser (`stage/preview.ts`), never in the content; the Info view
 shows each button's tooltip.
 
+**What does not fit goes behind the …** (#342, Tilman 2026-11-22): when the Tools panel is shorter than its groups –
+a narrow window, the panel resized, or a column along a short stage – the groups that do not fit leave the toolbar from
+the end (live first, then view, grid & snap, …) and a **…** button (*More tools*) takes their place at its end. Its menu
+(top layer, below the … in a row, beside it in a column, kept on the screen) holds them below each other, each a row
+working exactly as in the toolbar: a tool group's menu, grid & snap's and view's panels open from inside it, beside it;
+a tap outside or Esc closes it, a window that changes its width too. The stage menu's *View settings…* opens the menu
+first when view is in it. Nothing is cut off; the keys (Q W E R S, Ctrl+Z …) work either way. How it decides
+(`fittingGroups` in `lib/tool-groups.ts`): the page measures each group's length along the toolbar where it last stood
+in it (an estimate from its buttons before that, `groupLength`), per orientation, finger and expansion; the Tools panel
+asks for the toolbar's whole length (every group in it – `FloatingPanel`'s `along`), so the room it is given never
+depends on what is hidden, and as many groups as fit stay in order with the … after them. Measured a frame after a
+change (ResizeObserver, MutationObserver), so it cannot loop or flicker.
+
 ### Camera and view settings
 
 The camera is moved on the stage itself: **drag** orbits, **Shift + drag**, the **middle button** or **two fingers**

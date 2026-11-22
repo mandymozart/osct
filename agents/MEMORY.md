@@ -207,6 +207,25 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-22 – the stage toolbar's … overflow (#342)
+
+Tilman (2026-11-22, on a screenshot of the toolbar cut off at the panel's edge): *"we can either fade here when there
+is too many or we add the ... dots to indicate there is more and have a context menu come out."* – the … it is.
+- **What goes**: the groups from the end (live, view, grid & snap, render quality, the filters, the tool, undo /
+  redo / history last); the … menu holds them below each other, each a row as in the toolbar. Their own menus and
+  panels open from inside it (fixed flyouts inside a top-layer popover are positioned to the screen and drawn above
+  it; `menuPlace` opens them beside, the popover says `aria-orientation="vertical"`) – nothing had to be flattened.
+- **No loop by construction**: the Tools panel asks for the toolbar's **whole** length (`FloatingPanel` `along`), so
+  the room it is given (`floats.views.tools` less `chromeOf`) never depends on what is hidden; each group's length is
+  measured where it last stood (key: orientation, finger, expansion), an estimate before. One trap met in headless
+  Edge: the … measured alone (no rule before it) is 9 px shorter than with a rule – that alternated 0 ↔ 1 groups and,
+  measured in a MutationObserver's microtask, froze the page. The … alone is no longer measured, and every measure
+  waits for the next frame.
+- The expansion of the tool and the filters still follows the estimated room (`floatingRoom`, between the Tree and the
+  Inspector); a toolbar placed elsewhere can show a group expanded with others in the … – rare, harmless.
+- [ ] The inline panel's real chrome is 1 px wider than `chromeOf` (72 vs 71 px in a row – the section's border): the
+  toolbar's last px is clipped, before #342 too; the fit takes a px of tolerance. Correct `chromeOf` sometime.
+
 ## 2026-11-21 – 5.0.2: the in-page stage's follow-ups from the staging check (#340)
 
 - Found by the orchestrator on staging after 5.0.0 (its "no targets found" was its own test – a hidden browser pane that
