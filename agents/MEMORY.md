@@ -207,6 +207,19 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-22 – White label becomes an XR experience provider platform; first use case free poster XR (#347)
+
+Tilman: *"think xr experience provider platform here with free versions having certain limitations. first use case,
+via qr.viennastruggle.at I want to provide free poster xr. we can use the platform to host it."* – and: *"if a
+experience is free it is branded by our own brand as marketing so people create their own"*.
+- This moves STRATEGY.md's "no platform / contracted, not self-service" – STRATEGY needs updating once the decisions
+  below are taken.
+- Mock-ups: `agents/design/white-label.html` (11 frames: overview, brand editor, reader per brand, free = our brand,
+  access, ownership and domains, QR codes, newsletters, arrival landing, plans and limits, poster XR).
+- [ ] Open (Tilman): free tier as its own instance on `qr.viennastruggle.at`; free limits; paid plans now or later;
+  roles per experience; own domains per experience; newsletter lists per experience; creator sign-up open or invited;
+  moderation – each frame's "Decide" note. Plus the nine decisions of `agents/research/2026-11-22-white-label-branding.md` §5.
+
 ## 2026-11-22 – Publish is one overlay: confirm, running, done; the rest behind Details (6.2.4, #345)
 
 - Tilman (2026-11-22): *"there is lot of information that is kind of useless on this dialog … i dont need to know the
