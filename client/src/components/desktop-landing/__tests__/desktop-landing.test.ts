@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type DesktopLanding, isDesktopVisitor, landingQrUrl, LANDING_CONFIG, LANDING_SKIPPED_KEY, readDeviceSignals } from "..";
+import { LANDING_ATTRIBUTE, STATIC_LANDING_ID } from "../landing-html";
 
 const desktop = { standalone: false, coarsePointer: false, mobileAgent: false, wide: true };
 
@@ -98,6 +99,38 @@ describe("<desktop-landing>", () => {
       landing.remove();
       mount();
       expect(landing.hidden).toBe(true);
+    });
+  });
+  describe("taking over from the static landing in index.html (#343)", () => {
+    const staticLanding = () => {
+      const element = document.createElement("div");
+      element.id = STATIC_LANDING_ID;
+      document.body.appendChild(element);
+      document.documentElement.setAttribute(LANDING_ATTRIBUTE, "");
+      return element;
+    };
+    afterEach(() => {
+      document.getElementById(STATIC_LANDING_ID)?.remove();
+      document.documentElement.removeAttribute(LANDING_ATTRIBUTE);
+    });
+
+    it("on a computer: renders underneath, then removes the static page", async () => {
+      vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(min-width: 56.25em)" }));
+      const element = staticLanding();
+      mount();
+      expect(landing.hidden).toBe(false);
+      await vi.waitFor(() => expect(element.isConnected).toBe(false), { timeout: 3000 });
+      expect(root().querySelector(".address")!.textContent).toBe(location.host);
+    });
+
+    it("decided otherwise (a phone, a narrow window): the static page goes and the static splash may show again", async () => {
+      vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(pointer: coarse)" }));
+      const element = staticLanding();
+      mount();
+      expect(landing.hidden).toBe(true);
+      expect(element.isConnected).toBe(false);
+      expect(document.documentElement.hasAttribute(LANDING_ATTRIBUTE)).toBe(false);
+      await expect(landing.whenDone()).resolves.toBeUndefined();
     });
   });
 });

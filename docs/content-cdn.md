@@ -228,12 +228,24 @@ storage format is unchanged (RULES #10: no progress MAJOR).
 default experience (its title, the home-screen name, Onion Skin's description); for another experience the app sets the
 page title, the description and the home-screen title from the loaded content.
 
-<a id="the-installed-app-pwa"></a>**The installed app (PWA).** The build's manifest (`/manifest.webmanifest`, vite.config.js
-`pwa()`) keeps `id` and `start_url` `/` and scope `/` – the app installed before #343 stays the same app, and its `/`
-opens the experience the person opened last (else the default). **Another experience links its own manifest**:
-`/api/experiences/<id>/manifest.webmanifest` (server `ReaderManifest.php`) with `id`, `start_url` and `scope` `/<id>/`, its
-title once published, the build's icons – so installing the app from `/demo/` installs the demo, which then starts at
-`/demo/`. The default experience keeps the build's manifest (installing from `/osct/` installs the app at `/`). One service
+**index.html's head, in this order** – inline scripts that need no database and no bundle, written in at build time
+(`client/vite.config.js`): the legacy redirect (`utils/legacy-redirect-html.ts`), the manifest link of the address's
+experience (`utils/manifest-link-html.ts`), the desktop landing's decision (`components/desktop-landing/
+landing-decision-html.ts` – `<html data-osct-landing>` for a computer on the default's path). The body carries the
+static landing (`landing-html.ts`) and the static splash (`utils/static-splash-html.ts`); the first paint shows one of
+them ([pages, "The desktop landing"](pages.md#desktop-landing)).
+
+<a id="the-installed-app-pwa"></a>**The installed app (PWA).** **Every experience links its own manifest, the default too**
+(Tilman, 2026-11-22: *"ja, ein eigenes manifest pro experience why not"*): `/api/experiences/<id>/manifest.webmanifest`
+(server `ReaderManifest.php`) with `id`, `start_url` and `scope` `/<id>/`, its title once published, the build's icons –
+so installing the app from `/osct/` installs osct and from `/demo/` the demo, each starting at its own path. The link is
+set by an inline script in `index.html`'s head right after the legacy redirect, before the browser reads a manifest
+(`utils/manifest-link-html.ts`; vite-plugin-pwa's own `<link rel="manifest">` is taken out of the built page, so an
+install prompt never sees the root manifest on an experience's page; `utils/experience-meta.ts` keeps it so, a test
+keeps both equal). Only an address naming no experience (a build with bundled content, a bare `/` nothing moved) links
+the build's manifest (`/manifest.webmanifest`, vite.config.js `pwa()`: `id`, `start_url` and scope `/`). An app
+installed before (id `/`) stays a separate app beside a new install; its start `/` still opens the experience opened
+last (the inline redirect). One service
 worker (scope `/`) serves every experience: navigations network-first with the precached `index.html` offline, the
 content cached per experience store as below.
 

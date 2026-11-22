@@ -71,5 +71,24 @@ Two overlays have no route – they sit outside `<pages-router>` and follow the 
 - `<loading-page>` – startup and scene switch (`game.startLoading()` / `game.finishLoading()`)
 - `<camera-permission-page>` – shown while the camera is being asked for or was denied (`cameraPermission`)
 
+<a id="desktop-landing"></a>**The desktop landing** (`components/desktop-landing/`, #293, #324) covers the app for a visitor on a computer
+(`isDesktopVisitor`: no installed app, no touch-first pointer, no phone/tablet browser, a window ≥ 56.25 em) until they
+choose "Open the app here" (remembered for the tab, `skipLanding`); `main.ts` waits for it before the start. Its first
+paint does not wait for the bundle (#343, Tilman 2026-11-22): index.html decides and shows it at once –
+
+| | before the bundle (index.html) | when the bundle arrives |
+|---|---|---|
+| computer, default experience's path (`/osct/…`, or no experience in a bundled build) | the static landing (`<html data-osct-landing>`), not the static splash | `<desktop-landing>` renders the same page underneath (`landing-html.ts`), then takes the static page's scroll position and removes it once its images and the QR code are there (≤ 2 s) – no flash; the QR code, the drifting images, install and the book's cover come with it |
+| computer, another experience (`/demo/`) | the static splash (the static page carries the default's texts) | `<desktop-landing>` as before |
+| phone, tablet, installed app, narrow window | the static splash | unchanged – no landing |
+
+The decision is an inline script in the head after the legacy redirect (`landing-decision-html.ts`, written from
+`desktop-visitor.ts`'s rules – a test keeps both equal case by case); the static page is `landing-html.ts`'s markup in a
+declarative shadow root with the design primitives' CSS (`styles/design-css.ts`), written at build time from the build's
+game configuration – English texts (`landing` namespace), the targets' images of the content the build read. A small
+script after it writes the address and makes "Open the app here" work before the bundle (the static splash then shows as
+for anyone else). In another language `<desktop-landing>` swaps in its texts when it takes over. When it decides
+otherwise than the head (a window made narrow meanwhile), it removes the static page and the splash shows.
+
 Base classes: `page.ts` (full page), `page-minimal.ts` (transparent, over the camera),
 `consultation-page.ts` (shared layout of the consultation pages).
