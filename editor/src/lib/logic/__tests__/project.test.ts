@@ -64,16 +64,16 @@ describe("the logic view per level (#334)", () => {
     expect(view.canvas).toEqual({ nodes: [], wires: [] });
   });
 
-  it("the scene level's stubs: what other scenes set, emit, read and hear of its names", () => {
+  it("the scene level's stubs: what other scenes set, emit, read and listen to of its names", () => {
     const view = project(content, { level: "scene", scene: "door" });
     // bellRang joins two targets of this scene: inside. rung is the scene's own: it never reaches the Epilogue.
-    expect(stubLabels(view)).toEqual(["hasKey ← set in Cover", "keyRattled ← emitted in Cover", "openDoor → heard in Epilogue"]);
+    expect(stubLabels(view)).toEqual(["hasKey ← set in Cover", "keyRattled ← emitted in Cover", "openDoor → listened to in Epilogue"]);
     const hasKey = view.stubs.find(s => s.label.startsWith("hasKey"))!;
     expect(hasKey).toMatchObject({ side: "in", far: { level: "scene", scene: "cover" } });
     expect(hasKey.edge).toMatchObject({ from: ["far:target:cover/key", "sets"], to: ["var:hasKey", "set"], signal: "value", home: null });
     // The Cover's key: hasKey is read by the Door's rule and the Epilogue's text
     expect(stubLabels(project(content, { level: "scene", scene: "cover" }))).toEqual([
-      "hasKey → read in Door", "hasKey → read in the texts of Epilogue", "keyRattled → heard in Door",
+      "hasKey → read in Door", "hasKey → read in the texts of Epilogue", "keyRattled → listened to in Door",
     ]);
   });
 
@@ -82,7 +82,7 @@ describe("the logic view per level (#334)", () => {
     expect(view.nodes.filter(n => n.kind === "rule").map(n => n.id)).toEqual(["rule:door/#0", "rule:door/#1", "rule:door/#2"]);
     expect(view.nodes.some(n => n.id.startsWith("rule:bell"))).toBe(false);
     expect(view.nodes.every(n => !n.enter)).toBe(true);
-    expect(stubLabels(view)).toEqual(["bellRang ← emitted in target bell", "hasKey ← set in Cover", "openDoor → heard in Epilogue"]);
+    expect(stubLabels(view)).toEqual(["bellRang ← emitted in target bell", "hasKey ← set in Cover", "openDoor → listened to in Epilogue"]);
     expect(view.stubs.find(s => s.label.startsWith("bellRang"))?.far).toEqual({ level: "entity", scene: "door", target: "bell", path: [] });
     // A subtree: the hint has no rules of its own – its box with the ports its spec gives (L-T6), every one hidden: none is wired
     const hint = project(content, { level: "entity", scene: "door", target: "door", path: [1] });
@@ -99,13 +99,13 @@ describe("the logic view per level (#334)", () => {
     ]);
     expect(view.edges.map(e => [e.id, e.label, e.home])).toEqual([
       ["scene:cover:sets>scene:door:reads", "hasKey", null],
-      ["scene:cover:emits>scene:door:hears", "keyRattled", null],
+      ["scene:cover:emits>scene:door:listens", "keyRattled", null],
     ]);
-    expect(stubLabels(view)).toEqual(["hasKey → read in Epilogue", "openDoor → heard in Epilogue", "openDoor → heard in plugin narrative"]);
+    expect(stubLabels(view)).toEqual(["hasKey → read in Epilogue", "openDoor → listened to in Epilogue", "openDoor → listened to in plugin narrative"]);
     expect(view.stubs.find(s => s.label.endsWith("plugin narrative"))?.far).toEqual({ level: "experience" });
     expect(view.problems).toEqual([{
-      message: "doorOpened is emitted, but nothing in the experience hears it", severity: "warning", node: "scene:door",
-      place: "doorOpened", short: "emitted, nothing hears it", at: { context: { level: "scene", scene: "door" }, node: "event:doorOpened" },
+      message: "doorOpened is emitted, but nothing in the experience listens to it", severity: "warning", node: "scene:door",
+      place: "doorOpened", short: "emitted, nothing listens to it", at: { context: { level: "scene", scene: "door" }, node: "event:doorOpened" },
     }]);
   });
 
@@ -133,7 +133,7 @@ describe("the logic view per level (#334)", () => {
     expect(view.edges.every(e => e.home === null)).toBe(true);
     // The plugin's set is a row and its reference line (#334)
     expect(view.refs).toEqual([{ id: "ref:plugin:narrative:sets>var:doorOpen", from: ["plugin:narrative", "sets"], to: "var:doorOpen", dir: "out" }]);
-    expect(view.problems.map(p => p.message)).toEqual(["doorOpened is emitted, but nothing in the experience hears it"]);
+    expect(view.problems.map(p => p.message)).toEqual(["doorOpened is emitted, but nothing in the experience listens to it"]);
   });
 
   it("an unknown scene is an empty view that still names its levels", () => {

@@ -207,6 +207,25 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-22 – listen, not hear: content schema 6.0, plugin API 4.0 (6.0.0, #341)
+
+- Tilman (2026-11-21): *"you use the word hear for events. i think it is listen"* – decided *"Komplett, inkl. API"*: every
+  word (editor, engine messages, MCP, docs, the docs site, comments, identifiers) and the plugin API's `uses.hears` →
+  `uses.listens`. Grammar: a rule *listens to* an event; the pin and the key are `listens` (no "to").
+- `uses.hears` sits in a plugin's recorded spec (`registered`), i.e. in the content → a renamed field = schema **MAJOR**
+  (RULES #10): 6.0, `OLDEST_READABLE_SCHEMA_MAJOR` 6; plugin API **4.0**; app **6.0.0** (precedent: schema 5.0 → 4.0.0,
+  schema 4.0 / API 3.0 → 3.0.0). No alias, no backward compatibility (pre-Tokyo).
+- Migration: `Migration6.php` on the deploy (5.x → 6.0, `plugins_json` / `imported_json` recorded `uses`; `--plan-6`);
+  the Code tab sources by `osct plugins listen --all` through the editor API (*mine*: not in PHP, so Tilman sees the
+  dry run first). Staging dry run 2026-11-22: 26 sources, none with `uses.hears`, one with the word in prose
+  (demo · narrative, two lines). Book content (`OSCT_CONTENT_DIR`): no plugins, nothing to change.
+- `Migration5` compared with `Editor::CONTENT_SCHEMA_MAJOR` to find "old" (4.x) experiences – with 6 it would have quoted
+  5.x set texts again; now a literal 5.
+- Left as they were: dated history (CHANGELOG sections before 6.0.0, MEMORY entries, `agents/research/`, `agents/archive/`),
+  the 5.1 row of docs/content.md's schema table (`{ hears, … }` – what 5.1 shipped).
+- [ ] After the 6.0.0 deploy to staging: `osct plugins listen --all` (without `--dry-run`, after Tilman saw the dry run),
+  then publish `osct` and `demo` again (declared modules of API 3.x are not loaded by a 6.0 app).
+
 ## 2026-11-22 – the stage toolbar's … overflow (#342)
 
 Tilman (2026-11-22, on a screenshot of the toolbar cut off at the panel's edge): *"we can either fade here when there

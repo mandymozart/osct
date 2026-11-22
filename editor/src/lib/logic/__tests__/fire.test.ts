@@ -32,7 +32,7 @@ describe("an event box fires its event on the stage's bus", () => {
     expect(items(DOOR, "event:openDoor", { running: false }).map(i => i.disabled)).toEqual([NOT_RUNNING, NOT_RUNNING]);
   });
 
-  it("says honestly what hears it from another scene's level: the bus is the stage's, that scene's rules are not on it", () => {
+  it("says honestly what listens to it from another scene's level: the bus is the stage's, that scene's rules are not on it", () => {
     const [fire] = items({ level: "scene", scene: "epilogue" }, "event:openDoor");
     expect(fire.disabled).toBeNull();
     expect(fire.detail).toContain("Epilogue's own rules are not on the stage");

@@ -20,7 +20,7 @@
   <p>Open it from the panels menu in the top bar. How rules work is in <a href="/docs/api/logic/">the logic system</a>; this page is about the panel.</p>
   <figure>
     <a href="/docs/img/logic.webp"><img src="/docs/img/logic.webp" width="896" height="676" alt="The Logic panel on the demo's door scene." loading="lazy"></a>
-    <figcaption>The demo's door scene. <code>found</code> sets off two rules of the door's group; rule 2 reads <code>hasKey</code> (set in scene 1–2), hides the hint and emits <code>openDoor</code>, which the <i>narrative</i> plugin hears. In red below: a problem it found.</figcaption>
+    <figcaption>The demo's door scene. <code>found</code> sets off two rules of the door's group; rule 2 reads <code>hasKey</code> (set in scene 1–2), hides the hint and emits <code>openDoor</code>, which the <i>narrative</i> plugin listens to. In red below: a problem it found.</figcaption>
   </figure>
 
   <h2 id="boxes">What the boxes are</h2>
@@ -30,7 +30,7 @@
     <tr><td>Rule</td><td class="wrap">One rule of a behaviour, of the scene or of the experience.</td></tr>
     <tr><td>Variable</td><td class="wrap">A variable the rules read or set.</td></tr>
     <tr><td>Node</td><td class="wrap">A node the rules play, pause, stop, show or hide. Its ports come from its type and components.</td></tr>
-    <tr><td>Plugin</td><td class="wrap">Code that hears or emits events, or reads or sets variables.</td></tr>
+    <tr><td>Plugin</td><td class="wrap">Code that listens to or emits events, or reads or sets variables.</td></tr>
     <tr><td>Stub</td><td class="wrap">At the edge: something that crosses into another level, named by its far end (<i>hasKey ← set in 1–2</i>).</td></tr>
   </table></div>
   <p>The legend under the bar gives the colour and shape of each signal: event, control, picture, address, scene and so on.</p>
@@ -55,9 +55,9 @@
   <p>To see what an event would set off down the line, right-click a box while the stage runs:</p>
   <div class="table"><table>
     <tr><th>Box</th><th>Item</th><th>What happens</th></tr>
-    <tr><td>An event</td><td class="wrap"><b>Fire on stage</b>, or <b>Fire with a payload…</b></td><td class="wrap">The event goes out on the stage as a plugin would send it: the rules that hear it run, the plugins hear it. Type a payload as <code>key: value</code> pairs, for example <code>door: front, tries: 2</code>. With a mouse, the <b>▶</b> on the box's head fires it at once.</td></tr>
+    <tr><td>An event</td><td class="wrap"><b>Fire on stage</b>, or <b>Fire with a payload…</b></td><td class="wrap">The event goes out on the stage as a plugin would send it: the rules that listen to it run, the plugins listen to it. Type a payload as <code>key: value</code> pairs, for example <code>door: front, tries: 2</code>. With a mouse, the <b>▶</b> on the box's head fires it at once.</td></tr>
     <tr><td>A node's <b>tap</b></td><td class="wrap"><b>Tap on stage</b></td><td class="wrap">The reader's tap on that target – while it is found on the stage.</td></tr>
-    <tr><td>A variable</td><td class="wrap"><b>Set on stage…</b></td><td class="wrap">Pick true or false, or type a number or a text; the rules and plugins hear the change.</td></tr>
+    <tr><td>A variable</td><td class="wrap"><b>Set on stage…</b></td><td class="wrap">Pick true or false, or type a number or a text; the rules and plugins listen to the change.</td></tr>
     <tr><td>A rule</td><td class="wrap"><b>Run this rule</b></td><td class="wrap">Its actions, as if its event had come. Its condition still applies – if it is false, nothing runs. No other rule runs.</td></tr>
   </table></div>
   <p>The Log marks these lines <i>by hand</i>, and Trace lights the wires. Only the running stage changes, never your draft – <b>Restart</b> on the stage puts it back. It works on read-only levels too. Core events such as <b>targetFound</b> come from the stage itself: find or tap the target instead. A rule of another scene runs once that scene is open.</p>
@@ -66,7 +66,7 @@
   <p>You can edit on a scene's and an entity's level of the open scene, and on the experience level. The group level is read-only.</p>
   <div class="table"><table>
     <tr><th>To</th><th>Do</th></tr>
-    <tr><td>Make a rule hear an event</td><td class="wrap">Drag from the event's outlet to the rule's <b>on</b>.</td></tr>
+    <tr><td>Make a rule listen to an event</td><td class="wrap">Drag from the event's outlet to the rule's <b>on</b>.</td></tr>
     <tr><td>Add a condition</td><td class="wrap">Drag a variable into the rule's <b>when</b>.</td></tr>
     <tr><td>Add an action</td><td class="wrap">Drag from the rule's <b>+</b> to a node (show), a variable (set), an event (emit) or a scene (goto).</td></tr>
     <tr><td>Add a rule, action or term</td><td class="wrap">Right-click the canvas, or the bar's <b>+</b>.</td></tr>
@@ -93,7 +93,7 @@
   </ul>
 
   <h2 id="problems">Problems</h2>
-  <p>Under the graph, in red: a variable that is read but never set, an event that is heard but never emitted (or emitted but never heard), a node an action names that is not there, and type problems in conditions.</p>
+  <p>Under the graph, in red: a variable that is read but never set, an event that is listened to but never emitted (or emitted but never listened to), a node an action names that is not there, and type problems in conditions.</p>
   <div class="note"><p><b>Events do not travel between scenes.</b> Only the open scene's rules exist, so an event one scene emits never reaches another scene's rules; such wires are dotted and labelled <i>never fires</i>. Use a <b>variable</b> to carry state across scenes, or an experience rule.</p></div>
   <footer id="pager"></footer>
 </main>

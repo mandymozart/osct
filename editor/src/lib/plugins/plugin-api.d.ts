@@ -158,7 +158,7 @@ interface ParamText {
  * - `actions`: the rule verbs it answers on its node (`play`, `pause`, `stop`, `show`, `hide` – `SPEC_ACTIONS`): a rule's
  *   `play: <node>` reaches the component's `onAction("play")` beside the node's own clip;
  * - `events`: the scene events it emits (`ended`) – through its context's `emit`, on the bus by name;
- * - `uses`: what its code hears, emits, reads and sets of the bus and the variables, by name – the Logic view joins it to
+ * - `uses`: what its code listens to, emits, reads and sets of the bus and the variables, by name – the Logic view joins it to
  *   the rules (it reads the plugin's source only for a plugin that declares nothing).
  * The names are camelCase; an action is one of the node verbs, an event never a core event. An older app ignores the fields.
  */
@@ -167,9 +167,9 @@ export interface SpecLogic {
 	events?: readonly string[];
 	uses?: SpecUses;
 }
-/** A spec's bus use: event names it hears and emits, variable names it reads and sets */
+/** A spec's bus use: event names it listens to and emits, variable names it reads and sets */
 export interface SpecUses {
-	hears?: readonly string[];
+	listens?: readonly string[];
 	emits?: readonly string[];
 	reads?: readonly string[];
 	sets?: readonly string[];
@@ -607,7 +607,7 @@ type LoadedAsset = {
  *
  * - **Events** have two owners (the concept's rule): *core events* describe the experience and are emitted by the scene
  *   only (`CORE_EVENTS` – a plugin that emits one gets an error); *scene events* are the content's own, any other
- *   name, emitted and heard by plugins freely. One flat bus: every plugin on the stage hears every event.
+ *   name, emitted and listened to by plugins freely. One flat bus: every plugin on the stage listens to every event.
  * - **Variables** live in a scope: `scene` while the scene is the current one, `stage` while the scene exists,
  *   `session` per app start, `experience` persisted with the reader's progress (through the app's `ProgressReader`;
  *   in memory without one). A read without a scope looks outward – scene, stage, session, experience – and the innermost
@@ -662,7 +662,7 @@ export interface CoreEvents {
 type EventListener$1<P = unknown> = (payload: P) => void;
 /** `api.events` */
 export interface PluginEvents {
-	/** Hear a core event or a scene event; returns the unsubscribe (a plugin's listeners go when it is uninstalled) */
+	/** Listen to a core event or a scene event; returns the unsubscribe (a plugin's listeners go when it is uninstalled) */
 	on<E extends keyof CoreEvents>(event: E, listener: EventListener$1<CoreEvents[E]>): () => void;
 	on(event: string, listener: EventListener$1): () => void;
 	/** Emit a scene event (any name that is not a core event) to every plugin on the stage */
@@ -674,7 +674,7 @@ export interface PluginVars {
 	get(name: string, scope?: VarScope): VarValue | undefined;
 	/** Set (or delete with `null`) a variable in a scope – `scene` by default */
 	set(name: string, value: VarValue | null, scope?: VarScope): void;
-	/** Hear every change of a variable (in any scope) */
+	/** Listen to every change of a variable (in any scope) */
 	on(name: string, listener: (value: VarValue | undefined, previous: VarValue | undefined, scope: VarScope) => void): () => void;
 	/** Every variable of a scope */
 	all(scope: VarScope): Record<string, VarValue>;
@@ -960,7 +960,7 @@ export interface ComponentContext<P = Record<string, unknown>, E extends string 
 	three: typeof THREE;
 	/**
 	 * Emit one of the events its spec declares (`events`) on the bus, with the target's id (and the payload's fields) – a
-	 * rule hears it by name. An event the spec does not declare is not sent (a warning)
+	 * rule listens to it by name. An event the spec does not declare is not sent (a warning)
 	 */
 	emit(event: E, payload?: Record<string, unknown>): void;
 }

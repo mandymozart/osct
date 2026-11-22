@@ -302,7 +302,7 @@ take the SCUTOONS deck's styles with its signal colours; the rest of the editor 
   in the wire's signal colour, on a chip of `--surface` at 85 % (radius .25rem, padding 0 .25rem) with a 1–2px ring of
   `--surface` round the letters (Tilman, 2026-11-21: *"values on wires need an outline so they stick out more"*).
 - **Pins vs display rows** (#334, Tilman 2026-11-21): a pin only where a wire changes a document. A plugin box has two –
-  **emits** (out, into a rule's on) and **hears** (in, from a rule's emit); what its code **reads**, **sets**, **drives**
+  **emits** (out, into a rule's on) and **listens** (in, from a rule's emit); what its code **reads**, **sets**, **drives**
   are **display rows**: under the pin rows a 1px divider (inset .5rem, the kind's colour at 22 %), then one 1.25rem row each,
   .625rem `--muted` text, padding 0 .75rem (*reads hasKey, scene*), no pins, hidden below zoom 0.55 like pin labels. Each
   name's box gets a **reference line**: `--muted` at 90 %, 1px, dash `2 4`, a bezier from the row's side facing the box to

@@ -870,7 +870,7 @@ export class StageCore {
     this.replayUnlock();
   }
 
-  /** Set (or delete with `null`) a variable by hand, through the plugin API: the plugins hear `varChanged` as from a plugin. The API's refusal as text, null when written */
+  /** Set (or delete with `null`) a variable by hand, through the plugin API: the plugins listen to `varChanged` as from a plugin. The API's refusal as text, null when written */
   setVar(name: string, value: VarValue | null, scope: VarScope): string | null {
     try {
       this.panelVars.set(name, value, scope);
@@ -883,7 +883,7 @@ export class StageCore {
 
   /**
    * Fire an event on the bus by hand (the Logic panel's *Fire on stage*, #334) as a plugin's `emit` does: the open scene's
-   * and the experience's rules that hear it run, every plugin hears it, the timeline marks its line *by hand*. Only the
+   * and the experience's rules that listen to it run, every plugin listens to it, the timeline marks its line *by hand*. Only the
    * running stage changes, never the draft. The refusal as text (the stage is not running, a core event, no event name),
    * null when fired
    */

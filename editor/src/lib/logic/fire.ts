@@ -10,9 +10,9 @@ import type { Context, GraphNode, RuleRef } from "./types";
  * `runRule`, `tap`) and words the answer.
  *
  * - **An event box** (a bus event): *Fire on stage* – emitted as a plugin's `emit` would (the open scene's rules and the
- *   experience's that hear it run, every plugin hears it); *Fire with a payload…* takes `key: value` pairs. A core event is
+ *   experience's that listen to it run, every plugin listens to it); *Fire with a payload…* takes `key: value` pairs. A core event is
  *   the engine's own (refused: find, tap or set on the stage instead). A node's own `tap` box taps its target (the reader's
- *   tap, every node of it hears it); its `found`, `lost`, `unlocked` are the stage's hooks – run the rule instead.
+ *   tap, every node of it listens to it); its `found`, `lost`, `unlocked` are the stage's hooks – run the rule instead.
  * - **A variable box**: *Set on stage…* – a value by the variable's type, written as the Variables tab writes it (`varChanged`).
  * - **A rule box**: *Run this rule* – its actions as if its event had come; its condition applies, no other rule runs.
  *
@@ -108,7 +108,7 @@ export const stageItems = (node: GraphNode, content: Pick<LogicContent, "scenes"
         const scene = sceneOfTarget(content, target, at);
         const away = scene && scene !== where.scene ? `${target} is in ${sceneLabel(content, scene)}, not on the stage – open that scene to tap it.` : null;
         return [{
-          key: "stage:tap", label: "Tap on stage", detail: `the reader's tap on ${target} – every node of it hears tap, plugins targetTapped`,
+          key: "stage:tap", label: "Tap on stage", detail: `the reader's tap on ${target} – every node of it listens to tap, plugins targetTapped`,
           disabled: off ?? away, action: { kind: "tap", target },
         }];
       }
@@ -120,12 +120,12 @@ export const stageItems = (node: GraphNode, content: Pick<LogicContent, "scenes"
     }
     const event = node.label;
     const core = CORE.includes(event) ? `${event} is a core event – the engine emits it (find or tap a target, set a variable on the stage); a rule on it runs with Run this rule.` : null;
-    // The bus is one for the stage: what hears it is what the stage has built – the open scene's rules, the experience's, the plugins
+    // The bus is one for the stage: what listens to it is what the stage has built – the open scene's rules, the experience's, the plugins
     const elsewhere = at && at !== where.scene;
     const detail = elsewhere
-      ? `on the bus – the open scene's rules, the experience's and every plugin hear it; ${sceneLabel(content, at)}'s own rules are not on the stage`
-      : at ? "on the bus – the rules that hear it and every plugin; the Log marks it by hand"
-        : "on the bus – the open scene's rules, the experience's and every plugin hear it";
+      ? `on the bus – the open scene's rules, the experience's and every plugin listen to it; ${sceneLabel(content, at)}'s own rules are not on the stage`
+      : at ? "on the bus – the rules that listen to it and every plugin; the Log marks it by hand"
+        : "on the bus – the open scene's rules, the experience's and every plugin listen to it";
     return [
       { key: "stage:fire", label: "Fire on stage", detail, disabled: off ?? core, action: { kind: "fire", event, ask: false } },
       { key: "stage:fire-with", label: "Fire with a payload…", detail: "key: value pairs, as a plugin's emit sends them", disabled: off ?? core, action: { kind: "fire", event, ask: true } },
@@ -150,10 +150,10 @@ export const stageItems = (node: GraphNode, content: Pick<LogicContent, "scenes"
     if (!rule) return [];
     const words = rule.on
       ? `as if ${rule.on} came – ${rule.when?.trim() ? `its when (${rule.when.trim()}) applies` : "no when, it always runs"}; only this rule`
-      : "it hears nothing yet";
+      : "it listens to nothing yet";
     let away: string | null = null;
     const action = (home: Extract<StageAction, { kind: "run" }>["home"]): StageItem => ({
-      key: "stage:run", label: "Run this rule", detail: words, disabled: off ?? away ?? (rule.on ? null : "It hears no event yet – give it one first."), action: { kind: "run", home, rule: ref.rule, on: rule.on },
+      key: "stage:run", label: "Run this rule", detail: words, disabled: off ?? away ?? (rule.on ? null : "It listens to no event yet – give it one first."), action: { kind: "run", home, rule: ref.rule, on: rule.on },
     });
     if (ref.doc === "experience") return [action({ home: "experience" })];
     if (ref.doc === "scene") {

@@ -9,7 +9,7 @@ import type { GraphEdge, GraphNode, Home, View } from "./types";
  * it per new line (`liveHit`); the canvas draws the hit for a moment.
  *
  * - **An event** (any line: a core event, a plugin's, a rule's emit): every wire that carries it by name – into and out of
- *   its event box (emitters to the box, the box to the rules' `on` and the plugins' `hears`), a plugin's declared event pin
+ *   its event box (emitters to the box, the box to the rules' `on` and the plugins' `listens`), a plugin's declared event pin
  *   to the box, a bundled wire between two scenes or a stub that names it – and the event box itself.
  * - **`varChanged`** (its payload names the variable): the wires into and out of that variable – the rules' sets, its reads
  *   in conditions, a bundled wire or a stub that names it – and its box, with the new value (`values`).

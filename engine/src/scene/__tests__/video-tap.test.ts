@@ -70,7 +70,7 @@ describe("a video node and the reader's tap (#290)", () => {
     expect(element.muted).toBe(true);
     expect(element.paused).toBe(false);
 
-    // The scene's tap: sound back first, then the entity hears the tap
+    // The scene's tap: sound back first, then the entity listens to the tap
     restoreSound();
     expect(entity.onTap!()).toBe(true);
     endTap();

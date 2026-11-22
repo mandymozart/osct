@@ -35,8 +35,8 @@
 
   <h2 id="together">How they fit together</h2>
   <ul>
-    <li><b>One event bus and one set of variables.</b> A rule's <code>emit</code> is heard by a plugin's <code>api.events.on</code>; a plugin's <code>api.vars.set</code> is read by a rule's <code>when</code>.</li>
-    <li><b>Rules decide, plugins do.</b> A rule says <i>when the door is found and the reader has the key, emit <code>openDoor</code></i>. A plugin hears <code>openDoor</code> and swings the door over a second.</li>
+    <li><b>One event bus and one set of variables.</b> A rule's <code>emit</code> is listened to by a plugin's <code>api.events.on</code>; a plugin's <code>api.vars.set</code> is read by a rule's <code>when</code>.</li>
+    <li><b>Rules decide, plugins do.</b> A rule says <i>when the door is found and the reader has the key, emit <code>openDoor</code></i>. A plugin listens to <code>openDoor</code> and swings the door over a second.</li>
     <li><b>Reach for a rule first.</b> Write a plugin when a rule would need a verb it does not have.</li>
     <li><b>An agent edits the same content</b> through the same API as the editor: entities, rules as components, plugin sources. It saves drafts; you publish.</li>
   </ul>

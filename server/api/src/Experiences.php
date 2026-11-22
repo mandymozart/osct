@@ -711,7 +711,7 @@ final class Experiences
 
     /**
      * PUT /editor/experiences/{id}/logic { logic: { rules, canvas? } | null } → 200 { logic }: the experience's rules (content
-     * schema 5.0, #334, shared/types/logic.ts) – live for the whole session, across scene switches; they hear the bus and
+     * schema 5.0, #334, shared/types/logic.ts) – live for the whole session, across scene switches; they listen to the bus and
      * name nodes by address (`target:<targetId>/<node name>`), `goto` goes to `scene:<id>`. The canvas (the Logic view's
      * authoring data) is stored with them; a publish leaves it out. `null` removes the field. Shapes only (`Logic::check`,
      * 400 `invalid-logic`); the expressions are the editor's and the reader's guard's to check. Change kind `logic`.
@@ -1332,7 +1332,7 @@ final class Experiences
     {
         $row = Db::one('SELECT * FROM experiences WHERE id = :id' . ($lock ? Db::forUpdate() : ''), ['id' => $experienceId]);
         if (!$row) throw new ApiError(404, 'not-found', 'No such experience – import a configuration first.');
-        // An experience of an older content schema MAJOR is not read or written (Db::migrate turns every 4.x one into 5.0, Migration5, #334)
+        // An experience of an older content schema MAJOR is not read or written (Db::migrate turns every 4.x and 5.x one into 6.0, Migration5 and Migration6)
         if (!$anySchema && !Editor::isCurrentSchema((string) $row['content_schema'])) {
             throw new ApiError(409, 'old-schema', "The experience is of content schema {$row['content_schema']} – the editor reads " . Editor::CONTENT_SCHEMA . ': import a ' . Editor::CONTENT_SCHEMA_MAJOR . '.x configuration of it.', ['schema' => $row['content_schema']]);
         }
@@ -1408,7 +1408,7 @@ final class Experiences
         $fail = static fn(string $message) => throw new ApiError(400, 'invalid-configuration', $message);
         $version = $c->version ?? null;
         if (!$version instanceof stdClass || !is_string($version->schema ?? null) || !preg_match('/^\d+\.\d+$/', $version->schema)) $fail('version.schema must be "MAJOR.MINOR".');
-        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (convert a 4.x source with npm run convert:5 in scripts/).');
+        if (!Editor::isCurrentSchema($version->schema)) $fail("The configuration is of content schema {$version->schema} – the editor reads " . Editor::CONTENT_SCHEMA_MAJOR . '.x (a 5.x source: osct plugins listen --dir <folder>, then build it again; a 4.x one: npm run convert:5 first).');
         $experience = $c->experience ?? null;
         if (!$experience instanceof stdClass || !is_string($experience->id ?? null) || !is_string($experience->title ?? null)) $fail('experience needs id and title.');
         foreach (['author', 'publisher', 'sourceOfTruth'] as $key) {

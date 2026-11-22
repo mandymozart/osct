@@ -5,8 +5,8 @@ import type { LogicContent } from "../project";
 
 // Three scenes: Cover and Door in the group "Chapter 1", the Epilogue outside it. The key (Cover) sets hasKey for the
 // experience and emits keyRattled; the door (Door) shows its hint, with hasKey hides it and emits openDoor, and hides it
-// again on bellRang; the bell (Door) hears keyRattled, sets rung for the scene and emits bellRang; the Epilogue's end hears
-// openDoor and sceneChanged and reads rung, its entry's text reads hasKey. The narrative plugin hears openDoor, emits
+// again on bellRang; the bell (Door) listens to keyRattled, sets rung for the scene and emits bellRang; the Epilogue's end listens to
+// openDoor and sceneChanged and reads rung, its entry's text reads hasKey. The narrative plugin listens to openDoor, emits
 // doorOpened and sets doorOpen.
 const key: EntityData = {
   type: "model", assets: [],

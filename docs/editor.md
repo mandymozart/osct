@@ -446,7 +446,7 @@ Every save is a row of the change log (docs/server.md "Reverting saved changes")
 The **Logic** panel (the `nodes` icon; closed at first – the top bar's panels menu opens it) shows the experience's logic
 as a graph, from the draft (and the stage's live trees of the open scene), **one level at a time** (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md`
 §6): the **experience** (the groups, the scenes, the plugins, the variables set for the experience or the session and the
-core events the rules hear), a **group** (its scenes and what joins them), a **scene** and one target's **entity**. A
+core events the rules listen to), a **group** (its scenes and what joins them), a **scene** and one target's **entity**. A
 scene shows the **events** (a node's own `found` / `lost` / `tap` / `unlocked`, scene events, core events – pills), the
 **rules** of its `behaviour` components, the **variables** they read and set (dashed), the **nodes** they play, pause,
 stop, show or hide (filled) and the **plugins** on its nodes or touching its rules' names (a double frame). What a
@@ -482,12 +482,12 @@ Under the graph, the **issues bar** (#334, the SCUTOONS deck's Problems list and
 `logic/issues.ts`): the **problems** across the experience as one quiet line – a mark, the counts in the deck's words
 (*1 error · 2 warnings*) and, closed, the first issue truncated. A click opens the list (the state is remembered per
 browser session, `sessionStorage`); a row is one line: the mark, the box's name and the short words the box does not
-already say (*keyRattled · emitted, nothing hears it*; the whole sentence is its tooltip); errors first. A click on a row
+already say (*keyRattled · emitted, nothing listens to it*; the whole sentence is its tooltip); errors first. A click on a row
 marks its box on the canvas (the search's flash) and, for a scene's problem listed at the group or experience level, opens
 the scene's level first. **Errors** – something broken: a node an action names that is not there, a goto to a missing
 scene, a type the rule refuses – have the error colour (a filled dot, the box's red border); **warnings** – it never does
-anything: a variable read that nothing sets, an event heard that nothing emits, an event emitted that nothing hears, a
-rule that hears nothing – stay grey (a hollow ring, the box's border dashed; RULES #38). While a plugin's code is unknown
+anything: a variable read that nothing sets, an event listened to that nothing emits, an event emitted that nothing listens to, a
+rule that listens to nothing – stay grey (a hollow ring, the box's border dashed; RULES #38). While a plugin's code is unknown
 only the names a plugin could not set or emit are said. The level logic is pure and tested (`lib/logic/__tests__/`:
 `project`, `navigation` – the URL, enter, back, stubs, follow, search; `apply` – every op, its refusals, the by-name
 cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems; `canvas` – the
@@ -500,7 +500,7 @@ variable names and rules to wire and box ids once per flow; `liveHit` per line):
 
 - **An event** (a core event – `targetFound`, `sceneChanged` …, a plugin's, a rule's emit): every wire that carries it –
   into its event box (a rule's emit, a plugin's `emits`, a node's declared event pin) and out of it (the rules' `on`, a
-  plugin's `hears`), a bundled wire between scenes or a stub that names it (a derived edge carries its `names`) – and the
+  plugin's `listens`), a bundled wire between scenes or a stub that names it (a derived edge carries its `names`) – and the
   event box. A node's own `found` / `tap` box is no bus event: its rule's line lights it.
 - **`varChanged`** (the variable's name in its payload): the wires into the variable (sets) and out of it (the conditions'
   reads), a bundled wire or a stub that names it; its box pulses and shows the new value in its head (`= true`).
@@ -523,9 +523,9 @@ the items come from `logic/fire.ts` (`stageItems`, pure and tested), the panel a
 
 | Box | Item | What it does |
 |---|---|---|
-| A bus event | **Fire on stage**, **Fire with a payload…** | `Stage.fire(event, payload)` → `StageCore.fire`: the plugin API's `emit` as the stage (`runtimeApi("stage")`) – the open scene's and the experience's rules that hear it run, every plugin hears it. The payload is typed in the menu's field as `key: value` pairs (commas, new lines or ` · ` between them; each value JSON where it reads as JSON, else the text – `parsePayload`). On a hover-capable device a **▶** on the box's head fires it at once (CSS `@media (hover: hover)`). |
+| A bus event | **Fire on stage**, **Fire with a payload…** | `Stage.fire(event, payload)` → `StageCore.fire`: the plugin API's `emit` as the stage (`runtimeApi("stage")`) – the open scene's and the experience's rules that listen to it run, every plugin listens to it. The payload is typed in the menu's field as `key: value` pairs (commas, new lines or ` · ` between them; each value JSON where it reads as JSON, else the text – `parsePayload`). On a hover-capable device a **▶** on the box's head fires it at once (CSS `@media (hover: hover)`). |
 | A core event (`targetFound`, `varChanged`, `sceneChanged` …) | disabled | The engine emits it (the runtime refuses an `emit`): find or tap a target, set a variable – a rule on it runs with *Run this rule*. |
-| A node's own `tap` | **Tap on stage** | `Stage.tap(target)` – the reader's tap: every node of the target hears `tap`, the plugins `targetTapped`. Only while the target is found. `found`, `lost`, `unlocked` are the stage's hooks – disabled, run the rule instead. |
+| A node's own `tap` | **Tap on stage** | `Stage.tap(target)` – the reader's tap: every node of the target listens to `tap`, the plugins `targetTapped`. Only while the target is found. `found`, `lost`, `unlocked` are the stage's hooks – disabled, run the rule instead. |
 | A variable | **Set on stage…** | A value by its type (`logicTypes`): a boolean picks true / false, a number, integer or text is typed (`parseValue`); written with `Stage.setVar` as the Variables tab writes it (`varChanged`). Its scope: the stage's scope of it, else the declared one, else the scope its rules set it in, else `scene`. |
 | A rule | **Run this rule** | `Stage.runRule(home, index)` → the engine's `runRuleByHand` (`behaviour.ts`): the rule's actions as if its `on` came – **its when applies** (false: nothing runs, the panel says so), no other rule of that event runs. A node's rule is found by its target and its node's name (the engine knows no path): two nodes of one name with rules in a target are refused. |
 
@@ -534,11 +534,11 @@ what it set off; `parseDetail` skips it, so Trace lights it as any line). Only t
 **Restart** on the stage resets it. Read-only levels allow it (a test, not an edit). Disabled with the reason while the
 stage does not run (`status` ≠ `running`), for a scene's or a node's rule whose scene is not on the stage, and for a node's
 `tap` there. An event box at another scene's level still fires – the bus is the stage's, so the open scene's rules, the
-experience's and the plugins hear it, and the item's detail says that scene's own rules are not on the stage.
+experience's and the plugins listen to it, and the item's detail says that scene's own rules are not on the stage.
 
 **Scene and experience rules, goto** (content schema 5.0, #334 L-T5b): a scene's own rules (`scene.logic`) are boxes of
 its scene level (*scene rule 1*, a click selects the scene – its rules are in its Inspector), the experience's
-(`experience.logic`) boxes of the experience level (*experience rule 1*, a click selects the experience). They hear the bus
+(`experience.logic`) boxes of the experience level (*experience rule 1*, a click selects the experience). They listen to the bus
 (a scene event or a core event – never a node's own `found` / `tap`), and their node actions reach a node by address
 (`target:<id>/<name>`): a scene rule's wire runs to the node box of its own scene; an experience rule's to the box of the
 scene that holds the target (the experience level shows no nodes). A **goto** (`scene:<id>`) is a dash-dot wire (signal
@@ -557,7 +557,7 @@ new trees, the changed rule lists and what happened in words, or a refusal with 
 op). The rule grammar is the Inspector's (`behaviour-edit.ts`); nothing is written another way, and every expression an op
 writes is type-checked first (B8).
 
-- **Connect** – a drag from a port to a port: an event's outlet into a rule's **on** makes the rule hear that event (the
+- **Connect** – a drag from a port to a port: an event's outlet into a rule's **on** makes the rule listen to that event (the
   name is written into `on` – the bus stays by name, L6; a node's own `found` / `tap` … only for its own node's rules); a
   variable into **when** appends a term to the condition with `&&` – a true / false (or untyped) variable its name, any
   other `name == <its declared default, else a typed placeholder: 0, "">` (the words say so: change the value in the
@@ -571,10 +571,10 @@ writes is type-checked first (B8).
   `&&` / `||` chain (`hasKey && tries > 2` → `hasKey`; the variable alone → *always*) – a variable deeper in the
   expression is refused with *edit the condition in the Inspector*; an action's wire (a goto's stub too) the action; on a
   selected rule the rule. Cutting a
-  rule's **on** leaves it empty: the rule hears nothing, and the panel lists it as a problem (*Door · rule 3 hears nothing –
+  rule's **on** leaves it empty: the rule listens to nothing, and the panel lists it as a problem (*Door · rule 3 listens to nothing –
   wire an event to its on*) until an event is wired to it again (3.21.1). A wire that only **joins by name** (`home: null`:
   a stub *hasKey ← set in Cover*, *keyRattled ← emitted in Cover*) removes the name from the listening side here – the rules
-  of this level no longer read or hear it – and the words say that it is still set or emitted there; one whose listening
+  of this level no longer read or listen to it – and the words say that it is still set or emitted there; one whose listening
   side is another scene or a plugin's code, and a derived goto between scenes, are refused with the reason. Delete and
   Backspace in the panel never reach the workspace.
 - **The menu** – a right click on the empty canvas, the panel's **+**, or a node type dragged from the Library's **Nodes**:
@@ -583,12 +583,12 @@ writes is type-checked first (B8).
   from the Library) – where it goes is the breadcrumb's. Each row is one line: the thing chosen on the left (`keyRattled`,
   `when hasKey`, `goto 3–4`, `set hasKey = true`), its type on the right as the legend draws it (the signal's pin and
   colour – `SignalPin.svelte`, the legend's own – and a word: event, condition, action, node rule …); the detail is the
-  row's tooltip. An **event** makes a new rule hearing it on the selected node (picked on the canvas or in the tree; on a
+  row's tooltip. An **event** makes a new rule listening to it on the selected node (picked on the canvas or in the tree; on a
   target's level its own; on the scene level with no node selected the scene's own, on the experience level the
   experience's – they offer bus events only). An **action** (play / pause / stop / show / hide a named node of the rule's
   subtree or, for a scene rule, an address of its scene's targets; set a variable to a typed value; emit an event; **goto**
   a scene) or a **condition** term goes to the rule selected on the canvas – and with **no rule selected** to a **new
-  rule** on the same place that hears its first event (`firstEvent`: a node's rule `found` – the target is seen –, a
+  rule** on the same place that listens to its first event (`firstEvent`: a node's rule `found` – the target is seen –, a
   scene's or the experience's `sceneChanged` – the scene opens; the header says which, e.g. *Actions – a new rule on
   found*); wire another event to its on to change it. Only what cannot be made on the canvas stays a grey line: a node
   (the tree), a plugin (Code), a scene or a group (Scenes); on the experience level the node verbs (pick the node in the
@@ -598,8 +598,8 @@ writes is type-checked first (B8).
   and *Delete the rule*; on a wire *Disconnect*.
 - **A wire let go on the empty canvas** (over no pin, #334) opens the same menu at the drop point, listing what can be
   made **and wired to that port** – by the rules of the strict connect (`wireChoices`): from a rule's **+** an action
-  (to that rule), back from its **on** an event to hear (`setEvent`), from its **when** a condition; from an event's outlet
-  a new rule hearing it (on the selected node and on the scene); back from an event's inlet a new rule emitting it (not a
+  (to that rule), back from its **on** an event to listen to (`setEvent`), from its **when** a condition; from an event's outlet
+  a new rule listening to it (on the selected node and on the scene); back from an event's inlet a new rule emitting it (not a
   core event); from a variable a new rule reading it, back from its *set* one setting it; from a node's verb inlet a new
   rule acting on it (its own rule, or the scene's by address); at the experience level from a scene's *arrives* a goto.
   A value inlet no rule action writes yet (a parameter, a file) is a grey line with the reason. The new box – the rule,
@@ -611,8 +611,8 @@ writes is type-checked first (B8).
   or a variable stays). Panning moves to the **middle button**, **Space + drag** and the wheel or the trackpad. Copy and
   paste are graph fragments (L-T16), not here yet.
 - **A plugin's pins and rows** (#334, Tilman 2026-11-21: *"ja nur anzeige ist gut"*): only a port whose other end is an
-  editable document stays a pin. **emits** (outlet) into a rule's **on**: the rule hears one of the plugin's events;
-  a rule's **do** into **hears** (inlet): the rule emits one of the events the plugin hears (no core event). With several
+  editable document stays a pin. **emits** (outlet) into a rule's **on**: the rule listens to one of the plugin's events;
+  a rule's **do** into **listens** (inlet): the rule emits one of the events the plugin listens to (no core event). With several
   events a small menu picks one (the op's `event`); a wire let go on the empty canvas offers a new rule per event. What
   the code **reads**, **sets** and **drives** (a component, node type or material it registered) are **display rows** –
   plain text under a thin divider (*reads hasKey, scene*, *sets doorOpen*, *drives spin*), no pins – each name joined to
@@ -656,7 +656,7 @@ choice of what a box previews is L-T15).
   fade; one let go where it does not fit says why under the bar – *volume takes a number 0–1, not a text (mood)*. No
   conversion but whole number → number. **A wire still needs a field to land in** (L1): a rule's do (its **+** or an
   action's outlet) into an **action inlet** writes that verb on the node (re-aimed into another verb's inlet, the action
-  takes that verb); a node's **event outlet** into a rule's **on** makes the rule hear that event by name; a **parameter
+  takes that verb); a node's **event outlet** into a rule's **on** makes the rule listen to that event by name; a **parameter
   inlet** is drawn and typed, but no rule action sets a component's parameter yet – the wire is refused with that reason
   (*set it in the Inspector*); a **file inlet** waits for file nodes on the canvas (L-T12).
 - **A plugin's bus use** is what its specs declare (`uses`, `events` – recorded in `registered`, schema 5.1); a plugin box
@@ -1452,7 +1452,7 @@ first names), the scene's open at first, *set* closed:
   type's control – *false / true*, a ScrubNumber (committed when you let go or press Enter), a text field – and × to
   delete it. **set** below sets one by hand: a name, the scope (scene, stage, session, experience – the plugin API's four),
   the type and the value. Both write through the plugin API (`api.vars.set` with the panel as the plugin), so the
-  plugins hear `varChanged` as from a plugin and a branch can be tested without playing up to it; the API's refusal (a
+  plugins listen to `varChanged` as from a plugin and a branch can be tested without playing up to it; the API's refusal (a
   name that is not camelCase) shows next to *reset*. **reset** starts a new game (every variable cleared, nothing
   unlocked, the timeline emptied, the scene found anew).
 
@@ -1476,7 +1476,7 @@ first names), the scene's open at first, *set* closed:
   are kept.
 - **behaviour** – a rule of a `behaviour` component that ran (#88): the target, the node's name, the rule's number, its
   event and what it did (`play rattle · set hasKey = true (experience) · emit keyRattled`) – the log's own line, not an
-  event of the stage (plugins never hear it); the events its actions caused follow above it. A scene's or the
+  event of the stage (plugins never listen to it); the events its actions caused follow above it. A scene's or the
   experience's rule names its home instead (`home: "scene" · scene: "door" · rule: 0 …`). A **goto** line is a rule
   asking for another scene (`ArSceneOptions.navigate`): the stage stays on its scene – following it would leave the
   author's open scene behind – and the line's link (*open Epilogue*) opens that scene as the Scenes panel does.

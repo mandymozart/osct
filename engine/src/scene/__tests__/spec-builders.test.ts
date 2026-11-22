@@ -55,11 +55,11 @@ describe("the builders write today's parameter objects", () => {
 
 describe("actions, events and uses in the spec", () => {
   it("are checked: node verbs, camelCase names, no core event emitted", () => {
-    expect(componentSpecProblems("hum", { description: "", params: {}, actions: ["play", "explode"], events: ["ended", "targetFound"], uses: { hears: ["doorOpened"], emits: ["sceneChanged"], sets: ["x-y"], foo: [] } })).toEqual([
+    expect(componentSpecProblems("hum", { description: "", params: {}, actions: ["play", "explode"], events: ["ended", "targetFound"], uses: { listens: ["doorOpened"], emits: ["sceneChanged"], sets: ["x-y"], foo: [] } })).toEqual([
       "hum.actions: explode is no rule verb a node answers (play, pause, stop, show, hide)",
-      "hum.events: targetFound is the engine's own event – a spec hears it, never emits it",
-      "hum.uses.foo: unknown field (hears, emits, reads, sets)",
-      "hum.uses.emits: sceneChanged is the engine's own event – a spec hears it, never emits it",
+      "hum.events: targetFound is the engine's own event – a spec listens to it, never emits it",
+      "hum.uses.foo: unknown field (listens, emits, reads, sets)",
+      "hum.uses.emits: sceneChanged is the engine's own event – a spec listens to it, never emits it",
       "hum.uses.sets: \"x-y\" is no name (camelCase letters and digits)",
     ]);
     expect(nodeTypeSpecProblems("sparkle", { description: "", params: {}, events: "ended" })).toEqual(["sparkle.events: expected a list of names"]);
@@ -67,12 +67,12 @@ describe("actions, events and uses in the spec", () => {
 
   it("the guard checks them in a plugin's registered, and the declared uses are read from it", () => {
     const registered = {
-      components: { hum: { description: "", params: {}, actions: ["play"], events: ["ended"], uses: { hears: ["doorOpened"], sets: ["hummed"] } } },
+      components: { hum: { description: "", params: {}, actions: ["play"], events: ["ended"], uses: { listens: ["doorOpened"], sets: ["hummed"] } } },
       passes: { glow: { description: "", params: {}, uses: { reads: ["mood"] } } },
     };
     expect(registrationProblems(registered, "plugins[0].registered")).toEqual([]);
     expect(registrationProblems({ components: { hum: { description: "", params: {}, actions: ["fly"] } } }, "r")).toEqual(["r.components: hum.actions: fly is no rule verb a node answers (play, pause, stop, show, hide)"]);
-    expect(declaredUses(registered)).toEqual({ hears: ["doorOpened"], emits: ["ended"], reads: ["mood"], sets: ["hummed"] });
+    expect(declaredUses(registered)).toEqual({ listens: ["doorOpened"], emits: ["ended"], reads: ["mood"], sets: ["hummed"] });
     expect(declaredUses({ components: { spin: { description: "", params: {} } } })).toBeNull();
   });
 });
@@ -115,14 +115,14 @@ describe("the register functions infer the handler's types from the spec", () =>
 
 describe("the engine answers declared actions and events", () => {
   it("a rule's verb on the node reaches onAction of a component that declares it; emit sends only declared events", () => {
-    const heard: string[] = [];
+    const received: string[] = [];
     const sent: unknown[] = [];
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     installPlugin("fx", {
       register: api => {
         api.registerComponent("hum", { description: "", params: {}, actions: ["play", "hide"], events: ["ended"] }, ({ emit }) => ({
           onAction: action => {
-            heard.push(action);
+            received.push(action);
             emit("ended", { by: action });
             (emit as (event: string) => void)("other");
           },
@@ -136,7 +136,7 @@ describe("the engine answers declared actions and events", () => {
     } as EntityData), noAssets)!;
     entity.onTap?.();
     off();
-    expect(heard).toEqual(["play", "hide"]);
+    expect(received).toEqual(["play", "hide"]);
     expect(sent).toEqual([{ by: "play", targetId: "t" }, { by: "hide", targetId: "t" }]);
     expect(warn.mock.calls.map(c => String(c[0])).some(m => m.includes('emits "other", which its spec does not declare'))).toBe(true);
     // pause: nothing on the group answers it and it has no clip

@@ -152,7 +152,7 @@ describe("content compatibility", () => {
     expect(check(schema(app.major + 1, 0))).toMatchObject({ code: ErrorCode.NOT_SUPPORTED, type: "critical" });
     expect(check(schema(app.major + 1, 0))?.details?.[0]).toMatch(/update the app/);
     // Schema 5.0 (#334) reshaped every rule's condition into an expression: content older than MAJOR 5 is refused
-    expect(OLDEST_READABLE_SCHEMA_MAJOR).toBe(5);
+    expect(OLDEST_READABLE_SCHEMA_MAJOR).toBe(6);
     expect(check(schema(4, 3))?.details?.[0]).toMatch(/newer build/);
     expect(check(schema(3, 0))?.details?.[0]).toMatch(/newer build/);
     expect(check(schema(2, 36))?.details?.[0]).toMatch(/newer build/);

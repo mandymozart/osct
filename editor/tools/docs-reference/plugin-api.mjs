@@ -26,7 +26,7 @@ export const OUTPUT = "api/plugins/reference/index.html";
  */
 const SECTIONS = [
   { id: "api", title: "api", intro: "What `register(api)` gets. Everything else on this page hangs off it.", types: [["PluginApi", "api"]] },
-  { id: "events", title: "api.events", intro: "The stage's event bus. Core events are heard, never emitted.", types: [["PluginEvents", "api.events"], ["CoreEvents", null, "Core events and their payloads"]] },
+  { id: "events", title: "api.events", intro: "The stage's event bus. Core events are listened to, never emitted.", types: [["PluginEvents", "api.events"], ["CoreEvents", null, "Core events and their payloads"]] },
   { id: "vars", title: "api.vars", intro: "Variables in the four scopes: `scene`, `stage`, `session`, `experience`.", types: [["PluginVars", "api.vars"]] },
   { id: "progress", title: "api.progress", intro: "The reader's progress, read-only.", types: [["PluginProgress", "api.progress"]] },
   { id: "scene", title: "api.scene", intro: "The open scene and the others.", types: [["PluginScene", "api.scene"]] },

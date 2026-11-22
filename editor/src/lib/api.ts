@@ -158,12 +158,12 @@ export const authFetch: typeof fetch = (input, init = {}) => {
 /** Called when the session ended under the page (a 401 while signed in) – the session store registers it */
 let sessionEnded: (() => void) | null = null;
 
-/** Who hears that the session ended (`session.svelte.ts`); null: nobody */
+/** Who listens for the end of the session (`session.svelte.ts`); null: nobody */
 export const onSessionEnd = (handler: (() => void) | null): void => {
   sessionEnded = handler;
 };
 
-/** The session ended under the page: forgotten here, and the session store hears it */
+/** The session ended under the page: forgotten here, and the session store listens to it */
 const endSession = (): void => {
   setSession(null);
   sessionEnded?.();
@@ -171,7 +171,7 @@ const endSession = (): void => {
 
 /**
  * A 401 to a call sent while signed in means the session is gone (expired, signed out elsewhere – the reader shares the
- * cookie –, the account's roles revoked): the session store hears it. Not when another sign-in happened meanwhile, nor
+ * cookie –, the account's roles revoked): the session store listens to it. Not when another sign-in happened meanwhile, nor
  * when the call was sent signed out – then a 401 is only "not signed in".
  */
 const checkSession = (response: Response, sent: SessionKey | null): void => {

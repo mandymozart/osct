@@ -8,7 +8,7 @@ import {
 } from "@shared/guards/game-config";
 
 const valid = () => ({
-  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "5.0" },
+  version: { version: "1.0.0", timestamp: "2026-09-24T00:00:00.000Z", hash: "abc", schema: "6.0" },
   experience: { id: "osct", title: "Onion Skin & Crocodile Tears", book: { author: "Kévin Bray" } },
   initialScene: "scene1",
   scenes: [{ id: "scene1", label: "The Beginning", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
@@ -85,7 +85,7 @@ describe("game configuration guards", () => {
     config.scenes[0].logic.rules.push({ on: "found", when: { hasKey: true }, do: "show" });
     config.entities.castle.components[0].rules[0].do.goto = "scene:gone";
     expect(problemsOf(config)).toEqual([
-      "scenes[0].logic.rules[1].on: found is a node's own event – a scene's rule hears an event of the bus – a scene event's name (camelCase) or a core event (targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, arState, varChanged)",
+      "scenes[0].logic.rules[1].on: found is a node's own event – a scene's rule listens to an event of the bus – a scene event's name (camelCase) or a core event (targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, arState, varChanged)",
       'scenes[0].logic.rules[1].when: a condition is an expression since content schema 5.0 (hasKey && tries > 2) – the object form {"hasKey":true} is gone',
       "scenes[0].logic.rules[1].do: show alone acts on the rule's own node – a scene's rule has none: { show: target:<targetId>/<node name> }",
       'experience.logic.rules[0].do[0].goto: unknown scene "nowhere"',

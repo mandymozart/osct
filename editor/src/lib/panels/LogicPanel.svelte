@@ -55,9 +55,9 @@
    *   its words – or why it was refused – show for a moment under the bar. A scene's and the experience's rules (content
    *   schema 5.0, L-T5b) go to `logicEdit`, which saves them; the experience level edits the experience's own rules only,
    *   the group level is read-only.
-   * - What a plugin hears, emits, reads and sets is what its specs declare (schema 5.1, `declaredUses`); only for a plugin
+   * - What a plugin listens to, emits, reads and sets is what its specs declare (schema 5.1, `declaredUses`); only for a plugin
    *   that declares nothing it is read from its source (stored, else the compiled module).
-   *   On its box (#334, Tilman 2026-11-21) only `emits` and `hears` are pins – a wire to a rule's on, or from a rule's do,
+   *   On its box (#334, Tilman 2026-11-21) only `emits` and `listens` are pins – a wire to a rule's on, or from a rule's do,
    *   changes the rule (several events: a menu picks one); what it reads, sets and drives are display rows with dotted
    *   reference lines, and a click on them opens its code.
    *   Problems sit in the **issues bar** under the graph (`logic/issues.ts`, the SCUTOONS deck's Problems, more minimal): one
@@ -366,15 +366,15 @@
   /** Where the pointer last was on the panel: a wire to a plugin's pin opens its events' menu there */
   let pointer = { x: 0, y: 0 };
   /**
-   * A wire let go on a port that takes it: the connect op – at a plugin's emits or hears (#334) with more than one event,
+   * A wire let go on a port that takes it: the connect op – at a plugin's emits or listens (#334) with more than one event,
    * the menu of its events first (the wire picks one)
    */
   const connectWire = (from: [string, string], to: [string, string]) => {
     const ends = [from, to].map(([id, port]) => ({ node: view.nodes.find(n => n.id === id), port }));
-    const end = ends.find(e => e.node?.kind === "plugin" && (e.port === "emits" || e.port === "hears"));
-    const names = end ? (end.port === "emits" ? end.node!.bus?.emits : end.node!.bus?.hears) ?? [] : [];
+    const end = ends.find(e => e.node?.kind === "plugin" && (e.port === "emits" || e.port === "listens"));
+    const names = end ? (end.port === "emits" ? end.node!.bus?.emits : end.node!.bus?.listens) ?? [] : [];
     if (names.length < 2) return run({ op: "connect", from, to });
-    const verb = end!.port === "emits" ? "hears" : "emits";
+    const verb = end!.port === "emits" ? "listens to" : "emits";
     menu = {
       at: { ...pointer }, head: `Which event – the rule ${verb} it`, add: null,
       items: names.map(name => ({ key: `event:${name}`, label: name, detail: `${end!.node!.label} ${end!.port}`, select: () => run({ op: "connect", from, to, event: name }) })),
@@ -611,7 +611,7 @@
     }
     if (action.kind === "tap") {
       const target = action.target;
-      void stage.tap(target).then(ok => say(ok ? `Tapped ${target} on the stage, by hand – its nodes heard tap. ${RESET}.` : `${target} is not found on the stage – show its target first.`, !ok));
+      void stage.tap(target).then(ok => say(ok ? `Tapped ${target} on the stage, by hand – its nodes got the tap. ${RESET}.` : `${target} is not found on the stage – show its target first.`, !ok));
       return;
     }
     if (action.kind === "set") {
@@ -761,7 +761,7 @@
       {/if}
     </div>
     <button bind:this={addButton} type="button" class="icon-button" disabled={!editable} onclick={plusMenu} aria-label="Add to the logic" title={editable ? "Add a rule, an action or a condition (or right-click the canvas)" : readOnlyHint ?? ""}
-      data-help-name="Add to the logic" data-help="Every type, by family: an event (a new rule hears it), a condition or an action – for the selected rule, or with no rule selected a new rule on found (a node) or sceneChanged (the scene, the experience) that carries it. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list; a wire let go on the empty canvas lists what can be made there and wired to it.">+</button>
+      data-help-name="Add to the logic" data-help="Every type, by family: an event (a new rule listens to it), a condition or an action – for the selected rule, or with no rule selected a new rule on found (a node) or sceneChanged (the scene, the experience) that carries it. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list; a wire let go on the empty canvas lists what can be made there and wired to it.">+</button>
     <button type="button" class="pill" disabled={!editable || !picked.some(id => view.nodes.some(n => n.id === id))} onclick={groupPicked}
       title={editable ? "Group the selected boxes (Ctrl+G) – Ctrl+Shift+G ungroups" : readOnlyHint ?? ""}
       data-help-name="Group" data-help="The selected boxes (Shift adds to the selection) get a frame of their own, as in the SCUTOONS deck: its chevron folds it to a pill, its swatch takes the next colour, a click on its name renames it. A click on the frame's head selects the group's boxes (Shift adds them); a right click on it, or on a folded group's pill, opens its menu – select, rename, colour, fold, Ungroup. Ctrl+Shift+G ungroups the groups of the selected boxes; the boxes stay where they are. A box sits in one group at most. Notes: right-click the canvas or a box and Add note, or press N over the canvas.">Group</button>
@@ -788,7 +788,7 @@
     {/each}
     {#if never}
       <span class="wire never" data-help-name="Never fires"
-        data-help="An event between two scenes: the engine builds the rules of the open scene only, so an event a rule emits in one scene never reaches another scene's rules. Plugins hear every scene."><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>never fires</span>
+        data-help="An event between two scenes: the engine builds the rules of the open scene only, so an event a rule emits in one scene never reaches another scene's rules. Plugins listen to every scene."><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>never fires</span>
     {/if}
   </div>
   {#if status}
@@ -818,7 +818,7 @@
     <section class="issues small" class:open={issuesShown} aria-label="Issues">
       <button type="button" class="issues-line" aria-expanded={issuesShown} onclick={toggleIssues}
         title={issuesShown ? "Hide the issues" : "Show the issues"}
-        data-help-name="Issues" data-help="What is wrong with the logic, across the experience: errors (a name that is not there, a type the rule refuses – in the error colour) and warnings (an event nothing hears, a variable nothing sets – it never does anything). A click opens the list; a row marks its box and goes to its level.">
+        data-help-name="Issues" data-help="What is wrong with the logic, across the experience: errors (a name that is not there, a type the rule refuses – in the error colour) and warnings (an event nothing listens to, a variable nothing sets – it never does anything). A click opens the list; a row marks its box and goes to its level.">
         <span class="mark {issueErrors ? 'error' : 'warning'}" aria-hidden="true"></span>
         <span class="count">{issueSummary(issues)}</span>
         {#if !issuesShown}

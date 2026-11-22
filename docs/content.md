@@ -282,7 +282,7 @@ target:
 **Behaviour – rules without code** (content schema 2.19, #88): a node of any type may carry one `behaviour`
 component, a list of **rules**. Each rule reacts to an event (`on`), may ask for variables (`when`) and runs its
 actions (`do`) in order. It runs on the same event bus and variables as a plugin's code (`api.events`, `api.vars` –
-[plugins](plugins.md) "Across nodes and pages"), so rules and plugins hear each other.
+[plugins](plugins.md) "Across nodes and pages"), so rules and plugins listen to each other.
 
 ```yaml
 target:
@@ -319,7 +319,7 @@ target:
 `do` takes one action or a list; a plain word runs a verb on the own node: `do: play`, `do: hide`. Nodes are named with
 their `name` (schema 2.12) – the door's rules below show and hide its child `hint`. On one event every rule's condition
 is read first, then the rules that matched run in their order, so two rules can toggle a variable without the second
-undoing the first. A rule that emits an event other rules hear sets them off at once; a chain deeper than 8 events is
+undoing the first. A rule that emits an event other rules listen to sets them off at once; a chain deeper than 8 events is
 cut (logged). An action that cannot run – a node or a clip that is not there – is logged and the next one runs.
 
 ```yaml
@@ -373,7 +373,7 @@ variables, which no rule sets and nobody declares, stay untyped. The entries' `{
 
 **A scene's and the experience's rules** (content schema 5.0, #334): the same rules on a scene (`logic:` in
 `scene.yaml` – live while the scene is open) and on the experience (`logic:` in `experience.yaml` – live for the whole
-session, across scene switches). They hear the stage's bus only – a scene event or a core event (`targetFound`,
+session, across scene switches). They listen to the stage's bus only – a scene event or a core event (`targetFound`,
 `targetUnlocked`, `targetTapped`, `sceneChanged`, `varChanged`, …), never a node's own `found` / `lost` / `tap` /
 `unlocked` – and they have no node of their own: `show`, `hide`, `pause`, `stop` and `play`'s `node` name a node by
 address, and a plain word (`do: hide`) is not allowed. A scene's rules act on its own targets only (only the open scene's
@@ -417,7 +417,7 @@ and a publish leave it out.
 
 The editor's Inspector edits the rules without YAML ([editor](editor.md)), and the **Log** tab there shows
 each rule that ran. What a rule cannot do – move a node over time, draw text, count the progress – is a plugin's job;
-the demo's `door` plugin hears the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
+the demo's `door` plugin listens to the rule's `openDoor` and lifts the door ([plugins](plugins.md) "Behaviour and plugins").
 Variables are not declared yet: a rule names them, a missing one is *not set* (`null`).
 
 **Plugins – the experience's own code** (content schema 2.4): a folder `content/plugins/<id>/` with an `index.ts` that
@@ -1039,7 +1039,7 @@ Then look at the result in the app – see the quick start in the [README](../RE
 
 The content schema (`CONTENT_SCHEMA_VERSION`, `shared/types/game-config.ts`) and the app version are separate
 (`agents/RULES.md` #10): the schema says what an app can read, the app version says what was released. An app reads
-every MINOR of its schema MAJOR and every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` (3 since schema 3.0: no
+every MINOR of its schema MAJOR and every older MAJOR down to `OLDEST_READABLE_SCHEMA_MAJOR` (6 since schema 6.0, #341 – 3 at schema 3.0: no
 reader of 2.x content was shipped, #319); content of a newer MAJOR, or of a MAJOR below that, is refused at startup.
 
 **A MINOR never breaks an older app** (#220). An app reading an experience of a newer MINOR loads it without what it does not
@@ -1114,10 +1114,11 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 4.1 | 3.11.0 | in develop | a target's optional `recognition` (#306): `{ imageSrc, width, height }` – its grey recognition frame made ahead with `osct targets prepare` and the printed image's size ("Recognition" above) | ignored: the app makes the frame from the target's image itself, as before |
 | 4.2 | 3.12.0 | in develop | the switch between the recognition paths (#306, "Recognition" above): the experience's optional `recognition` (`"original"` – none, the default – or `"prepared"`; any other text reads as original) and a target's optional `recognitionOff` (`true`: always its printed image) | ignored: a 4.1 app (3.11.x) uses a target's `recognition` wherever it has one; an app before 4.1 makes every frame itself |
 | 4.3 | 3.16.0 | in develop | media in quality levels (#331, "Pictures, videos and sounds in quality levels" above): an image, video or audio asset's optional `levels` and an entry's optional `imageLevels` – `[{ level, src }]`, a picture by its longest side (512 / 1024 / 2048), a video by its height (480 / 720 / 1080), a sound by kbps (64 / 128 / 192); the reader's media quality chooses | ignored: a 4.2 app loads the medium's own `src` / `image`, as before |
-| 5.0 | 4.0.0 | in develop | **logic beyond the nodes** (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a rule's `when` is an expression (`hasKey && tries > 2` – the language of the entries' `{…}` texts) – the object form (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) is removed; a scene's and the experience's optional `logic` (`{ rules, canvas? }`: rules in the behaviour's grammar that hear the bus and name nodes by address `target:<targetId>/<node name>`); the action `goto: scene:<id>` in every rule; a `set` value is an expression (a text value is the literal `"…"`); typed variables – the experience's optional `variables` (`{ name: { type, scope?, default? } }`), else inferred from the first set, a wrong type a problem and refused at runtime. The canvas is authoring data – never in a reader's configuration. A content source is converted once with `npm run convert:5`, the server's rows by `Migration5` (on the deploy's `Db::migrate`; a dry run: `php server/deploy/migrate.php --plan-5`) | refused: an app since 5.0 reads 5.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 5); a 4.x app refuses 5.0 content – published 4.x versions must be published again after the migration |
+| 5.0 | 4.0.0 | in develop | **logic beyond the nodes** (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md` §5.4): a rule's `when` is an expression (`hasKey && tries > 2` – the language of the entries' `{…}` texts) – the object form (`{ hasKey: true }`, `{ any: … }`, `{ not: … }`) is removed; a scene's and the experience's optional `logic` (`{ rules, canvas? }`: rules in the behaviour's grammar that listen to the bus and name nodes by address `target:<targetId>/<node name>`); the action `goto: scene:<id>` in every rule; a `set` value is an expression (a text value is the literal `"…"`); typed variables – the experience's optional `variables` (`{ name: { type, scope?, default? } }`), else inferred from the first set, a wrong type a problem and refused at runtime. The canvas is authoring data – never in a reader's configuration. A content source is converted once with `npm run convert:5`, the server's rows by `Migration5` (on the deploy's `Db::migrate`; a dry run: `php server/deploy/migrate.php --plan-5`) | refused: an app since 5.0 reads 5.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 5); a 4.x app refuses 5.0 content – published 4.x versions must be published again after the migration |
 | 5.1 | 4.1.0 | in develop | **ports from the specs** (#334 L-T6, plugin API 3.1, [plugins](plugins.md) "Typed specs and the Logic view"): a plugin's recorded spec (`registered` – components, node types, passes, materials, textures, looks) may carry `actions` (the rule verbs it answers: `play`, `pause`, `stop`, `show`, `hide`), `events` (the scene events it emits) and `uses` (`{ hears, emits, reads, sets }` of the bus and the variables); a number parameter `slider` (its soft range inside `min … max`) and `integer`; a logic canvas `exposed` (box id → port ids). The editor's Logic view draws a node's ports from the specs and prefers the declared uses over reading a plugin's code | ignored: a 5.0 app reads a recorded spec's kinds and parameters only (a whole-number or slider field is not checked there); a canvas never reaches a reader |
 | 5.2 | 4.6.0 | in develop | **the deck's canvas** (#334 L-T7, [editor](editor.md) "The deck's canvas"): a logic canvas may carry `positions` (box id → `{ x, y }`: boxes pinned over the automatic layout, on the 1rem grid) and a canvas group `colour` (`#rrggbb`) and `folded` (true: drawn as one pill). Authoring data only – the editor's database and its export carry it, the content build and a publish leave the canvas out | not touched: a canvas never reaches a reader |
 | 5.3 | 4.11.0 | in develop | **notes on the Logic canvas** (#334, [editor](editor.md) "Notes"): a canvas note may carry `box` (it stands beside that box; its `x`, `y` are then the offset from the box), `author` (who wrote it) and `view` (the target's level of a scene's canvas it belongs to: `<target>` or `<target>/<node path>`). Authoring data only, like 5.2 | not touched: a canvas never reaches a reader |
+| 6.0 | 6.0.0 | in develop | **listen, not hear** (#341, plugin API 4.0 – Tilman, 2026-11-21: *"you use the word hear for events. i think it is listen"*): a plugin's recorded spec names what its code listens to `uses.listens` (was `uses.hears`: `{ listens, emits, reads, sets }`). A plugin source is rewritten with `osct plugins listen` (`--dir <content folder>`; `--experience <id>` / `--all` the instance's database through the editor API, `--dry-run` first), the server's rows by `Migration6` (the deploy's `Db::migrate`: 5.x experiences → 6.0, the declared plugins' recorded `uses`; a dry run: `php server/deploy/migrate.php --plan-6`) | refused: an app since 6.0 reads 6.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 6) and refuses plugins built against plugin API 3.x; a 5.x app refuses 6.0 content – every published experience is published again after the migration |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

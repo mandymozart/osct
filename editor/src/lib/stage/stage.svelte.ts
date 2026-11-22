@@ -405,7 +405,7 @@ export class Stage {
     return this.core.setVar(name, value, scope);
   }
 
-  /** Fire an event on the bus by hand (the Logic panel, #334): rules and plugins hear it, the Log marks it *by hand*. The refusal as text, null when fired */
+  /** Fire an event on the bus by hand (the Logic panel, #334): rules and plugins listen to it, the Log marks it *by hand*. The refusal as text, null when fired */
   fire(event: string, payload?: Record<string, unknown>): string | null {
     return this.core.fire(event, payload);
   }
