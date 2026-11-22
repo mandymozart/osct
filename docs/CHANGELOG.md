@@ -7,13 +7,22 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+
+## 6.3.1 – 2026-11-22
+
+### Fixed
+- **The Experiences page: a click on a book opens it again** (Tilman, 2026-11-22, #348: *"primary action on the
+  experience should still be to open the right experience. the ... were supposed to reveal the other options"*): the
+  cover (or Enter) opens the editor; only its **···** shows the sheet on the right (Export, Replace…, Versions) and closes
+  it again. The arrows move the focus; an open sheet follows.
+
 ## 6.3.0 – 2026-11-22
 
 ### Changed
 - **The Experiences page: the books on the left, a context column on the right** (Tilman, 2026-11-22, #348: *"new is more
   of a step by step … under the three dots under each experience one can select export, replace, versions … nothing is
   clicked, the right side shows cards new experience and import and last worked on. so we use it as quick access menu"*):
-  each experience's cover with a **···** under it and a dashed **+** card; a click **selects** a book (outlined) and the
+  each experience's cover with a **···** under it and a dashed **+** card; its **···** selects a book (outlined; a click on the cover opens it – 6.3.1) and the
   column shows its **sheet** – a double click or Enter opens it in the editor, the arrows move the selection, Esc clears it.
   With nothing selected the column is **quick access**: *New experience*, *Import* and **Last worked on** – the newest
   places across the instance's experiences from the server's change history (book · scene · entry or panel · when · who),

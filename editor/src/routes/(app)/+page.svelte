@@ -18,9 +18,10 @@
    * The editor's start (#153, #348 – Tilman 2026-11-22: "the right side is still smart"): **the books** on the left – each
    * experience as its cover (title, author, where it is live) with a ··· under it, and a dashed **+** card at the end –,
    * the AI connections under them (#142, #194); **a context column** on the right: nothing selected → quick access (New
-   * experience, Import, Last worked on); New → the New flow step by step; a book selected (a click or its ···) → its
-   * sheet (Open, Export, Replace…, Versions with make live). A click selects, a double click or Enter opens the editor;
-   * the arrows move the selection, Esc clears it. The ☰ menu's *New experience…* and *Import…* open the New flow.
+   * experience, Import, Last worked on); New → the New flow step by step; a book's ··· → its sheet (Open, Export,
+   * Replace…, Versions with make live; the ··· again closes it). A click on the cover or Enter opens the editor (Tilman
+   * 2026-11-22: "primary action on the experience should still be to open"); the arrows move the focus – an open sheet
+   * follows –, Esc closes the sheet. The ☰ menu's *New experience…* and *Import…* open the New flow.
    */
   let experiences = $state<ExperienceSummary[] | null>(null);
   let unreadable = $state<EnvironmentUnreadable[]>([]);
@@ -98,7 +99,7 @@
     if (to === null || to === index) return;
     event.preventDefault();
     const id = cards[to].dataset.card!;
-    if (id !== "new") select(id);
+    if (id !== "new" && column === "book") select(id);
     void focusCard(to);
   };
 
@@ -126,9 +127,8 @@
       <ul class="covers" bind:this={grid} onkeydown={onGridKey} aria-label="Experiences">
         {#each experiences as experience (experience.id)}
           <li class:selected={selected === experience.id}>
-            <button type="button" class="experience" data-card={experience.id} aria-pressed={selected === experience.id}
-              onclick={() => select(experience.id)} ondblclick={() => open(experience.id)}
-              title="A click selects – its sheet opens on the right; a double click or Enter opens the editor">
+            <button type="button" class="experience" data-card={experience.id}
+              onclick={() => open(experience.id)} title="Open in the editor">
               <span class="cover-box"><ExperienceCover {experience} /></span>
               <span class="title">{experience.title}</span>
               {#if experience.experience.book}<span class="author muted">{experience.experience.book.author}</span>{/if}
@@ -137,7 +137,7 @@
               </span>
             </button>
             <button type="button" class="icon-button more" aria-label="More: {experience.title}" title="Export, Replace, Versions"
-              onclick={() => select(experience.id)}><Icon name="more" /></button>
+              aria-expanded={selected === experience.id} onclick={() => select(selected === experience.id ? null : experience.id)}><Icon name="more" /></button>
           </li>
         {/each}
         <li class="new-card">
