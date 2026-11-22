@@ -207,18 +207,27 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
-## 2026-11-22 – White label becomes an XR experience provider platform; first use case free poster XR (#347)
+## 2026-11-22 – Animus XR: an XR experience provider product of Tilman's own, white label; first use case free poster XR (#347)
 
 Tilman: *"think xr experience provider platform here with free versions having certain limitations. first use case,
-via qr.viennastruggle.at I want to provide free poster xr. we can use the platform to host it."* – and: *"if a
-experience is free it is branded by our own brand as marketing so people create their own"*.
-- This moves STRATEGY.md's "no platform / contracted, not self-service" – STRATEGY needs updating once the decisions
-  below are taken.
-- Mock-ups: `agents/design/white-label.html` (11 frames: overview, brand editor, reader per brand, free = our brand,
+via qr.viennastruggle.at I want to provide free poster xr. we can use the platform to host it."* – *"if a experience
+is free it is branded by our own brand as marketing so people create their own"* – *"maybe as provider we can use
+scutoons since it is called scutoons animus xr anyhow … xr.scutoons.com. we run our own db and cdn for this one so
+anyone hosting scutoons with us gets data delivered from there. we run on a shared hoster like staging."* – *"we might
+even have to come up with our own domain. maybe animusxr.com is fine or an equivalent"* – *"important it is a product
+provided by me, and a white label solution which i can also integrate into other products of myself."*
+- The model in the drafts: **Animus XR** is Tilman's product (white label; core scutoons-animus-xr). One DB and CDN of
+  its own on a shared hoster like staging (the "Animus XR cloud"); his products are hosts on it – `xr.scutoons.com`,
+  `qr.viennastruggle.at` (free poster XR, the first use case), `animusxr.com` – each domain a CNAME, the host picks
+  the brand. Free experiences carry the host product's brand ("made with Scutoons" / Vienna Struggle / Animus XR).
+  Clients with their own instance (Building Fictions) see no trace of it.
+- This moves STRATEGY.md ("no platform until demand", "Scutoons as the second instance") – update it once decided.
+- Mock-ups: `agents/design/white-label.html` (11 frames: overview, brand editor, reader per brand, free = host brand,
   access, ownership and domains, QR codes, newsletters, arrival landing, plans and limits, poster XR).
-- [ ] Open (Tilman): free tier as its own instance on `qr.viennastruggle.at`; free limits; paid plans now or later;
-  roles per experience; own domains per experience; newsletter lists per experience; creator sign-up open or invited;
-  moderation – each frame's "Decide" note. Plus the nine decisions of `agents/research/2026-11-22-white-label-branding.md` §5.
+- [ ] Open (Tilman): product name and domain (`animusxr.com` or an equivalent – availability not checked); one DB for
+  all host products or one each; free limits; paid plans now or later; roles per experience; own domains per
+  experience; newsletter lists per experience; creator sign-up open or invited; moderation – each frame's "Decide"
+  note. Plus the nine decisions of `agents/research/2026-11-22-white-label-branding.md` §5.
 
 ## 2026-11-22 – Publish is one overlay: confirm, running, done; the rest behind Details (6.2.4, #345)
 
