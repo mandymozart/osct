@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { beforeNavigate } from "$app/navigation";
   import { onMount, tick } from "svelte";
   import {
     errorText, getDraftManifest, getPublishJob, latestPublishJob, listExperiences, listEnvironments, publishExperience,
@@ -38,6 +39,19 @@
   /** The outcome could not be learned (the server stopped answering) – said as such, not as an error */
   let unknown = $state<string | null>(null);
   let stepElement = $state<HTMLElement | null>(null);
+
+  /* While a publish runs (Tilman, 2026-11-22): the step is an overlay over the whole page, and leaving the page – a
+     reload, closing the tab, another page of the editor – asks first: on a host where the server cannot write on after
+     its answer, the editor's polls are what writes the rest (the archive pauses until someone looks again) */
+  $effect(() => {
+    if (!busy) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  });
+  beforeNavigate(navigation => {
+    if (busy && navigation.type !== "leave" && !confirm("A publish is still running. Leave this page? Readers already have the build once it is live; the rest is written when the editor looks again.")) navigation.cancel();
+  });
 
   const target = $derived(targetOf(info));
   const self = $derived(experiences.find(x => x.id === experienceId));
@@ -149,20 +163,25 @@
   {#if unknown && !step}<span class="small strong" title={unknown}>publish outcome unknown</span>{/if}
   {#if busy && job && !step}<span class="small muted done" title={jobLine(job)}>publishing {job.done} / {job.total}</span>{/if}
   {#if step}
+    {#if busy}<div class="overlay" aria-hidden="true"></div>{/if}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div class="step" role="dialog" aria-label="Publish" tabindex="-1" bind:this={stepElement} onkeydown={e => { if (e.key === "Escape") step = null; }}>
+    <div class="step" class:running={busy} role="dialog" aria-modal={busy} aria-label="Publish" tabindex="-1" bind:this={stepElement} onkeydown={e => { if (e.key === "Escape" && !busy) step = null; }}>
       <p class="head">{step.title}</p>
       <p>{step.build}</p>
       <p>{step.replaces}</p>
       {#if step.readers}<p class="strong">{step.readers}</p>{/if}
       {#if step.warning}<p class="danger" role="alert">{step.warning}</p>{/if}
-      {#if job && (busy || job.status !== "done")}<p class="progress" role="status" aria-live="polite">{jobLine(job)}</p>
+      {#if busy}
+        <p class="progress" role="status" aria-live="polite">{job ? jobLine(job) : "Starting the publish…"}</p>
+        {#if job?.total}<progress max={job.total} value={job.done}></progress>{:else}<progress></progress>{/if}
+        <p class="small muted">Keep this page open until it is done – leaving asks first.</p>
+      {:else if job && job.status !== "done"}<p class="progress" role="status" aria-live="polite">{jobLine(job)}</p>
         {#if job.total}<progress max={job.total} value={job.done}></progress>{/if}{/if}
       {#if unknown}<p class="strong" role="alert">{unknown}</p>{/if}
       {#if error}<p class="danger">{error}</p>{/if}
       <p class="actions">
         <button type="button" class="pill primary" onclick={publish} disabled={busy}>{busy ? "Publishing…" : step.action}</button>
-        <button type="button" class="text-link" onclick={() => (step = null)}>Cancel</button>
+        {#if !busy}<button type="button" class="text-link" onclick={() => (step = null)}>Cancel</button>{/if}
       </p>
     </div>
   {/if}
@@ -178,6 +197,9 @@
   .step .head { font-weight: 600; }
   .step .strong { font-weight: 600; }
   .step progress { width: 100%; height: .375rem; accent-color: var(--text); }
+  /* While it runs: over the whole page, the page dimmed behind it */
+  .overlay { position: fixed; inset: 0; z-index: 90; background: rgb(0 0 0 / .45); }
+  .step.running { position: fixed; z-index: 91; top: 50%; left: 50%; right: auto; transform: translate(-50%, -50%); width: min(28rem, calc(100vw - 2rem)); }
   .step .actions { display: flex; align-items: center; gap: .75rem; margin-top: .25rem; }
   @media (max-width: 47.9rem) {
     .live, .done { display: none; }
