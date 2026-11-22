@@ -486,7 +486,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("5.3");
+    expect(model.contentSchema).toBe("6.0");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");

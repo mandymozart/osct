@@ -9,7 +9,7 @@ import type { Context, GraphNode, View } from "../types";
 
 // Ports from the specs (#334 L-T6, research §5.9): one target whose tree holds a video, an image, a text and a model with a
 // plugin's component (hum: a volume, the verbs play / pause, the event ended). The root's rules show the caption and play the
-// model on found; a scene rule hears hummed.
+// model on found; a scene rule listens to hummed.
 const tree: EntityData = {
   type: "group", assets: [],
   children: [
@@ -23,9 +23,9 @@ const tree: EntityData = {
 
 const hum = {
   description: "Hums.", params: { volume: { kind: "number", default: 0.6, min: 0, max: 1, description: "How loud." } },
-  actions: ["play", "pause"], events: ["ended"], uses: { hears: ["doorOpened"], sets: ["hummed"] },
+  actions: ["play", "pause"], events: ["ended"], uses: { listens: ["doorOpened"], sets: ["hummed"] },
 };
-const plugins = [{ id: "audio", src: "/a.js", api: "3.1", registered: { components: { hum } } }] as unknown as PluginData[];
+const plugins = [{ id: "audio", src: "/a.js", api: "4.0", registered: { components: { hum } } }] as unknown as PluginData[];
 
 const base: LogicContent = {
   scenes: [{ id: "s", label: "Studio", targets: [{ id: "t", entity: tree }], rules: [{ on: "ended", when: null, do: [] }] }],
@@ -70,7 +70,7 @@ describe("ports from the specs", () => {
     expect(box(view, "node:t/1").preview).toBe("/pic.webp");
   });
 
-  it("an event a component declares is wired to the event's box where the level has one (the scene level hears ended)", () => {
+  it("an event a component declares is wired to the event's box where the level has one (the scene level listens to ended)", () => {
     const view = project(base, scene);
     expect(view.edges.find(e => e.from.join() === "node:t/3,ev:ended")).toMatchObject({ to: ["event:ended", "in"], signal: "event", home: null });
     expect(shown(box(view, "node:t/3"))).toEqual(["act:play", "ev:ended"]);
@@ -147,19 +147,19 @@ describe("connecting is strictly typed (B8) and lands in a document field (L1)",
     expect(connect(["rule:t/#0", "do"], ["node:t/0", "src"])).toEqual({ ok: false, reason: "clip's file takes a video file, not a rule's action – files on the canvas come later; pick the file in the Inspector." });
   });
 
-  it("a node's event outlet into a rule's on makes the rule hear that event by name", () => {
+  it("a node's event outlet into a rule's on makes the rule listen to that event by name", () => {
     const result = connect(["node:t/3", "ev:ended"], ["rule:t/#0", "on"]);
     if (!result.ok) throw new Error(result.reason);
-    expect(result.words).toMatch(/now hears ended \(was found\) – by name, from whatever emits it\.$/);
+    expect(result.words).toMatch(/now listens to ended \(was found\) – by name, from whatever emits it\.$/);
     expect(connect(["node:t/3", "ev:ended"], ["node:t/0", "act:show"])).toEqual({ ok: false, reason: "show takes a rule's action, not an event (ended)." });
   });
 });
 
 describe("a plugin's declared bus use wins over reading its code", () => {
   it("uses its specs' uses and events; the code's regex only for a plugin that declares nothing", () => {
-    expect(pluginUses(base).audio).toEqual({ hears: ["doorOpened"], emits: ["ended"], reads: [], sets: ["hummed"] });
-    const undeclared = { ...base, plugins: [{ id: "audio", src: "/a.js", api: "3.1", registered: { components: { hum: { description: "", params: {} } } } }] } as unknown as LogicContent;
-    expect(pluginUses(undeclared).audio).toEqual({ hears: ["other"], emits: [], reads: [], sets: ["legacy"] });
+    expect(pluginUses(base).audio).toEqual({ listens: ["doorOpened"], emits: ["ended"], reads: [], sets: ["hummed"] });
+    const undeclared = { ...base, plugins: [{ id: "audio", src: "/a.js", api: "4.0", registered: { components: { hum: { description: "", params: {} } } } }] } as unknown as LogicContent;
+    expect(pluginUses(undeclared).audio).toEqual({ listens: ["other"], emits: [], reads: [], sets: ["legacy"] });
     const view = project(base, { level: "experience" });
     expect(view.nodes.find(n => n.id === "plugin:audio")?.detail).toBe("plugin · declared");
     expect(view.nodes.some(n => n.id === "var:hummed")).toBe(true);

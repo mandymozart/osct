@@ -78,16 +78,16 @@ describe("behaviour: events and actions", () => {
   it("a tap plays a clip, sets a variable in its scope and emits a scene event to the bus", () => {
     const { timeline, calls } = fakeTimeline();
     const node = group({ components: [behaviour([{ on: "tap", do: [{ play: "rattle" }, { set: { hasKey: true }, scope: "experience" }, { emit: "keyRattled" }] }])] });
-    const heard: unknown[] = [];
+    const received: unknown[] = [];
     let plugin: PluginApi | null = null;
-    installPlugin("listener", { register: api => { plugin = api; api.events.on("keyRattled", payload => heard.push(payload)); } });
+    installPlugin("listener", { register: api => { plugin = api; api.events.on("keyRattled", payload => received.push(payload)); } });
     const instance = applyBehaviour({ node, target: target("key"), nodes: { "": new Group() }, timelines: { "": timeline } })!;
     cleanups.push(instance.dispose);
 
     instance.onTap();
     expect(calls).toEqual(["play rattle"]);
     expect(plugin!.vars.get("hasKey", "experience")).toBe(true);
-    expect(heard).toEqual([{ targetId: "key" }]);
+    expect(received).toEqual([{ targetId: "key" }]);
     // found has no rule: nothing happens
     instance.onFound();
     expect(calls).toEqual(["play rattle"]);
@@ -149,7 +149,7 @@ describe("behaviour: events and actions", () => {
     expect(calls).toEqual(["play spin", "pause", "seek 0", "pause"]);
   });
 
-  it("hears named events of the bus, and unlocked from the node's first find", () => {
+  it("listens to named events of the bus, and unlocked from the node's first find", () => {
     const node = group({ components: [behaviour([
       { on: "doorOpened", do: { set: { lampOn: true }, scope: "stage" } },
       { on: "unlocked", do: { set: { firstFind: true } } },
@@ -281,7 +281,7 @@ describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
     return { hint, door, calls, node };
   };
 
-  it("hears the bus, acts on nodes by address, sets variables and goes to a scene", () => {
+  it("listens to the bus, acts on nodes by address, sets variables and goes to a scene", () => {
     const { hint, calls, node } = scene();
     const went: string[] = [];
     setNavigator(address => went.push(address));
@@ -301,17 +301,17 @@ describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
     expect(went).toEqual(["scene:epilogue"]);
   });
 
-  it("hears core events delivered by the scene; sceneChanged only from opened(), once its nodes exist", () => {
+  it("listens to core events delivered by the scene; sceneChanged only from opened(), once its nodes exist", () => {
     const { hint, node } = scene();
     const log: Array<[string, unknown]> = [];
     cleanups.push(observeEvents((event, payload) => event === "behaviour" && log.push([event, payload])));
     const logic = applyLogic(readRules([{ on: "sceneChanged", do: [{ hide: "target:door/hint" }, { emit: "arrived" }] }]), { home: "experience", node });
     cleanups.push(logic.dispose);
-    const heard: unknown[] = [];
-    cleanups.push(runtimeApi("listener").events.on("arrived", payload => heard.push(payload)));
+    const received: unknown[] = [];
+    cleanups.push(runtimeApi("listener").events.on("arrived", payload => received.push(payload)));
     logic.opened();
     expect(hint.visible).toBe(false);
-    expect(heard).toEqual([{ experience: true }]);
+    expect(received).toEqual([{ experience: true }]);
     expect(log).toEqual([["behaviour", { home: "experience", rule: 1, on: "sceneChanged", do: "hide target:door/hint · emit arrived" }]]);
   });
 
@@ -376,15 +376,15 @@ describe("behaviour: one rule by hand (the editor's Run this rule, #334)", () =>
     cleanups.push(instance.dispose);
     const log: unknown[] = [];
     cleanups.push(observeEvents((event, payload) => event === "behaviour" && log.push(payload)));
-    const heard: unknown[] = [];
-    cleanups.push(runtimeApi("listener").events.on("rattled", payload => heard.push(payload)));
+    const received: unknown[] = [];
+    cleanups.push(runtimeApi("listener").events.on("rattled", payload => received.push(payload)));
     expect(runRuleByHand({ targetId: "key", node: "key" }, 1)).toBe("held");
     expect(vars().get("second")).toBeUndefined();
     vars().set("armed", true);
     expect(runRuleByHand({ targetId: "key", node: "key" }, 1)).toBe("ran");
     expect(vars().get("second")).toBe(1);
     expect(vars().get("first")).toBeUndefined();
-    expect(heard).toEqual([{ targetId: "key", node: "key" }]);
+    expect(received).toEqual([{ targetId: "key", node: "key" }]);
     expect(log).toEqual([{ targetId: "key", node: "key", rule: 2, on: "tap", do: "set second = 1 · emit rattled" }]);
     expect(runRuleByHand({ targetId: "key", node: "key" }, 5)).toBe("missing");
     expect(runRuleByHand({ targetId: "key", node: "" }, 0)).toBe("missing");

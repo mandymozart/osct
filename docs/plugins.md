@@ -6,6 +6,12 @@ tab is where you try it. This is the guide and the reference of the plugin API; 
 registers is in [content](content.md), the editor's tab in [editor](editor.md) "Code", the decision in
 `agents/research/2026-10-29-code-in-the-editor.md`.
 
+**Plugin API 4.0** (content schema 6.0, #341 – Tilman, 2026-11-21: *"you use the word hear for events. i think it is
+listen"*): what a spec's code listens to is `uses.listens` (was `uses.hears`). The engine refuses a module built against
+another MAJOR ("… was built against plugin API 3.1, this engine runs 4.0 – not loaded"), so every experience is published
+again; stored sources are rewritten with `osct plugins listen` (`--dir` a content source, `--experience` / `--all` the
+instance's database – [content](content.md) "Schema and app versions").
+
 ## The shape
 
 ```ts
@@ -125,7 +131,7 @@ defaults filled in, `emit` sends one of the spec's `events`. It returns the hook
 node built anew). A component on a `group` node may build anything with `api.three` and add it to `placed` – but when the
 thing *is* the node, a node type says so better.
 
-## Typed specs and the Logic view (API 3.1, content schema 5.1)
+## Typed specs and the Logic view (API 3.1, content schema 5.1; `uses.listens` since API 4.0)
 
 A spec is written once, as a value, and everything else is read from it: the Inspector's rows, the guard's checks, the
 engine's limits, the editor's Logic view – and your handler's types. This is the "schema first" way of zod, TypeBox and
@@ -164,7 +170,7 @@ api.registerComponent("hum", {
   params: { volume: p.number({ min: 0, max: 1, default: 0.6, description: "How loud." }) },
   actions: ["play", "pause"],              // the rule verbs it answers on its node
   events: ["ended"],                       // the scene events it emits
-  uses: { hears: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus and the variables
+  uses: { listens: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus and the variables
 }, ({ params, emit }) => ({
   onAction: action => { /* "play" | "pause" – a rule's `play: <this node>` lands here */ },
   onTap: () => emit("ended"),              // emit("endd") is a type error in the Code tab and the build
@@ -176,9 +182,9 @@ api.registerComponent("hum", {
   beside what the engine does itself (a model's clip, the node's visibility). Any other name is refused: there is no rule
   verb for it yet.
 - **`events`**: names your code sends with the context's `emit(event, payload?)` – on the bus, with the target's id, so a
-  rule hears it by name (`on: ended`). An event the spec does not declare is not sent (a warning); a core event or a node's
+  rule listens to it by name (`on: ended`). An event the spec does not declare is not sent (a warning); a core event or a node's
   own (`found`, `lost`, `tap`, `unlocked`) cannot be declared.
-- **`uses`**: what the code hears, emits, reads and sets (`api.events.on`, `emit`, `api.vars.get`, `set`), by name. The
+- **`uses`**: what the code listens to, emits, reads and sets (`api.events.on`, `emit`, `api.vars.get`, `set`), by name. The
   Logic view joins the plugin to the rules by it. A plugin that declares nothing in any spec is read the old way – the
   editor looks for `api.events.on("…")` and the like in its source.
 
@@ -774,7 +780,7 @@ lights when the door opened, a text counts the pages found. Four parts of `api` 
 - **`api.events`** – one bus for the stage. *Core events* belong to the engine, you only listen: `targetFound`,
   `targetLost`, `targetUnlocked` (the first find – progress is the app's), `targetTapped`, `sceneChanged`,
   `arState` (running / paused / stopped), `varChanged`. *Scene events* are yours: `api.events.emit("doorOpened",
-  { by: "key" })` – any camelCase name that is not a core event – and every plugin hears it with
+  { by: "key" })` – any camelCase name that is not a core event – and every plugin listens to it with
   `api.events.on("doorOpened", payload => …)`. `on` returns the unsubscribe; when a plugin is replaced (Run) or
   unloaded, its listeners go with it.
 - **`api.vars`** – variables in **scopes**: `scene` (while the scene is the current one – cleared when it changes),
@@ -849,14 +855,14 @@ Not every narrative needs code. The built-in **`behaviour`** component (content 
 clip, show or hide a node, set a variable, emit an event. It is no second system: the engine runs it on the same
 runtime as your code (`engine/src/scene/behaviour.ts` on `plugin-runtime.ts`). A rule's `set` is `api.vars.set` – your
 `api.vars.on` and `varChanged` fire; its `emit` is `api.events.emit` with `{ targetId, node }` as the payload – your
-`api.events.on` hears it; a rule's `on` hears your scene events and the core events like a listener of yours; its
+`api.events.on` listens to it; a rule's `on` listens to your scene events and the core events like a listener of yours; its
 `when` reads like `api.vars.get` (the innermost scope). So the split is: the **rules decide** (which event, which
 state, what follows), **a plugin does** what a rule cannot – move or animate a node over time, draw, compute, count the
 progress – and the two meet on the bus with named events. The demo shows it: the key is only a rule now (a tap plays
 its clip, sets `hasKey`, emits `keyRattled`), the door's rules emit `openDoor` and the `door` plugin lifts the door.
 
 Reach for a rule first; write a component when a rule would need a verb it does not have. The editor's timeline
-marks every rule that ran with a `behaviour` line – it is the log's own (your listeners never hear it).
+marks every rule that ran with a `behaviour` line – it is the log's own (your listeners never listen to it).
 
 ## Trying it: the Code tab
 

@@ -283,8 +283,8 @@ describe("a plugin's display rows (#334, Tilman 2026-11-21)", () => {
   it("are text rows with reference lines – never wires – and the card is tall enough for them", () => {
     const flow = flowOf(view);
     const plugin = flow.boxes.find(b => b.id === "plugin:narrative")!;
-    // Two pins (hears, emits), then the rows below the divider
-    expect(plugin.ports.map(p => p.id)).toEqual(["hears", "emits"]);
+    // Two pins (listens, emits), then the rows below the divider
+    expect(plugin.ports.map(p => p.id)).toEqual(["listens", "emits"]);
     expect(plugin.rows).toEqual([{ id: "sets", text: "sets doorOpen" }, { id: "drives", text: "drives door" }]);
     expect(plugin.h).toBe(boxHeight(plugin.ports, false, 2));
     expect(plugin.h).toBeGreaterThan(boxHeight(plugin.ports));

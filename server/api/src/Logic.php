@@ -59,7 +59,7 @@ final class Logic
             }
             if (!is_string($rule->on ?? null)) $fail("$at.on must be an event's name.");
             if (!$own && in_array($rule->on, self::NODE_EVENTS, true)) {
-                $fail("$at.on: $rule->on is a node's own event – a $home's rule hears the bus (a scene event or a core event such as targetFound).");
+                $fail("$at.on: $rule->on is a node's own event – a $home's rule listens to the bus (a scene event or a core event such as targetFound).");
             }
             if (property_exists($rule, 'when') && !is_string($rule->when)) {
                 $fail("$at.when must be an expression (hasKey && tries > 2) – the object form is gone since content schema 5.0.");

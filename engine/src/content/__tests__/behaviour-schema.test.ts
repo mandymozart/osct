@@ -49,8 +49,8 @@ describe("behaviour: the content's grammar", () => {
       "components[0].rules[3].do[0].set: expected { variable: value, … }",
       'components[0].rules[3].do[1].set.x: expected an expression, a number, true / false or null (deletes), got {"y":1}',
       'components[0].rules[3].do[1].scope: expected one of scene, stage, session, experience, got "world"',
-      "components[0].rules[3].do[2].emit: targetFound is the engine's own event – a rule hears it, never emits it",
-      "components[0].rules[3].do[3].emit: tap is the engine's own event – a rule hears it, never emits it",
+      "components[0].rules[3].do[2].emit: targetFound is the engine's own event – a rule listens to it, never emits it",
+      "components[0].rules[3].do[3].emit: tap is the engine's own event – a rule listens to it, never emits it",
       "components[0].rules[3].do[4]: an action has one of play, pause, stop, show, hide, set, emit, goto, got show and hide",
       "components[0].rules[3].do[5].node: unknown field of emit",
       "components[0].rules[4]: expected a rule { on, when?, do }",
@@ -112,7 +112,7 @@ describe("behaviour: the content's grammar", () => {
 });
 
 describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
-  it("hear the bus, name nodes by address, go to scenes", () => {
+  it("listen to the bus, name nodes by address, go to scenes", () => {
     const logic = {
       rules: [
         { on: "doorOpened", when: "hasKey", do: [{ show: "target:door/hint" }, { play: "creak", node: "target:door" }, { goto: "scene:epilogue" }] },
@@ -135,9 +135,9 @@ describe("logic: a scene's and the experience's rules (schema 5.0)", () => {
       { on: "tap", do: [{ hide: "hint" }, { play: "x" }, { show: "scene:a" }] },
     ], extra: 1, canvas: { notes: [{ id: "n" }], folds: [3], more: 1 } }, "l", "scene")).toEqual([
       "l.extra: unknown field of logic (rules, canvas)",
-      "l.rules[0].on: found is a node's own event – a scene's rule hears an event of the bus – a scene event's name (camelCase) or a core event (targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, arState, varChanged)",
+      "l.rules[0].on: found is a node's own event – a scene's rule listens to an event of the bus – a scene event's name (camelCase) or a core event (targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, arState, varChanged)",
       "l.rules[0].do: show alone acts on the rule's own node – a scene's rule has none: { show: target:<targetId>/<node name> }",
-      "l.rules[1].on: tap is a node's own event – a scene's rule hears an event of the bus – a scene event's name (camelCase) or a core event (targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, arState, varChanged)",
+      "l.rules[1].on: tap is a node's own event – a scene's rule listens to an event of the bus – a scene event's name (camelCase) or a core event (targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, arState, varChanged)",
       'l.rules[1].do[0].hide: a scene\'s rule names a node by address – "hint" is not an address (target:<targetId>/<node name>)',
       "l.rules[1].do[1].node: a scene's rule names a node by address – expected an address (target:<targetId>/<node name>), got undefined",
       'l.rules[1].do[2].show: a scene\'s rule names a node by address – "scene:a": a scene address does not fit here (target:<targetId>/<node name>)',

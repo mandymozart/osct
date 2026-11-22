@@ -1,7 +1,7 @@
 category: glossary
 title: The door
 scene: the-door
-body: "A door on another page than its key. Its `behaviour` rules: found, the hint shows; found with `hasKey` set, the hint hides and `openDoor` goes out – the `door` plugin hears it, lifts and turns the door, sets `doorOpen` in the stage scope and emits `doorOpened`. Tap the key on page 1, then come here – or set `hasKey` in the editor's Stage panel and switch the page off and on."
+body: "A door on another page than its key. Its `behaviour` rules: found, the hint shows; found with `hasKey` set, the hint hides and `openDoor` goes out – the `door` plugin listens to it, lifts and turns the door, sets `doorOpen` in the stage scope and emits `doorOpened`. Tap the key on page 1, then come here – or set `hasKey` in the editor's Stage panel and switch the page off and on."
 tags:
   - narrative
   - door

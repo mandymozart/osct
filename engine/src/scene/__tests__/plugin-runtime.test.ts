@@ -39,16 +39,16 @@ describe("api.events", () => {
   it("delivers a scene event to every plugin on the stage; a core event is the engine's to emit", () => {
     const a = apiOf("a");
     const b = apiOf("b");
-    const heard: unknown[] = [];
-    b.events.on("doorOpened", payload => heard.push(payload));
+    const received: unknown[] = [];
+    b.events.on("doorOpened", payload => received.push(payload));
     a.events.emit("doorOpened", { by: "key" });
-    expect(heard).toEqual([{ by: "key" }]);
+    expect(received).toEqual([{ by: "key" }]);
     expect(() => a.events.emit("targetFound", { targetId: "x" })).toThrow(PluginRuntimeError);
     expect(() => a.events.emit("Door Opened")).toThrow(/not an event name/);
     expect(CORE_EVENTS).toContain("sceneChanged");
   });
 
-  it("hears the core events the scene emits, typed by name", () => {
+  it("listens to the core events the scene emits, typed by name", () => {
     const api = apiOf("fx");
     const found: string[] = [];
     api.events.on("targetFound", ({ targetId }) => found.push(targetId));
@@ -56,30 +56,30 @@ describe("api.events", () => {
     expect(found).toEqual(["key"]);
   });
 
-  it("a listener that throws is logged and the others still hear the event; the unsubscribe stops it", () => {
+  it("a listener that throws is logged and the others still listen to the event; the unsubscribe stops it", () => {
     const api = apiOf("fx");
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const heard: string[] = [];
+    const received: string[] = [];
     api.events.on("ping", () => { throw new Error("boom"); });
-    const off = api.events.on("ping", () => heard.push("second"));
+    const off = api.events.on("ping", () => received.push("second"));
     api.events.emit("ping");
-    expect(heard).toEqual(["second"]);
+    expect(received).toEqual(["second"]);
     expect(error).toHaveBeenCalledWith(expect.stringContaining('fx: the listener for "ping" failed'), expect.any(Error));
     off();
     api.events.emit("ping");
-    expect(heard).toEqual(["second"]);
+    expect(received).toEqual(["second"]);
   });
 
   it("a plugin's listeners go when it is installed again or uninstalled", () => {
-    const heard: string[] = [];
-    installPlugin("fx", { register: api => api.events.on("ping", () => heard.push("first run")) });
-    installPlugin("fx", { register: api => api.events.on("ping", () => heard.push("second run")) });
+    const received: string[] = [];
+    installPlugin("fx", { register: api => api.events.on("ping", () => received.push("first run")) });
+    installPlugin("fx", { register: api => api.events.on("ping", () => received.push("second run")) });
     const other = apiOf("other");
     other.events.emit("ping");
-    expect(heard).toEqual(["second run"]);
+    expect(received).toEqual(["second run"]);
     uninstallPlugin("fx");
     other.events.emit("ping");
-    expect(heard).toEqual(["second run"]);
+    expect(received).toEqual(["second run"]);
   });
 
   it("an observer (the editor's log) sees every event without being a plugin", () => {

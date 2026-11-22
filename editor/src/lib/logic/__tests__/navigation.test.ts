@@ -118,9 +118,9 @@ describe("events between scenes never fire (#334, the engine builds only the ope
 
   it("marks a scene's event stubs to another scene, not a value stub or one to another target of the same scene", () => {
     const scene = project(content, { level: "scene", scene: "door" });
-    expect(scene.stubs.filter(s => stubNeverFires(s, scene)).map(s => s.label).sort()).toEqual(["keyRattled ← emitted in Cover", "openDoor → heard in Epilogue"]);
+    expect(scene.stubs.filter(s => stubNeverFires(s, scene)).map(s => s.label).sort()).toEqual(["keyRattled ← emitted in Cover", "openDoor → listened to in Epilogue"]);
     const entity = project(content, { level: "entity", scene: "door", target: "door", path: [] });
-    expect(entity.stubs.filter(s => stubNeverFires(s, entity)).map(s => s.label)).toEqual(["openDoor → heard in Epilogue"]);
+    expect(entity.stubs.filter(s => stubNeverFires(s, entity)).map(s => s.label)).toEqual(["openDoor → listened to in Epilogue"]);
   });
 
   it("draws them in the flow: the stubs at the border, every wire on a port of its box", () => {

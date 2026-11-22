@@ -7,6 +7,34 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## Unreleased
+
+**Content schema 6.0 and plugin API 4.0 – a MAJOR** (Tilman, 2026-11-21, #341: *"you use the word hear for events. i
+think it is listen"* – the whole way, including the API): a 5.x app refuses 6.0 content and a 6.0 app refuses 5.x
+(`OLDEST_READABLE_SCHEMA_MAJOR` 6) and every plugin built against plugin API 3.x. Content migrates: the server's rows by
+`Migration6` on the deploy (dry run: `php server/deploy/migrate.php --plan-6`), the stored plugin sources with
+`osct plugins listen` (dry run first); every published experience is published again afterwards.
+
+### Changed
+- **A rule listens to an event – it no longer "hears" it**, everywhere you read it: the Logic canvas (a plugin's pin
+  *listens*, the issue *emitted, nothing listens to it*, *listened to, nothing emits it*, *rule 3 listens to nothing*),
+  the menus, help texts, the Log and the wires' words, the engine's and the API's messages, the MCP server's
+  descriptions and guides, the documentation site and `docs/`.
+- **Plugin API 4.0**: a spec's bus use is `uses: { listens, emits, reads, sets }` (was `hears`); the Code tab's types
+  and the API reference follow. A spec with `hears` is refused as an unknown field.
+- **Content schema 6.0**: a plugin's recorded spec carries `uses.listens`.
+
+### Added
+- **`osct plugins listen`** (`--dir <content folder>`, `--experience <id>` or `--all` through the editor API,
+  `--dry-run`): rewrites stored plugin sources – `uses.hears` → `uses.listens`, *hear* → *listen to* in comments and
+  strings – and prints the changed lines per experience and plugin.
+- **`Migration6`** (the deploy's `Db::migrate`): 5.x experiences become 6.0, the declared plugins' recorded `uses.hears`
+  become `uses.listens`; `migrate.php --plan-6` is its dry run and lists the plugin sources that still say "hear".
+
+### Fixed
+- `Migration5` treats only 4.x experiences as old (it compared with the current MAJOR, which would have quoted a 5.x
+  experience's set texts again once the MAJOR went up).
+
 ## 5.1.0 – 2026-11-21
 
 ### Added

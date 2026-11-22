@@ -12,7 +12,7 @@
   /**
    * The **Variables** tab (#337): the plugins' live variables on the stage, each with its scope and type, a control for
    * its value and a delete; a form to set one by hand (both written through the plugin API on the stage, so the
-   * plugins hear `varChanged` as from a plugin's set); *reset* for a new game. The experience's declared variables
+   * plugins listen to `varChanged` as from a plugin's set); *reset* for a new game. The experience's declared variables
    * (name, type, default) are the experience's Inspector's (`VariablesEditor`) – these are the values while it plays.
    * Each scope is a section of its own (its count and first names when closed): the scene's open at first, the others
    * and *set* closed, so a long list stays easy to walk.
@@ -55,7 +55,7 @@
   <Section id="variables.{scope}" label={scope} open={scope === "scene"} summary={listSummary(list.map(v => v.name))}
     help="The variables of the {scope} scope on the stage, each with its type, its value to change and a cross that deletes it.">
     {#each list as v (v.name)}
-      <div class="row top" data-help-name="{v.scope} · {v.name}" data-help="A variable of the {v.scope} scope, a {v.type}. Change it to test a branch: it is written through the plugin API, so the plugins hear varChanged as from a plugin's set. The cross deletes it.">
+      <div class="row top" data-help-name="{v.scope} · {v.name}" data-help="A variable of the {v.scope} scope, a {v.type}. Change it to test a branch: it is written through the plugin API, so the plugins listen to varChanged as from a plugin's set. The cross deletes it.">
         <span class="label var" title="{v.scope} · {v.name}">{v.name}</span>
         <span class="controls">
           <span class="small muted tag">{v.type}</span>

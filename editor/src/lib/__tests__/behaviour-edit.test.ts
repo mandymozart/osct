@@ -39,7 +39,7 @@ describe("the rule editor's logic (#88, #334)", () => {
     });
   });
 
-  it("adds, changes and removes actions; a new rule hears found on a node, sceneChanged on a scene or the experience", () => {
+  it("adds, changes and removes actions; a new rule listens to found on a node, sceneChanged on a scene or the experience", () => {
     let rule: BehaviourRule = newRule();
     expect(rule).toEqual({ on: "found", when: null, do: [] });
     expect(newRule("scene").on).toBe("sceneChanged");

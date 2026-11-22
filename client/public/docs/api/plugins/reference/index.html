@@ -45,12 +45,12 @@
   </table></div>
 
   <h2 id="events">api.events</h2>
-  <p>The stage's event bus. Core events are heard, never emitted.</p>
+  <p>The stage's event bus. Core events are listened to, never emitted.</p>
   <h3 id="PluginEvents">PluginEvents</h3>
   <p><code>api.events</code></p>
   <div class="table"><table>
     <tr><th>Member</th><th>Signature and what it does</th></tr>
-    <tr id="PluginEvents-on"><td><code>api.events.on()</code></td><td class="wrap"><code class="sig">on&lt;E extends keyof CoreEvents&gt;(event: E, listener: EventListener$1&lt;CoreEvents[E]&gt;): () =&gt; void</code><br>Hear a core event or a scene event; returns the unsubscribe (a plugin's listeners go when it is uninstalled)</td></tr>
+    <tr id="PluginEvents-on"><td><code>api.events.on()</code></td><td class="wrap"><code class="sig">on&lt;E extends keyof CoreEvents&gt;(event: E, listener: EventListener$1&lt;CoreEvents[E]&gt;): () =&gt; void</code><br>Listen to a core event or a scene event; returns the unsubscribe (a plugin's listeners go when it is uninstalled)</td></tr>
     <tr id="PluginEvents-on-2"><td><code>api.events.on()</code></td><td class="wrap"><code class="sig">on(event: string, listener: EventListener$1): () =&gt; void</code></td></tr>
     <tr id="PluginEvents-emit"><td><code>api.events.emit()</code></td><td class="wrap"><code class="sig">emit(event: string, payload?: unknown): void</code><br>Emit a scene event (any name that is not a core event) to every plugin on the stage</td></tr>
   </table></div>
@@ -75,7 +75,7 @@
     <tr><th>Member</th><th>Signature and what it does</th></tr>
     <tr id="PluginVars-get"><td><code>api.vars.get()</code></td><td class="wrap"><code class="sig">get(name: string, scope?: VarScope): VarValue | undefined</code><br>The value in <code>scope</code>, or without one the innermost definition (scene → stage → session → experience)</td></tr>
     <tr id="PluginVars-set"><td><code>api.vars.set()</code></td><td class="wrap"><code class="sig">set(name: string, value: VarValue | null, scope?: VarScope): void</code><br>Set (or delete with <code>null</code>) a variable in a scope – <code>scene</code> by default</td></tr>
-    <tr id="PluginVars-on"><td><code>api.vars.on()</code></td><td class="wrap"><code class="sig">on(name: string, listener: (value: VarValue | undefined, previous: VarValue | undefined, scope: VarScope) =&gt; void): () =&gt; void</code><br>Hear every change of a variable (in any scope)</td></tr>
+    <tr id="PluginVars-on"><td><code>api.vars.on()</code></td><td class="wrap"><code class="sig">on(name: string, listener: (value: VarValue | undefined, previous: VarValue | undefined, scope: VarScope) =&gt; void): () =&gt; void</code><br>Listen to every change of a variable (in any scope)</td></tr>
     <tr id="PluginVars-all"><td><code>api.vars.all()</code></td><td class="wrap"><code class="sig">all(scope: VarScope): Record&lt;string, VarValue&gt;</code><br>Every variable of a scope</td></tr>
   </table></div>
 
@@ -219,7 +219,7 @@
     <tr id="AppearanceSpec-params"><td><code>params</code></td><td class="wrap"><code class="sig">params: Record&lt;string, ComponentParamSpec&gt;</code></td></tr>
   </table></div>
   <h3 id="SpecLogic">SpecLogic – what every spec may declare for the Logic view</h3>
-  <p>What a spec says beyond its parameters (schema 5.1, #334, plugin API 3.1) – what the editor's Logic view draws as ports: - <code>actions</code>: the rule verbs it answers on its node (<code>play</code>, <code>pause</code>, <code>stop</code>, <code>show</code>, <code>hide</code> – <code>SPEC_ACTIONS</code>): a rule's <code>play: &lt;node&gt;</code> reaches the component's <code>onAction(&quot;play&quot;)</code> beside the node's own clip; - <code>events</code>: the scene events it emits (<code>ended</code>) – through its context's <code>emit</code>, on the bus by name; - <code>uses</code>: what its code hears, emits, reads and sets of the bus and the variables, by name – the Logic view joins it to the rules (it reads the plugin's source only for a plugin that declares nothing). The names are camelCase; an action is one of the node verbs, an event never a core event. An older app ignores the fields.</p>
+  <p>What a spec says beyond its parameters (schema 5.1, #334, plugin API 3.1) – what the editor's Logic view draws as ports: - <code>actions</code>: the rule verbs it answers on its node (<code>play</code>, <code>pause</code>, <code>stop</code>, <code>show</code>, <code>hide</code> – <code>SPEC_ACTIONS</code>): a rule's <code>play: &lt;node&gt;</code> reaches the component's <code>onAction(&quot;play&quot;)</code> beside the node's own clip; - <code>events</code>: the scene events it emits (<code>ended</code>) – through its context's <code>emit</code>, on the bus by name; - <code>uses</code>: what its code listens to, emits, reads and sets of the bus and the variables, by name – the Logic view joins it to the rules (it reads the plugin's source only for a plugin that declares nothing). The names are camelCase; an action is one of the node verbs, an event never a core event. An older app ignores the fields.</p>
   <div class="table"><table>
     <tr><th>Member</th><th>Signature and what it does</th></tr>
     <tr id="SpecLogic-actions"><td><code>actions?</code></td><td class="wrap"><code class="sig">actions?: readonly string[]</code></td></tr>
@@ -227,10 +227,10 @@
     <tr id="SpecLogic-uses"><td><code>uses?</code></td><td class="wrap"><code class="sig">uses?: SpecUses</code></td></tr>
   </table></div>
   <h3 id="SpecUses">SpecUses</h3>
-  <p>A spec's bus use: event names it hears and emits, variable names it reads and sets</p>
+  <p>A spec's bus use: event names it listens to and emits, variable names it reads and sets</p>
   <div class="table"><table>
     <tr><th>Member</th><th>Signature and what it does</th></tr>
-    <tr id="SpecUses-hears"><td><code>hears?</code></td><td class="wrap"><code class="sig">hears?: readonly string[]</code></td></tr>
+    <tr id="SpecUses-listens"><td><code>listens?</code></td><td class="wrap"><code class="sig">listens?: readonly string[]</code></td></tr>
     <tr id="SpecUses-emits"><td><code>emits?</code></td><td class="wrap"><code class="sig">emits?: readonly string[]</code></td></tr>
     <tr id="SpecUses-reads"><td><code>reads?</code></td><td class="wrap"><code class="sig">reads?: readonly string[]</code></td></tr>
     <tr id="SpecUses-sets"><td><code>sets?</code></td><td class="wrap"><code class="sig">sets?: readonly string[]</code></td></tr>
@@ -249,7 +249,7 @@
     <tr id="ComponentContext-children"><td><code>children</code></td><td class="wrap"><code class="sig">children: Object3D[]</code><br>The placement groups of the node's children, in content order (empty for a leaf)</td></tr>
     <tr id="ComponentContext-target"><td><code>target</code></td><td class="wrap"><code class="sig">target: Target</code></td></tr>
     <tr id="ComponentContext-three"><td><code>three</code></td><td class="wrap"><code class="sig">three: typeof THREE</code><br>The app's three.js (one instance – plugins never import three themselves)</td></tr>
-    <tr id="ComponentContext-emit"><td><code>emit()</code></td><td class="wrap"><code class="sig">emit(event: E, payload?: Record&lt;string, unknown&gt;): void</code><br>Emit one of the events its spec declares (<code>events</code>) on the bus, with the target's id (and the payload's fields) – a rule hears it by name. An event the spec does not declare is not sent (a warning)</td></tr>
+    <tr id="ComponentContext-emit"><td><code>emit()</code></td><td class="wrap"><code class="sig">emit(event: E, payload?: Record&lt;string, unknown&gt;): void</code><br>Emit one of the events its spec declares (<code>events</code>) on the bus, with the target's id (and the payload's fields) – a rule listens to it by name. An event the spec does not declare is not sent (a warning)</td></tr>
   </table></div>
   <h3 id="ComponentInstance">ComponentInstance</h3>
   <p>The hooks a component returns; every one is optional. <code>P</code>, <code>A</code>: its spec's parameters and actions</p>

@@ -22,6 +22,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
    (rule 32).
 2. Naming: a step of the experience = **scene** (not spread, not page – #319), scenes under one label = **group**,
    opened entry = **consulted** (not visited); the rendered AR scene is always `Ar…` (`ArScene`, `ArState`).
+   A rule or a plugin **listens to** an event (not "hears" – Tilman, 2026-11-21, #341); the key and the pin are `listens`.
    Use these terms in code, content and UI.
    Modes: `IDLE`, `SCAN`, `CONSULTATION` (UI context). "About" and "Info" are the same page (`about`).
    Set the mode only through routes (`RouterManager.navigate`), never with `draft.mode = …` in components.

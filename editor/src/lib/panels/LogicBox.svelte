@@ -88,8 +88,8 @@
   const lit = (id: string) => (data.takes ? (data.takes.has(id) ? " takes" : " refuses") : "");
   const pinClass = (p: FlowPort, extra = "") => `pin shape-${SIGNAL_STYLES[p.deck].shape} sig-${p.deck}${p.kind ? ` kind-${p.kind}` : ""}${extra}${lit(handleId(p))}`;
   const pinStyle = (p: FlowPort, top: number) => `top: ${top}px; --pin: var(${signalToken(p.deck)})`;
-  /** A plugin's pins (#334): its emits into a rule's on, a rule's emit into its hears – the event names they stand for */
-  const busNames = (p: FlowPort) => (node?.kind === "plugin" ? (p.id === "emits" ? node.bus?.emits : p.id === "hears" ? node.bus?.hears : undefined) : undefined);
+  /** A plugin's pins (#334): its emits into a rule's on, a rule's emit into its listens – the event names they stand for */
+  const busNames = (p: FlowPort) => (node?.kind === "plugin" ? (p.id === "emits" ? node.bus?.emits : p.id === "listens" ? node.bus?.listens : undefined) : undefined);
   const portTitle = (p: FlowPort) => {
     const names = busNames(p);
     if (names) return `${p.label}: ${names.join(", ") || "nothing a rule can wire"} – ${p.id === "emits" ? "wire it to a rule's on" : "wire a rule's action here: it emits it"}`;
@@ -224,7 +224,7 @@
   .box.selected { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
   .box.flash { outline: 2px solid var(--text); outline-offset: 3px; }
   .box.problem { border-color: var(--danger); }
-  /* a warning (nothing hears, sets or emits it): dashed, no colour (RULES #38) */
+  /* a warning (nothing listens to, sets or emits it): dashed, no colour (RULES #38) */
   .box.warning { border-style: dashed; }
   .box.problem .head { background: color-mix(in srgb, var(--danger) 12%, var(--control-background)); }
   .box.dim { opacity: .55; }

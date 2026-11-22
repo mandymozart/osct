@@ -23,7 +23,7 @@
 
   /**
    * A list of rules as rows (#88, #334): a node's `behaviour` component, a scene's or the experience's `logic` (`home`) – no
-   * JSON: per rule the event it hears (a node's own as pressed pills – a node's rules only –, a named event typed with the
+   * JSON: per rule the event it listens to (a node's own as pressed pills – a node's rules only –, a named event typed with the
    * experience's events offered), its condition (**one expression**, `hasKey && tries > 2`, checked as you type: refused with
    * the reason while it does not parse, is ill-typed or is no true / false – B8) and its actions (a row per action: the verb
    * and what it takes – a clip, a node (a node's rules: by name in the subtree; a scene's or the experience's: by address,
@@ -45,7 +45,7 @@
     clipsOf?: (node: string) => string[];
     /** The variables the experience uses, for the name fields */
     variables: string[];
-    /** The bus events a rule may hear or emit */
+    /** The bus events a rule may listen to or emit */
     events: string[];
     /** The variables' types – declared, else inferred from their first set */
     types: ReadonlyMap<string, VariableInfo>;
@@ -108,7 +108,7 @@
 {#each rules as rule, i (i)}
   <div class="row top rule" data-help-name="Rule {i + 1}" data-help={own
     ? "What the rule reacts to: the page found or lost, a tap on the AR content, the page's first find (unlocked), or a named event on the stage – a scene event a plugin or another rule emits, or a core event like targetFound. The cross removes the rule."
-    : "The event the rule hears – an event of the stage: a scene event a plugin or another rule emits, or a core event like sceneChanged or targetUnlocked (a node's own found, lost, tap belong to the node's rules). The cross removes the rule."}>
+    : "The event the rule listens to – an event of the stage: a scene event a plugin or another rule emits, or a core event like sceneChanged or targetUnlocked (a node's own found, lost, tap belong to the node's rules). The cross removes the rule."}>
     <span class="label strong">rule {i + 1}</span>
     <span class="controls line">
       <span class="args">

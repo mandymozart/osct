@@ -29,7 +29,7 @@ and `lifts` (the looks `fadeCode` and `printLiftCode`, the experience's *found* 
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
 model's clip `rattle`, sets `hasKey` in the experience scope and emits `keyRattled`; the door's rules show its `hint` child
 when the page is found and, found with `hasKey`, hide it and emit `openDoor` – which the `door` component of
-`plugins/narrative` hears to lift and turn the door (what a rule cannot do). The Inspector edits the rules, the scene's
+`plugins/narrative` listens to lift and turn the door (what a rule cannot do). The Inspector edits the rules, the scene's
 timeline in it marks each rule that ran.
 
 **The aquarium** (page 2, *The key*'s right page, above the tally – #188): the entry `aquarium` with a target of its own

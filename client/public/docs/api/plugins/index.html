@@ -89,7 +89,7 @@
   <h2 id="bus">Events, variables, progress</h2>
   <div class="table"><table>
     <tr><th>Part</th><th>What</th></tr>
-    <tr><td><code>api.events</code></td><td class="wrap"><code>on(name, payload =&gt; …)</code> returns the unsubscribe; <code>emit(name, payload?)</code> sends a scene event. Core events (<code>targetFound</code>, <code>targetLost</code>, <code>targetUnlocked</code>, <code>targetTapped</code>, <code>sceneChanged</code>, <code>arState</code>, <code>varChanged</code>) can be heard, never emitted.</td></tr>
+    <tr><td><code>api.events</code></td><td class="wrap"><code>on(name, payload =&gt; …)</code> returns the unsubscribe; <code>emit(name, payload?)</code> sends a scene event. Core events (<code>targetFound</code>, <code>targetLost</code>, <code>targetUnlocked</code>, <code>targetTapped</code>, <code>sceneChanged</code>, <code>arState</code>, <code>varChanged</code>) can be listened to, never emitted.</td></tr>
     <tr><td><code>api.vars</code></td><td class="wrap"><code>set(name, value, scope?)</code>, <code>get(name, scope?)</code>, <code>on(name, (value, previous, scope) =&gt; …)</code>, <code>all(scope)</code>. Scopes: <code>scene</code> (default), <code>stage</code>, <code>session</code>, <code>experience</code>. Values are strings, numbers or booleans; <code>null</code> deletes.</td></tr>
     <tr><td><code>api.progress</code></td><td class="wrap">Read-only: <code>unlocked(targetId)</code>, <code>consulted(entryId)</code>, <code>completion(sceneId?)</code> (0–1), <code>counts(sceneId?)</code>.</td></tr>
     <tr><td><code>api.scene</code></td><td class="wrap"><code>current</code> (id, label, group, surfaces, targets) and <code>get(id)</code>.</td></tr>
@@ -109,7 +109,7 @@
     params: { volume: p.number({ min: 0, max: 1, default: 0.6, description: "How loud." }) },
     actions: ["play", "pause"],                          // rule verbs it answers
     events: ["ended"],                                   // scene events it emits
-    uses: { hears: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus
+    uses: { listens: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus
   }, ({ emit }) => ({
     onAction: action => { /* "play" | "pause" */ },
     onTap: () => emit("ended"),
@@ -117,7 +117,7 @@
   <ul>
     <li><code>actions</code>: any of <code>play</code>, <code>pause</code>, <code>stop</code>, <code>show</code>, <code>hide</code>. A rule's <code>play: lamp</code> then reaches <code>onAction("play")</code>.</li>
     <li><code>events</code>: sent with the context's <code>emit</code>. An event the spec does not declare is not sent.</li>
-    <li><code>uses</code>: <code>hears</code>, <code>emits</code>, <code>reads</code>, <code>sets</code>, by name.</li>
+    <li><code>uses</code>: <code>listens</code>, <code>emits</code>, <code>reads</code>, <code>sets</code>, by name.</li>
   </ul>
 
   <h2 id="files">Files</h2>

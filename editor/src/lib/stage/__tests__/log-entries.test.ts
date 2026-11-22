@@ -78,11 +78,11 @@ describe("the summaries of closed sections (#337)", () => {
   it("names the problems' counts by severity and the first error", () => {
     expect(problemsSummary([])).toBe("none");
     expect(problemsSummary([
-      { kind: "warning", place: "door", text: "is never heard" },
+      { kind: "warning", place: "door", text: "is never listened to" },
       { kind: "error", place: "", text: "an event nothing emits" },
       { kind: "warning", place: "", text: "x" },
     ])).toBe("1 error · 2 warnings – an event nothing emits");
-    expect(problemsSummary([{ kind: "warning", place: "door", text: "is never heard" }])).toBe("1 warning – door is never heard");
+    expect(problemsSummary([{ kind: "warning", place: "door", text: "is never listened to" }])).toBe("1 warning – door is never listened to");
   });
 
   it("counts a list and names its first few", () => {

@@ -5,7 +5,7 @@ import { componentSpecProblems, PARAM_LABEL_MAX, paramLabel, paramProblem, param
 /** The configuration declares the experience's plugins; their components pass the guard */
 
 const config = (extra: Record<string, unknown>, components?: unknown[]) => ({
-  version: { version: "1.11.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "5.3" },
+  version: { version: "1.11.0", timestamp: "2026-01-01T00:00:00.000Z", schema: "6.0" },
   experience: { id: "b", title: "B", book: { author: "A" } },
   initialScene: "s1",
   scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
@@ -53,7 +53,7 @@ describe("plugins in the configuration", () => {
     const recorded = { id: "tint", src: "/assets/content/plugins/tint/plugin.js", api: "1.2", registered: { components: { tint: TINT }, nodeTypes: { sparkle: SPARKLE }, passes: {} } };
     const at2_14 = (extra: Record<string, unknown>, components?: unknown[]) => {
       const c = config(extra, components);
-      return { ...c, version: { ...c.version, schema: "5.14" } };
+      return { ...c, version: { ...c.version, schema: "6.14" } };
     };
     const withNode = (node: Record<string, unknown>, plugins: unknown[], schema = "2.14") => ({ ...at2_14({ plugins }), version: { version: "x", timestamp: "t", schema }, entities: { fx: { assets: [], ...node } } });
 
@@ -73,7 +73,7 @@ describe("plugins in the configuration", () => {
         'entities.fx.type: "sparkel" is not a node type – neither built in (group, model, video, image, text, light) nor registered by a plugin of the experience (sparkle)',
       ]);
       // A later MINOR may add a built-in node type this app does not know: it renders nothing, the content loads
-      expect(problemsOf(withNode({ type: "hologram" }, [recorded], "5.99"))).toEqual([]);
+      expect(problemsOf(withNode({ type: "hologram" }, [recorded], "6.99"))).toEqual([]);
     });
 
     it("lets an unknown type pass while a declared plugin recorded nothing (an older build) – what the others recorded is still checked", () => {
@@ -88,7 +88,7 @@ describe("plugins in the configuration", () => {
       const scanning = { ...recorded, registered: { ...recorded.registered, passes: { scanLines: SCAN } } };
       const withPasses = (plugins: unknown[], scene: unknown[], book?: unknown[]) => {
         const c = at2_14({ plugins });
-        return { ...c, version: { ...c.version, schema: "5.21" }, experience: { ...c.experience, ...(book ? { passes: book } : {}) }, scenes: [{ ...c.scenes[0], passes: scene }] };
+        return { ...c, version: { ...c.version, schema: "6.21" }, experience: { ...c.experience, ...(book ? { passes: book } : {}) }, scenes: [{ ...c.scenes[0], passes: scene }] };
       };
 
       it("checks its parameters against the recorded spec, on a scene and on the book", () => {
@@ -131,9 +131,9 @@ describe("plugins in the configuration", () => {
   });
 
   it("the plugin API is compatible within a MAJOR", () => {
-    expect(pluginApiCompatible("3.0")).toBe(true);
-    expect(pluginApiCompatible("3.3")).toBe(true);
-    expect(pluginApiCompatible("2.0")).toBe(false);
+    expect(pluginApiCompatible("4.0")).toBe(true);
+    expect(pluginApiCompatible("4.3")).toBe(true);
+    expect(pluginApiCompatible("3.1")).toBe(false);
     expect(pluginApiCompatible("1.8")).toBe(false);
   });
 

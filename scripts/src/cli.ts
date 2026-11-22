@@ -20,6 +20,8 @@
  *   osct targets prepare --experience <id> [--dry-run] [--force] [--all]
  *   osct delivery import <mapping.yaml | folder> --experience <id> [--files <dir>] [--layout <layout.json>] [--name <name>]
  *                        [--apply] [--overwrite] [--all] [--cache <dir>]   (a publisher's delivery into the draft, #322)
+ *   osct plugins listen (--experience <id> | --all | --dir <folder>) [--dry-run]
+ *                                                          (plugin API 4.0, #341: the stored plugin sources' uses.hears → uses.listens)
  *
  * Environment (or a scripts/.env file, never committed):
  *   OSCT_CONTENT_DIR             the content source (absolute or relative to the repository; fixtures/content for
@@ -34,8 +36,8 @@
  *                                checks what the CDN serves; purge requires it
  *   OSCT_APP_URL                 the site the reader runs on (optional) – the CDN check asks with its origin (CORS)
  * The same names as the server's settings (docs/server.md, #33).
- *   OSCT_API_URL                 targets prepare, export, delivery import: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
- *   OSCT_EDITOR_TOKEN            targets prepare, export, delivery import: a person's editor token (the editor's experiences page, AI connections)
+ *   OSCT_API_URL                 targets prepare, export, delivery import, plugins listen: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
+ *   OSCT_EDITOR_TOKEN            targets prepare, export, delivery import, plugins listen: a person's editor token (the editor's experiences page, AI connections)
  */
 import { spawnSync } from 'child_process';
 import fs from 'fs';
@@ -70,6 +72,7 @@ import { planExport, runExport } from './lib/content-export';
 import { archivedBuilds, newestArchives, runArchive } from './lib/export-archive';
 import { parseMapping, type LayoutLike } from './lib/delivery-plan';
 import { DeliveryProblems, deliveryApi, runDeliveryImport } from './lib/delivery-import';
+import { listenSource, listenStored, pluginSourcesApi, shortDiff } from './lib/plugins-listen';
 import type { ExperienceExport } from '../../shared/api/editor';
 import { ENV_NAME } from '../../shared/api/rules';
 import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAME } from '../../shared/api/content-store';
@@ -79,7 +82,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 const OPTIONS = {
   flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite', 'archive'],
-  values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base', 'files', 'layout', 'name', 'cache'],
+  values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base', 'files', 'layout', 'name', 'cache', 'dir'],
 };
 /** The local dev API (as the MCP server's default) */
 const LOCAL_API = 'http://127.0.0.1:8080/api';
@@ -131,6 +134,13 @@ const USAGE = `osct – content command line
                                                --name: the delivery's name (default the mapping's file name).
                                                --cache: where prepared files are kept between runs (default the
                                                system's temp folder). OSCT_API_URL, OSCT_EDITOR_TOKEN
+  osct plugins listen (--experience <id> | --all | --dir <folder>) [--dry-run]
+                                               plugin API 4.0 (#341): rewrite stored plugin sources – a spec's
+                                               uses.hears → uses.listens, and hear → listen to in comments and strings.
+                                               --experience / --all: the sources in the instance's database, read and
+                                               written back through the editor API (OSCT_API_URL, OSCT_EDITOR_TOKEN);
+                                               --dir: a content source folder's plugins/<id>/index.ts. --dry-run prints
+                                               per experience and plugin the lines that would change, nothing written
   osct content move --from <old folder> --env <env> [--experience <id>] [--dry-run] [--delete-old]
                                                one-off: copy an environment folder of the layout before #87
                                                (<env>/latest.json, <env>/<build>/) into <title>/<env>/<experience>/;
@@ -414,12 +424,53 @@ async function move(cli: CliArgs): Promise<void> {
   }
 }
 
+/**
+ * `osct plugins listen` (#341, plugin API 4.0): the plugin sources of a content source folder (`--dir`) or of the
+ * instance's experiences (`--experience`, `--all`, through the editor API) rewritten by `listenSource` – with --dry-run
+ * only the short diff per experience and plugin
+ */
+async function pluginsListen(cli: CliArgs): Promise<void> {
+  const dryRun = cli.flag('dry-run');
+  const print = (where: string, before: string, after: string) => {
+    console.log(`~ ${where}`);
+    shortDiff(before, after).forEach(line => console.log(`  ${line}`));
+  };
+  const dir = cli.option('dir');
+  if (dir) {
+    const root = path.join(path.resolve(dir), 'plugins');
+    const ids = fs.existsSync(root) ? fs.readdirSync(root).filter(id => fs.existsSync(path.join(root, id, 'index.ts'))).sort() : [];
+    let changed = 0;
+    for (const id of ids) {
+      const file = path.join(root, id, 'index.ts');
+      const before = fs.readFileSync(file, 'utf8');
+      const after = listenSource(before);
+      if (after === before) continue;
+      changed++;
+      print(`plugins/${id}`, before, after);
+      if (!dryRun) fs.writeFileSync(file, after);
+    }
+    console.log(`${dryRun ? 'Dry run – nothing written. ' : ''}${ids.length} plugin sources in ${root}, ${changed} ${dryRun ? 'would change' : 'changed'}`);
+    return;
+  }
+  const apiUrl = (process.env.OSCT_API_URL?.trim() || LOCAL_API).replace(/\/+$/, '');
+  const api = pluginSourcesApi(apiUrl, required('OSCT_EDITOR_TOKEN'));
+  const experience = cli.option('experience');
+  if (!experience && !cli.flag('all')) throw new Error('Name the experience: --experience <id>, or --all (or --dir <content folder>)');
+  const experiences = experience ? [experience] : await api.experiences();
+  console.log(`🎧 plugin sources on ${apiUrl} – ${experiences.join(', ') || 'no experiences'}`);
+  const { changes, checked } = await listenStored(api, experiences, dryRun);
+  changes.forEach(change => print(`${change.experience} · ${change.plugin}`, change.before, change.after));
+  console.log(`${dryRun ? 'Dry run – nothing written. ' : ''}${checked} plugin sources, ${changes.length} ${dryRun ? 'would change' : 'changed'}` +
+    (changes.length && !dryRun ? ' – each a change in History; publish each experience again for its readers' : ''));
+}
+
 async function main(): Promise<void> {
   const cli = parseArgs(process.argv.slice(2), OPTIONS);
   const { flag } = cli;
   const [group, command] = cli.positional;
   if (group === 'targets' && command === 'prepare' && !flag('help')) return targetsPrepare(cli);
   if (group === 'delivery' && command === 'import' && !flag('help')) return deliveryImport(cli);
+  if (group === 'plugins' && command === 'listen' && !flag('help')) return pluginsListen(cli);
   if (group !== 'content' || !command || flag('help')) {
     console.log(USAGE);
     if (group && group !== 'help') process.exitCode = 1;

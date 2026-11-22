@@ -69,7 +69,7 @@ describe("scene rules in the Logic view (#334 L-T5b)", () => {
   it("connecting a scene rule's do to a node writes its address; a node's own event is refused at its on", () => {
     const shown = ok(apply({ op: "connect", from: ["rule:scene:door#0", "do"], to: ["node:door/", "in"] }, content, scene));
     expect(sceneRules(shown.content)[0].do.at(-1)).toEqual({ action: "show", node: "target:door" });
-    expect(refused(apply({ op: "connect", from: ["event:door/:found", "out"], to: ["rule:scene:door#0", "on"] }, content, scene))).toMatch(/hears the bus/);
+    expect(refused(apply({ op: "connect", from: ["event:door/:found", "out"], to: ["rule:scene:door#0", "on"] }, content, scene))).toMatch(/listens to the bus/);
   });
 
   it("goto: disconnecting its stub removes it; a derived goto is refused where it is not written", () => {

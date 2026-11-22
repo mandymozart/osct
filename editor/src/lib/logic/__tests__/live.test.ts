@@ -15,9 +15,9 @@ const line = (event: string, payload?: unknown, t = 1) => ({ event, detail: desc
 const sorted = (list: string[]) => [...list].sort();
 
 describe("live feedback: an event lights its wires (#334, Tilman 2026-11-21)", () => {
-  it("lights the wires into and out of the event's box, the plugin's hears and the stub that carries it", () => {
+  it("lights the wires into and out of the event's box, the plugin's listens to and the stub that carries it", () => {
     const hit = liveHit(door, line("openDoor"));
-    expect(sorted(hit.wires)).toEqual([">stub:2", "event:openDoor:out>plugin:narrative:hears", "rule:door/#1:do:1>event:openDoor:in"]);
+    expect(sorted(hit.wires)).toEqual([">stub:2", "event:openDoor:out>plugin:narrative:listens", "rule:door/#1:do:1>event:openDoor:in"]);
     expect(hit.boxes).toEqual(["event:openDoor"]);
   });
 
@@ -33,11 +33,11 @@ describe("live feedback: an event lights its wires (#334, Tilman 2026-11-21)", (
 
   it("lights a bundled wire between scenes and a stub by the names they carry (the group and experience levels)", () => {
     const group = indexAt({ level: "group", group: "ch1" });
-    expect(liveHit(group, line("keyRattled")).wires).toEqual(["scene:cover:emits>scene:door:hears"]);
+    expect(liveHit(group, line("keyRattled")).wires).toEqual(["scene:cover:emits>scene:door:listens"]);
     expect(sorted(liveHit(group, line("openDoor")).wires)).toEqual([">stub:1", ">stub:2"]);
     const experience = indexAt({ level: "experience" });
     expect(liveHit(experience, line("sceneChanged", { sceneId: "epilogue" }))).toMatchObject({
-      wires: ["event:sceneChanged:out>scene:epilogue:hears"], boxes: ["event:sceneChanged"],
+      wires: ["event:sceneChanged:out>scene:epilogue:listens"], boxes: ["event:sceneChanged"],
     });
   });
 

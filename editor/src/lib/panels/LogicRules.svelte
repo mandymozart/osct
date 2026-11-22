@@ -11,7 +11,7 @@
 
   /**
    * A scene's or the experience's **rules** in the Inspector (content schema 5.0, #334): the rule list of
-   * `BehaviourRules` with the differences of these homes – they hear the bus (scene events and core events, not a node's
+   * `BehaviourRules` with the differences of these homes – they listen to the bus (scene events and core events, not a node's
    * own), name a node by address (`target:<id>/<name>` – a scene's rules its own targets', the experience's any scene's)
    * and go to a scene (goto). The experience also shows its **variables** (`VariablesEditor`). Edits go to `logicEdit`,
    * which saves them by themselves (`PUT …/scenes/{sid}` `{ logic }`, `PUT …/logic`) – History lists them, Undo takes
@@ -49,8 +49,8 @@
 
 <Section id="logic.{home}" label="rules" summary={rules.length ? String(rules.length) : "none"} open={rules.length > 0}
   help={home === "scene"
-    ? "The scene's own rules: live while the scene is open. They hear the stage's events (a scene event, or a core event like sceneChanged or targetFound), read variables in a condition and act on the scene's targets' nodes, set variables, emit events and go to another scene. Every edit saves itself."
-    : "The experience's own rules: live for the whole session, across scene switches – they hear the stage's events in every scene, act on a node of the open scene's targets, set variables, emit events and go to a scene. Every edit saves itself."}>
+    ? "The scene's own rules: live while the scene is open. They listen to the stage's events (a scene event, or a core event like sceneChanged or targetFound), read variables in a condition and act on the scene's targets' nodes, set variables, emit events and go to another scene. Every edit saves itself."
+    : "The experience's own rules: live for the whole session, across scene switches – they listen to the stage's events in every scene, act on a node of the open scene's targets, set variables, emit events and go to a scene. Every edit saves itself."}>
   <BehaviourRules {rules} {home} {nodes} {scenes} {variables} {events} {types} uid="logic-{home}"
     problemsOf={i => problems.filter(p => p.rule === i).map(p => p.message)} onchange={change} />
   {#if issues.length}
