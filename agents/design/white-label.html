@@ -10,8 +10,10 @@
    * A static page, no app code. Editor frames use the editor's tokens (monochrome, square, compact – RULES #32/#38);
    * reader frames use each brand's own colours. Frames by hash:
    * #overview #brand #reader #free #access #domain #qr #newsletter #arrival.
-   * Framing (Tilman, 2026-11-22): an XR experience provider platform with limited free versions; our own brand is
-   * Vienna Struggle, the first use case free poster XR on qr.viennastruggle.at. The core code is scutoons-animus-ar.
+   * Framing (Tilman, 2026-11-22): Animus XR (animusxr.com or an equivalent – to decide) is Tilman's own XR experience
+   * provider product, white label, built into his other products (Scutoons on xr.scutoons.com, Vienna Struggle on
+   * qr.viennastruggle.at) and delivered to clients; one DB and CDN of its own on a shared hoster like staging. Free
+   * experiences carry the host product's brand. First use case: free poster XR via qr.viennastruggle.at.
    */
   :root {
     --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -100,7 +102,7 @@
   .b-osct { --b-grad: linear-gradient(90deg, #f5e7c8 0%, #f5e7c8 3.8%, #7f6032 31.5%, #d2ae5a 57%, #f3cc94 73.6%, #f3cc94 100%); --b-bg: radial-gradient(farthest-corner, #000 0%, #070707 50%, #1a1a1a 100%); --b-solid: #d2ae5a; --b-on: #000; }
   .b-demo { --b-grad: linear-gradient(90deg, #d9fff6, #3aa597 45%, #9ee6d8); --b-bg: radial-gradient(farthest-corner, #04110f, #0b201d 60%, #12302c); --b-solid: #5cc7b8; --b-on: #04110f; }
   .b-scut { --b-grad: linear-gradient(90deg, #ffd3c2, #ff5a2b 50%, #ffb000); --b-bg: radial-gradient(farthest-corner, #140803, #1d0d06 60%, #2a140a); --b-solid: #ff6a3d; --b-on: #140803; }
-  .b-animus { --b-grad: linear-gradient(90deg, #f2ffd0, #c6f432 50%, #e8ff8a); --b-bg: radial-gradient(farthest-corner, #0a0a0a, #111 60%, #1a1a1a); --b-solid: #c6f432; --b-on: #0a0a0a; }
+  .b-animus { --b-grad: linear-gradient(90deg, #ffd3c2, #ff6a3d 50%, #ffb000); --b-bg: radial-gradient(farthest-corner, #0a0a0a, #111 60%, #1a1a1a); --b-solid: #ff6a3d; --b-on: #140803; }
   .gold { background: var(--b-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
   .phone { width: 15rem; aspect-ratio: 9 / 19; border-radius: 1.75rem; border: .375rem solid #2a2a2a; background: var(--b-bg); color: #fff;
@@ -119,7 +121,7 @@
   .phone .top-ui, .phone .bottom-ui { position: relative; z-index: 2; display: flex; align-items: center; gap: .5rem; }
   .phone .bottom-ui { margin-top: auto; justify-content: center; }
   .phone .footer-mark { font-size: .625rem; color: #9a9a9a; text-align: center; }
-  .phone .footer-mark b { color: #c6f432; font-weight: 600; }
+  .phone .footer-mark b { color: #ff6a3d; font-weight: 600; }
   .phone input { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.25); color: #fff; border-radius: 2rem; padding: .5rem .75rem; font: inherit; width: 100%; }
   .phone .check { display: flex; gap: .5rem; align-items: flex-start; font-size: .6875rem; color: #d0d0d0; text-align: left; }
   .phone .check i { width: .875rem; height: .875rem; border: 1px solid var(--b-solid); flex: none; margin-top: .1rem; }
@@ -169,27 +171,40 @@
     <div class="canvas-title"><h1>Who is who: platform → instances → experiences</h1><span class="muted">one core, many brands</span></div>
     <div class="tier">
       <div class="node vendor" style="max-width:34rem;margin:0 auto">
-        <div class="row"><span class="badge on">platform</span><b>Vienna Struggle</b><span class="muted">XR experience provider · core: scutoons-animus-ar</span></div>
-        <p class="muted">The platform: reader, engine, editor, API, hosting. We build and run it; our brand is on every free experience.</p>
+        <div class="row"><span class="badge on">product</span><b>Animus XR</b><span class="muted">by Tilman · white label · <code>animusxr.com</code> (domain to decide) · core: scutoons-animus-xr</span></div>
+        <p class="muted">Your own product: reader, engine, editor, API and the hosting. White label – it runs under your other products' names and under clients' names; on its own domain it carries its own brand.</p>
       </div>
       <div class="connector"></div>
-      <div class="grid3">
+      <div class="grid2" style="grid-template-columns:2fr 1fr">
+        <div class="node" style="border:2px solid var(--accent)">
+          <div class="row"><span class="badge on">shared hosting</span><b>Animus XR cloud</b><span class="grow"></span><span class="badge">yours</span></div>
+          <p class="muted small">One DB and one CDN zone of your own, on a shared hoster (like staging). Everything hosted with you – your products and their users – is delivered from here; each product's domain is a CNAME to it, the host picks the brand.</p>
+          <div class="grid3" style="gap:.5rem">
+            <div style="display:grid;gap:.375rem;align-content:start">
+              <span class="label">xr.scutoons.com</span>
+              <div class="xp b-scut"><span class="dot"></span>Cyberdeck Chronicles<span class="grow"></span><span class="badge">own</span></div>
+              <div class="xp b-animus"><span class="dot"></span>Mira's zine<span class="grow"></span><span class="badge warnb">free</span></div>
+              <span class="muted small">free = "made with Scutoons"</span>
+            </div>
+            <div style="display:grid;gap:.375rem;align-content:start">
+              <span class="label">qr.viennastruggle.at</span>
+              <div class="xp b-animus"><span class="dot"></span>Kranich live<span class="grow"></span><span class="badge warnb">free</span></div>
+              <div class="xp b-animus"><span class="dot"></span>Kunsthalle night<span class="grow"></span><span class="badge warnb">free</span></div>
+              <span class="muted small">free poster XR – first use case</span>
+            </div>
+            <div style="display:grid;gap:.375rem;align-content:start">
+              <span class="label">animusxr.com</span>
+              <div class="xp b-demo"><span class="dot"></span>Gallery X<span class="grow"></span><span class="badge">paid</span></div>
+              <div class="xp b-animus"><span class="dot"></span>anyone's first try<span class="grow"></span><span class="badge warnb">free</span></div>
+              <span class="muted small">free = "made with Animus XR"</span>
+            </div>
+          </div>
+        </div>
         <div class="node">
-          <div class="row"><span class="badge">instance</span><b>Building Fictions</b><span class="grow"></span><span class="badge okb">contracted</span></div>
-          <p class="muted small">osct.buildingfictions.com · own DB, own CDN zone, own mail sender</p>
+          <div class="row"><span class="badge">own instance</span><b>Building Fictions</b><span class="grow"></span><span class="badge okb">client</span></div>
+          <p class="muted small">osct.buildingfictions.com · its own DB, CDN zone, mail sender, server (Kamal) – Animus XR invisible</p>
           <div class="xp b-osct"><span class="dot"></span>Onion Skin &amp; Crocodile Tears<span class="grow"></span><span class="badge">own brand</span></div>
           <div class="xp b-demo"><span class="dot"></span>Demo<span class="grow"></span><span class="badge">own brand</span></div>
-        </div>
-        <div class="node">
-          <div class="row"><span class="badge">instance</span><b>Scutoons</b><span class="grow"></span><span class="badge okb">contracted</span></div>
-          <p class="muted small">ar.scutoons.com · own DB, own CDN zone</p>
-          <div class="xp b-scut"><span class="dot"></span>Cyberdeck Chronicles<span class="grow"></span><span class="badge">own brand</span></div>
-        </div>
-        <div class="node">
-          <div class="row"><span class="badge">instance</span><b>Poster XR</b><span class="grow"></span><span class="badge warnb">free tier</span></div>
-          <p class="muted small">qr.viennastruggle.at (ours) · shared by everyone who starts for free</p>
-          <div class="xp b-animus"><span class="dot"></span>Studio Kranich – Kranich live<span class="grow"></span><span class="badge">our brand</span></div>
-          <div class="xp b-animus"><span class="dot"></span>Kunsthalle night – poster<span class="grow"></span><span class="badge">our brand</span></div>
         </div>
       </div>
     </div>
@@ -197,21 +212,23 @@
     <h2 style="margin:2rem 0 .5rem">What sits where</h2>
     <table class="t box" style="padding:0">
       <tr><th>Level</th><th>Owns</th><th>Edited by</th></tr>
-      <tr><td><b>Platform</b></td><td>core code, hosting, plans and limits, free-tier brand ("made with Vienna Struggle"), docs</td><td>us</td></tr>
-      <tr><td><b>Instance</b></td><td>domain, mail sender, newsletter lists, imprint / privacy, font licences, readers' accounts and data, default brand</td><td>instance owner + admins</td></tr>
+      <tr><td><b>Product</b> (Animus XR)</td><td>core code, hosting, plans and limits, its own brand and domain, docs</td><td>you</td></tr>
+      <tr><td><b>Host product</b> (Scutoons, Vienna Struggle) or <b>instance</b> (a client)</td><td>domain, brand on free experiences, mail sender, newsletter lists, imprint / privacy, font licences, readers' accounts and data, default brand</td><td>you, or the client's owner + admins</td></tr>
       <tr><td><b>Experience</b></td><td>content, brand (colours, logo, icon, wording, colophon, links), access, QR codes, its own domain or path</td><td>experience owner + editors</td></tr>
     </table>
   </div>
   <aside class="notes">
-    <div><h1>1 · Overview</h1><p class="muted">The three levels every other frame refers to.</p></div>
+    <div><h1>1 · Overview</h1><p class="muted">The levels every other frame refers to.</p></div>
     <ul>
-      <li><b>Contracted instance</b> = a brand we host for (Building Fictions, Scutoons). Every experience in it carries the brand it sets; no trace of us.</li>
-      <li><b>Free tier</b> = experiences in <i>our</i> instance. They carry our brand as marketing – "made with Vienna Struggle · make your own poster".</li>
-      <li>Moving a free experience into its own instance (or upgrading) removes our brand – frame 4.</li>
+      <li><b>Animus XR is your product</b> – white label, so your other products (Scutoons, Vienna Struggle) build it in under their own names, and clients get it with no trace of it.</li>
+      <li><b>Animus XR cloud</b> = one DB and CDN of your own on a shared hoster like staging (osct.porschuetz.de). Everyone hosting with you is delivered from there; <code>xr.scutoons.com</code>, <code>qr.viennastruggle.at</code> and <code>animusxr.com</code> are hosts on it.</li>
+      <li><b>Free experiences carry the host product's brand</b> as marketing: "made with Scutoons" on xr.scutoons.com, Vienna Struggle on qr.viennastruggle.at, "made with Animus XR" on its own domain. In the frames below the example mark is Scutoons.</li>
+      <li><b>Own instance</b> = a client with its own DB, CDN and server (Building Fictions).</li>
     </ul>
-    <div class="dec"><b>Shift (Tilman, 2026-11-22):</b> think XR experience provider <i>platform</i>, with free versions under limits – STRATEGY.md says "no platform until demand" and needs updating.</div>
-    <div class="dec"><b>Decide:</b> is the free tier its own instance on <code>qr.viennastruggle.at</code> (ours, shared DB) – recommended – or a mode of any instance?</div>
-    <div class="dec"><b>First use case:</b> free poster XR on <code>qr.viennastruggle.at</code> – frames 10 and 11.</div>
+    <div class="dec"><b>Shift (Tilman, 2026-11-22):</b> an XR experience <i>provider platform</i> with limited free versions, your own product, white label and built into your other products – STRATEGY.md ("no platform until demand", "Scutoons as the second instance") needs updating.</div>
+    <div class="dec"><b>First use case:</b> free poster XR via <code>qr.viennastruggle.at</code> – frames 10 and 11.</div>
+    <div class="dec"><b>Decide:</b> the product's name and domain – <code>animusxr.com</code> or an equivalent (availability not checked yet).</div>
+    <div class="dec"><b>Decide:</b> one shared DB for all host products, or one per product (Scutoons' readers apart from Vienna Struggle's)? Recommended: one DB with the host product as a column – cheap on a shared hoster, separable later.</div>
   </aside>
 </div>
 </section>
@@ -292,8 +309,8 @@
     <div class="phones">
       <div class="b-osct"><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="t1 gold">Onion Skin<br>&amp; Crocodile Tears</div><div class="t2">Kévin Bray</div><div class="t2 gold">Building Fictions</div></div><div class="glass">Start</div></div></div><div class="cap">osct.buildingfictions.com</div></div>
       <div class="b-demo"><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="mark">D</div><div class="t1 gold">Demo</div><div class="t2">Building Fictions</div></div><div class="glass">Start</div></div></div><div class="cap">osct.buildingfictions.com/demo/</div></div>
-      <div class="b-scut"><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="mark">S</div><div class="t1 gold">Cyberdeck<br>Chronicles</div><div class="t2">Scutoons</div></div><div class="pill">Jack in</div></div></div><div class="cap">ar.scutoons.com</div></div>
-      <div class="b-animus"><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="mark">K</div><div class="t1">Kranich live</div><div class="t2">Studio Kranich</div></div><div class="glass">Start</div><div class="footer-mark">made with <b>Vienna Struggle</b></div></div></div><div class="cap">qr.viennastruggle.at/kranich-live</div></div>
+      <div class="b-scut"><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="mark">S</div><div class="t1 gold">Cyberdeck<br>Chronicles</div><div class="t2">Scutoons</div></div><div class="pill">Jack in</div></div></div><div class="cap">xr.scutoons.com/cyberdeck</div></div>
+      <div class="b-animus"><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="mark">K</div><div class="t1">Kranich live</div><div class="t2">Studio Kranich</div></div><div class="glass">Start</div><div class="footer-mark">made with <b>Scutoons</b></div></div></div><div class="cap">xr.scutoons.com/kranich-live</div></div>
     </div>
     <h2 style="margin:2rem 0 .75rem">Installed on a phone</h2>
     <div class="phones">
@@ -315,7 +332,7 @@
           <tr><td>Wording (Marginalia → Notes)</td><td>experience, per language</td></tr>
           <tr><td>Colophon, shop link</td><td>experience</td></tr>
           <tr><td>Account, sign-in mail sender, newsletter, imprint</td><td>instance</td></tr>
-          <tr><td>"made with Vienna Struggle"</td><td>only free tier</td></tr>
+          <tr><td>"made with Scutoons"</td><td>only free tier</td></tr>
         </table>
       </div>
     </div>
@@ -325,7 +342,7 @@
     <ul>
       <li>Each experience installs as its own app with its own icon and name.</li>
       <li>OSCT keeps its install identity (<code>/</code>) and its gold – the printed QR must keep opening exactly this (RULES #39).</li>
-      <li>Free experiences show the small "made with Vienna Struggle" line on splash and in Info.</li>
+      <li>Free experiences show the small "made with Scutoons" line on splash and in Info.</li>
     </ul>
     <div class="dec"><b>Decide:</b> §5 #3 (OSCT gold stays the default until its content carries the brand), #4 (server-rendered head), #7 (OSCT keeps <code>id /</code>).</div>
   </aside>
@@ -338,25 +355,25 @@
   <div class="canvas">
     <div class="canvas-title"><h1>Free experiences carry our brand – and invite people to make their own</h1></div>
     <div class="phones b-animus">
-      <div><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="mark" style="background:#222;color:#fff">K</div><div class="t1">Kranich live</div><div class="t2">Studio Kranich</div></div><div class="glass">Start</div><div class="footer-mark">made with <b>Vienna Struggle</b></div></div></div><div class="cap">splash – their name, our line</div></div>
-      <div><div class="phone"><div class="cam"></div><div class="page-in-cam" style="background:#c9c3b7"></div><div class="reticle"></div><div class="notch"></div><div class="scr"><div class="top-ui"><span class="gold" style="font-weight:600">Found 2 / 3</span><span class="grow"></span><span class="badge" style="background:#c6f432;color:#0a0a0a">VS</span></div><div class="bottom-ui"><div class="glass">Point at the poster</div></div></div></div><div class="cap">scanning – a small mark, top right</div></div>
+      <div><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="mark" style="background:#222;color:#fff">K</div><div class="t1">Kranich live</div><div class="t2">Studio Kranich</div></div><div class="glass">Start</div><div class="footer-mark">made with <b>Scutoons</b></div></div></div><div class="cap">splash – their name, our line</div></div>
+      <div><div class="phone"><div class="cam"></div><div class="page-in-cam" style="background:#c9c3b7"></div><div class="reticle"></div><div class="notch"></div><div class="scr"><div class="top-ui"><span class="gold" style="font-weight:600">Found 2 / 3</span><span class="grow"></span><span class="badge" style="background:#ff6a3d;color:#140803">SC</span></div><div class="bottom-ui"><div class="glass">Point at the poster</div></div></div></div><div class="cap">scanning – a small mark, top right</div></div>
       <div><div class="phone"><div class="notch"></div><div class="scr"><div class="center"><div class="t1 gold">All 3 found</div><div class="t2">You found everything on the poster.</div></div>
         <div class="glass" style="text-align:left;border-radius:.75rem;display:grid;gap:.375rem"><b class="gold">Make your own</b><span style="color:#ccc;font-size:.6875rem">Bring your poster to life. Free to start, no tracking.</span></div>
-        <div class="pill">Make your own poster</div><div class="footer-mark">qr.viennastruggle.at/start</div></div></div><div class="cap">the end – the invitation</div></div>
-      <div><div class="phone"><div class="notch"></div><div class="scr"><div style="font-weight:600">Info</div><div class="t2">Kranich live · Studio Kranich</div><div style="color:#ccc;font-size:.6875rem">A gig poster that plays the band …</div><div style="margin-top:auto;border-top:1px solid #333;padding-top:.625rem;display:grid;gap:.25rem"><span class="footer-mark" style="text-align:left">This experience is free and made with <b>Vienna Struggle</b> – the XR platform that keeps readers' data with the artist.</span><span class="gold" style="font-size:.6875rem">→ Make your own</span></div></div></div><div class="cap">Info – who made the tool</div></div>
+        <div class="pill">Make your own poster</div><div class="footer-mark">xr.scutoons.com/start</div></div></div><div class="cap">the end – the invitation</div></div>
+      <div><div class="phone"><div class="notch"></div><div class="scr"><div style="font-weight:600">Info</div><div class="t2">Kranich live · Studio Kranich</div><div style="color:#ccc;font-size:.6875rem">A gig poster that plays the band …</div><div style="margin-top:auto;border-top:1px solid #333;padding-top:.625rem;display:grid;gap:.25rem"><span class="footer-mark" style="text-align:left">This experience is free and made with <b>Scutoons</b>, powered by Animus XR – the XR platform that keeps readers' data with the artist.</span><span class="gold" style="font-size:.6875rem">→ Make your own</span></div></div></div><div class="cap">Info – who made the tool</div></div>
     </div>
     <h2 style="margin:2rem 0 .75rem">In the editor: what the free tier allows</h2>
     <div class="grid2" style="max-width:56rem">
       <div class="box"><div class="row"><h3 class="grow">Free</h3><span class="badge warnb">current</span></div>
-        <ul style="margin:0;padding-left:1rem;display:grid;gap:.25rem"><li>Own title, logo, colours, icon</li><li>"made with Vienna Struggle" on splash, scanner, end, Info</li><li>Address <code>qr.viennastruggle.at/&lt;name&gt;</code></li><li>Readers sign up to the Vienna Struggle account; newsletter: ours + the artist's opt-in</li><li>Limits: n targets, n MB, n readers / month <span class="muted">(to decide)</span></li></ul></div>
+        <ul style="margin:0;padding-left:1rem;display:grid;gap:.25rem"><li>Own title, logo, colours, icon</li><li>"made with Scutoons" on splash, scanner, end, Info</li><li>Address <code>xr.scutoons.com/&lt;name&gt;</code> or a partner domain (<code>qr.viennastruggle.at</code>)</li><li>Readers sign up once (an Animus XR account, shown under the host product's name); newsletter: Scutoons + the artist's opt-in</li><li>Limits: n targets, n MB, n readers / month <span class="muted">(to decide)</span></li></ul></div>
       <div class="box"><div class="row"><h3 class="grow">Own brand</h3><span class="badge">contract</span></div>
-        <ul style="margin:0;padding-left:1rem;display:grid;gap:.25rem"><li>No Vienna Struggle mark anywhere</li><li>Own domain, own instance (DB, CDN, mail)</li><li>Own newsletter lists, own imprint</li><li>Move the free experience over in one step (frame 6)</li></ul><button class="btn primary" style="justify-self:start">Talk to us</button></div>
+        <ul style="margin:0;padding-left:1rem;display:grid;gap:.25rem"><li>No Scutoons mark anywhere</li><li>Own domain, own instance (DB, CDN, mail) – Animus XR invisible</li><li>Own newsletter lists, own imprint</li><li>Move the free experience over in one step (frame 6)</li></ul><button class="btn primary" style="justify-self:start">Talk to us</button></div>
     </div>
   </div>
   <aside class="notes">
     <div><h1>4 · Free = our brand</h1><p class="muted">Free experiences pay with visibility: our mark is the marketing, the invitation at the end is the funnel.</p></div>
     <ul>
-      <li>Their brand stays in charge of the content (title, colours, logo); ours is a quiet, fixed layer the free tier cannot switch off.</li>
+      <li>Their brand stays in charge of the content (title, colours, logo); the host product's is a quiet, fixed layer the free tier cannot switch off – Scutoons here, Vienna Struggle on qr.viennastruggle.at, Animus XR on its own domain.</li>
       <li>Three touch points: splash line, a small mark while scanning, the "make your own" card at the end and in Info.</li>
       <li>Never in the camera picture over the artwork, never an ad – the data-sovereignty promise holds for free too.</li>
       <li>The free tier is the platform's self-service entry: a sign-up, an editor reduced to the poster case, and limits (frame 10).</li>
@@ -441,7 +458,7 @@
           <p>Add these two records at your domain's provider. We check every few minutes; the certificate follows by itself.</p>
           <table class="t">
             <tr><th>Type</th><th>Name</th><th>Value</th><th>Seen</th></tr>
-            <tr><td>CNAME</td><td><code>ar</code></td><td><code>edge.osct.porschuetz.de</code></td><td class="warn">not yet</td></tr>
+            <tr><td>CNAME</td><td><code>ar</code></td><td><code>xr.scutoons.com</code></td><td class="warn">not yet</td></tr>
             <tr><td>TXT</td><td><code>_xr-verify.ar</code></td><td><code>xr-site=7d1e…c40a</code></td><td class="ok">✓</td></tr>
           </table>
           <p class="small muted">Optional: <code>cdn.kranich-studio.de</code> → the content zone, so every file comes from your own domain.</p>
@@ -514,7 +531,7 @@
       <li>Arrivals are counted per code (today per source, no experience column – research pitfall 19).</li>
       <li>Brand colours by default, with a scan-contrast check; black on white always offered.</li>
       <li>"Printed" locks the link and the domain – a printed code can never break.</li>
-      <li>Free tier: the caption carries "Vienna Struggle" and the code points to qr.viennastruggle.at.</li>
+      <li>Free tier: the caption carries "made with Scutoons"; the code points to xr.scutoons.com or the partner domain (qr.viennastruggle.at).</li>
     </ul>
     <div class="dec"><b>Decide:</b> may the editor generate QR codes (the reader removed QR scanning, but generating is a separate thing)? Should codes point into scenes?</div>
   </aside>
@@ -536,7 +553,7 @@
         <div class="b-animus"><div class="phone"><div class="notch"></div><div class="scr"><div style="font-weight:600">Account</div><div class="t2">reader@example.org</div>
           <div style="display:grid;gap:.5rem;margin-top:.5rem"><span class="label" style="color:#888">Updates</span>
             <div class="check"><i class="x"></i><span><b>Studio Kranich</b><br>from the artist</span></div>
-            <div class="check"><i></i><span><b style="color:#c6f432">Vienna Struggle</b><br>new posters, events, and how to make your own</span></div></div>
+            <div class="check"><i></i><span><b style="color:#ff6a3d">Scutoons</b><br>new experiences and how to make your own</span></div></div>
           <div class="footer-mark" style="margin-top:auto">Free experience: the artist's list and ours are separate – both opt-in.</div></div></div><div class="cap">reader – free tier</div></div>
       </div>
       <div class="ed">
@@ -605,10 +622,10 @@
       </div>
     </div>
     <div class="browser b-animus" style="max-width:58rem;margin-top:1.25rem">
-      <div class="bar"><i></i><i></i><i></i><span class="url">qr.viennastruggle.at/kranich-live</span></div>
+      <div class="bar"><i></i><i></i><i></i><span class="url">xr.scutoons.com/kranich-live</span></div>
       <div class="desk" style="min-height:14rem">
         <div style="display:grid;gap:.75rem"><span class="t2">Studio Kranich</span><div style="font-size:2rem">Kranich live</div><p style="color:#ccc">A gig poster that plays the band. Scan to start.</p></div>
-        <div style="display:grid;gap:.5rem;justify-items:start;border-left:1px solid #333;padding-left:1.5rem"><span class="footer-mark">made with <b style="color:#c6f432">Vienna Struggle</b></span><b>Make your own XR poster</b><span style="color:#aaa">Prints, walls, pages. Free to start, your readers' data stays yours.</span><span style="background:#c6f432;color:#0a0a0a;padding:.375rem .75rem;border-radius:2rem;font-weight:600">Start for free</span></div>
+        <div style="display:grid;gap:.5rem;justify-items:start;border-left:1px solid #333;padding-left:1.5rem"><span class="footer-mark">made with <b style="color:#ff6a3d">Scutoons</b></span><b>Make your own XR poster</b><span style="color:#aaa">Prints, walls, pages. Free to start, your readers' data stays yours.</span><span style="background:#ff6a3d;color:#140803;padding:.375rem .75rem;border-radius:2rem;font-weight:600">Start for free</span></div>
       </div>
     </div>
   </div>
@@ -619,7 +636,7 @@
       <li>Desktop: the brand's hero, the QR to the phone, shop and colophon links from the brand.</li>
       <li>The QR's target can be this landing (frame 7) – for posters and social links.</li>
       <li>Free tier: a "make your own" panel beside the experience – the marketing slot.</li>
-      <li>Later public: the platform Start page (qr.viennastruggle.at/start) for people who want to create (#346 Start page).</li>
+      <li>Later public: the platform Start page (xr.scutoons.com/start) for people who want to create (#346 Start page).</li>
     </ul>
     <div class="dec"><b>Decide:</b> sign-in before or after the first find? Show the install hint on the first visit or after the first find?</div>
   </aside>
@@ -633,13 +650,13 @@
     <div class="canvas-title"><h1>Plans – free versions with limits</h1><span class="muted">numbers are placeholders to decide</span></div>
     <div class="grid3" style="grid-template-columns:repeat(4,1fr)">
       <div class="box" style="outline:2px solid var(--accent)"><div class="row"><h3 class="grow">Poster – free</h3><span class="badge on">first</span></div>
-        <p class="muted small">qr.viennastruggle.at</p>
+        <p class="muted small">xr.scutoons.com · partner domains</p>
         <table class="t">
           <tr><td>Experiences</td><td>1 poster</td></tr><tr><td>Targets</td><td>1 image</td></tr>
           <tr><td>Media</td><td>1 video ≤ 30 s or 1 image layer, 50 MB</td></tr>
           <tr><td>Scans</td><td>1 000 / month</td></tr><tr><td>Runs for</td><td>6 months, renewable</td></tr>
-          <tr><td>Brand</td><td>theirs + "made with Vienna Struggle"</td></tr>
-          <tr><td>Address</td><td><code>qr.viennastruggle.at/&lt;name&gt;</code></td></tr>
+          <tr><td>Brand</td><td>theirs + "made with Scutoons"</td></tr>
+          <tr><td>Address</td><td><code>xr.scutoons.com/&lt;name&gt;</code></td></tr>
           <tr><td>Editors</td><td>1</td></tr><tr><td>Readers' data</td><td>no accounts needed; artist list opt-in</td></tr>
         </table></div>
       <div class="box"><h3>Creator</h3><p class="muted small">paid · monthly</p>
@@ -664,7 +681,7 @@
     <h2 style="margin:2rem 0 .75rem">When a limit is reached</h2>
     <div class="grid2" style="max-width:56rem">
       <div class="box"><h3>Editor</h3><div class="row"><span class="grow">Scans this month</span><b>940 / 1 000</b></div><div style="height:.375rem;background:var(--control-background)"><div style="width:94%;height:100%;background:var(--warn)"></div></div><p class="small warn">Almost at the limit. Readers keep scanning until the end of the month; after that they see the poster's landing with a note.</p><button class="btn primary" style="justify-self:start">Upgrade</button></div>
-      <div class="box b-animus" style="background:#0a0a0a;color:#fff"><h3>Reader, over the limit</h3><p style="color:#ccc">This poster has had a lot of visitors this month. The XR comes back on 1 December – or ask the artist.</p><span class="footer-mark" style="text-align:left">made with <b>Vienna Struggle</b></span></div>
+      <div class="box b-animus" style="background:#0a0a0a;color:#fff"><h3>Reader, over the limit</h3><p style="color:#ccc">This poster has had a lot of visitors this month. The XR comes back on 1 December – or ask the artist.</p><span class="footer-mark" style="text-align:left">made with <b>Scutoons</b></span></div>
     </div>
   </div>
   <aside class="notes">
@@ -684,15 +701,15 @@
 <section class="frame" id="poster">
 <div class="page">
   <div class="canvas">
-    <div class="canvas-title"><h1>First use case – free poster XR on qr.viennastruggle.at</h1><span class="muted">sign up → poster → video → QR → print</span></div>
+    <div class="canvas-title"><h1>First use case – Vienna Struggle's free poster XR on qr.viennastruggle.at, hosted on Animus XR</h1><span class="muted">sign up → poster → video → QR → print</span></div>
     <div class="browser b-animus" style="max-width:62rem">
       <div class="bar"><i></i><i></i><i></i><span class="url">qr.viennastruggle.at</span></div>
       <div class="desk" style="min-height:18rem">
         <div style="display:grid;gap:1rem">
-          <span class="footer-mark" style="text-align:left"><b>Vienna Struggle</b> · poster XR</span>
+          <span class="footer-mark" style="text-align:left"><b>Vienna Struggle</b> · poster XR · powered by Animus XR</span>
           <div style="font-size:2.25rem;line-height:1.05" class="gold">Your poster,<br>alive.</div>
           <p style="color:#ccc;max-width:26rem">Upload your poster, add a video, print the QR. People scan it on the street and the poster plays. Free, hosted in Europe, no tracking.</p>
-          <div class="row" style="gap:.75rem"><span style="background:#c6f432;color:#0a0a0a;padding:.5rem 1rem;border-radius:2rem;font-weight:600">Make a free poster</span><span style="color:#888">See examples</span></div>
+          <div class="row" style="gap:.75rem"><span style="background:#ff6a3d;color:#140803;padding:.5rem 1rem;border-radius:2rem;font-weight:600">Make a free poster</span><span style="color:#888">See examples</span></div>
         </div>
         <div class="phones" style="justify-content:center"><div class="phone" style="width:11rem"><div class="cam"></div><div class="page-in-cam" style="background:linear-gradient(160deg,#ff5a2b,#2b1a3d);left:18%;width:64%;height:56%;top:18%"></div><div class="reticle" style="left:20%;top:22%;width:60%;height:48%"></div><div class="notch"></div><div class="scr"><div class="bottom-ui"><div class="glass">▶ playing</div></div></div></div></div>
       </div>
@@ -704,16 +721,16 @@
         <div class="box"><div class="row"><span class="badge okb">1</span><h3>Poster</h3></div><div style="aspect-ratio:3/4;background:linear-gradient(160deg,#ff5a2b,#2b1a3d)"></div><p class="small ok">✓ tracks well (82 features)</p></div>
         <div class="box"><div class="row"><span class="badge okb">2</span><h3>What appears</h3></div><div class="drop" style="aspect-ratio:3/4">video on the poster<br><b style="color:var(--text)">kranich-teaser.mp4</b><br>24 s · 31 MB</div><div class="row small"><span class="grow">Play</span><select style="width:auto"><option>when found, with sound on tap</option></select></div></div>
         <div class="box"><div class="row"><span class="badge okb">3</span><h3>Name and link</h3></div><div class="field"><span class="small muted">Title</span><input type="text" value="Kranich live"></div><div class="field"><span class="small muted">Address</span><input type="text" value="qr.viennastruggle.at/kranich-live"></div><div class="field"><span class="small muted">Button at the end</span><input type="text" value="Tickets – kranich.band"></div><div class="field"><span class="small muted">Colour</span><div class="swatches"><span class="sw" style="background:#ff5a2b"></span><span class="sw" style="background:#2b1a3d"></span></div></div></div>
-        <div class="box"><div class="row"><span class="badge on">4</span><h3>QR and print</h3></div><div class="qrbox" style="justify-self:center;border:1px solid var(--line);--qr:#2b1a3d"><div class="qr" id="qr3"></div><span style="font-size:.5625rem;color:#2b1a3d">Scan me · made with Vienna Struggle</span></div><div class="row"><button class="btn">SVG</button><button class="btn">PDF</button></div><button class="btn primary">Publish</button><p class="small muted">Runs until 2027-05-22 · 1 000 scans / month</p></div>
+        <div class="box"><div class="row"><span class="badge on">4</span><h3>QR and print</h3></div><div class="qrbox" style="justify-self:center;border:1px solid var(--line);--qr:#2b1a3d"><div class="qr" id="qr3"></div><span style="font-size:.5625rem;color:#2b1a3d">Scan me · qr.viennastruggle.at</span></div><div class="row"><button class="btn">SVG</button><button class="btn">PDF</button></div><button class="btn primary">Publish</button><p class="small muted">Runs until 2027-05-22 · 1 000 scans / month</p></div>
       </div>
     </div>
   </div>
   <aside class="notes">
     <div><h1>11 · Poster XR (first use case)</h1><p class="muted">Tilman, 2026-11-22: "via qr.viennastruggle.at I want to provide free poster XR. we can use the platform to host it."</p></div>
     <ul>
-      <li>One instance on our platform, on <code>qr.viennastruggle.at</code> (a DNS record to the Kamal host, its own DB and CDN folder).</li>
+      <li>No instance of its own: the posters live in the Animus XR cloud (your DB and CDN, shared hoster like staging). <code>qr.viennastruggle.at</code> is a CNAME to it – the host picks Vienna Struggle as the brand.</li><li>Every file comes from the Animus XR CDN zone – the same for anyone hosting with you, whichever product they came through.</li>
       <li>One poster = one experience with one target and one video entity. The existing core already does all of it (editor targets, video on found, publish).</li>
-      <li>What is new: a sign-up for creators, the four-step poster editor (a reduced view of the editor), the free limits, the "made with Vienna Struggle" layer, the landing page.</li>
+      <li>What is new: a sign-up for creators, the four-step poster editor (a reduced view of the editor), the free limits, the host product's "made with" layer (Vienna Struggle here), the landing page.</li>
       <li>Readers need no account; the QR opens the poster's page, the camera starts after one tap.</li>
       <li>Moderation: public posters on our domain need terms, a report link and a way to take one down.</li>
     </ul>
