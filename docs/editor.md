@@ -170,11 +170,12 @@ stands next to it (its help in the Info view has the whole line). Another enviro
 **Publish** opens one overlay in the middle of the dimmed page (#345, Tilman 2026-11-22: *"this first dropdown dialog
 should be much more on point"*; `PublishButton.svelte`, its words in `publish-overlay.ts`) – no browser dialog. Three states:
 
-1. **Confirm** – *Publish “Test Experience” to staging?*, what it means for readers (*Readers get this state.*; on
-   production *Every reader gets this state on their next start.*) and *Last published: today 07:53* (local time, from
-   where the experience is live; *Not published on staging yet.* before the first). A warning only when it matters: a
-   saved Code tab source that does not compile is one danger line and **Publish** stays off (the sources are transpiled
-   when the overlay opens). **Publish** or **Cancel**; Esc or a click beside the overlay cancels – in this state only.
+1. **Confirm** – *Publish “Test Experience” to staging?* and *Last published: today 07:53* (local time, from where the
+   experience is live; *Not published on staging yet.* before the first). Warnings only when they matter, set apart by
+   white space, no dividers: the logic's problems for the whole experience as the Log tab lists them (*2 warnings in the
+   logic* and the first one; errors in red, and the button says **Publish anyway** – they never block); a saved Code
+   tab source that does not compile is one danger line and **Publish** stays off (the sources are transpiled when the
+   overlay opens). **Publish** or **Cancel**; Esc or a click beside the overlay cancels – in this state only.
 2. **Running** – *Publishing…*, then *Writing the build…* until latest.json names the build, from then *Live for readers
    ✓*; the export archive's count as a bar with *Archive 412 / 1522* (the bar runs without a count before that – the
    job's `parts` tell the archive's files from the build's, [server, "Publish jobs"](server.md#publish-jobs)), and *Keep
@@ -182,13 +183,13 @@ should be much more on point"*; `PublishButton.svelte`, its words in `publish-ov
    asks first – on a host where the server cannot write on after its answer, the editor's polls write the rest.
 3. **Done** – *Published*, *Live on staging. 3 files new, 1524 were already there.* (the job's done and skipped counts),
    **Close** and *Open reader* (`/<experience>/` on this instance – it serves its own environment). It closes itself after
-   2 s unless the pointer is over it or Details is open. **Failed**: *Publish failed* with the server's message and code,
-   Details open. A gateway that gives up on the request (502/503/504 without the API's answer, no answer) is no failure:
+   2 s unless the pointer is over it or the log is shown. **Failed**: *Publish failed* with the server's message and
+   code. A gateway that gives up on the request (502/503/504 without the API's answer, no answer) is no failure:
    the overlay finds the publish's job (the experience's newest, one that was not there before the click) and follows it;
    only when none turns up does it say *Publish outcome unknown* – never *504*.
 
-**Details** (collapsed; **Ctrl+L** toggles it while the overlay is open – the Library's key stays with the overlay) is a
-small log with a time per line: what used to be on the step – the target with its backend, the draft's build, the build it
+**The log** shows only on **Ctrl+L** while the overlay is open – no visible toggle (Tilman, 2026-11-22: *"not intended
+to be visible to everybody"*; the Library's key stays with the overlay). It is a small log with a time per line: what used to be on the step – the target with its backend, the draft's build, the build it
 replaces, *6 plugins transpiled, not type-checked*, the No CDN line – then every change the polls bring: *build written (3
 files)*, *live on staging*, *archive 412/1522*, files already on the store, *export archive written*, errors. The overlay
 keeps the keyboard while it is open (no key reaches the page; Tab stays inside) and gives the focus back to the Publish

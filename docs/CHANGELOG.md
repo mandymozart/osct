@@ -7,6 +7,17 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+## 6.2.5 – 2026-11-22
+
+### Changed
+- **The Publish overlay says less** (Tilman, 2026-11-22, #345): no *Readers get this state.* line; white space instead
+  of dividers; the log has no visible *Details* toggle any more – it shows only on **Ctrl+L** (*"not intended to be
+  visible to everybody"*), also in the confirm, and no longer opens by itself when a publish fails.
+
+### Added
+- **The confirm names the logic's problems** (#345): the whole experience's errors and warnings as the Log tab lists them
+  – *2 warnings in the logic* and the first one; with errors (red) the button says **Publish anyway**. They never block.
+
 ## 6.2.4 – 2026-11-22
 
 ### Changed

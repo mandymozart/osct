@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PublishJob, PublishResult } from "@shared/api/editor";
 import {
-  archiveCount, confirmView, doneView, failedView, jobLog, runningView, stamp, startLog, unknownView, whenText, writtenCounts,
+  archiveCount, confirmView, doneView, failedView, jobLog, logicCheck, runningView, stamp, startLog, unknownView, whenText, writtenCounts,
 } from "../publish-overlay";
 
 const result: PublishResult = { env: "staging", store: "cdn", build: "b49f09610206", hash: "b49f09610206ff", publishedAt: "2026-11-22T07:53:03.728Z", export: { path: "exports/b49f09610206", written: true } };
@@ -27,9 +27,9 @@ describe("the Publish overlay's times (#345)", () => {
 describe("the confirm state: on point (Tilman, 2026-11-22)", () => {
   const base = { title: "Onion Skin", env: "staging", build: "1a2b3c4d5e6f", plugins: 0, problem: null };
 
-  it("asks, says what readers get and when it was published last – no hashes", () => {
+  it("asks and says when it was published last – no hashes, no readers line", () => {
     const view = confirmView({ ...base, live: { env: "staging", build: "aaaaaaaaaaaa", since: local(2026, 11, 22, 7, 53).toISOString() } }, NOW);
-    expect(view).toEqual({ heading: "Publish “Onion Skin” to staging?", readers: "Readers get this state.", last: "Last published: today 07:53", problem: null });
+    expect(view).toEqual({ heading: "Publish “Onion Skin” to staging?", last: "Last published: today 07:53", problem: null });
     expect(JSON.stringify(view)).not.toMatch(/[0-9a-f]{12}/);
   });
 
@@ -43,7 +43,6 @@ describe("the confirm state: on point (Tilman, 2026-11-22)", () => {
   });
 
   it("production: every reader; a problem is the one danger line", () => {
-    expect(confirmView({ ...base, env: "production", live: undefined }, NOW).readers).toBe("Every reader gets this state on their next start.");
     expect(confirmView({ ...base, live: undefined, problem: "The plugin glow does not compile (line 3): x" }, NOW).problem).toContain("does not compile");
   });
 });
@@ -108,5 +107,17 @@ describe("the log behind Details", () => {
     ]);
     const failed = job({ status: "failed", error: { code: "content-store-failed", message: "The content store answered 401.", status: 502 } });
     expect(jobLog(job(), failed)).toEqual(["failed: The content store answered 401. (content-store-failed)"]);
+  });
+});
+
+describe("logicCheck", () => {
+  it("is null without problems", () => expect(logicCheck([])).toBeNull());
+  it("counts warnings and names the first", () => {
+    expect(logicCheck([{ severity: "warning", place: "keyRattled", text: "emitted, nothing listens to it" }, { severity: "warning", place: "", text: "x" }]))
+      .toEqual({ severity: "warning", count: "2 warnings in the logic", first: "keyRattled · emitted, nothing listens to it" });
+  });
+  it("puts errors first", () => {
+    expect(logicCheck([{ severity: "warning", place: "a", text: "w" }, { severity: "error", place: "3–4 · rule 2", text: "listens to nothing" }]))
+      .toEqual({ severity: "error", count: "1 error in the logic", first: "3–4 · rule 2 · listens to nothing" });
   });
 });
