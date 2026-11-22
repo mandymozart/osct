@@ -7,6 +7,10 @@ import { networkInterfaces } from 'os';
 import { ONBOARDING_ICON_SRC, renderStaticSplash, SPLASH_STEP, splashFields } from './src/utils/static-splash-html.ts';
 import { fontBaseUrl, renderFontFaces } from './src/utils/font-face-html.ts';
 import { legacyRedirectData, renderLegacyRedirect } from './src/utils/legacy-redirect-html.ts';
+import { manifestLinkData, renderManifestLink, withoutBuildManifestLink } from './src/utils/manifest-link-html.ts';
+import { landingDecisionData, renderLandingDecision } from './src/components/desktop-landing/landing-decision-html.ts';
+import { fillTexts, landingImages, renderStaticLanding } from './src/components/desktop-landing/landing-html.ts';
+import { LANDING_CONFIG } from './src/components/desktop-landing/landing-config.ts';
 
 // One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
@@ -25,6 +29,9 @@ const readLocalGameConfig = () => (existsSync(GAME_CONFIG_FILE) ? JSON.parse(rea
  * frame, the app renders the loaded content after that – and falls back to a local content build, then to no experience
  * data. Without the CDN the local build is required.
  */
+/** Where the content the build read lives on the CDN (`<base>/<experience>/<build>`, '' for the local build): its file URLs (the static landing's images) */
+let shellContentBase = '';
+
 async function readShellConfig(contentBaseUrl) {
   if (!contentBaseUrl) {
     const local = readLocalGameConfig();
@@ -38,7 +45,9 @@ async function readShellConfig(contentBaseUrl) {
       return response.json();
     };
     const { build } = await get(`${contentBaseUrl}/latest.json?t=${Date.now()}`);
-    return await get(`${contentBaseUrl}/${build}/game.config.json`);
+    const config = await get(`${contentBaseUrl}/${build}/game.config.json`);
+    shellContentBase = `${contentBaseUrl}/${build}`;
+    return config;
   } catch (error) {
     console.warn(`[osct] content on ${contentBaseUrl} not readable (${error.message}) – app shell from the local content build or without experience data`);
   }
@@ -172,6 +181,53 @@ function legacyRedirect(experience) {
 }
 
 /**
+ * A manifest per experience (#343, src/utils/manifest-link-html.ts): an inline script after the legacy redirect links
+ * the manifest of the experience the address names (`/api/experiences/<id>/manifest.webmanifest`, the default too);
+ * vite-plugin-pwa's own `<link rel="manifest">` is taken out after it wrote it (`enforce`/`order: 'post'`, listed after it), so the
+ * browser never sees the build's root manifest on an experience's page. The build's manifest file stays for an address
+ * that names no experience.
+ */
+function manifestLink() {
+  return {
+    name: 'osct-manifest-link',
+    enforce: 'post', // vite-plugin-pwa's build plugin is a post plugin; listed after it, this runs after it
+    transformIndexHtml: {
+      order: 'post',
+      handler: (html) => withoutBuildManifestLink(html).replace('<!--osct:manifest-link-->', renderManifestLink(manifestLinkData())),
+    },
+  };
+}
+
+/**
+ * The desktop landing in the skeleton (#343, src/components/desktop-landing/landing-decision-html.ts and landing-html.ts):
+ * an inline script after the legacy redirect decides at once whether this is a computer on the default experience's
+ * path (`<html data-osct-landing>`), and the landing page itself is written into the body from the build's game
+ * configuration (English texts, the targets' images from the content the build read) – so a computer sees the landing,
+ * not the phone's splash, before the bundle has loaded. `<desktop-landing>` takes over when it arrives.
+ */
+function staticLanding(experience, config, contentBase) {
+  const read = (file) => JSON.parse(readFileSync(resolve(import.meta.dirname, file), 'utf8'));
+  return {
+    name: 'osct-static-landing',
+    transformIndexHtml(html) {
+      const fields = splashFields(config.experience);
+      const url = (path) => (contentBase && path.startsWith('/assets/content/') ? `${contentBase}${path}` : path);
+      return html
+        .replace('<!--osct:landing-decision-->', renderLandingDecision(landingDecisionData(experience)))
+        .replace('<!--osct:static-landing-->', renderStaticLanding({
+          ...LANDING_CONFIG,
+          texts: fillTexts(read('src/i18n/locales/en/landing.json'), { title: fields.title, author: fields.author }),
+          title: fields.title,
+          author: fields.author,
+          publisher: fields.publisher,
+          images: landingImages(config, url),
+          markSrc: ONBOARDING_ICON_SRC,
+        }));
+    },
+  };
+}
+
+/**
  * The design font (ABC Areal, src/utils/font-face-html.ts): `@font-face` rules for the font folder on the CDN
  * (`VITE_FONT_BASE_URL`, default the shared folder; empty = no web font), written into index.html before the
  * stylesheet. The files are licensed and never part of the build.
@@ -288,8 +344,8 @@ export default defineConfig(async ({command,mode})=>{
 
   return {
   plugins: [
-    legacyRedirect(experience), designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
-    contentFromCdn(contentBaseUrl), docsIndex(), ...(https ? [basicSsl()] : []),
+    legacyRedirect(experience), staticLanding(experience, shellConfig, shellContentBase), designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
+    manifestLink(), contentFromCdn(contentBaseUrl), docsIndex(), ...(https ? [basicSsl()] : []),
   ],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),

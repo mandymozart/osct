@@ -4,9 +4,10 @@ declare(strict_types=1);
 /**
  * The web app manifest of one experience (#343, docs/content-cdn.md "The installed app"): every experience is at its own
  * path in the reader (`/<id>/`), and installing the app from there installs that experience – `id`, `start_url` and
- * `scope` are `/<id>/`. The reader links it from index.html for every experience but the build's default, whose manifest
- * is the build's own (`/manifest.webmanifest`, id and start `/` – the app installed before #343; its `/` opens the
- * experience opened last). Name and description come from the experience once it has been published – a draft's title
+ * `scope` are `/<id>/`. The reader links it from index.html for every experience, the build's default too (Tilman,
+ * 2026-11-22; client/src/utils/manifest-link-html.ts); only an address naming none keeps the build's own
+ * (`/manifest.webmanifest`, id and start `/` – the app installed before #343; its `/` opens the experience opened
+ * last). Name and description come from the experience once it has been published – a draft's title
  * is not given away –, else the id stands for the name. Colours and icons are the build's (client/vite.config.js `pwa()`).
  *
  *   GET /experiences/{id}/manifest.webmanifest   no sign-in; 404 not-found for one of the site's own paths
