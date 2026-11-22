@@ -35,6 +35,13 @@ think it is listen"* – the whole way, including the API): a 5.x app refuses 6.
 - `Migration5` treats only 4.x experiences as old (it compared with the current MAJOR, which would have quoted a 5.x
   experience's set texts again once the MAJOR went up).
 
+## 5.1.1 – 2026-11-22
+
+### Changed
+- **The render view runs every plugin** (Tilman, 2026-11-22, #340): `render_scene`'s view has nobody to answer the
+  guard's prompt, and it writes nothing – so a plugin there cannot act with anyone's rights; pictures now show the
+  plugins someone else saved too.
+
 ## 5.1.0 – 2026-11-21
 
 ### Added

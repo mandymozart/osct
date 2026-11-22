@@ -5,7 +5,8 @@ import type { PluginSummary } from "./api";
  * The guard's prompt (#340, `plugin-guard.ts`): before the stage starts, the workspace asks `check` which plugins may run.
  * Sources the person already answered for (this version) are not asked again; the rest are asked once, together, in
  * `PluginGuardPrompt.svelte` – *Run* or *Don't run* for all of them. Returns the plugins kept off, with why. Without
- * `ask` (the render view, nobody there) the unanswered ones are kept off.
+ * `ask` (the render view, nobody there) every plugin runs: the render view writes nothing, so a plugin there cannot act
+ * with anyone's rights (Tilman, 2026-11-22).
  */
 class PluginGuard {
   /** The prompt shows while this is set: the experience and the plugins asked about */
@@ -19,12 +20,12 @@ class PluginGuard {
     me: string | null,
     { ask = true }: { ask?: boolean } = {},
   ): Promise<Map<string, string>> {
+    // Nobody to ask (the render view): everything runs – the view writes nothing, so no code acts with anyone's rights
+    if (!ask) return new Map();
     const sources = foreignSources(stored, declared, me);
     const answers = readAnswers(experienceId);
     const open = sources.filter(source => !answers[answerKey(source)]);
-    // Nobody to ask (the render view): what was not answered does not run, and nothing is kept
-    if (open.length && !ask) open.forEach(source => (answers[answerKey(source)] = "skip"));
-    else if (open.length) {
+    if (open.length) {
       const answer = await new Promise<GuardAnswer | null>(resolve => {
         this.answered?.(null);
         this.answered = resolve;

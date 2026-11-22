@@ -1154,8 +1154,8 @@ asking.
   status line says *not loaded: ben saved it last and you chose Don't run – Run in the Code tab runs it now*), a declared
   module is not loaded (`keepPlugin`), and the Log tab has a line per plugin. **Run** in the Code tab still runs one: the
   person's own click on code they can read.
-- **The render view** (`?render`, the MCP's `render_scene` – nobody to ask) runs only what the person answered Run for in
-  that browser before; the rest stays off and nothing is kept.
+- **The render view** (`?render`, the MCP's `render_scene` – nobody to ask) runs every plugin without asking (Tilman,
+  2026-11-22): it writes nothing, so a plugin there cannot act with anyone's rights; nothing is kept.
 - Code saved through the MCP with a person's token is saved *by that person* (`updated_by`): their own browser runs it
   without asking.
 
