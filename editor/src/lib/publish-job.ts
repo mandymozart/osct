@@ -130,20 +130,3 @@ const findStarted = async (calls: PublishCalls, before: string | null | undefine
   }
   return null;
 };
-
-/** The dialog's line for a job */
-export const jobLine = (job: PublishJob): string => {
-  const files = `${job.done} / ${job.total} files`;
-  switch (job.phase) {
-    case "version":
-      return `Writing build ${job.build} – ${files}…`;
-    case "switch":
-      return `Switching ${job.env} to build ${job.build}…`;
-    case "archive":
-      return job.status === "failed"
-        ? `Live on ${job.env} with build ${job.build}; the export archive stopped at ${files}.`
-        : `Live on ${job.env} with build ${job.build} – writing the export archive, ${files}…`;
-    default:
-      return `Published build ${job.build} to ${job.env}.`;
-  }
-};

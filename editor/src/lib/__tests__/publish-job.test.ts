@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PublishJob, PublishResult } from "@shared/api/editor";
 import { ApiError } from "../api";
-import { isLostAnswer, jobLine, POLL_FAILURES, runPublish, type PublishCalls } from "../publish-job";
+import { isLostAnswer, POLL_FAILURES, runPublish, type PublishCalls } from "../publish-job";
 
 const result: PublishResult = { env: "staging", store: "cdn", build: "b49f09610206", hash: "b49f09610206ff", publishedAt: "2026-11-22T07:53:03.728Z", export: { path: "exports/b49f09610206", written: true } };
 const job = (over: Partial<PublishJob> = {}): PublishJob => ({
@@ -97,12 +97,5 @@ describe("a publish job in the dialog (#345)", () => {
     expect(isLostAnswer(new TypeError("Failed to fetch"))).toBe(true);
     expect(isLostAnswer(new ApiError(502, "content-store-failed", "The content store answered 401."))).toBe(false);
     expect(isLostAnswer(new ApiError(409, "unknown-components", "…"))).toBe(false);
-  });
-
-  it("says where the publish is: writing the build, switching, live while the archive is written, published", () => {
-    expect(jobLine(job({ done: 3, total: 1531 }))).toBe("Writing build b49f09610206 – 3 / 1531 files…");
-    expect(jobLine(job({ phase: "switch" }))).toBe("Switching staging to build b49f09610206…");
-    expect(jobLine(job({ phase: "archive", live: true, done: 700 }))).toBe("Live on staging with build b49f09610206 – writing the export archive, 700 / 1531 files…");
-    expect(jobLine(done())).toBe("Published build b49f09610206 to staging.");
   });
 });

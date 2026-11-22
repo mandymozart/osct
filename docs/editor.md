@@ -164,22 +164,36 @@ choice of environment: next to **Publish** (the experience page's bar) the targe
 (a connected CDN has priority) or `local · this server` / `staging · this server` (the directory store of an instance
 without a CDN, [server, "One environment per instance"](server.md#one-environment-per-instance)) – and where the experience
 is live (*live on staging, production* or *draft only*). Wherever this server is the target, a short *No CDN connected*
-stands next to it (its help in the Info view has the whole line). **Publish** opens a step in the page – no browser
-dialog – that names the experience, its build now, the target and the build of it it replaces there (*Replaces build … of
-“Test Experience” on staging*, or *“Test Experience” is not published on staging yet.*), says on production that every
-reader of the experience gets it, and where this server is the target:
-*No CDN connected – the published content is stored and served by this server only. Readers load from here without
-edge caching; heavy media goes through this server. Back up the content store.* Its button publishes; *Cancel* or
-Escape closes it. Another environment is published from its own editor (the API refuses it, 403 `other-environment`).
+stands next to it (its help in the Info view has the whole line). Another environment is published from its own editor
+(the API refuses it, 403 `other-environment`).
 
-While it publishes the step says where the job is (#345, `publish-job.ts`, [server, "Publish jobs"](server.md#publish-jobs)):
-*Writing build … – n / N files*, *Switching staging to build …*, *Live on staging with build … – writing the export
-archive, n / N files* – with a progress bar – and closes on *published …*. A failure shows the server's message and
-code. A gateway that gives up on the request (502/503/504 without the API's answer, no answer) is no failure: the step
-finds the publish's job (the experience's newest, one that was not there before the click) and follows it; only when
-none turns up does it say the outcome is unknown – never *504*. A closed step does not stop the publish (*publishing n /
-N* next to the button); a step opened while a publish of the experience runs (another tab, after a reload) follows it,
-and a second publish while one runs follows the running one (409 `publish-running`).
+**Publish** opens one overlay in the middle of the dimmed page (#345, Tilman 2026-11-22: *"this first dropdown dialog
+should be much more on point"*; `PublishButton.svelte`, its words in `publish-overlay.ts`) – no browser dialog. Three states:
+
+1. **Confirm** – *Publish “Test Experience” to staging?*, what it means for readers (*Readers get this state.*; on
+   production *Every reader gets this state on their next start.*) and *Last published: today 07:53* (local time, from
+   where the experience is live; *Not published on staging yet.* before the first). A warning only when it matters: a
+   saved Code tab source that does not compile is one danger line and **Publish** stays off (the sources are transpiled
+   when the overlay opens). **Publish** or **Cancel**; Esc or a click beside the overlay cancels – in this state only.
+2. **Running** – *Publishing…*, then *Writing the build…* until latest.json names the build, from then *Live for readers
+   ✓*; the export archive's count as a bar with *Archive 412 / 1522* (the bar runs without a count before that – the
+   job's `parts` tell the archive's files from the build's, [server, "Publish jobs"](server.md#publish-jobs)), and *Keep
+   this page open until it is done.* No Cancel; leaving the page (a reload, closing the tab, another page of the editor)
+   asks first – on a host where the server cannot write on after its answer, the editor's polls write the rest.
+3. **Done** – *Published*, *Live on staging. 3 files new, 1524 were already there.* (the job's done and skipped counts),
+   **Close** and *Open reader* (`/<experience>/` on this instance – it serves its own environment). It closes itself after
+   2 s unless the pointer is over it or Details is open. **Failed**: *Publish failed* with the server's message and code,
+   Details open. A gateway that gives up on the request (502/503/504 without the API's answer, no answer) is no failure:
+   the overlay finds the publish's job (the experience's newest, one that was not there before the click) and follows it;
+   only when none turns up does it say *Publish outcome unknown* – never *504*.
+
+**Details** (collapsed; **Ctrl+L** toggles it while the overlay is open – the Library's key stays with the overlay) is a
+small log with a time per line: what used to be on the step – the target with its backend, the draft's build, the build it
+replaces, *6 plugins transpiled, not type-checked*, the No CDN line – then every change the polls bring: *build written (3
+files)*, *live on staging*, *archive 412/1522*, files already on the store, *export archive written*, errors. The overlay
+keeps the keyboard while it is open (no key reaches the page; Tab stays inside) and gives the focus back to the Publish
+button when it closes. Opening Publish while a publish of the experience runs (another tab, after a reload) follows that one
+at once, and a second publish while one runs follows the running one (409 `publish-running`).
 
 ### A store per experience
 

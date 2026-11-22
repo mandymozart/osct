@@ -141,6 +141,9 @@ export interface PublishJob {
   total: number;
   /** Files the store held already (not written again) */
   skipped: number;
+  /** The files of the version folder (`build`) and of the export archive (`archive`): total = build + 2 (the switch) + archive;
+   * absent on a job an older server started */
+  parts?: { build: number; archive: number };
   startedAt: string;
   updatedAt: string;
   /** done: what the publish answers */

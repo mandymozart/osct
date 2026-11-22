@@ -54,19 +54,21 @@
   <div class="beside wide">
     <div>
       <p><b>Publish</b> is the cloud button in the top bar of an open experience. Next to it: <i>draft only</i> or <i>live on …</i>.</p>
-      <p>It opens a step that names the experience, the target and what it replaces there. Its button publishes; <i>Cancel</i> or <kbd>Esc</kbd> closes it.</p>
+      <p>It opens one box in the middle of the page and asks first: <i>Publish “…” to staging?</i>, what readers get and when it was last published. <b>Publish</b> starts it; <i>Cancel</i>, <kbd>Esc</kbd> or a click beside the box closes it. If a saved plugin source does not compile, the box says so in red and Publish stays off.</p>
+      <p>While it runs the box says <i>Writing the build…</i>, then <i>Live for readers ✓</i> – readers have the new state from that moment – and counts the export archive (<i>Archive 412 / 1522</i>). Keep the page open until it says <i>Published</i>, with how many files were new. It closes by itself after two seconds; <i>Open reader</i> opens the experience.</p>
+      <p><b>Details</b> (or <kbd>Ctrl</kbd>+<kbd>L</kbd> while the box is open) shows a small log: the build, the build it replaces, the plugins carried along and every step with its time.</p>
       <ul>
         <li><b>An installation publishes to its own environment only</b>: a local machine to <code>local</code>, staging to <code>staging</code>, production to <code>production</code>. There is no choice.</li>
         <li><b>Each experience has its own store.</b> Publishing one never touches another.</li>
         <li><b>No CDN connected</b> means this server stores and serves the published content itself.</li>
         <li>Publish carries the draft and every <b>saved</b> plugin source. Unsaved code stays behind.</li>
-        <li><b>A big experience takes a while.</b> The step shows what is being written and how many files are done. Readers get the new build as soon as it says <i>Live on …</i>; the export archive is written after that. Closing the step does not stop the publish – open it again to see how it is going.</li>
+        <li><b>A big experience takes a while</b> – mostly the export archive, written after readers already have the build. Leaving the page while it runs asks first. If a publish is already running (another tab, after a reload), Publish shows that one.</li>
       </ul>
       <p><b>Going back</b>: revert the draft in <a href="/docs/guide/workspace/#undo">History</a>, then publish again.</p>
     </div>
     <figure>
-      <img src="/docs/img/publish.webp" width="480" height="250" alt="The publish step under the top bar." loading="lazy">
-      <figcaption>The publish step on a local installation.</figcaption>
+      <img src="/docs/img/publish.webp" width="480" height="250" alt="The publish box asking before it starts." loading="lazy">
+      <figcaption>Publish asks first – here on a local installation.</figcaption>
     </figure>
   </div>
   <p>Readers open every experience at its own address, <code>/&lt;slug&gt;/</code> – <code>/osct/</code>, <code>/demo/</code>. The slug is chosen when the experience is made (<b>New experience</b>: a title and a slug; the form shows the reader's address) and can't be changed once it is published – printed QR codes depend on it. Older codes and links without an experience still work: they open the installation's default experience, and the book's code its own.</p>

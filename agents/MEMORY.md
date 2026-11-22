@@ -207,6 +207,35 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-22 – Publish is one overlay: confirm, running, done; the rest behind Details (6.2.4, #345)
+
+- Tilman (2026-11-22): *"there is lot of information that is kind of useless on this dialog … i dont need to know the
+  version hash for example or transpilation warning etc. a little log hidden behind a details expandable could be nice
+  … can also be hidden behind a ctrl + l … this first dropdown dialog should be much more on point. i think it can also
+  just go into the overlay as well, as a confirmation step before it starts."* He approved the draft: three states in one
+  centered overlay over the dimmed page. Built so (`PublishButton.svelte`, words in `publish-overlay.ts` with tests):
+  **confirm** (*Publish “…” to staging?*, *Readers get this state.*, *Last published: today 07:53*), **running**
+  (*Writing the build…* → *Live for readers ✓*, *Archive n / N* bar), **done** (*Live on staging. n files new, m were
+  already there.*, Close, *Open reader*, closes itself after 2 s unless hovered or Details open), **failed** (Details
+  open), **unknown**. Details = a timestamped monospace log (target, draft build, replaced build, carried plugins, the No
+  CDN line, build written, live, archive counts, skipped, errors). The dropdown step, `publishStep` and `jobLine` are gone;
+  so is the *published <build>* / *publishing n/N* text beside the button (the overlay cannot be closed while it runs).
+- The job now names its **parts** `{ build, archive }` (kept in `state_json`, no schema change) so the editor counts the
+  archive on its own; *n files new* = `done − skipped`, *already there* = `skipped` (both were already on the job).
+- *My calls*: the confirm transpiles the saved sources when it opens – a source that does not compile is the one danger
+  line and Publish stays off (focus to Cancel); Logic errors are not checked (no cheap check exists in the editor). The No
+  CDN warning moved from the step into the log (the top bar keeps *No CDN connected*). Production's readers line is *Every
+  reader gets this state on their next start.* Opening Publish while a job of the experience runs goes straight to the
+  running state (*Started elsewhere …*). *Open reader* = `/<experience>/` on this origin (an instance serves its own
+  environment). While the overlay is open it takes every key in the capture phase: Ctrl+L toggles Details (the scene
+  page's Library key does not fire behind it), Esc cancels the confirm / closes an ended publish, Tab stays inside; focus
+  returns to the Publish button. Esc and the backdrop click never close the running state.
+- Checked locally (SQLite API with `PUBLISH_STEP_SECONDS=0`, a 106-scene experience, headless Edge): all three states in
+  day and night, the 2 s auto-close (2.2–2.4 s after Details was closed), focus back on the button. The docs site's
+  `publish.webp` is the new confirm.
+- [ ] Open (Tilman's call, not in scope): **rollback** – re-activating an older build from the publish log is possible on
+  the CDN side (its version folder stays; versions.json + latest.json would switch back); no UI for it yet.
+
 ## 2026-11-22 – a publish is a job: where the 10 minutes went, what writes the rest (6.2.0, #345)
 
 - **Found** (staging's zone listing, the publish log): build b49f09610206's version folder (3 plugin modules, files.json

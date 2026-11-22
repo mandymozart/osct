@@ -68,7 +68,8 @@ final class PublishJob
             $archive = ['folder' => ExportArchive::FOLDER . '/' . $version['build'], 'files' => [], 'error' => $error->getMessage()];
         }
         $plan = ['folder' => $folder, 'archive' => $archive, 'schema' => $version['schema']];
-        $state = ['pending' => null, 'uploadedNow' => null, 'export' => null, 'publishedAt' => $publishedAt];
+        $state = ['pending' => null, 'uploadedNow' => null, 'export' => null, 'publishedAt' => $publishedAt,
+            'parts' => ['build' => count($folder), 'archive' => count($archive['files'])]];
         $id = Db::uuid();
         Db::run('INSERT INTO publish_jobs (id, experience_id, env, user_id, note, status, phase, build, hash, done, total, skipped, plan_json, state_json, created_at, updated_at, lease_until)
             VALUES (:id, :experience, :env, :user, :note, :status, :phase, :build, :hash, 0, :total, 0, :plan, :state, :created, :updated, 0)', [
@@ -155,7 +156,8 @@ final class PublishJob
     /**
      * What a client sees of a job: { id, experience, env, status (running | done | failed), phase (version | switch |
      * archive | done), build, hash, live (latest.json names the build – the archive may still be written), done, total,
-     * skipped, startedAt, updatedAt, result? (done: what the publish answered),
+     * skipped, parts? ({ build, archive }: the files of the version folder and of the export archive – total = build + 2 +
+     * archive), startedAt, updatedAt, result? (done: what the publish answered),
      * error? (failed: code, message, status) }
      * @param array<string, mixed> $row
      * @return array<string, mixed>
@@ -168,6 +170,7 @@ final class PublishJob
             'build' => $row['build'], 'hash' => $row['hash'], 'live' => in_array($row['phase'], ['archive', 'done'], true), 'done' => (int) $row['done'], 'total' => (int) $row['total'], 'skipped' => (int) $row['skipped'],
             'startedAt' => Editor::iso((int) $row['created_at']), 'updatedAt' => Editor::iso((int) $row['updated_at']),
         ];
+        if (isset($state['parts'])) $job['parts'] = ['build' => (int) $state['parts']['build'], 'archive' => (int) $state['parts']['archive']];
         if ($row['status'] === 'done') {
             $job['result'] = [
                 'env' => $row['env'],
