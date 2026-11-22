@@ -48,8 +48,6 @@ export interface ConfirmInput {
 export interface ConfirmView {
   /** `Publish “Test Experience” to staging?` */
   heading: string;
-  /** What it means for readers */
-  readers: string;
   /** `Last published: today 07:53`, or that it is not published there yet */
   last: string;
   /** The one danger line, null when nothing matters */
@@ -66,9 +64,32 @@ export const confirmView = (input: ConfirmInput, now: Date = new Date()): Confir
       : `Last published: ${live.since ? whenText(live.since, now) : "time unknown"}${live.build && live.build === build && !plugins ? ` – ${env} has this state already.` : ""}`;
   return {
     heading: `Publish “${title}” to ${env}?`,
-    readers: env === "production" ? "Every reader gets this state on their next start." : "Readers get this state.",
     last,
     problem,
+  };
+};
+
+/** The logic's problems in the confirm (Tilman, 2026-11-22): the count and the first one; errors ask "Publish anyway" */
+export interface LogicCheck {
+  severity: "error" | "warning";
+  /** `2 warnings in the logic`, `1 error in the logic` */
+  count: string;
+  /** The first problem: its place and words */
+  first: string;
+}
+
+export const logicCheck = (rows: ReadonlyArray<{ severity: string; place: string; text: string }>): LogicCheck | null => {
+  const errors = rows.filter(r => r.severity === "error");
+  const warnings = rows.filter(r => r.severity !== "error");
+  const shown = errors.length ? errors : warnings;
+  if (!shown.length) return null;
+  const n = shown.length;
+  const kind = errors.length ? "error" : "warning";
+  const first = shown[0];
+  return {
+    severity: kind,
+    count: `${n} ${kind}${n === 1 ? "" : "s"} in the logic`,
+    first: first.place ? `${first.place} · ${first.text}` : first.text,
   };
 };
 

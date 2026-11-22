@@ -12,9 +12,12 @@
   import { transpilePlugin } from "#lib/plugins/compile.js";
   import { carriedPlugins, type CarriedPlugins } from "#lib/publish-plugins.js";
   import { targetLabel, targetOf } from "#lib/publish-target.js";
+  import { logicContent } from "#lib/logic-content.svelte.js";
+  import { experienceProblems } from "#lib/logic/project.js";
+  import { issueRows } from "#lib/logic/issues.js";
   import { runPublish, type PublishCalls } from "#lib/publish-job.js";
   import {
-    confirmView, doneView, failedView, jobLog, runningView, stamped, startLog, unknownView, type EndView, type LogLine,
+    confirmView, doneView, failedView, jobLog, logicCheck, runningView, stamped, startLog, unknownView, type EndView, type LogLine,
   } from "#lib/publish-overlay.js";
   import Icon from "#lib/components/Icon.svelte";
 
@@ -22,10 +25,11 @@
    * Publish: the draft becomes a content version of this instance's own environment (`POST /editor/experiences/{id}/publish`)
    * – an instance publishes there and nowhere else (#183); each experience has its own store in every environment (#87).
    * The top bar has the icon button (#274) and where the experience is live. The button opens one centered overlay over the
-   * dimmed page (#345, Tilman 2026-11-22) in three states – **confirm** (what readers get, when it was published last, a
-   * danger line only when something stops the publish), **running** (live for readers yet, the export archive's count) and
-   * **done** (what was written; it closes itself after 2 s) – with a small log behind *Details* (Ctrl+L) for the build, the
-   * build it replaces, the carried plugins and every step (`publish-overlay.ts`). The publish carries the Code tab's saved
+   * dimmed page (#345, Tilman 2026-11-22) in three states – **confirm** (when it was published last, the logic's errors or
+   * warnings – errors ask "Publish anyway" –, a danger line when a plugin does not compile), **running** (live for readers
+   * yet, the export archive's count) and **done** (what was written; it closes itself after 2 s) – white space, no
+   * dividers. A small log (the build, the build it replaces, the carried plugins, every step) shows only on Ctrl+L, with no
+   * visible toggle: it is not for everybody (`publish-overlay.ts`). The publish carries the Code tab's saved
    * sources, transpiled here (#78). A publish is a job on the server (`publish-job.ts`): a gateway's timeout is never shown
    * as a failure of a publish that runs on, and a publish already running (another tab, a reload) is followed.
    */
@@ -61,6 +65,10 @@
     target ? (unreadable.some(e => e.env === target.env) ? "unreadable" : self?.live.find(l => l.env === target.env)) : undefined,
   );
   const problem = $derived(carried && "error" in carried ? carried.error : null);
+  /* The logic's problems for the whole experience, as the Log tab lists them (#337): the confirm names them (Tilman,
+     2026-11-22) – errors ask "Publish anyway", they never block */
+  const logicSource = logicContent(() => ({ experienceId, sceneId: "", stage: null }));
+  const logicProblems = $derived(mode === "confirm" ? logicCheck(issueRows(experienceProblems(logicSource.logic))) : null);
   const asking = $derived(target ? confirmView({ title: self?.title ?? experienceId, env: target.env, live, build, plugins: sourceCount, problem }) : null);
   const running = $derived(runningView(job));
   const reader = $derived(typeof location === "undefined" ? null : readerAddress(location.origin, experienceId));
@@ -85,7 +93,7 @@
       event.stopPropagation();
       if ((event.key === "l" || event.key === "L") && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
-        if (mode !== "confirm") detailsOpen = !detailsOpen;
+        detailsOpen = !detailsOpen;
       } else if (event.key === "Escape") {
         event.preventDefault();
         if (mode !== "running") close();
@@ -173,8 +181,7 @@
         if (!outcome.job) note([`failed: ${outcome.message}`]);
         end = failedView(outcome.message);
         mode = "failed";
-        detailsOpen = true;
-      } else {
+        } else {
         note([outcome.message]);
         end = unknownView(outcome.message);
         mode = "unknown";
@@ -183,7 +190,6 @@
       end = failedView(errorText(e, { code: true }));
       note([`failed: ${end.summary}`]);
       mode = "failed";
-      detailsOpen = true;
     } finally {
       void refresh();
     }
@@ -267,11 +273,16 @@
       onpointerenter={() => (pointerInside = true)} onpointerleave={() => (pointerInside = false)}>
       {#if mode === "confirm" && asking}
         <h2 id="publish-heading">{asking.heading}</h2>
-        <p>{asking.readers}</p>
         <p class="muted">{asking.last}</p>
+        {#if logicProblems}
+          <div class="logic-check">
+            <p class:danger={logicProblems.severity === "error"}>{logicProblems.count}</p>
+            <p class="small muted">{logicProblems.first}</p>
+          </div>
+        {/if}
         {#if asking.problem}<p class="danger" role="alert">{asking.problem}</p>{/if}
         <p class="actions">
-          <button type="button" class="pill primary" onclick={publish} disabled={!!asking.problem}>Publish</button>
+          <button type="button" class="pill primary" onclick={publish} disabled={!!asking.problem}>{logicProblems?.severity === "error" ? "Publish anyway" : "Publish"}</button>
           <button type="button" class="text-link" onclick={close}>Cancel</button>
         </p>
       {:else if mode === "running"}
@@ -292,13 +303,12 @@
           {#if mode === "done" && reader}<a class="text-link" href={reader} target="_blank" rel="noopener">Open reader</a>{/if}
         </p>
       {/if}
-      {#if mode !== "confirm"}
-        <details class="details" bind:open={detailsOpen}>
-          <summary class="small muted">Details <kbd>Ctrl+L</kbd></summary>
-          <ol class="log" aria-label="Publish log" bind:this={logElement}>
-            {#each log as line, i (i)}<li><span class="at">{line.at}</span> {line.text}</li>{/each}
-          </ol>
-        </details>
+      <!-- The log: not shown, not even as a toggle, unless someone presses Ctrl+L (Tilman, 2026-11-22: "not intended to be
+           visible to everybody") -->
+      {#if detailsOpen}
+        <ol class="log" aria-label="Publish log" bind:this={logElement}>
+          {#each log as line, i (i)}<li><span class="at">{line.at}</span> {line.text}</li>{/each}
+        </ol>
       {/if}
     </div>
   </div>
@@ -318,10 +328,9 @@
   progress { width: 100%; height: .375rem; accent-color: var(--text); }
   .count { font-variant-numeric: tabular-nums; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; margin-top: .25rem; }
-  .details { border-top: 1px solid var(--line); padding-top: .375rem; }
-  .details summary { cursor: pointer; width: max-content; }
-  kbd { font: inherit; font-size: .6875rem; padding: 0 .25rem; border: 1px solid var(--line); }
-  .log { list-style: none; margin: .375rem 0 0; padding: .375rem .5rem; max-height: 12rem; overflow-y: auto; border: 1px solid var(--line);
+  /* White space, not dividers (Tilman, 2026-11-22) */
+  .logic-check { display: grid; gap: .125rem; margin: .5rem 0; }
+  .log { list-style: none; margin: .75rem 0 0; padding: 0; max-height: 12rem; overflow-y: auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .6875rem; line-height: 1.5; overflow-wrap: anywhere; }
   .log:empty::before { content: "Nothing yet."; color: var(--muted); }
   .at { color: var(--muted); }
