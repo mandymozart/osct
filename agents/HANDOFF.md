@@ -51,6 +51,7 @@ four days for one orchestrator, `agents/costs.json`), so sessions are short and 
    the stage following `goto`; then basic nodes once Tilman decided B1/B3–B6.
 
 ## Waiting for Tilman
+- #346 import/export (zip package, PDF/image quick starts, Start page): decisions 1–10 in the concept §5, drafts in `agents/design/import-export.html`.
 - Basic nodes: B1, B3 (functions – agree the names with scutoons#702), B4, B5 (once, wait), B6.
 - Demo: re-import with all 14 plugins (the local DB has 2), then export it into `fixtures/demo` (#322 decision (b)).
 - #322 decision 2 (export archive).

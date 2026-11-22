@@ -209,6 +209,14 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-22 – Import / export as one feature: the experience package, quick starts, a Start page (#346)
+
+Tilman: *"make it a real import/export feature … zip file is the goal. self containing. can be used to transfer content
+between installations … basic pdf import or image import with drag and drop for quick starters … part of the New experience
+or start experience section … a page that is eventually publically available"* (white label, #44/#53). Concept:
+`agents/research/2026-11-22-import-export-package.md`; drafts: `agents/design/import-export.html` (8 frames). Builds on #322.
+- [ ] Tilman's decisions 1–10 (concept §5; summary in #346) – then tickets P1–P11 (§6).
+
 ## 2026-11-21 – A documentation site for users at /docs/ (#336)
 
 Tilman: *"i would love to have a route docs/ … a documentation that can work properly to figure out how stuff works in
