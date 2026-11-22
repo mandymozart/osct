@@ -172,6 +172,15 @@ reader of the experience gets it, and where this server is the target:
 edge caching; heavy media goes through this server. Back up the content store.* Its button publishes; *Cancel* or
 Escape closes it. Another environment is published from its own editor (the API refuses it, 403 `other-environment`).
 
+While it publishes the step says where the job is (#345, `publish-job.ts`, [server, "Publish jobs"](server.md#publish-jobs)):
+*Writing build … – n / N files*, *Switching staging to build …*, *Live on staging with build … – writing the export
+archive, n / N files* – with a progress bar – and closes on *published …*. A failure shows the server's message and
+code. A gateway that gives up on the request (502/503/504 without the API's answer, no answer) is no failure: the step
+finds the publish's job (the experience's newest, one that was not there before the click) and follows it; only when
+none turns up does it say the outcome is unknown – never *504*. A closed step does not stop the publish (*publishing n /
+N* next to the button); a step opened while a publish of the experience runs (another tab, after a reload) follows it,
+and a second publish while one runs follows the running one (409 `publish-running`).
+
 ### A store per experience
 
 Every experience has a content store of its own in each environment (`<title>/<env>/<experience>/latest.json`,

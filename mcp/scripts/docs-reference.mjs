@@ -31,7 +31,7 @@ export const GROUPS = [
   ["plugins", "Plugins", "", ["list_plugins", "get_plugin", "put_plugin", "upload_plugin", "plugin_usages", "delete_plugin"]],
   ["import", "New experiences, import and deliveries", "", ["create_experience", "preview_import", "import_experience", "preview_delivery", "import_delivery", "list_deliveries"]],
   ["history", "History", "", ["list_changes", "list_versions", "revert_change", "revert_to"]],
-  ["seeing", "Seeing and publishing", "", ["render_scene", "publish"]],
+  ["seeing", "Seeing and publishing", "", ["render_scene", "publish", "publish_status"]],
 ];
 
 /** The entry esbuild bundles: the register functions against a recorder, the tools as JSON on the module's default export */

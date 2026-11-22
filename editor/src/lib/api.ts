@@ -38,7 +38,9 @@ import type {
   ExperienceSummary,
   ExperienceList,
   ExperienceTree,
+  PublishJob,
   PublishResult,
+  PublishStarted,
   ImportComparison,
   ImportPreview,
   ExperienceSaved,
@@ -50,7 +52,7 @@ import type {
   IncomingBuild,
   ImportResult,
 } from "@shared/api/editor";
-export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishResult, ImportComparison, ImportPreview, ExperienceSaved, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
+export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishJob, PublishResult, PublishStarted, ImportComparison, ImportPreview, ExperienceSaved, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
@@ -459,7 +461,15 @@ export const putTargetEntity = (experienceId: string, targetId: string, entity: 
  * (`publish-plugins.ts`, #78) – the API puts them into the version
  */
 export const publishExperience = (experienceId: string, env: string, options: { note?: string; plugins?: PublishedPlugin[] } = {}) =>
-  api<PublishResult>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/publish`, { env, ...options });
+  api<PublishStarted>("POST", `/editor/experiences/${encodeURIComponent(experienceId)}/publish`, { env, ...options });
+
+/** A publish job (#345): its progress, outcome or error – a poll may write its next part on the server */
+export const getPublishJob = (experienceId: string, jobId: string) =>
+  api<{ job: PublishJob }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/publish/${encodeURIComponent(jobId)}`);
+
+/** The experience's newest publish job (null: none kept) – a running one runs on like a poll */
+export const latestPublishJob = (experienceId: string) =>
+  api<{ job: PublishJob | null }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/publish`);
 
 /** The draft as a content version – the engine's `loadGameConfiguration({ baseUrl, fetch: authFetch })` reads it */
 export const draftBaseUrl = (experienceId: string): string => `${API_URL}/editor/experiences/${encodeURIComponent(experienceId)}/draft`;

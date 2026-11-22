@@ -62,7 +62,8 @@ import type {
   ImportComparison,
   ImportPreview,
   ImportResult,
-  PublishResult,
+  PublishJob,
+  PublishStarted,
   RemovalImpact,
 } from "../../shared/api/editor";
 import { confirmationStep } from "../../shared/api/errors";
@@ -151,6 +152,9 @@ const targetPlaceSchema = z
   .describe("where the target lies (TargetPlace): its box in mm from the top left corner of a surface of its entry's scene");
 
 const read = { readOnlyHint: true, openWorldHint: false };
+
+/** How long publish and publish_status follow a running publish job (#345), and how often they poll it (tests shorten it) */
+export const PUBLISH_TIMING = { waitMs: 90_000, pollMs: 2_000 };
 const write = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
 const passSchema = z.object({ type: z.string().min(1), enabled: z.boolean().optional() }).catchall(z.union([z.number(), z.string(), z.boolean()]))
@@ -1044,7 +1048,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "publish",
     {
       description:
-        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the experience's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Every experience has its own store in the environment: a publish replaces only this experience's previous build there. The other refusals: 400 invalid-env, invalid-note; 404 not-found (no such experience); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint.",
+        "Writes the draft as a content version into the content store of this instance's own environment – an instance publishes there and nowhere else (a local development API: `local`, the staging API: `staging`; any other env → 403 other-environment). `env` may be left out: the instance's own. The answer's `store` says where it went: `cdn` (the CDN has priority where one is connected) or `server` (this API's own store, with `warning`: no edge caching – tell the person). **production is refused** – publishing to readers is the person's Publish button in the editor. Signed in with an AI connection's token (osct_…) the API refuses every environment (403 not-for-ai): then the person publishes in the editor. 409 unknown-components, unknown-node-types or unknown-materials when a node uses a component, a node type or a material no compiled plugin provides, unknown-passes when the experience's or a scene's post-processing names a pass no compiled plugin provides (the Code tab's sources reach readers through the content build only). Every experience has its own store in the environment: a publish replaces only this experience's previous build there. The other refusals: 400 invalid-env, invalid-note; 404 not-found (no such experience); 502 content-store-failed and 500 content-store-unconfigured (the store could not be read or written – nothing went live). Every refusal comes with a hint. A publish is a job on the server (#345): the tool waits for it up to about 90 s and answers its outcome with `job` (status, phase, done / total files, skipped = files the store had already); a big experience may still run then – the answer has `job.status: running` and `next`: call publish_status with the job's id until it is done or failed (`job.live`: readers already get the build while the export archive is written). 409 publish-running: a publish of the experience runs already (its `job`) – follow it with publish_status instead of publishing again.",
       inputSchema: z.object({ experience: EXPERIENCE, env: z.string().regex(ENV_NAME).optional().describe("the instance's own environment (default)"), note: z.string().optional() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
@@ -1057,9 +1061,49 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
           open: editorHref(links, experience),
         });
       }
-      const result = await api.call<PublishResult>("POST", `/editor/experiences/${encodeURIComponent(experience)}/publish`, { env: target, ...(note ? { note } : {}) });
+      const started = await api.call<PublishStarted>("POST", `/editor/experiences/${encodeURIComponent(experience)}/publish`, { env: target, ...(note ? { note } : {}) });
       const warning = environments.find(e => e.env === target)?.warning;
-      return text({ ...result, ...(warning ? { warning } : {}), open: editorHref(links, experience) });
+      if ("build" in started) return text({ ...started, ...(warning ? { warning } : {}), open: editorHref(links, experience) });
+      // Still running (202): follow the job for a while – each poll may write its next part on the server
+      const job = await followJob(experience, started.job);
+      return job.status === "failed" ? publishFailed(job) : text(publishAnswer(experience, job, warning));
+    }),
+  );
+
+  /** Polls a running job until it ends or PUBLISH_TIMING.waitMs ran out */
+  const followJob = async (experience: string, first: PublishJob): Promise<PublishJob> => {
+    let job = first;
+    const until = Date.now() + PUBLISH_TIMING.waitMs;
+    while (job.status === "running" && Date.now() < until) {
+      await new Promise(resolve => setTimeout(resolve, PUBLISH_TIMING.pollMs));
+      job = (await api.call<{ job: PublishJob }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/publish/${encodeURIComponent(job.id)}`)).job;
+    }
+    return job;
+  };
+  /** A job as the agent reads it: done → the publish's answer with the job; running → the job and what to do next */
+  const publishAnswer = (experience: string, job: PublishJob, warning?: string | null) => job.status === "done" && job.result
+    ? { ...job.result, job, ...(warning ? { warning } : {}), open: editorHref(links, experience) }
+    : {
+        job, ...(warning ? { warning } : {}), open: editorHref(links, experience),
+        next: `The publish runs on the server (${job.phase}, ${job.done} / ${job.total} files${job.live ? " – readers already get the build, the export archive is still written" : ""}): call publish_status with job "${job.id}" until it is done or failed.`,
+      };
+  const publishFailed = (job: PublishJob) =>
+    fail({ error: { status: job.error?.status ?? 500, code: job.error?.code ?? "publish-failed", message: job.error?.message ?? "The publish failed.", job } });
+
+  server.registerTool(
+    "publish_status",
+    {
+      description:
+        "How a publish goes (#345): the job publish started – status running | done | failed, phase (version → switch → archive → done), done / total files, skipped (files the store had already), live (readers get the build; the export archive may still be written), the outcome when done (as publish answers it), the error when failed (abandoned: no one continued it and a newer publish took its place). Without `job` the experience's newest publish. Waits up to about 90 s while it runs (each poll writes the next part on the server where nothing runs on by itself); call again while `job.status` is running.",
+      inputSchema: z.object({ experience: EXPERIENCE, job: z.string().uuid().optional().describe("the job's id (publish's answer); left out: the newest publish of the experience") }),
+      annotations: read,
+    },
+    guard(async ({ experience, job: id }) => {
+      const path = `/editor/experiences/${encodeURIComponent(experience)}/publish${id ? `/${encodeURIComponent(id)}` : ""}`;
+      const { job } = await api.call<{ job: PublishJob | null }>("GET", path);
+      if (!job) return text({ job: null, message: "No publish of this experience is kept (they are kept 14 days)." });
+      const followed = await followJob(experience, job);
+      return followed.status === "failed" ? publishFailed(followed) : text(publishAnswer(experience, followed));
     }),
   );
 

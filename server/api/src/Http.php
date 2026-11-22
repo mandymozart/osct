@@ -34,11 +34,17 @@ final class Http
 
     public static function json(int $status, mixed $data): never
     {
+        self::send($status, $data);
+        exit;
+    }
+
+    /** Writes the JSON answer without ending the request – what runs on after it (`PublishJob`, #345) */
+    public static function send(int $status, mixed $data): void
+    {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: no-store');
         if ($status !== 204) echo json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        exit;
     }
 
     public static function error(ApiError $error): never

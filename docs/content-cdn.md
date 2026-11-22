@@ -60,6 +60,25 @@ content builds those URLs lie in (`builds`, the archived build included). The fo
 [Content](content.md) "Export archive". The archive is readable through the pull zone like the versions: it names no
 person. The directory store does not serve it (`GET /content/…` serves the versions' json files and plugins only).
 
+### How a publish writes (#345)
+
+A publish writes few files to make a version live and many for its archive: the osct book's build b49f09610206 (Tilman,
+2026-11-22) was 3 plugin modules, `files.json` (430 KB) and `game.config.json` (793 KB) – on the zone within a second –
+then `versions.json` and `latest.json`, and then **1522 archive files** (1376 `entries/<id>/entry.yaml`, 135 scenes, 6
+plugins, 5 at the top, 1.2 MB together), written one PUT after another over a new TLS connection each: ~0.43 s a file,
+11 minutes. The request outlived the gateway (504 in the editor) while it wrote on; the retry wrote the same archive a
+second time. Since then (`PublishJob`, docs/server.md "Publish jobs"):
+
+- **Nothing the store has is written again.** A version folder is one check (its `game.config.json` – never
+  overwritten); an archive with its `export.json` is one check; an archive without it (a publish that was cut off) is
+  one **listing per folder** – the Storage API's listing carries each file's sha256 (`Checksum`) – and only the missing or
+  different files are written. Media are never part of a publish (they are on the zone already, content-addressed).
+- **Parallel uploads**: 16 at a time over one curl multi handle whose connections stay open (`ContentStore::putMany`);
+  one after another where PHP has no curl. A file the zone refuses is tried once more on its own.
+- **The order stays**: the version folder's `game.config.json` after its other files, `latest.json` only after the whole
+  folder is there, the archive after the switch, its `export.json` after every other file of it. Readers get the new
+  build as soon as `latest.json` is written (`job.live`) – the archive may still be on its way.
+
 ### The font folder
 
 `osct/fonts/abc-areal/` at the zone root holds the reader's design font, ABC Areal by Dinamo (WOFF2 as delivered, never

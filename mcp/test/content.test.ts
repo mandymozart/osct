@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "../src/api.ts";
-import { registerContentTools } from "../src/content.ts";
+import { PUBLISH_TIMING, registerContentTools } from "../src/content.ts";
 import { hintFor, PUBLISH_REFUSALS } from "../src/result.ts";
 import { fakeFetch, recorder, VIDEO_ENTITY, type Seen } from "./helpers.ts";
 
@@ -64,6 +64,14 @@ function removal(seen: Seen) {
 }
 
 /** The editor's API as the tools see it; `sources: false` = an experience without Code tab sources */
+/** A publish job of the fake API (#345): running, then done after two polls */
+let publishPolls = 0;
+const publishJob = (status: "running" | "done", done: number) => ({
+  id: "0b5c2a1e-0000-4000-8000-000000000345", experience: "osct", env: "local", status, phase: status === "done" ? "done" : "archive", build: "abcdef012345", hash: "h",
+  live: true, done, total: 10, skipped: 0, startedAt: "now", updatedAt: "now",
+  ...(status === "done" ? { result: { env: "local", store: "server", build: "abcdef012345", hash: "h", publishedAt: "now", export: { path: "exports/abcdef012345", written: true } } } : {}),
+});
+
 function editorApi(seen: Seen, { sources = true } = {}) {
   const { method, path } = seen;
   if (method === "POST" && path === "/editor/experiences") {
@@ -126,6 +134,11 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (method === "PUT" && path === "/editor/experiences/osct/appearance") return { json: { appearance: (seen.body as any).appearance } };
   if (method === "PUT" && path === "/editor/experiences/osct/environment") return { json: { environment: (seen.body as any).environment } };
   if (method === "GET" && path === "/editor/environments") return { json: { env: "local", environments: [{ env: "local", store: "server", publish: true, url: "http://127.0.0.1:8080/api/content/local", warning: "No CDN connected – the published content is stored and served by this server only." }, { env: "staging", store: "cdn", publish: false, url: null, warning: null }] } };
+  if (method === "POST" && path === "/editor/experiences/osct/publish" && (seen.body as any).note === "long")
+    return { status: 202, json: { job: publishJob("running", 2) } };
+  if (method === "GET" && path === "/editor/experiences/osct/publish/0b5c2a1e-0000-4000-8000-000000000345")
+    return { json: { job: publishJob(++publishPolls >= 2 ? "done" : "running", publishPolls >= 2 ? 10 : 6) } };
+  if (method === "GET" && path === "/editor/experiences/osct/publish") return { json: { job: publishJob("done", 10) } };
   if (method === "POST" && path === "/editor/experiences/osct/publish")
     return (seen.body as any).env === "local"
       ? { json: { env: "local", store: "server", build: "abcdef012345", hash: "h", publishedAt: "now" } }
@@ -177,7 +190,7 @@ describe("the content tools", () => {
         "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "put_surface", "delete_scene", "group_scenes", "rename_group", "ungroup",
         "set_surface_reference",
-        "revert_change", "revert_to",
+        "revert_change", "revert_to", "publish_status",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -758,6 +771,24 @@ describe("the content tools", () => {
     expect(production.data.error.code).toBe("production-is-a-person");
     expect(production.data.open).toBe("http://localhost:5175/editor/osct/");
     expect(seen.filter(s => s.method === "POST")).toHaveLength(0);
+  });
+
+  it("publish: a job that runs on (202) is followed until it ends; when it outlasts the wait, publish_status follows it (#345)", async () => {
+    PUBLISH_TIMING.pollMs = 1;
+    publishPolls = 0;
+    const long = await rec.call("publish", { experience: "osct", note: "long" });
+    expect(long.ok).toBe(true);
+    expect(long.data).toMatchObject({ build: "abcdef012345", export: { written: true }, job: { status: "done", done: 10, total: 10 } });
+    expect(seen.filter(s => s.path.endsWith("/publish/0b5c2a1e-0000-4000-8000-000000000345"))).toHaveLength(2);
+    const waitMs = PUBLISH_TIMING.waitMs;
+    PUBLISH_TIMING.waitMs = 0;
+    publishPolls = 0;
+    const cut = await rec.call("publish", { experience: "osct", note: "long" });
+    expect(cut.data).toMatchObject({ job: { status: "running", live: true }, next: expect.stringContaining("publish_status") });
+    PUBLISH_TIMING.waitMs = waitMs;
+    const status = await rec.call("publish_status", { experience: "osct", job: "0b5c2a1e-0000-4000-8000-000000000345" });
+    expect(status.data).toMatchObject({ build: "abcdef012345", job: { status: "done" } });
+    expect((await rec.call("publish_status", { experience: "osct" })).data.job.status).toBe("done");
   });
 
   it("the logs", async () => {

@@ -207,6 +207,36 @@ Verbatim from the archived entries (the entry title and archive file in front of
 
 ---
 
+## 2026-11-22 – a publish is a job: where the 10 minutes went, what writes the rest (6.2.0, #345)
+
+- **Found** (staging's zone listing, the publish log): build b49f09610206's version folder (3 plugin modules, files.json
+  430 KB, game.config.json 793 KB) was on the zone at 07:53:03.0–.5, latest.json switched at 07:53:03.7 – then the export
+  archive: **1522 files** (1376 entries, 135 scenes, 6 plugins, 5 top-level, 1.2 MB) written one PUT after another with a
+  new TLS connection each, ~0.43 s a file, 07:53:04 → 08:03:59. The editor got 504; Tilman published again at 08:03:31
+  (same build: versions.json kept 07:53:03.7, latest.json got 08:03:30.99) and that request checked for export.json
+  before the first one wrote it, so it rewrote 1376 entries again until 08:14:54 (and never wrote its own export.json).
+  The demo is small enough to stay under the gateway. Read-only GET timing from here against the Storage API:
+  sequential 180–1180 ms a file, curl_multi over kept connections 100–400 ms a file – the zone is noisy.
+- **Decision (job design, works on plain PHP)**: `publish_jobs` row with the plan (every file to write) + state;
+  `POST` runs `PUBLISH_STEP_SECONDS` (15) in the request (done → 200 as before, else 202 `{ job }`), then
+  `fastcgi_finish_request()` + `ignore_user_abort` + no time limit where it exists (staging's FTPS host, PHP-FPM),
+  else every poll `GET …/publish/{job}` writes the next 15 s (Apache mod_php in the Docker image, the built-in server).
+  A lease (90 s, renewed per slice of 32 files) keeps one runner; a dead runner's lease runs out and the next poll goes
+  on. A job unmoved for 2 min gives way to the next publish (`abandoned`). No queue, no cron, no daemon.
+- Skip logic: version folder = one exists (never overwritten), archive with export.json = one exists, an incomplete
+  archive = `ContentStore::checksums` (one Storage API listing per folder, its `Checksum` = sha256) → only missing or
+  different files. Uploads: `ContentStore::putMany`, 16 at a time on one kept curl multi handle; a refused file is tried
+  once more alone. Order kept: game.config.json last in its folder, latest.json after the folder, export.json last.
+- The editor's Publish step (`publish-job.ts`) shows the phase and done / total, treats a 502/503/504 without the API's
+  error code (or no answer) as "lost", then looks for the experience's newest job that was not there before the click.
+  MCP `publish` waits 90 s, `publish_status` follows.
+- [ ] Open: the archive is still ~1500 PUTs for the book – expected 2–4 min with 16 at a time (not measured on staging:
+  no publish from a worker). If that stays too slow, the lever is the archive's shape (one file per entry, the
+  `osct content export` layout the CLI shares) – e.g. a single bundled file next to the folder; Tilman's call.
+- [ ] Open: after the deploy, publish osct on staging once and note the job's time (POST answer, live, done) here; check
+  that staging's FPM really continues after `fastcgi_finish_request` (the job keeps moving with the editor closed).
+- [ ] Open: staging's export archive of b49f09610206 is complete (export.json from the first publish) – nothing to repair.
+
 ## 2026-11-22 – every experience at its own path; legacy codes and the PWA land in the right book (6.1.0, #343)
 
 - Tilman (2026-11-22): *"mein vorschlag, wir fangen eingehende legacy qr codes ab so das ?v=bk1 auf und ?v=d1 ../osct/

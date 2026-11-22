@@ -26,6 +26,7 @@ export const PUBLISH_REFUSALS = [
   "unknown-passes",
   "content-store-failed",
   "content-store-unconfigured",
+  "publish-running",
 ] as const;
 
 /** What the publish refuses about the content: a type no compiled plugin provides, and where the plugins come from */
@@ -51,6 +52,7 @@ export function hintFor(error: ApiError): string {
   if (error.code === "invalid-env") return "env is the instance's own environment – leave it out to publish there.";
   if (error.code === "invalid-note") return "note is a line of text for the publish log.";
   if (error.code === "content-store-failed") return "The environment's content store could not be read or written – nothing went live; the person checks the store (or versions.json) and publishes again.";
+  if (error.code === "publish-running") return "A publish of this experience runs already (job) – follow it with publish_status and that job's id instead of publishing again.";
   if (error.code === "content-store-unconfigured") return "The instance's CDN storage is not configured – the person who runs the instance sets it up; nothing was published.";
   if (error.code === "asset-in-use") return "The asset is used – remove the uses first, or delete with force: true.";
   if (error.code === "plugin-in-use") return "The draft uses what the plugin registers – remove those uses first (plugin_usages lists them), or delete with force: true.";
