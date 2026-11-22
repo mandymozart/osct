@@ -12,6 +12,7 @@ import type {
 } from "@/types";
 import { isObject } from "@shared/guards/game-config";
 import { ApiError, ApiService } from "./ApiService";
+import { activeExperience } from "@/utils/experience-path";
 
 /** Query parameter of the link in the confirmation email: `/about?login=<token>` (server: Auth.php) */
 export const LOGIN_PARAM = "login";
@@ -235,7 +236,8 @@ export class UserService implements IUserService {
   async requestLogin(email: string, options: UserOptions): Promise<boolean> {
     return this.run(async () => {
       const result = await this.api.requestAs(isPendingResponse, "POST", "/auth/request", {
-        body: { email: email.trim(), options, language: i18next.resolvedLanguage },
+        // The email's link opens this experience (#343: every experience at its own path)
+        body: { email: email.trim(), options, language: i18next.resolvedLanguage, experience: activeExperience() ?? undefined },
       });
       this.setPending({ requestId: result.requestId, email: email.trim(), expiresAt: result.expiresAt });
       return true;

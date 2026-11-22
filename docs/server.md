@@ -56,7 +56,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 
 | | | |
 |---|---|---|
-| `POST /auth/request` | `{ email, language?, options? }` | 202 `{ requestId, expiresAt }` – sends the email; `options` = `{ buildingfictions: bool }`, the one update option (news from Building Fictions, #325; opt-in, off when missing) |
+| `POST /auth/request` | `{ email, language?, options?, experience? }` | 202 `{ requestId, expiresAt }` – sends the email; `options` = `{ buildingfictions: bool }`, the one update option (news from Building Fictions, #325; opt-in, off when missing) | `experience` (#343): the email's link opens `/<experience>/about?login=…` – the experience the reader asked from (one of the site's own paths or no id: left out, the default's `/about`).
 | `POST /auth/verify` | `{ token }` or `{ requestId, code }`, `session?` | `{ session, user, created }` – with `"session": "cookie"` (a browser) `{ csrfToken, user, created }` and the session cookie instead ([Sessions](#sessions-cookies-and-csrf)) |
 | `POST /auth/password` | `{ email, password, session? }` | `{ session, user, created: false }` – a browser the same as above; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
 | `POST /auth/logout` | | 204 – this device only; a cookie session needs its CSRF token like any write, and the cookie is cleared |
@@ -68,6 +68,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 | `/user/tokens` | | the [AI connections](#ai-connections)' tokens |
 | `GET /progress/{experienceId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{experienceId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
+| `GET /experiences/{id}/manifest.webmanifest` | | the web app manifest of the experience at `/{id}/` in the reader (#343, `ReaderManifest.php`, no sign-in): `id`, `start_url` and `scope` `/{id}/`, the build's colours and icons; `name` and `description` from the experience once it has been published (a draft's title is not given away – the id stands in); 404 for one of the site's own paths. The reader links it for every experience but the build's default ([content-cdn](content-cdn.md#the-installed-app-pwa)) |
 | `GET /health` | | `{ status, version, env, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10); `env` = the instance's environment (`ENV`, [Configuration](#configuration)) |
 | `/admin/*` | | the [Admin API](#admin-api): roles, users, the newsletter CSV, migrate |
 
@@ -76,6 +77,7 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 
 | | | |
 |---|---|---|
+| `POST /editor/experiences` | `{ id, title }` | 201 `{ experience }` (the list's fields) – **a new, empty experience** (#343, [New experiences](#new-experiences)): a draft with one scene (a double page), nothing on it. 400 `invalid-slug`, `reserved-slug` (one of the site's own paths), `invalid-title` (1–200 characters); 409 `duplicate-id` |
 | `GET /editor/experiences` | | `{ experiences: [{ id, title, experience, initialScene, schema, assetsBase, libraryBase, importedHash, scenes, createdAt, updatedAt, lastPublish, live }], environments }` – `libraryBase` = the public folder of the experience's uploads (`…/assets/<id>/`, every Library file's URL lies below it; "" where the instance has no public URL for stored files); `lastPublish` `{ env, build, at }` or null; `live` = the environments serving the experience `[{ env, build, since }]` (empty: draft only, the tree's `experience` has it too); `environments` = what each environment serves `[{ env, experience, build, since }]` (`experience` null when it cannot be told), `{ env, error }` when its store cannot be read – only environments that serve something |
 | `GET /editor/environments` | | `{ env, environments: [{ env, store, publish, url, warning }] }` – this instance's environment (`ENV`, the only one it publishes to) first, then `staging` and `production` (`local` only where `ENV` is local); `store` = `cdn` (the storage zone) or `server` (the directory store this API serves); `publish` true for the own one only; `url` = where readers load it; `warning` = the line the editor shows wherever the directory store is the publish target, else null – [One environment per instance](#one-environment-per-instance) |
 | `POST /editor/import/preview` | `{ configuration, files?, assetsBase? }` or `{ source: "cdn" }` (the import's body) | `{ source, contentBase, manifest, incoming, counts, existing }` – what that import would bring in, **nothing imported** ([Import preview](#import-preview)). The import's access (AI connections too); 400 as the import (`invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id` – also for a configuration without `experience.id` or with one that is no id, `no-content-base`); it answers for the configuration's own `experience.id`, the id the import is then called with; 413 `body-too-large`; 502 `content-fetch-failed` with the failing `url` |
@@ -263,6 +265,12 @@ How many people come to the app from each printed QR code or link (#324, `Arriva
 (last page) is **`?s=bk1`**, the desktop landing page's own code `?s=lp1`; any other code counts as soon as it is used,
 so a new flyer or poster needs only its own source in its address.
 
+Every experience is at its own path in the reader (#343): a new code names it – `https://<instance>/<experience>/…?s=fl1`
+(the admin's *A new code*). A code without one (printed before) opens the experience its source maps to – `bk1` → `osct`
+(forever, RULES #39), `d1` → `demo`, any other the instance's default (`SOURCE_EXPERIENCES`,
+`shared/api/experience-paths.ts`; the reader moves the address before it counts – [pages](pages.md#links)). The count
+is the same either way: the source, once.
+
 - The reader (`client/src/services/ArrivalService.ts`) reads `s` at startup, takes it out of the address (a reload or a
   shared link does not count again) and sends **`POST /arrivals { source, device, first }`** → 204, without the cookie
   (`credentials: "omit"`, so no CSRF and no session): `device` is `phone`, `tablet` or `desktop` from the user agent,
@@ -446,6 +454,22 @@ of an instance without a CDN – the answer carries the warning the editor shows
 step: *"No CDN connected – the published content is stored and served by this server only. Readers load from here
 without edge caching; heavy media goes through this server. Back up the content store."* (`ContentStore::SERVER_WARNING`).
 `local` appears only where `ENV` is local; the experience list reads what is live on the instance's environments the same way.
+
+### New experiences
+
+`POST /editor/experiences { id, title }` (#343, the editor's *New experience*, the MCP's `create_experience`) makes an
+empty experience: its draft holds one scene (`scene-1`, the *double* preset, `New scene`) and nothing on it, no import
+record. **The id is its slug** – one identifier for its reader address `https://<instance>/<id>/`, its content store's
+folder (`<title>/<env>/<id>/`) and the editor's `/editor/<id>/`: lower-case letters, digits and dashes, a letter or digit
+first, at most 64 (`Experiences::SLUG`, `shared/api/experience-paths.ts` `EXPERIENCE_SLUG`). It is chosen once – there is
+no rename: once the experience is published, printed QR codes and shared links depend on it.
+
+The site's own top-level paths are never an experience's id (`Experiences::RESERVED` = `RESERVED_PATHS` in
+`shared/api/experience-paths.ts`, compared lower-case; `mcp/test/php-rules.test.ts` pins the copy): the reader's routes
+(`scene`, `entry`, `entries`, `tutorial`, `about`, `info`, `credits`, …), `x` (the old prefix), `editor`, `admin`, `api`,
+`docs`, `mcp`, `assets`, the service worker and manifest files, the dev server's paths and a few kept free. A new
+experience by import is checked the same way (400 `reserved-slug`); an import keeps the wider id rule otherwise
+(capitals, `_` – experiences imported before #343).
 
 ### Import preview
 
