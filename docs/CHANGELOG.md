@@ -23,6 +23,7 @@ think it is listen"* – the whole way, including the API): a 5.x app refuses 6.
 - **Plugin API 4.0**: a spec's bus use is `uses: { listens, emits, reads, sets }` (was `hears`); the Code tab's types
   and the API reference follow. A spec with `hears` is refused as an unknown field.
 - **Content schema 6.0**: a plugin's recorded spec carries `uses.listens`.
+- The reader reads progress format 6 – the MAJOR's format, format 5's shape: nobody's progress is lost.
 
 ### Added
 - **`osct plugins listen`** (`--dir <content folder>`, `--experience <id>` or `--all` through the editor API,
