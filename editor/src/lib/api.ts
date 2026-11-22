@@ -53,10 +53,10 @@ import type {
   PublishedVersion,
   VersionActivated,
   RecentChange,
-  ExportFile,
+  ExportDownload,
   ImportResult,
 } from "@shared/api/editor";
-export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishJob, PublishResult, PublishStarted, ImportComparison, ImportPreview, ExperienceSaved, PublishedVersion, VersionActivated, RecentChange, ExportFile, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
+export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishJob, PublishResult, PublishStarted, ImportComparison, ImportPreview, ExperienceSaved, PublishedVersion, VersionActivated, RecentChange, ExportDownload, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";

@@ -1,5 +1,5 @@
 import type { GameConfiguration } from "@engine/types";
-import type { ExportFile, LiveIn, PublishedVersion, RecentChange } from "./api";
+import type { ExportDownload, LiveIn, PublishedVersion, RecentChange } from "./api";
 import { kindWord } from "./history";
 import { ago } from "./mcp-setup";
 import { whenText } from "./publish-overlay";
@@ -158,7 +158,7 @@ export const readImportFile = (name: string, text: string): ReadFile => {
     throw new Error(`${name} is not JSON.`);
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${name} is no export and no game configuration.`);
-  const record = value as Partial<ExportFile> & Record<string, unknown>;
+  const record = value as Partial<ExportDownload> & Record<string, unknown>;
   if (record.format === "osct-export") {
     if (!record.configuration || typeof record.configuration !== "object") throw new Error(`${name} is an export without its configuration.`);
     if (typeof record.formatVersion === "number" && record.formatVersion > 1) throw new Error(`${name} is an export of a newer format (${record.formatVersion}) – update the editor.`);

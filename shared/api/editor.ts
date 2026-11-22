@@ -184,7 +184,7 @@ export interface RecentChange {
  * The export file (#348, `GET /editor/experiences/{id}/export/file`): an import body as it is – `configuration`, `files`,
  * `assetsBase` (a published build's folder) and the Code tab `sources` – with what it is of
  */
-export interface ExportFile {
+export interface ExportDownload {
   format: "osct-export";
   formatVersion: number;
   experience: string;

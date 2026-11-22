@@ -460,7 +460,7 @@ draft (`ContentVersion::assemble`, its paths below the assets base as the draft 
 tab's sources `[{ id, source }]`. **It is an import body as it is**: `POST …/import` (and the editor's Import → File) takes
 `configuration`, `files`, `assetsBase` and `sources` from it – with `rename` under another id, so an export becomes a new
 experience or replaces another's draft. The media are not in it: the configuration names them by URL, so the file stays small
-and the import points at the same files (a file deleted from the CDN since is gone for the import too). Typed as `ExportFile`
+and the import points at the same files (a file deleted from the CDN since is gone for the import too). Typed as `ExportDownload`
 in `shared/api/editor.ts`. The round trip (export, import as another id: the same configuration but its id, the sources) is
 in the API test.
 
