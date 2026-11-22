@@ -66,6 +66,11 @@ function removal(seen: Seen) {
 /** The editor's API as the tools see it; `sources: false` = an experience without Code tab sources */
 function editorApi(seen: Seen, { sources = true } = {}) {
   const { method, path } = seen;
+  if (method === "POST" && path === "/editor/experiences") {
+    const { id, title } = seen.body as { id: string; title: string };
+    if (id === "osct") return { status: 409, json: { error: { code: "duplicate-id", message: "There is an experience \"osct\" already – choose another slug." } } };
+    return { status: 201, json: { experience: { id, title, experience: { id, title }, initialScene: "scene-1", scenes: 1, lastPublish: null } } };
+  }
   if (path === "/editor/experiences") return { json: { experiences: [{ id: "osct", title: "Test Experience", experience: { id: "osct", title: "Test Experience", book: { author: "Someone" } }, initialScene: "s1", scenes: 2, lastPublish: null }] } };
   if (method === "GET" && path === "/editor/experiences/osct") return { json: TREE };
   if (path === "/editor/experiences/osct/entities") return { json: ENTITIES };
@@ -167,7 +172,7 @@ describe("the content tools", () => {
   it("registers every tool of the list with a description and an input schema", () => {
     expect([...rec.tools.keys()].sort()).toEqual(
       [
-        "add_entry", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
+        "add_entry", "create_experience", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
         "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "put_surface", "delete_scene", "group_scenes", "rename_group", "ungroup",
@@ -774,6 +779,20 @@ describe("the content tools", () => {
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/experiences/osct/changes/revert-to", body: { after: "c0" } });
     await rec.call("revert_to", { experience: "osct", after: "c0", apply: true });
     expect(seen.at(-1)?.body).toEqual({ after: "c0", apply: true });
+  });
+
+  it("create_experience: a slug and a title make an empty experience; a bad, reserved or taken slug is refused (#343)", async () => {
+    const made = await rec.call("create_experience", { slug: "new-book", title: "A New Book" });
+    expect(made.ok).toBe(true);
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/experiences", body: { id: "new-book", title: "A New Book" } });
+    expect(made.data).toMatchObject({ experience: { id: "new-book" }, open: "http://localhost:5175/editor/new-book/" });
+    const count = seen.length;
+    expect((await rec.call("create_experience", { slug: "New_Book", title: "x" })).ok).toBe(false);
+    expect((await rec.call("create_experience", { slug: "editor", title: "x" })).ok).toBe(false);
+    expect(seen.length).toBe(count);
+    const taken = await rec.call("create_experience", { slug: "osct", title: "x" });
+    expect(taken.ok).toBe(false);
+    expect(taken.data.error).toMatchObject({ code: "duplicate-id" });
   });
 
   it("import_experience: a configuration, the cdn, or neither", async () => {

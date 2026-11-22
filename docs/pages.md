@@ -21,17 +21,30 @@ game.router.navigate("/entry", { key: "entryId", value: "metafiction" });
 
 ## Links
 
-Every view has a plain URL (`services/LinkService.ts`); the address bar follows the app, and the
-browser's back button goes back through the views:
+Every view has a plain URL (`services/LinkService.ts`), below the path of its experience – every experience is at its
+own path (#343, [content-cdn](content-cdn.md#which-experience-the-reader-opens)): `/osct/scene/s1`, `/demo/entry/…`.
+The address bar follows the app, and the browser's back button goes back through the views:
 
-| URL | Opens |
+| URL (below `/<experience>`) | Opens |
 |---|---|
-| `/` | the start (onboarding on a first visit, else the splash → scan mode) |
+| `/` (`/osct/`) | the start (onboarding on a first visit, else the splash → scan mode) |
 | `/scene/<sceneId>` | scan mode on that scene |
 | `/entries/<category>` (or `/entries/category/<category>`) | the entries list |
 | `/entry/<entryId>` | one entry |
 | `/tutorial/<step>` | an onboarding step |
 | `/about` | Info |
+
+A link without an experience (every code and link made before #343) is moved to one before the app starts
+(`utils/experience-path.ts` `redirectLegacyAddress`, `history.replaceState`):
+
+| Address | Becomes |
+|---|---|
+| `/?s=bk1` (the printed book's code) | `/osct/?s=bk1` – the source's experience (`SOURCE_EXPERIENCES`, `shared/api/experience-paths.ts`); the arrival is counted and `s` taken out as before |
+| `/?s=d1` | `/demo/?s=d1` |
+| `/?s=<another source>` | the default experience (`VITE_EXPERIENCE`) |
+| `/` | the experience this browser opened last (`localStorage` `osct-experience` – the installed app starts at `/`), else the default |
+| `/scene/<id>`, `/entry/<id>`, `/about`, … (with or without `?osct=`) | the same route of the default experience (`?s=` in it: the source's experience) |
+| `/x/<experience>/…` (the prefix of #87) | `/<experience>/…` |
 
 Every link carries `?osct=<version>` (the app version it was made with). Opening a link only routes:
 
@@ -46,8 +59,10 @@ There is no resume prompt: the app opens the requested view (a link, or the view
 and a plain start opens scan mode on the last scene. Stored progress of another format: a reader for it
 exists → converted, with a notice that parts may be missing; none exists → progress reset, with a notice.
 
-Printed QR codes: `https://osct.buildingfictions.com/scene/<sceneId>?osct=<version>` – the dev QR
-generator in the debug overlay makes them for the current scene. The server has to answer every path
+Printed QR codes: `https://osct.buildingfictions.com/osct/scene/<sceneId>?osct=<version>` – the dev QR
+generator in the debug overlay makes them for the current scene; the admin's *A new code* makes them with a source
+([admin](admin.md)). The book's own code, `https://osct.buildingfictions.com/?s=bk1`, has no experience and opens
+`/osct/` forever (RULES #39). The server has to answer every path
 with `index.html`: `client/public/.htaccess` does that (Apache – the Docker image, [deploy](deploy.md)); Vite does
 it in dev and preview.
 

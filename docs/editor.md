@@ -84,7 +84,7 @@ with SQLite and the local content store:
    `local · this server`, the local API's own environment. With the fixture: open *Studio A – models* the same way.
 7. The reader reads the published version when it is started with
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` and `VITE_EXPERIENCE=osct` (the fixture's id;
-   `<base>/osct/latest.json` names the new build – another experience opens at `/x/<experience>/`).
+   `<base>/osct/latest.json` names the new build – every experience opens at its own path, `/osct/`, `/demo/`, #343).
 
 **For the people who use the editor** there is a documentation site at `/docs/` – the editor guide, tutorials for editors
 and admins and the API pages ([docs-site](docs-site.md), #336); this file stays the developers' account of the editor.
@@ -106,14 +106,24 @@ get ("A store per experience" below). `fixtures/demo` is its committed export �
 again (`osct content export --experience demo --from draft --out ../fixtures/demo --force` against the staging API,
 [content](content.md) "Export") and commit. The workflow *Demo book* (`.github/workflows/demo.yml`) only builds that
 export as a check; it no longer syncs (that competed with the editor's Publish). A fresh instance gets the demo by
-*Import an experience… → URL* with the store's base URL, or from the folder. On a phone, the staging reader opens it at `https://osct.porschuetz.de/x/demo/`
+*Import an experience… → URL* with the store's base URL, or from the folder. On a phone, the staging reader opens it at `https://osct.porschuetz.de/demo/`
 ([content on the CDN](content-cdn.md)).
 
 ## Experiences, import and publish
 
 ### The Experiences page
 
-`/editor/`: the instance's experiences – under each, where it is live (below) – and *Import an experience…*: the CDN's current
+`/editor/`: the instance's experiences – under each, where it is live (below) –, **New experience** and *Import an
+experience…*.
+
+**New experience** (#343, `editor/src/lib/NewExperienceForm.svelte`, `POST /editor/experiences` – [server](server.md#new-experiences)):
+a title and a **slug** make an empty draft with one scene. The slug is the experience's id – its address in the reader,
+`https://<instance>/<slug>/` (the form shows it as it is typed), and the folder of its content on the CDN; the form
+proposes it from the title until one is typed and checks it as the API does (`editor/src/lib/new-experience.ts`:
+lower-case letters, digits and dashes, none of the site's own paths – `editor`, `api`, `docs`, `scene`, … –, no
+experience of that id yet). It can't be changed later – the form says so: once published, printed QR codes depend on it.
+
+*Import an experience…*: the CDN's current
 version, a `game.config.json` by URL or file, or a **content base URL** – an experience's CDN folder with `latest.json`, e.g.
 `…/osct/staging/demo` –
 whose current version is taken; *assets at* = where its `/assets/content/…` paths resolve (for a content base the
@@ -168,7 +178,8 @@ Every experience has a content store of its own in each environment (`<title>/<e
 `…/<experience>/<build>/` – [content on the CDN](content-cdn.md), #87; until then an environment served one experience and
 publishing another asked to replace it, #143). So several experiences are published on one installation – any experience
 can publish to staging and production, and a publish only ever replaces that experience's previous build. Readers open
-the instance's default experience at `/` and another one at `/x/<experience>/`.
+every experience at its own path, `/<experience>/` (#343) – `/` opens the experience the browser opened last, else the
+instance's default.
 
 - **Where an experience is live.** The Experiences overview shows under each experience *live on staging · build … · since …* (one line per
   environment that serves a build of it) or *draft only*; next to Publish the experience page shows the same in short. An

@@ -167,21 +167,54 @@ the bundled configuration module is empty, `dist/` has no `assets/content/`, and
 name take the experience data from the default experience's current version at build time (fallback: a local content
 build, then none).
 
-**Which experience the reader opens** (`client/src/utils/experience-path.ts`, #87): the address names it.
+**Which experience the reader opens** (`client/src/utils/experience-path.ts`, #87, #343): the address names it – every
+experience is at its own path.
 
 ```
-https://osct.porschuetz.de/                     the default experience (VITE_EXPERIENCE)
-https://osct.porschuetz.de/scene/s1             … every link of today stays as it is
-https://osct.porschuetz.de/x/demo/              another experience: the same routes below /x/<experience>
-https://osct.porschuetz.de/x/demo/scene/s1
+https://osct.porschuetz.de/osct/                the experience osct
+https://osct.porschuetz.de/osct/scene/s1        … every route below /<experience>
+https://osct.porschuetz.de/demo/                the experience demo
+https://osct.porschuetz.de/demo/entry/racoon
 ```
 
 A path prefix, not a query parameter: the app writes the prefix into every link while it runs (`LinkService`), so a
 shared link, a bookmark and a reload open the same experience, and the server answers every path with `index.html`
-already. A `?x=` would be dropped by every link the app writes (`?osct=<version>`) unless each carried it as well.
-`/x/<default>/…` opens the default too (the app writes it without the prefix). The installed app (PWA) starts at `/`,
-the default experience. Progress is kept per experience id (`osct-progress:<experience>`), so experiences never share
-it – the storage format is unchanged (RULES #10: no progress MAJOR).
+already. A `?x=` would be dropped by every link the app writes (`?osct=<version>`) unless each carried it as well. The
+experience's id is that path segment and its store's folder – one identifier, chosen once (a new experience's slug,
+[server](server.md#new-experiences)). The site's own top-level paths are never an experience's id (`RESERVED_PATHS`,
+`shared/api/experience-paths.ts`: `scene`, `entry`, `editor`, `api`, `docs`, `assets`, `x`, …), so the reader tells
+`/scene/s1` (a route without an experience) from `/demo/` (an experience).
+
+**Addresses without an experience** – every code and link made before #343 – move to one before anything loads
+(`redirectLegacyAddress`, first in `main.ts`, `history.replaceState`; the service worker serves the same `index.html`
+offline, so it works there too):
+
+| address | opens |
+|---|---|
+| `/?s=bk1` – **the printed book's code** | `/osct/` (the source map `SOURCE_EXPERIENCES` in `shared/api/experience-paths.ts`: `bk<n>` → `osct` – forever, RULES #39) |
+| `/?s=d1` | `/demo/` (`d<n>` → `demo`) |
+| `/?s=<any other source>` | the instance's default experience (`VITE_EXPERIENCE`) |
+| `/` | the experience this browser opened last (`localStorage` `osct-experience`), else the default |
+| `/scene/<id>`, `/entry/<id>`, `/about`, `/info`, … with or without `?osct=` | the same route of the default experience (with `?s=`: of the source's experience) |
+| `/x/<experience>/…` (#87's prefix) | `/<experience>/…` |
+
+The source stays in the moved address, so the arrival is counted once with its source as before and `s` is taken out
+after ([server, "Arrivals"](server.md#arrivals)). The server does not redirect (a bare `/` needs the browser's last
+experience). Progress is kept per experience id (`osct-progress:<experience>`), so experiences never share it – the
+storage format is unchanged (RULES #10: no progress MAJOR).
+
+**The page follows the experience** (`client/src/utils/experience-meta.ts`): index.html is written at build time for the
+default experience (its title, the home-screen name, Onion Skin's description); for another experience the app sets the
+page title, the description and the home-screen title from the loaded content.
+
+<a id="the-installed-app-pwa"></a>**The installed app (PWA).** The build's manifest (`/manifest.webmanifest`, vite.config.js
+`pwa()`) keeps `id` and `start_url` `/` and scope `/` – the app installed before #343 stays the same app, and its `/`
+opens the experience the person opened last (else the default). **Another experience links its own manifest**:
+`/api/experiences/<id>/manifest.webmanifest` (server `ReaderManifest.php`) with `id`, `start_url` and `scope` `/<id>/`, its
+title once published, the build's icons – so installing the app from `/demo/` installs the demo, which then starts at
+`/demo/`. The default experience keeps the build's manifest (installing from `/osct/` installs the app at `/`). One service
+worker (scope `/`) serves every experience: navigations network-first with the precached `index.html` offline, the
+content cached per experience store as below.
 
 At startup, before anything else (`main.ts` → `utils/game-config.ts` `loadGameConfiguration()`), with
 `<base>` = `VITE_CONTENT_BASE_URL/<experience>`:
@@ -284,7 +317,7 @@ read/write key).
 | 2 | copy the book | `content move --from staging --env staging` |
 | 3 | copy the demo – it becomes an experience on staging | `content move --from demo --env staging --experience demo` → `osct/staging/demo/` |
 | 4 | point the environment variables at the new layout | GitHub environments `staging` and `production`: `OSCT_CONTENT_BASE_URL` = `https://buildingfictions.b-cdn.net/osct/staging` / `…/osct/production`; `OSCT_EXPERIENCE` = `osct` (the default when unset); `OSCT_TITLE` only for another title |
-| 5 | deploy staging, check | `content status --env staging` (both experiences agree), the reader at `/` and `/x/demo/`, the editor's Publish |
+| 5 | deploy staging, check | `content status --env staging` (both experiences agree), the reader at `/` and `/demo/` (#343; then `/x/demo/`), the editor's Publish |
 | 6 | production, when it has content | `content move --from production --env production` (production environment) |
 | 7 | after the 30 days of edge cache | `content move … --delete-old` per old folder – readers of the old app keep loading the old folder until then |
 
@@ -306,10 +339,10 @@ cd scripts && npm run build && npm run osct -- content build && npm run osct -- 
 With `OSCT_CONTENT_DIR` in `scripts/.env` pointing at the content source.
 
 To run the app against the staging CDN locally, put `VITE_CONTENT_BASE_URL=https://buildingfictions.b-cdn.net/osct/staging`
-and `VITE_EXPERIENCE=osct` into `client/.env.local` and start `npm run dev`; `/x/demo/` opens the demo. The console line
+and `VITE_EXPERIENCE=osct` into `client/.env.local` and start `npm run dev`; `/demo/` opens the demo. The console line
 `[game-config] Content … from …` names the content version and where it came from.
 
-**Another experience** in any build with the CDN: `/x/<experience>/` (above) – `https://osct.porschuetz.de/x/demo/`
+**Another experience** in any build with the CDN: `/<experience>/` (above) – `https://osct.porschuetz.de/demo/`
 shows the demo ([plugins](plugins.md) "The demo") in the staging reader. **Any content store in a debug build** (the
 dev server, staging): `?content=<base url>` opens the content of that experience's store (`latest.json` and its
 version folders) instead of the build's – `?content=https://buildingfictions.b-cdn.net/osct/staging/demo`. The tab keeps

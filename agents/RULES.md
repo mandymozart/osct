@@ -472,3 +472,11 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     conventions.
     **Exception** (Tilman, 2026-11-21, #334): the Logic canvas's nodes, ports and wires take the SCUTOONS deck's node
     styles **with their signal colours** (one table, research L-T8); the rest of the editor stays monochrome.
+
+39. **The printed book's code opens the book – forever** (Tilman, 2026-11-22, #343): every experience is at its own path
+    (`/<experience>/`), and the book's QR code (`https://osct.buildingfictions.com/?s=bk1`, printed) has no experience in
+    it. So: the instance's default experience on **osct.buildingfictions.com stays `osct`** (`OSCT_EXPERIENCE` /
+    `VITE_EXPERIENCE`), and the source map (`SOURCE_EXPERIENCES` in `shared/api/experience-paths.ts`) keeps **`bk1 → osct`
+    forever** – never removed, never pointed elsewhere, also not in a white-label rework. The experience `osct` keeps its
+    id (slugs are never renamed once published). An experience's id never takes one of the site's own paths
+    (`RESERVED_PATHS`, enforced by the API, the editor's form and the MCP).

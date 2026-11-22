@@ -79,7 +79,8 @@ describe("<desktop-landing>", () => {
       mount();
       await vi.waitFor(() => expect(made).toHaveLength(1));
       expect(made[0].text).toBe(`${location.origin}/?s=lp1`);
-      expect(landingQrUrl("https://osct.buildingfictions.com")).toBe("https://osct.buildingfictions.com/?s=lp1");
+      expect(landingQrUrl("https://osct.buildingfictions.com", "")).toBe("https://osct.buildingfictions.com/?s=lp1");
+      expect(landingQrUrl("https://osct.buildingfictions.com", "/osct")).toBe("https://osct.buildingfictions.com/osct/?s=lp1");
       expect(root().querySelector(".qr-code img")!.getAttribute("alt")).toBe("QR code that opens the app on your phone");
     });
 

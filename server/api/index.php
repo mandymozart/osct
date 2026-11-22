@@ -7,6 +7,7 @@ declare(strict_types=1);
  *   GET    /health                   { status, version, env, db }
  *   POST   /arrivals                 { source, device, first } → 204: an arrival from a QR code or link with `?s=` (#324,
  *                                    counts only, no cookie)
+ *   GET    /experiences/{id}/manifest.webmanifest   the web app manifest of the experience at /{id}/ (#343, ReaderManifest)
  *   POST   /auth/request             send the confirmation email (link + code)
  *   POST   /auth/verify              link token or request id + code → session token, or with `session: "cookie"` (a
  *                                    browser) the session cookie and its CSRF token
@@ -34,6 +35,8 @@ declare(strict_types=1);
  *
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
  *   GET    /editor/experiences                  the experiences: id, title, experience, initialScene, scenes, updatedAt, lastPublish
+ *   POST   /editor/experiences                  { id, title } → 201 a new, empty experience; id = its slug (#343: lower-case,
+ *                                               not one of the site's own paths – 400 invalid-slug / reserved-slug, 409 duplicate-id)
  *   GET    /editor/environments                 the environments: which one this instance publishes to, CDN or this server
  *   POST   /editor/import/preview               the import's body → what it would bring in (experience, build, counts) and the
  *                                               draft of that id it would replace – read-only, nothing imported
@@ -103,7 +106,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Migration6', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'ExportArchive', 'Deliveries'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Migration6', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'ExportArchive', 'Deliveries', 'ReaderManifest'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -178,6 +181,8 @@ try {
         (bool) preg_match('#^(GET|PUT) /progress/([A-Za-z0-9_-]{1,64})$#', $route, $match) =>
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
         $route === 'GET /editor/experiences' => Experiences::list(),
+        $route === 'POST /editor/experiences' => Experiences::create(),
+        (bool) preg_match("#^GET /experiences/($id)/manifest\.webmanifest$#", $route, $match) => ReaderManifest::get($match[1]),
         $route === 'GET /editor/environments' => Experiences::environments(),
         $route === 'POST /editor/import/preview' => Experiences::preview(),
         (bool) preg_match("#^POST /editor/experiences/($id)/import$#", $route, $match) => Experiences::import($match[1]),

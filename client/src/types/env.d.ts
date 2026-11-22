@@ -14,7 +14,8 @@ interface ImportMetaEnv {
    */
   readonly VITE_CONTENT_BASE_URL?: string;
   /**
-   * The instance's default experience – the one opened without `/x/<experience>/` (utils/experience-path.ts); required
+   * The instance's default experience – the one an address without an experience opens (`/scene/…`, #343 –
+   * utils/experience-path.ts); required
    * with VITE_CONTENT_BASE_URL
    */
   readonly VITE_EXPERIENCE?: string;

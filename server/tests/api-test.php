@@ -400,6 +400,11 @@ try {
     $statuses = [];
     for ($i = 0; $i < 7; $i++) [$statuses[]] = call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com']);
     check($statuses === array_fill(0, 7, 202), 'a limit of -1 is off: seven requests in a row pass (local testing)');
+    // #343: the email's link opens the experience the reader asked from; a reserved or bad one is left out
+    call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com', 'experience' => 'demo']);
+    check(str_contains(lastMail($mailLog)['text'], '/demo/about?login='), '#343: the sign-in link opens the experience the reader asked from (/demo/about?login=…)');
+    call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com', 'experience' => 'editor']);
+    check(preg_match('#https?://[^/]+/about\?login=#', lastMail($mailLog)['text']) === 1, '… one of the site\'s own paths is left out (/about?login=…)');
     $zeroApi = startApi(database('zero') + ['LOGIN_MAX_PER_EMAIL_HOUR' => '0'] + $settings);
     [$status, $data] = call($zeroApi, 'POST', '/auth/request', ['email' => 'zero@example.com']);
     check($status === 429 && $data['error']['code'] === 'too-many-requests', 'a limit of 0 allows nothing (#83)');
@@ -680,6 +685,47 @@ try {
     $badId['experience']['id'] = 'My Experience';
     [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $badId, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-id', '#204: an experience.id that is no id → 400 invalid-id');
+    // #343: an experience's id is its path in the reader – none of the site's own paths
+    $reserved = $configuration;
+    $reserved['experience']['id'] = 'Editor';
+    [$status, $data] = importing($api, 'Editor', $editor, json_encode(['configuration' => $reserved, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'reserved-slug' && ($data['error']['slug'] ?? null) === 'Editor', '#343: a new experience imported as one of the site\'s own paths (Editor) → 400 reserved-slug');
+
+    echo "editor: a new, empty experience under its own slug (#343)\n";
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'new-book', 'title' => ' A New Book '], $editor);
+    check($status === 201 && $data['experience']['id'] === 'new-book' && $data['experience']['title'] === 'A New Book' && $data['experience']['scenes'] === 1
+        && $data['experience']['initialScene'] === 'scene-1' && $data['experience']['lastPublish'] === null && $data['experience']['live'] === [], 'POST /editor/experiences → 201 an empty draft with one scene, not published');
+    [$status, $tree] = call($api, 'GET', '/editor/experiences/new-book', null, $editor);
+    check($status === 200 && count($tree['scenes']) === 1 && $tree['scenes'][0]['entries'] === [] && count($tree['scenes'][0]['surfaces']) === 1, '… its tree: one scene (a double page), no entries');
+    [$status, $manifest] = call($api, 'GET', '/editor/experiences/new-book/draft/latest.json', null, $editor);
+    check($status === 200 && preg_match('/^[0-9a-f]{12}$/', $manifest['build'] ?? '') === 1, '… and a draft that builds');
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'new-book', 'title' => 'Again'], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', 'the same slug again → 409 duplicate-id');
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'osct', 'title' => 'Again'], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', 'an imported experience\'s id → 409 duplicate-id');
+    foreach (['editor', 'api', 'docs', 'scene', 'entry', 'x', 'assets', 'workbox-abc'] as $slug) {
+        [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => $slug, 'title' => 'Mine'], $editor);
+        check($status === 400 && $data['error']['code'] === 'reserved-slug', "the site's own path /$slug/ → 400 reserved-slug");
+    }
+    foreach (['New-Book', 'new_book', '-new', 'a b', '', str_repeat('a', 65)] as $slug) {
+        [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => $slug, 'title' => 'Mine'], $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-slug', "a slug that is no slug ($slug) → 400 invalid-slug");
+    }
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'untitled', 'title' => '  '], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-title', 'no title → 400 invalid-title');
+    [$status] = call($api, 'POST', '/editor/experiences', ['id' => 'by-a-reader', 'title' => 'Mine'], $session);
+    check($status === 403, 'a reader can\'t make one → 403');
+    // The experience's web app manifest (#343, ReaderManifest): its path; the title only once published
+    [$status, $data] = call($api, 'GET', '/experiences/new-book/manifest.webmanifest');
+    check($status === 200 && $data['id'] === '/new-book/' && $data['start_url'] === '/new-book/' && $data['scope'] === '/new-book/' && $data['name'] === 'new-book'
+        && $data['display'] === 'standalone' && count($data['icons']) === 3, 'GET /experiences/{id}/manifest.webmanifest: id, start and scope /<id>/ – a draft\'s title is not given away');
+    [$status] = call($api, 'GET', '/experiences/editor/manifest.webmanifest');
+    check($status === 404, '… none for one of the site\'s own paths');
+    // The rest of the run knows one experience: the new one goes again (the API has no removal of an experience)
+    $pdo = connect('test');
+    foreach (['scenes', 'changes'] as $table) $pdo->exec("DELETE FROM $table WHERE experience_id = 'new-book'");
+    $pdo->exec("DELETE FROM experiences WHERE id = 'new-book'");
+    $pdo = null;
 
     echo "editor: tree, entities\n";
     [$status, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
@@ -826,6 +872,9 @@ try {
     [, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
     check($data['experiences'][0]['live'] === [['env' => 'local', 'build' => $second['build'], 'since' => $data['experiences'][0]['live'][0]['since'] ?? null]] && is_string($data['experiences'][0]['live'][0]['since']), 'the experience list: the experience is live on local, with its build and since when');
     check($data['environments'] === [], 'the experience list names no environment: every store could be read');
+    [$status, $published] = call($api, 'GET', '/experiences/osct/manifest.webmanifest');
+    check($status === 200 && $published['name'] === $configuration['experience']['title'] && $published['id'] === '/osct/'
+        && str_contains($published['description'], $configuration['experience']['book']['author']), "#343: a published experience's manifest carries its title and its book's author");
     $manifest = json_decode((string) file_get_contents("$storeDir/local/osct/latest.json"), true);
     $withExperience = file_get_contents("$storeDir/local/osct/latest.json");
     unset($manifest['experience']);

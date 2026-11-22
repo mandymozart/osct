@@ -29,7 +29,7 @@ export const GROUPS = [
   ["look", "Look", "", ["put_experience_passes", "put_experience_appearance", "put_environment"]],
   ["files", "Files", "", ["list_assets", "upload_asset", "rename_asset", "delete_asset", "set_asset_credits", "plan_asset_names", "apply_asset_names"]],
   ["plugins", "Plugins", "", ["list_plugins", "get_plugin", "put_plugin", "upload_plugin", "plugin_usages", "delete_plugin"]],
-  ["import", "Import and deliveries", "", ["preview_import", "import_experience", "preview_delivery", "import_delivery", "list_deliveries"]],
+  ["import", "New experiences, import and deliveries", "", ["create_experience", "preview_import", "import_experience", "preview_delivery", "import_delivery", "list_deliveries"]],
   ["history", "History", "", ["list_changes", "list_versions", "revert_change", "revert_to"]],
   ["seeing", "Seeing and publishing", "", ["render_scene", "publish"]],
 ];

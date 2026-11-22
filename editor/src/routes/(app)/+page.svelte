@@ -4,14 +4,15 @@
   import { goto } from "$app/navigation";
   import { errorText, listExperiences, type ExperienceSummary, type EnvironmentUnreadable } from "#lib/api.js";
   import ImportForm from "#lib/ImportForm.svelte";
+  import NewExperienceForm from "#lib/NewExperienceForm.svelte";
   import ExperienceCover from "#lib/ExperienceCover.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
   import AiConnections from "#lib/AiConnections.svelte";
   import { PAGE_MM } from "#lib/surface-edit.js";
 
   /**
-   * The editor's start (#153): the experiences of this instance as their covers on the left, the import of a new one on
-   * the right. An experience says only where it is live – the environments that serve a build of it (each has its own
+   * The editor's start (#153): the experiences of this instance as their covers on the left, a new one (#343: a title
+   * and a slug – its reader address) and the import of one on the right. An experience says only where it is live – the environments that serve a build of it (each has its own
    * store there, #87). Under the experiences the AI connections with the guide to connect an AI agent (#142, #194) – connecting one is a first step of
    * working here.
    */
@@ -42,7 +43,7 @@
         {#each [0, 1] as i (i)}<li class="skeleton"><span class="cover-box"></span><span class="line"></span><span class="line short"></span></li>{/each}
       </ul>
     {:else if experiences?.length === 0}
-      <p class="muted empty">No experience yet. Import one with <b>Import an experience</b>: the CDN, a URL or a file.
+      <p class="muted empty">No experience yet. Make one with <b>New experience</b>, or import one with <b>Import an experience</b>: the CDN, a URL or a file.
         <a class="text-link" href="/docs/tutorials/#bringing-in">How to bring an experience in</a></p>
     {:else if experiences}
       <ul class="covers">
@@ -70,6 +71,8 @@
 
   <aside class="side">
     <div class="import">
+      <NewExperienceForm existing={(experiences ?? []).map(e => e.id)} ondone={async id => { await load(); await goto(resolve(`${id}/`)); }} />
+      <hr />
       <ImportForm ondone={async id => { await load(); await goto(resolve(`${id}/`)); }} />
     </div>
     <InfoView />
@@ -81,7 +84,9 @@
   .shelf { overflow-y: auto; padding: 2rem clamp(1rem, 4vw, 3.5rem) 3rem; }
   .side { display: flex; flex-direction: column; min-height: 0; background: var(--surface-head); border-left: 1px solid var(--line); }
   .import { flex: 1; overflow-y: auto; display: grid; align-content: center; justify-items: center; padding: 2rem clamp(1rem, 4vw, 3.5rem); }
+  .import { gap: 2rem; }
   .import > :global(*) { width: 100%; max-width: 26rem; }
+  .import > hr { margin: 0; border: none; border-top: 1px solid var(--line); }
   @media (max-width: 47.9rem) {
     .split { grid-template-columns: minmax(0, 1fr); height: auto; }
     .shelf { overflow: visible; }
