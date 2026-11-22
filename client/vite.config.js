@@ -6,6 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
 import { ONBOARDING_ICON_SRC, renderStaticSplash, SPLASH_STEP, splashFields } from './src/utils/static-splash-html.ts';
 import { fontBaseUrl, renderFontFaces } from './src/utils/font-face-html.ts';
+import { legacyRedirectData, renderLegacyRedirect } from './src/utils/legacy-redirect-html.ts';
 
 // One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
@@ -160,6 +161,17 @@ function staticSplash(config) {
 }
 
 /**
+ * The legacy redirect (#343, src/utils/legacy-redirect-html.ts): an inline script, first in the head, that moves an
+ * address without an experience (`/?s=bk1` → `/osct/`) before the app's bundle is even fetched.
+ */
+function legacyRedirect(experience) {
+  return {
+    name: 'osct-legacy-redirect',
+    transformIndexHtml: (html) => html.replace('<!--osct:legacy-redirect-->', renderLegacyRedirect(legacyRedirectData(experience))),
+  };
+}
+
+/**
  * The design font (ABC Areal, src/utils/font-face-html.ts): `@font-face` rules for the font folder on the CDN
  * (`VITE_FONT_BASE_URL`, default the shared folder; empty = no web font), written into index.html before the
  * stylesheet. The files are licensed and never part of the build.
@@ -276,7 +288,7 @@ export default defineConfig(async ({command,mode})=>{
 
   return {
   plugins: [
-    designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
+    legacyRedirect(experience), designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
     contentFromCdn(contentBaseUrl), docsIndex(), ...(https ? [basicSsl()] : []),
   ],
   define: {

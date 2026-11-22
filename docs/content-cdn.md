@@ -205,8 +205,10 @@ experience's id is that path segment and its store's folder – one identifier, 
 `/scene/s1` (a route without an experience) from `/demo/` (an experience).
 
 **Addresses without an experience** – every code and link made before #343 – move to one before anything loads
-(`redirectLegacyAddress`, first in `main.ts`, `history.replaceState`; the service worker serves the same `index.html`
-offline, so it works there too):
+(an inline script first in `index.html`'s head, before the app's bundle is fetched – `utils/legacy-redirect-html.ts`,
+its data written in at build time from `shared/api/experience-paths.ts`, no database; `redirectLegacyAddress` in
+`main.ts` runs the same rules behind it, a test keeps both equal; `history.replaceState`; the service worker serves the
+same `index.html` offline, so it works there too):
 
 | address | opens |
 |---|---|
