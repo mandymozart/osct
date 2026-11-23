@@ -1096,8 +1096,8 @@ export class ScanStage {
       if (this.celebration.kind === "lost") this.placed.visible = false;
       this.celebration = null;
     }
-    // The screen wakes in the last part of the way up – lying flat and on its way it shows nothing of its camera
-    this.screen?.color.setScalar(smooth((this.rise - 0.7) / 0.3));
+    // The screen wakes early on the way up (from 15 % of it) – lying flat it shows nothing of its camera
+    this.screen?.color.setScalar(smooth((this.rise - 0.15) / 0.25));
     this.animateMarks(seconds, delta);
     this.mixer?.update(delta);
     if (onPage) this.film(onPage);
@@ -1131,7 +1131,8 @@ export class ScanStage {
     this.rise = rise;
     if (rise < 1) {
       this.phone.position.lerpVectors(PHONE_REST.position, this.phone.position, rise);
-      this.phone.quaternion.slerpQuaternions(PHONE_REST.quaternion, this.phone.quaternion, rise);
+      // (a copy: slerpQuaternions writes its result into the quaternion it is called on before it reads the second)
+      this.phone.quaternion.slerpQuaternions(PHONE_REST.quaternion, this.phone.quaternion.clone(), rise);
     }
     return onPage;
   }
