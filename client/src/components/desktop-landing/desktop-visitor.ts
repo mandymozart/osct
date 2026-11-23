@@ -1,7 +1,7 @@
 // Relative, not "@/constants": the inline landing decision in index.html is built from this file too (#343)
 import { BREAKPOINT_TABLET } from "../../constants";
 
-/** Where this browser tab remembers that the visitor chose to open the app on the computer anyway */
+/** sessionStorage key a developer sets by hand ("1") to get past the landing on a computer – visitors cannot (#354) */
 export const LANDING_SKIPPED_KEY = "osct-desktop-landing-skipped";
 
 /** What the browser tells about the device, read once at startup (`readDeviceSignals`) */
@@ -36,19 +36,11 @@ export const readDeviceSignals = (win: Window = window): DeviceSignals => {
   };
 };
 
-/** The visitor chose "open here" in this tab (sessionStorage: a new visit shows the landing page again) */
+/** The landing is skipped in this tab (`LANDING_SKIPPED_KEY`, developers only)  */
 export const landingSkipped = (): boolean => {
   try {
     return sessionStorage.getItem(LANDING_SKIPPED_KEY) === "1";
   } catch {
     return false;
-  }
-};
-
-export const skipLanding = (): void => {
-  try {
-    sessionStorage.setItem(LANDING_SKIPPED_KEY, "1");
-  } catch {
-    // Blocked storage: the landing page shows again on the next reload
   }
 };

@@ -5,10 +5,11 @@ import { experiencePrefix, hideStaticSplash } from "@/utils";
 import { bookCoverUrl } from "@/utils/book-cover";
 import { getExperience, getScenes } from "@/utils/game-config";
 import { ONBOARDING_ICON_SRC } from "@/utils/static-splash-html";
-import "@/components/settings";
-import { isDesktopVisitor, landingSkipped, readDeviceSignals, skipLanding } from "./desktop-visitor";
+import { isDesktopVisitor, landingSkipped, readDeviceSignals } from "./desktop-visitor";
 import { LANDING_CONFIG, type LandingConfig } from "./landing-config";
 import { LANDING_ATTRIBUTE, renderLanding, STATIC_LANDING_ID, type LandingTexts } from "./landing-html";
+import { scanStageData } from "./scan-stage-data";
+import type { ScanStage } from "./scan-stage";
 
 /** The QR code library the dev tools load too (`public/assets/deps/qrcode.js`, davidshimjs/qrcodejs) */
 const QR_SCRIPT = "/assets/deps/qrcode.js";
@@ -23,10 +24,13 @@ export const landingQrUrl = (origin: string = location.origin, prefix: string = 
 /**
  * <desktop-landing>: the page for visitors who open the app on a computer (#293, redesigned #324 on the book's and the
  * app's design – agents/DESIGN.md: black, the gold gradient, Areal, the glass buttons). A hero with the experience's
- * title set as on the book's title page, the book's images scattered around it as on its pages, the Mark, and the app
- * in a phone frame; then a QR code that opens the app on the phone (`?s=lp1`, counted in the admin – #324) with the
- * address and the install button; how it works in three steps; the book and the T-shirt in the Building Fictions shop.
- * "Open the app here" leaves it for the app (remembered for the tab), so the app stays usable on a computer (RULES #1).
+ * title set as on the book's title page, the book's images scattered around it as on its pages, the Mark, and the scan
+ * stage – the book open, a phone scanning it, the model through its screen (#354, scan-stage.ts); then a QR code that
+ * opens the app on the phone (`?s=lp1`, counted in the admin – #324) with the address; the book and the T-shirt in the
+ * Building Fictions shop.
+ * A computer does not enter the experience nor install the app (#354, Tilman 2026-11-23: "the desktop does not allow to
+ * enter the experience. you need to switch to phone or tablet"); only `landingSkipped` (sessionStorage, set by hand in
+ * the browser's dev tools) lets a developer past it.
  *
  * Shown only when `isDesktopVisitor` says so – never on phones and tablets, never in the installed app – and then over
  * everything except the dev tools; the static splash makes way. `main.ts` waits for `whenDone()` before the app's
@@ -43,6 +47,7 @@ export class DesktopLanding extends HTMLElement {
   private done: Promise<void> = new Promise(resolve => (this.resolveDone = resolve));
   private shown = false;
   private frame = 0;
+  private stage: ScanStage | null = null;
 
   constructor() {
     super();
@@ -59,11 +64,32 @@ export class DesktopLanding extends HTMLElement {
       return;
     }
     this.render();
-    this.shadowRoot?.addEventListener("click", this.handleClick);
     this.addEventListener("pointermove", this.handlePointer);
     void hideStaticSplash();
     void this.showCover();
     void this.takeOver(this.showQrCode());
+    void this.showStage();
+  }
+
+  /**
+   * The hero's scan stage (#354): three.js and the model load lazily, after the page is up; without WebGL or a model in
+   * the content, the stage stays its quiet glow
+   */
+  private async showStage() {
+    const box = this.shadowRoot?.querySelector<HTMLElement>(".stage");
+    const data = scanStageData(getScenes(), this.config.scanEntries);
+    if (!box || !data) return;
+    try {
+      const { ScanStage } = await import("./scan-stage");
+      if (!this.shown || !box.isConnected) return;
+      this.stage = new ScanStage(box, data);
+      await this.stage.load();
+      box.classList.add("ready");
+    } catch (error) {
+      console.warn("[landing] scan stage:", error);
+      this.stage?.stop();
+      this.stage = null;
+    }
   }
 
   /** The static landing makes way once this page has painted the same: its images decoded and the QR code drawn (at most `TAKEOVER_MS`) */
@@ -81,26 +107,16 @@ export class DesktopLanding extends HTMLElement {
   }
 
   disconnectedCallback() {
-    this.shadowRoot?.removeEventListener("click", this.handleClick);
     this.removeEventListener("pointermove", this.handlePointer);
     cancelAnimationFrame(this.frame);
+    this.stage?.stop();
+    this.stage = null;
   }
 
-  /** Resolves at once when the page is not shown, else when the visitor opens the app here */
+  /** Resolves at once when the page is not shown, else never: a computer stays on the landing page */
   whenDone(): Promise<void> {
     return this.done;
   }
-
-  private handleClick = (event: Event) => {
-    const action = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-action]")?.dataset.action;
-    if (action !== "continue") return;
-    skipLanding();
-    removeStaticLanding();
-    this.shown = false;
-    this.setAttribute("hidden", "");
-    this.removeEventListener("pointermove", this.handlePointer);
-    this.resolveDone();
-  };
 
   /** The scattered images drift a little against the pointer (depth by size) – off with reduced motion */
   private handlePointer = (event: PointerEvent) => {
@@ -157,11 +173,9 @@ export class DesktopLanding extends HTMLElement {
     // Literal keys, so the extractor keeps them (npm run i18n)
     const texts: LandingTexts = {
       label: t("landing:label"), intro: t("landing:intro", params), getApp: t("landing:getApp"),
-      openOnPhone: t("landing:openOnPhone"), openHere: t("landing:openHere"), openHereNote: t("landing:openHereNote"),
+      openOnPhone: t("landing:openOnPhone"),
       shop: t("landing:shop"), shopBook: t("landing:shopBook"), shopShirt: t("landing:shopShirt"), toShop: t("landing:toShop"),
-      previewAlt: t("landing:previewAlt"), kicker: t("landing:kicker"), scan: t("landing:scan"), qrAlt: t("landing:qrAlt"),
-      step1Title: t("landing:step1Title"), step1: t("landing:step1"), step2Title: t("landing:step2Title"), step2: t("landing:step2"),
-      step3Title: t("landing:step3Title"), step3: t("landing:step3"),
+      previewAlt: t("landing:previewAlt"), scan: t("landing:scan"), qrAlt: t("landing:qrAlt"),
     };
     this.shadowRoot.innerHTML = renderLanding({
       ...this.config,

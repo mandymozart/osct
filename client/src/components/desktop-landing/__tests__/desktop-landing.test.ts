@@ -58,17 +58,17 @@ describe("<desktop-landing>", () => {
   describe("on a computer", () => {
     beforeEach(() => vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(min-width: 56.25em)" })));
 
-    it("shows what this is, the address for the phone, install, and the shop items with their links", () => {
+    it("shows what this is, the address for the phone (no install – #354), and the shop items with their links", () => {
       mount();
       expect(landing.hidden).toBe(false);
       const text = root().textContent ?? "";
       expect(text).toContain("Get the app");
       expect(root().querySelector(".address")!.textContent).toBe(location.host);
-      expect(root().querySelector("settings-install")).not.toBeNull();
+      expect(root().querySelector("settings-install")).toBeNull();
       const links = Array.from(root().querySelectorAll<HTMLAnchorElement>(".shop a"));
       expect(links.map(link => link.getAttribute("href"))).toEqual(LANDING_CONFIG.shop.map(item => item.url));
       expect(links.every(link => link.target === "_blank" && link.rel.includes("noopener"))).toBe(true);
-      expect(root().querySelector<HTMLImageElement>(".phone img")!.getAttribute("src")).toBe(LANDING_CONFIG.previewImage);
+      expect(root().querySelector(".stage")!.getAttribute("role")).toBe("img");
     });
 
     it("draws a QR code that opens the app with the landing page as its source (?s=lp1, #324)", async () => {
@@ -85,20 +85,19 @@ describe("<desktop-landing>", () => {
       expect(root().querySelector(".qr-code img")!.getAttribute("alt")).toBe("QR code that opens the app on your phone");
     });
 
-    it("\"Open the app here\" hides it, starts the app and is remembered for the tab", async () => {
+    it("never lets a computer into the app – only the developers' sessionStorage key does (#354)", async () => {
       mount();
       let done = false;
       void landing.whenDone().then(() => (done = true));
       await Promise.resolve();
       expect(done).toBe(false);
-      root().querySelector<HTMLButtonElement>('[data-action="continue"]')!.click();
-      await landing.whenDone();
-      expect(landing.hidden).toBe(true);
-      expect(sessionStorage.getItem(LANDING_SKIPPED_KEY)).toBe("1");
+      expect(root().querySelector('[data-action="continue"]')).toBeNull();
 
       landing.remove();
+      sessionStorage.setItem(LANDING_SKIPPED_KEY, "1");
       mount();
       expect(landing.hidden).toBe(true);
+      sessionStorage.removeItem(LANDING_SKIPPED_KEY);
     });
   });
   describe("taking over from the static landing in index.html (#343)", () => {

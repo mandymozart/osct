@@ -42,13 +42,11 @@ describe("the landing page's markup (#343)", () => {
     expect(renderLanding(source({ images: ["/a.webp", "/a.webp", ""] })).match(/class="float"/g)).toHaveLength(1);
   });
 
-  it("has the Mark, the phone, the QR card, the three steps, the shop and the footer; the address is filled at runtime", () => {
+  it("has the Mark, the phone, the QR card, the shop and the footer; the address is filled at runtime", () => {
     const html = renderLanding(source());
     expect(html).toContain('<img class="mark" src="/assets/ui/onboarding/icon.png"');
-    expect(html).toContain(`<img src="${LANDING_CONFIG.previewImage}"`);
+    expect(html).toContain(`<aside class="stage" role="img" aria-label="${en.previewAlt}"></aside>`);
     expect(html).toContain('<div class="qr-code" role="img"');
-    expect(html.match(/class="step"/g)).toHaveLength(3);
-    expect(html).toContain(goldButton({ label: en.openHere, shape: "button", primary: true, attrs: { "data-action": "continue" } }));
     LANDING_CONFIG.shop.forEach(item => expect(html).toContain(`href="${item.url}"`));
     expect(html).toContain("<span>Onion Skin &amp; Crocodile Tears · Kévin &lt;Bray&gt;</span><span>Building Fictions</span>".replace("</span><span>", "</span>\n            <span>"));
     expect(html).toContain('<span class="address gold"></span>');
@@ -84,7 +82,7 @@ describe("the static landing for index.html", () => {
     expect(html).toContain(`html[${LANDING_ATTRIBUTE}] #static-splash{display:none}`);
   });
 
-  it("writes the address and lets \"Open the app here\" work before the bundle (remembered as skipLanding does)", () => {
+  it("writes the address before the bundle; a computer cannot enter the app or install it (#354)", () => {
     // happy-dom does not attach declarative shadow roots: build the host by hand and run the script
     const host = document.createElement("div");
     host.id = STATIC_LANDING_ID;
@@ -94,10 +92,8 @@ describe("the static landing for index.html", () => {
     const script = html.slice(html.lastIndexOf("<script>") + 8, html.lastIndexOf("</script>"));
     new Function(script)();
     expect(host.shadowRoot!.querySelector(".address")!.textContent).toBe(location.host);
-    host.shadowRoot!.querySelector<HTMLElement>('[data-action="continue"] span')!.click();
-    expect(sessionStorage.getItem(LANDING_SKIPPED_KEY)).toBe("1");
-    expect(host.isConnected).toBe(false);
-    expect(document.documentElement.hasAttribute(LANDING_ATTRIBUTE)).toBe(false);
-    sessionStorage.removeItem(LANDING_SKIPPED_KEY);
+    expect(host.shadowRoot!.querySelector('[data-action="continue"], settings-install, .kicker, .steps')).toBeNull();
+    host.remove();
+    document.documentElement.removeAttribute(LANDING_ATTRIBUTE);
   });
 });

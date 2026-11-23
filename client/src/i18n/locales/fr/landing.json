@@ -2,21 +2,12 @@
   "label": "À propos de l'app",
   "intro": "L'app compagnon de <em>{{title}}</em> de {{author}}. Pointe ton téléphone vers les pages du livre imprimé pour découvrir vidéos, textes et références en réalité augmentée.",
   "getApp": "Obtenir l'app",
-  "openOnPhone": "L'app est faite pour ton téléphone : ouvre cette adresse dans le navigateur de ton téléphone.",
-  "openHere": "Ouvrir l'app ici",
-  "openHereNote": "Sans téléphone, tu peux quand même explorer sur cet ordinateur – pour scanner, il faut une caméra.",
+  "openOnPhone": "L'app est faite pour les téléphones et les tablettes – elle ne s'ouvre pas sur un ordinateur. Ouvre cette adresse dans le navigateur de ton téléphone ou de ta tablette.",
   "shop": "En boutique",
   "shopBook": "Le livre",
   "shopShirt": "Le T-shirt",
   "toShop": "Boutique",
   "previewAlt": "L'app sur un téléphone",
-  "kicker": "Un compagnon en réalité augmentée",
   "scan": "Scanne avec ton téléphone",
-  "qrAlt": "QR code qui ouvre l'app sur ton téléphone",
-  "step1Title": "Ouvrir",
-  "step1": "Scanne le code avec l'appareil photo de ton téléphone – l'app s'ouvre dans le navigateur, sans store.",
-  "step2Title": "Pointer",
-  "step2": "Tiens ton téléphone au-dessus d'une page du livre imprimé.",
-  "step3Title": "Découvrir",
-  "step3": "Vidéos, textes et références apparaissent sur la page – les marginalia du livre."
+  "qrAlt": "QR code qui ouvre l'app sur ton téléphone"
 }

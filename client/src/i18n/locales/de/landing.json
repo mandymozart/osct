@@ -2,21 +2,12 @@
   "label": "Über die App",
   "intro": "Die Begleit-App zu <em>{{title}}</em> von {{author}}. Richte dein Handy auf die Seiten des gedruckten Buchs und entdecke Videos, Texte und Referenzen in Augmented Reality.",
   "getApp": "Hol dir die App",
-  "openOnPhone": "Die App ist für dein Handy gemacht: Öffne diese Adresse im Browser deines Handys.",
-  "openHere": "App hier öffnen",
-  "openHereNote": "Ohne Handy kannst du dich auch hier am Computer umsehen – zum Scannen brauchst du eine Kamera.",
+  "openOnPhone": "Die App ist für Handy und Tablet gemacht – auf dem Computer öffnet sie sich nicht. Öffne diese Adresse im Browser deines Handys oder Tablets.",
   "shop": "Im Shop",
   "shopBook": "Das Buch",
   "shopShirt": "Das T-Shirt",
   "toShop": "Zum Shop",
   "previewAlt": "Die App auf einem Handy",
-  "kicker": "Ein Begleiter in Augmented Reality",
   "scan": "Mit dem Handy scannen",
-  "qrAlt": "QR-Code, der die App auf deinem Handy öffnet",
-  "step1Title": "Öffnen",
-  "step1": "Scanne den Code mit der Kamera deines Handys – die App öffnet sich im Browser, ganz ohne Store.",
-  "step2Title": "Richten",
-  "step2": "Halte dein Handy über eine Seite des gedruckten Buchs.",
-  "step3Title": "Entdecken",
-  "step3": "Videos, Texte und Referenzen erscheinen auf der Seite – die Marginalien des Buchs."
+  "qrAlt": "QR-Code, der die App auf deinem Handy öffnet"
 }

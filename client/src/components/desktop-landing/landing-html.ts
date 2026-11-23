@@ -11,7 +11,6 @@ import { MEDIA_QUERY } from "../../constants";
 import { DESIGN_PRIMITIVES_CSS } from "../../styles/design-css";
 import { escapeHtml } from "../../utils/strings";
 import { goldButton } from "../buttons/gold-button";
-import { LANDING_SKIPPED_KEY } from "./desktop-visitor";
 import type { LandingConfig, ShopItem } from "./landing-config";
 
 /** The static landing's element in index.html; `<desktop-landing>` removes it when it takes over */
@@ -24,7 +23,7 @@ export const SCATTER_COUNT = 14;
 
 /**
  * Where the scattered images lie (#324): spots around the hero's edges, in % of its box, a size in rem and a turn – as
- * the book scatters its images over the white pages (title spread, back cover). The title, the text and the phone stay free.
+ * the book scatters its images over the white pages (title spread, back cover). The title, the text and the stage stay free.
  */
 export const SCATTER: ReadonlyArray<{ x: number; y: number; size: number; turn: number }> = [
   { x: 20, y: 2, size: 5.5, turn: 3 }, { x: 36, y: 4, size: 5, turn: -2 }, { x: 52, y: 6, size: 6.5, turn: 4 },
@@ -48,8 +47,8 @@ export const pick = <T>(items: readonly T[], count: number, seed = 324): T[] => 
 
 /** The texts of the `landing` i18n namespace, translated; `intro` with the title and the author filled in (escaped) */
 export type LandingTexts = Record<
-  | "label" | "intro" | "getApp" | "openOnPhone" | "openHere" | "openHereNote" | "shop" | "shopBook" | "shopShirt" | "toShop"
-  | "previewAlt" | "kicker" | "scan" | "qrAlt" | "step1Title" | "step1" | "step2Title" | "step2" | "step3Title" | "step3",
+  | "label" | "intro" | "getApp" | "openOnPhone" | "shop" | "shopBook" | "shopShirt" | "toShop"
+  | "previewAlt" | "scan" | "qrAlt",
   string
 >;
 
@@ -158,7 +157,6 @@ export const LANDING_CSS = /* css */ `
           padding-block: clamp(4rem, 10vh, 7rem);
         }
         .mark { width: 6.25rem; height: auto; display: block; margin: 0 0 2rem -.5rem; filter: drop-shadow(0 0 1.5rem rgba(90, 200, 60, .25)); }
-        .kicker { margin: 0 0 1.25rem; letter-spacing: .2em; text-transform: uppercase; font-size: var(--text-size-small); }
         h1 {
           margin: 0;
           font-weight: 400;
@@ -173,22 +171,18 @@ export const LANDING_CSS = /* css */ `
         .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin: 2.5rem 0 0; }
         .scroll-hint { font-size: var(--text-size-small); letter-spacing: .12em; text-transform: uppercase; }
 
-        .phone {
-          box-sizing: border-box;
-          width: clamp(15rem, 21vw, 20rem);
-          aspect-ratio: 390 / 844;
-          border: var(--phone-frame-width) solid var(--phone-frame);
-          border-radius: 2.75rem;
-          overflow: hidden;
-          background: var(--app-background);
-          box-shadow: var(--shadow-bronze), 0 2rem 5rem rgba(0, 0, 0, .8);
-          transform: perspective(80rem) rotateY(-9deg) rotateX(3deg) rotate(1.5deg);
-          animation: hover 7s ease-in-out infinite alternate;
+        /* The scan stage (#354): the book open, a phone scanning it – three.js draws into it once loaded (scan-stage.ts) */
+        .stage {
+          position: relative;
+          width: clamp(24rem, 44vw, 46rem);
+          aspect-ratio: 1;
+          margin-inline-end: calc(-1 * var(--gutter) / 2);
+          background: radial-gradient(closest-side, rgba(127, 96, 50, .22), transparent);
         }
-        @keyframes hover { to { translate: 0 -.75rem; } }
-        .phone img, .phone video { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.2s ease; }
+        .stage.ready canvas { opacity: 1; }
 
-        /* Get the app: the QR code on a champagne card, the address, installing */
+        /* Get the app: the QR code on a champagne card, the address – a computer neither enters nor installs the app (#354) */
         .get {
           padding-block: clamp(5rem, 12vh, 8rem);
           border-top: var(--rule);
@@ -210,14 +204,7 @@ export const LANDING_CSS = /* css */ `
         h2 { margin: 0 0 1.25rem; font-weight: 400; font-size: clamp(2rem, 3.6vw, 3.25rem); line-height: 1.05; width: fit-content; }
         .lead { margin: 0 0 1.5rem; max-width: 34rem; font-size: 1.125rem; line-height: 1.55; }
         .address { display: inline-block; min-height: 1.5em; margin: 0 0 1.75rem; font-size: 1.5rem; user-select: all; }
-        settings-install { padding: 0 0 1rem; }
         .small { font-size: var(--text-size-small); }
-
-        .steps { list-style: none; margin: clamp(4rem, 9vh, 6rem) 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.5rem; }
-        .step { display: grid; gap: .5rem; padding-top: 1.25rem; border-top: var(--rule); }
-        .step-number { font-size: 3rem; line-height: 1; width: fit-content; }
-        .step-title { font-size: 1.125rem; }
-        .step-text { line-height: 1.5; }
 
         /* The shop */
         .shop-section { padding-block: clamp(4rem, 10vh, 7rem); border-top: var(--rule); }
@@ -231,38 +218,24 @@ export const LANDING_CSS = /* css */ `
         footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
 
         @media (prefers-reduced-motion: reduce) {
-          .float, .phone { animation: none; transition: none; }
+          .float { animation: none; transition: none; }
         }
         @media (${MEDIA_QUERY.TABLET}) {
           .hero-grid { grid-template-columns: minmax(0, 1fr); }
-          .phone { justify-self: center; transform: none; }
+          .stage { justify-self: center; width: min(100%, 32rem); margin: 0; }
           .get-grid { grid-template-columns: minmax(0, 1fr); }
           .qr-card { justify-self: start; }
-          .steps { grid-template-columns: minmax(0, 1fr); }
         }
 `;
 
 /**
  * The page: its styles and `<main>`. What needs the browser is filled in afterwards – the address (`.address`, the
- * page's host), the QR code (`.qr-code`), the install button (`<settings-install>`), the book's cover.
+ * page's host), the QR code (`.qr-code`), the book's cover.
  */
 export const renderLanding = (source: LandingSource): string => {
-  const { texts, title, author, publisher, previewImage, previewVideo, shop } = source;
-  const preview = previewVideo
-    ? `<video src="${escapeHtml(previewVideo)}" poster="${escapeHtml(previewImage)}" autoplay muted loop playsinline aria-label="${texts.previewAlt}"></video>`
-    : `<img src="${escapeHtml(previewImage)}" alt="${texts.previewAlt}" />`;
+  const { texts, title, author, publisher, shop } = source;
   // The title as on the book's title page: its words on lines of their own, the "and" / "&" between them alone
   const titleLines = title.split(/\s+(&|and|und|et|en)\s+/i).map(part => escapeHtml(part));
-  const steps = [
-    [texts.step1Title, texts.step1],
-    [texts.step2Title, texts.step2],
-    [texts.step3Title, texts.step3],
-  ].map(([stepTitle, text], i) => /* html */ `
-      <li class="step">
-        <span class="step-number gold">${i + 1}</span>
-        <span class="step-title">${stepTitle}</span>
-        <span class="step-text muted">${text}</span>
-      </li>`).join("");
   return /* html */ `
       <style>${LANDING_CSS}</style>
       <main class="landing design" aria-label="${texts.label}">
@@ -271,16 +244,14 @@ export const renderLanding = (source: LandingSource): string => {
           <div class="wrap hero-grid">
             <div class="intro-block">
               <img class="mark" src="${escapeHtml(source.markSrc)}" alt="" />
-              <p class="kicker muted">${texts.kicker}</p>
               <h1>${titleLines.map((part, i) => `<span class="line gold shimmer${i % 2 ? " and" : ""}">${part}</span>`).join("")}</h1>
               ${author ? `<p class="author gold">${escapeHtml(author)}</p>` : ""}
               <p class="intro">${texts.intro}</p>
               <div class="actions">
-                ${goldButton({ label: texts.openHere, shape: "button", primary: true, attrs: { "data-action": "continue" } })}
                 <a class="scroll-hint muted" href="#get">${texts.getApp} ↓</a>
               </div>
             </div>
-            <aside class="phone">${preview}</aside>
+            <aside class="stage" role="img" aria-label="${texts.previewAlt}"></aside>
           </div>
         </section>
 
@@ -295,11 +266,8 @@ export const renderLanding = (source: LandingSource): string => {
                 <h2 class="gold">${texts.getApp}</h2>
                 <p class="lead">${texts.openOnPhone}</p>
                 <span class="address gold"></span>
-                <settings-install></settings-install>
-                <p class="muted small">${texts.openHereNote}</p>
               </div>
             </div>
-            <ol class="steps">${steps}</ol>
           </div>
         </section>
 
@@ -328,8 +296,7 @@ export const fillTexts = (raw: Record<string, string>, values: Record<string, st
 /**
  * The static landing for index.html (#343): the same page in a declarative shadow root (`<template shadowrootmode>`),
  * with the design primitives' CSS, shown only while `<html>` carries `data-osct-landing` (the inline decision in the
- * head) – then the static splash makes way. A small script after it writes the address and makes "Open the app here"
- * work before the bundle has loaded (remembered as `skipLanding` does; the static splash then shows as for anyone else).
+ * head) – then the static splash makes way. A small script after it writes the address before the bundle has loaded.
  * The page tokens (main.css) and the font (`@font-face` in the head) are loaded before first paint already.
  */
 export const renderStaticLanding = (source: LandingSource): string => [
@@ -342,10 +309,5 @@ export const renderStaticLanding = (source: LandingSource): string => [
   `<script>(function () { try {`,
   ` var host = document.getElementById(${JSON.stringify(STATIC_LANDING_ID)}); var root = host && host.shadowRoot; if (!root) return;`,
   ` var address = root.querySelector(".address"); if (address) address.textContent = location.host;`,
-  ` root.addEventListener("click", function (event) {`,
-  `  var target = event.target && event.target.closest ? event.target.closest('[data-action="continue"]') : null; if (!target) return;`,
-  `  try { sessionStorage.setItem(${JSON.stringify(LANDING_SKIPPED_KEY)}, "1"); } catch (e) {}`,
-  `  document.documentElement.removeAttribute(${JSON.stringify(LANDING_ATTRIBUTE)}); host.remove();`,
-  ` });`,
   `} catch (e) {} })();</script>`,
 ].join("");
