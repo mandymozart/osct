@@ -30,7 +30,7 @@ describe("editor preview settings", () => {
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
     expect(stored).toEqual({
-      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", hdriOn: true, desk: true, top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
+      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", hdriOn: true, desk: true, meshLines: false, top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
       axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
     });
     expect(getPreview().hidden).toEqual(["a"]);
@@ -243,5 +243,11 @@ describe("the HDRI switch (#327)", () => {
     const view = { top: "plywood", wobble: 0, origin: "top-left", hdri: "wooden_studio_17" } as const;
     expect(viewSummary({ ...view, desk: false })).toBe("no desk · origin top left · no shake · sky Wooden Studio 17");
     expect(viewSummary({ ...view, desk: true })).toMatch(/^Eiermann · plywood/);
+  });
+
+  it("keeps the wire switch off unless it was switched on: a selection's mesh lines in Wire only (#362)", () => {
+    expect(parseSettings({}).meshLines).toBe(false);
+    expect(parseSettings({ meshLines: "yes" }).meshLines).toBe(false);
+    expect(parseSettings({ meshLines: true }).meshLines).toBe(true);
   });
 });

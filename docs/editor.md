@@ -1050,6 +1050,8 @@ desk's top, *plywood* (the default) or *linoleum* (#226; switching it changes on
 grid and the camera stay). The switch off (#358) takes the whole desk away – for work that lies on no table (a wall, a
 poster, a room): the scene floats over the sky, the floor grid and the camera stay; the summary says *no desk*. `desk`
 is that switch since #358 (an older stored `desk: "eiermann"` / `"schoepfer"` reads as on).
+**wire** (#362): the selected model's mesh lines in every shading, not only in the *wire* shading (off by default –
+a selection shows its silhouette; [Outlines, shading and lights](#outlines-shading-and-lights)).
 **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is rendered), and a switch that turns
 the HDRI **off** (#327: no sky and no HDRI light – the scene's own lights, remembered per browser); with the experience's
 environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for an experience
@@ -1191,9 +1193,16 @@ reader's tracker does – the placement math is `editor/src/lib/stage/placement.
 
 ### Outlines, shading and lights
 
-The selected node wears Blender's orange **outline** (the edges of its meshes, drawn through everything, in the
-object's own space – a video plane outlines as a plane), a selected target the same orange around its printed image (it
-follows the image as loaded and a move), and what a click would pick a light grey one. The toolbar's **shading**, after
+The selected node wears Blender's orange **outline** – the **silhouette** of its meshes (#362): one line of 2 px
+around the whole shape, however many faces it has (a scanned model's crease edges made a tangle), drawn through
+everything and following the object – a selected target the same orange around its printed image (it follows the image
+as loaded and a move), and what a click would pick a light grey one. How: a mask stamps the mesh's screen footprint
+into the depth buffer just behind the near plane, the mesh drawn eight times shifted 2 px around it colours only what
+lies outside; each outline takes a slot of draw order and depth, a later one nearer, so the selection's line still shows
+over a hovered model in front of it (`outline()` in `editor/src/lib/stage/shading.ts`). A particle cloud keeps the box
+around its points. The selection's **mesh lines** – its triangles, faint, in the same orange – come as in Blender: with
+the *wire* shading, or in every shading with the view settings' *wire* switch (Blender's Wireframe overlay); off, a
+selection shows only its silhouette. The toolbar's **shading**, after
 Blender's: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
 materials, no sky) and *rendered* (the HDRI's sky and light, the default – or the experience's environment as the sky, its
 tooltip then says so); stored on the device. The post-processing passes show under *rendered* only. The stage and the
