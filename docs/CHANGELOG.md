@@ -8,6 +8,18 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.14.0 – 2026-11-23
+
+### Added
+- **The selection's mesh lines, when you want them** (#362): the view settings have a *wire* switch – on, the selected
+  model shows its triangles as faint orange lines in every shading (Blender's Wireframe overlay). Off (the default) they
+  come with the *wire* shading only. Stored in this browser like the other view settings.
+
+### Changed
+- **A clean outline around a selected model** (#362): the selection's orange (and the hover's grey) is the silhouette
+  now – one 2 px line around the whole shape, drawn through everything – instead of every crease edge sharper than 40°,
+  which on a scanned or remeshed model was a tangle of strokes across its surface. A particle cloud keeps its box.
+
 ## 6.13.1 – 2026-11-23
 
 ### Changed

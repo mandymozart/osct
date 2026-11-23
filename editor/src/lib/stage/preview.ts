@@ -119,6 +119,11 @@ export interface PreviewSettings {
   hdriOn: boolean;
   /** The desk under the scene (#358): off = no table – the scene floats over the sky, for work that lies on none */
   desk: boolean;
+  /**
+   * The mesh's lines on the selected model (#362), Blender's *Wireframe* overlay: off, a selection shows only its
+   * silhouette – the lines come with the Wire shading, or with this switch in every shading
+   */
+  meshLines: boolean;
   /** The desk's top under the scene (the frame is always the Eiermann) */
   top: TopId;
   /** The size models with a texture set show their map at (the reader's texture quality, previewed) */
@@ -196,7 +201,7 @@ export const isNodeHidden = (hidden: readonly string[], targetId: string, path: 
 const STORAGE_KEY = "osct-preview";
 
 const DEFAULTS: PreviewSettings = {
-  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", hdriOn: true, desk: true, top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
+  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", hdriOn: true, desk: true, meshLines: false, top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
   axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
 };
 
@@ -288,6 +293,7 @@ export const parseSettings = (parsed: unknown): PreviewSettings => {
     hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
     hdriOn: stored.hdriOn !== false,
     desk: stored.desk !== false,
+    meshLines: stored.meshLines === true,
     top: storedTop(stored),
     textureQuality: isTextureQuality(stored.textureQuality) ? stored.textureQuality : DEFAULTS.textureQuality,
     wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,
