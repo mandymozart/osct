@@ -11,8 +11,8 @@ outcome in the line (or move it into a dated decision block).
   `client/src/pages/privacy-page.ts`). The text is the app's (`privacy` translations), not the book content's.
 - The desktop landing stays away from `/privacy` (`LANDING_FREE_PAGES`, in the inline decision too) – its footer links there.
 - [ ] Building Fictions (or a lawyer) checks the wording before release; change `PRIVACY_CHANGED` with every change of meaning.
-- [ ] Not named on the page because not known: the server's hosting provider and how long server logs are kept – add
-      them once decided (production server, #9). The page says "a hosting provider" and "only as long as needed".
+- [x] The server's host: Hetzner Online GmbH, Germany (Tilman, 2026-11-23; 6.6.1).
+- [ ] How long server logs are kept – not known; the page says "only as long as needed". Add the days once decided (#9).
 - [ ] White-label instances need their own publisher and text (STRATEGY) – not now.
 
 ## 2026-11-23 – Other sites' videos and pages wait for the reader's yes (#351, 6.5.0)

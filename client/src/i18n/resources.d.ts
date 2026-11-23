@@ -194,7 +194,7 @@ export default interface Resources {
     "lawTitle": "Applicable law",
     "locale": "en-GB",
     "privacyTitle": "Privacy",
-    "processors": "A hosting provider runs our server; bunny.net (BunnyWay d.o.o., Slovenia) delivers the app's content; Amazon Web Services (Ireland) sends the sign-in emails. They process data only on our behalf.",
+    "processors": "Hetzner Online GmbH (Germany) runs our server; bunny.net (BunnyWay d.o.o., Slovenia) delivers the app's content; Amazon Web Services (Ireland) sends the sign-in emails. They process data only on our behalf.",
     "processorsTitle": "Who processes data for us",
     "retention": "Account data until you delete your account (Info → Account). Server logs only as long as we need them to run the server securely.",
     "retentionTitle": "How long we keep it",

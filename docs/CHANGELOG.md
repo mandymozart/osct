@@ -8,6 +8,12 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.6.1 – 2026-11-23
+
+### Changed
+- **Privacy & terms names the server's host** (Tilman, 2026-11-23, #353: *"the hosting provider is hetzner"*): Hetzner
+  Online GmbH (Germany) runs our server, in all four languages.
+
 ## 6.6.0 – 2026-11-23
 
 ### Added
