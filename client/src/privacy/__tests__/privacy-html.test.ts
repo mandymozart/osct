@@ -11,7 +11,7 @@ const read = (file: string) => JSON.parse(readFileSync(resolve(import.meta.dirna
 const paths = legacyRedirectData("osct");
 const SOURCE: PrivacySource = {
   languages: Object.fromEntries(LANGUAGES.map(lang => [lang, {
-    texts: read(`${lang}/privacy.json`), name: read(`${lang}/landing.json`).privacy, close: read(`${lang}/header.json`).close,
+    texts: read(`${lang}/privacy.json`), name: JSON.parse(readFileSync(resolve(import.meta.dirname, "../../../../ui/landing/locales", `${lang}/landing.json`), "utf8")).privacy, close: read(`${lang}/header.json`).close,
   }])),
   defaultLanguage: "en",
   title: "Onion Skin & Crocodile Tears",

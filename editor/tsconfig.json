@@ -8,6 +8,7 @@
     "paths": {
       "@engine/*": ["../engine/src/*"],
       "@shared/*": ["../shared/*"],
+      "@ui/*": ["../ui/*"],
       "three": ["./node_modules/@types/three/index.d.ts"],
       "three/*": ["./node_modules/@types/three/*"]
     }

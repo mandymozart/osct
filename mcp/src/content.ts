@@ -24,6 +24,7 @@ import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
 import { extractDraftLanding } from "../../shared/api/landing-draft";
+import { isReservedSceneId, RESERVED_SCENE_IDS } from "../../shared/api/names";
 import type { GameConfiguration } from "../../shared/types/game-config";
 import type {
   AssetCreditsSaved,
@@ -680,7 +681,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
         experience: EXPERIENCE,
         preset: z.enum(SCENE_PRESETS).optional(),
         ...placeSchema,
-        id: ID.optional(),
+        id: ID.refine(id => !isReservedSceneId(id), `not ${RESERVED_SCENE_IDS.join(", ")} – the editor's own address (the landing workspace)`).optional(),
         label: z.string().min(1).max(TEXT_MAX_LENGTH).optional().describe("what the reader shows for the scene – free text"),
         group: ID.optional().describe("a group of the experience (list_scenes)"),
         surfaces: surfacesSchema.optional().describe("instead of the preset's"),

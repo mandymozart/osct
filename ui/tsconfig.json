@@ -1,0 +1,29 @@
+{
+  "//": "ui/ is compiled by the app that imports it (client/, editor/ – path alias @ui); this file serves editors, a stand-alone `tsc --noEmit -p ui` and the reader's Vite (tsconfig paths: three from the reader's node_modules, as engine/tsconfig.json).",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "typeRoots": ["../client/node_modules/@types"],
+    "types": ["three", "node", "vite/client"],
+    "paths": {
+      "@shared/*": ["../shared/*"],
+      "@engine/*": ["../engine/src/*"],
+      "three": ["../client/node_modules/three"],
+      "three/*": ["../client/node_modules/three/*"],
+      "@8thwall/engine": ["../client/node_modules/@8thwall/engine"],
+      "vitest": ["../client/node_modules/vitest"]
+    }
+  },
+  "include": ["**/*.ts", "../shared/**/*.ts", "../engine/src/**/*.ts"]
+}

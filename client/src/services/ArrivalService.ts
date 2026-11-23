@@ -1,3 +1,4 @@
+import { SOURCE_PARAM } from "@ui/landing/links";
 import { API_URL } from "./ApiService";
 
 /**
@@ -7,9 +8,7 @@ import { API_URL } from "./ApiService";
  * storage) – and takes `s` out of the address, so a reload or a shared link does not count again. No cookie goes with
  * it (`credentials: "omit"`), and the server keeps counts only.
  */
-export const SOURCE_PARAM = "s";
-/** The desktop landing page's own QR code (`landing/links.ts`) */
-export const LANDING_SOURCE = "lp1";
+export { LANDING_SOURCE, SOURCE_PARAM } from "@ui/landing/links";
 /** The browser reported an arrival before: the next one is no first arrival */
 export const ARRIVED_KEY = "osct-arrived";
 const SOURCE = /^[a-z0-9][a-z0-9-]{0,31}$/;

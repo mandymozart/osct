@@ -16,7 +16,7 @@
  *   immutable folder (`<base>/<experience>/<build>/`, #87), and when an experience's `latest.json` names another
  *   version the entries of its other versions are dropped. `latest.json` is fetched network-first and kept, so the installed app starts offline
  *   with the last content it saw.
- * - Design font (ABC Areal, from the CDN font folder – src/utils/font-face-html.ts): cached when first used and served
+ * - Design font (ABC Areal, from the CDN font folder – ui/brand/font-face.ts): cached when first used and served
  *   from the cache afterwards, in a cache of its own that outlives builds and content versions (the files do not change).
  * - Editor pages (/editor, inside this scope): not handled, their requests go to the network as without a worker
  *   (sw/editor-clients.ts).

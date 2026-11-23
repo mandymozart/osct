@@ -33,10 +33,35 @@ const mcpDownload = (): Plugin => ({
   },
 });
 
+/**
+ * The reader's public files the landing piece names by their address (`/assets/ui/…` pictures, `/assets/deps/qrcode.js`,
+ * #356): a deployed instance serves them at the site's root beside /editor (one image); the dev server serves them from
+ * the reader's `public/` so the landing workspace shows them here too.
+ */
+const readerPublicFiles = (): Plugin => ({
+  name: 'osct-reader-public-files',
+  configureServer(server) {
+    const root = fileURLToPath(new URL('../client/public/', import.meta.url));
+    const types: Record<string, string> = { '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.js': 'text/javascript; charset=utf-8' };
+    server.middlewares.use(async (req, res, next) => {
+      const path = (req.url ?? '').split('?')[0];
+      if (!/^\/assets\/(ui|deps)\/[\w./-]+$/.test(path) || path.includes('..')) return next();
+      try {
+        const body = await readFile(root + path.slice(1));
+        res.setHeader('Content-Type', types[path.slice(path.lastIndexOf('.'))] ?? 'application/octet-stream');
+        res.end(body);
+      } catch {
+        next();
+      }
+    });
+  },
+});
+
 // Dev server on 5175 (the reader runs on 5174); /api goes to the PHP dev API (`npm run dev:api` in client/).
 export default defineConfig({
   plugins: [
     mcpDownload(),
+    readerPublicFiles(),
     // SvelteKit 3 reads its configuration here. The editor is a single-page app served at
     // /editor next to the reader (Dockerfile, client/public/.htaccess): every route renders in the browser (the sign-in
     // gate, the instance's API), index.html is the fallback. src/lib is `#lib` (package.json "imports").
@@ -64,12 +89,14 @@ export default defineConfig({
       { find: /^\.\/dompurify\/dompurify\.js$/, replacement: 'dompurify' },
       { find: /^@engine\//, replacement: sibling('engine/src') },
       { find: /^@shared\//, replacement: sibling('shared') },
+      // Reader-facing pieces the editor shows (RULES #32): the landing and the brand it needs (#356)
+      { find: /^@ui\//, replacement: sibling('ui') },
     ],
   },
   server: {
     port: 5175,
     strictPort: true,
-    fs: { allow: ['..', '../engine', '../shared'] },
+    fs: { allow: ['..', '../engine', '../shared', '../ui'] },
     proxy: {
       '/api': { target: process.env.OSCT_API_PROXY ?? 'http://127.0.0.1:8080', changeOrigin: true },
     },

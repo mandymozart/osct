@@ -8,7 +8,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
-## 6.13.0 – 2026-11-23
+## 6.14.0 – 2026-11-23
 
 ### Added
 - **A plugin can replace the card pick-up** (#361, content schema 6.3, plugin API 4.1): how the marginalia card flies
@@ -21,6 +21,39 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   with its picker, its rows and *play*, which flies a shown target's card on the stage. The demo's `plugins/card` is one to
   copy (`cardDrift`: the card floats up, rocks like a leaf and glides to the screen). An app of 6.2 drops the field and
   flies its own card. Docs: content "How the card is picked up", plugins "A card look", the documentation site.
+
+## 6.13.1 – 2026-11-23
+
+### Changed
+- **The documentation site knows the landing page** (Tilman, 2026-11-23: *"when finished update docs"*): a new guide
+  page *The landing page* – what a computer gets instead of the app, Privacy & terms as a static page, the landing
+  workspace (its stage with the draft, the Inspector, the Scenes panel, Scenes · Landing in the top bar), choosing the
+  hero (in the workspace or with *Use for the landing page* on the stage), *out of date* / Refresh / Remove, and the
+  reserved scene id `landing`. The guide's first page, the workspace, stage, Inspector and Experiences pages link to it,
+  and the tutorials for editors have a twelfth: *Choose the landing page's hero*. No new screenshots yet.
+
+### Fixed
+- **A landing hero refreshed a moment ago no longer shows *out of date*.** The draft hands the stored pick out with its
+  files' addresses resolved, a fresh extraction keeps content paths – the comparison now reads both as content paths.
+
+## 6.13.0 – 2026-11-23
+
+### Added
+- **The editor's landing workspace shows the landing page draft** (#356, #355): `/editor/<experience>/landing/` – the
+  stage is the landing page a computer gets, with the experience's draft (title, 3D hero, QR card, shop, footer), and it
+  scrolls inside the stage. The Inspector picks the hero: a scene, then one of its targets with a model, a video or a
+  component (marginalia and links are not offered); the pick saves itself and the stage follows. It says whether the
+  stored hero is up to date (*Refresh*) and removes the pick. The Scenes filmstrip picks the hero's scene with a click;
+  History and Info are there as in a scene. The hero runs the experience's plugins only after the same question as the
+  scene's stage.
+- **Scenes · Landing** in the top bar switches between an experience's two workspaces; the ⚙ landing section and an
+  experience's sheet on the Experiences page open the landing workspace too.
+
+### Changed
+- The landing page and the brand it needs (tokens, design primitives, the Areal font, the gold button) live in a new
+  folder `ui/` that the reader and the editor both use – the editor shows the reader's own landing without importing
+  the reader. The reader looks and loads as before (the landing's first files are 79 bytes smaller).
+- `landing` can no longer be a scene's id (it is the landing workspace's address): the API and the MCP server refuse it.
 
 ## 6.12.1 – 2026-11-23
 

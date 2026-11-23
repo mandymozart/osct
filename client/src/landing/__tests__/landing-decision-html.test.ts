@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { activeExperience } from "@/utils/experience-path";
 import { LANDING_SKIPPED_KEY, landingMode, readDeviceSignals } from "../desktop-visitor";
 import { landingDecisionData, landingDecisionSource, renderEntryPreload, renderLandingDecision } from "../landing-decision-html";
-import { LANDING_ATTRIBUTE } from "../landing-html";
+import { LANDING_ATTRIBUTE } from "@ui/landing/landing-html";
 
 /** The inline decision in index.html (#343, #355) says what desktop-visitor.ts `landingMode` says – on every path */
 interface Device {

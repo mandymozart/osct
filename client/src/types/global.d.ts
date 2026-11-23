@@ -1,5 +1,5 @@
 import { IGame } from './game';
-import { IQRCodeStatic } from './qr/qrcode';
+import type { IQRCodeStatic } from '../../../ui/landing/qrcode';
 
 // Globals: the game store (debugging / console access) and the vendored QRCode library
 declare global {

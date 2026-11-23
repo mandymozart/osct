@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
+  import { resolve } from "$app/paths";
   import { confirmationStep } from "@shared/api/errors";
   import { activateVersion, deleteExperience, errorText, exportFileUrl, importExperience, listVersions, type Confirmation, type ExperienceDeletionImpact, type ExperienceSummary, type ImportBody, type ImportComparison, type PublishedVersion } from "#lib/api.js";
   import { readerAddress } from "#lib/new-experience.js";
@@ -206,6 +207,8 @@
   {:else}
     <p class="actions">
       <button type="button" class="pill primary" onclick={onopen}>Open</button>
+      <a class="pill framed" href={resolve(`${experience.id}/landing/`)}
+        data-help-name="Landing page" data-help="The landing workspace: the landing page a computer gets, with this draft – its hero (picked there), QR card, shop and footer.">Landing page</a>
       <a class="pill framed" href={exportFileUrl(experience.id)} download
         data-help-name="Export" data-help="The draft as one file (.osct.json): its configuration, its files' list and its plugin code. Import (File) reads it back – here or on another instance. The media stay where they are; the file names them.">Export</a>
       <button type="button" class="pill framed" onclick={startReplace}

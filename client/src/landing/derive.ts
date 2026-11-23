@@ -2,9 +2,9 @@ import { getExperience, getPlugins, getScenes, loadGameConfiguration } from "@en
 import { layoutFileUrl } from "@engine/content/layout";
 import { extractLandingHero, landingCover, landingImages } from "@shared/api/landing-extract";
 import { layoutSheets } from "../utils/book-cover";
-import type { LandingData } from "./data";
-import { LANDING_CONFIG } from "./landing-config";
-import { scanStagePick } from "./scan-stage-data";
+import type { LandingData } from "@ui/landing/data";
+import { LANDING_CONFIG } from "@ui/landing/landing-config";
+import { scanStagePick } from "@ui/landing/scan-stage-data";
 
 export interface DeriveOptions {
   /** The experience's content base URL; "" = the bundled configuration (`bundled`) */

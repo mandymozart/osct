@@ -14,7 +14,7 @@
 import { BREAKPOINT_TABLET } from "../constants";
 import { legacyRedirectData } from "../utils/legacy-redirect-html";
 import { LANDING_SKIPPED_KEY } from "./desktop-visitor";
-import { LANDING_ATTRIBUTE } from "./landing-html";
+import { LANDING_ATTRIBUTE } from "../../../ui/landing/landing-html";
 
 export interface LandingDecisionData {
   /** `BREAKPOINT_TABLET` in em: the window must be at least this wide */

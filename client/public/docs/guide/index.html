@@ -30,21 +30,23 @@
     <tr><td>Node</td><td class="wrap">One thing in that tree: a group, model, video, image, text or light, or a type a plugin adds.</td></tr>
     <tr><td>Component</td><td class="wrap">Something a node does: an animation, a behaviour (rules), a plugin's code.</td></tr>
     <tr><td>Plugin</td><td class="wrap">The experience's own code: components, node types, materials, passes, looks.</td></tr>
+    <tr><td>Landing page</td><td class="wrap">What a computer gets instead of the app: the book, its 3D hero, a QR code for the phone and the shop.</td></tr>
     <tr><td>Draft</td><td class="wrap">What the editor saves. Readers never see it.</td></tr>
     <tr><td>Publish</td><td class="wrap">Writes the draft as a version readers get.</td></tr>
   </table></div>
 
-  <h2 id="pages">The three pages</h2>
+  <h2 id="pages">The pages</h2>
   <ul>
     <li><b>Experiences</b> (<code>/editor/</code>): the dashboard – every experience of this installation, where you worked last, making, importing, rolling back and deleting one, and connecting an AI agent. <a href="/docs/guide/experiences/">More</a></li>
     <li><b>An experience</b> (<code>/editor/&lt;experience&gt;/</code>): opens the scene you had open last, else the first.</li>
     <li><b>The workspace</b> (<code>/editor/&lt;experience&gt;/&lt;scene&gt;/</code>): the stage with the panels around it. This is where the work happens. <a href="/docs/guide/workspace/">More</a></li>
+    <li><b>The landing workspace</b> (<code>/editor/&lt;experience&gt;/landing/</code>): the experience's landing page with the draft, and its hero. <b>Scenes · Landing</b> in the top bar switches between the two. <a href="/docs/guide/landing/">More</a></li>
   </ul>
   <p>Admins also have <code>/editor/admin</code> (short: <code>/admin</code>) for users, roles and QR codes. <a href="/docs/tutorials/admin/">More</a></p>
 
   <figure>
     <a href="/docs/img/workspace.webp"><img src="/docs/img/workspace.webp" width="1440" height="900" alt="The workspace of the demo's scene 1–2." loading="lazy"></a>
-    <figcaption>The workspace. Top bar: where you are (the ⚙ selects the experience), the search, whether the experience is live, Publish, the panels menu, your account. Below it: Tree (left), the stage with its Tools, Inspector (right), Scenes (bottom), Info (bottom left, folded).</figcaption>
+    <figcaption>The workspace. Top bar: where you are (the ⚙ selects the experience), <b>Scenes · Landing</b>, the search, whether the experience is live, Publish, the panels menu, your account. Below it: Tree (left), the stage with its Tools, Inspector (right), Scenes (bottom), Info (bottom left, folded).</figcaption>
   </figure>
 
   <h2 id="signing-in">Signing in</h2>

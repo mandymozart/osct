@@ -7,17 +7,18 @@
  * The static landing in index.html is up already (the default experience's page, or placeholders on another
  * experience's path). Here: count the arrival (`?s=`, #324), load the experience's landing data (`landing.json`, else
  * derived from its game configuration – data.ts, derive.ts), and mount the page into the static landing's host
- * (mount.ts): the texts in the reader's language, the QR code, then the 3D hero, each as it arrives.
+ * (the landing piece, ui/landing/mount.ts): the texts in the reader's language, the QR code, then the 3D hero, each as it arrives.
  * Imports name files, never a barrel: a barrel would bring the app along.
  */
 import { reportArrival } from "../services/ArrivalService";
 import { applyExperienceMeta } from "../utils/experience-meta";
 import { activeExperience, contentBaseUrl, defaultExperience, rememberExperience } from "../utils/experience-path";
+import { STATIC_LANDING_ID } from "@ui/landing/landing-html";
+import { mountLanding } from "@ui/landing/mount";
+import { landingTexts } from "@ui/landing/texts";
 import { loadLandingData } from "./data";
-import { STATIC_LANDING_ID } from "./landing-html";
 import { landingQrUrl, privacyHref } from "./links";
-import { mountLanding } from "./mount";
-import { browserLanguage, landingTexts } from "./texts";
+import { browserLanguage } from "./texts";
 
 const start = async (): Promise<void> => {
   // A printed code's or a link's source (`?s=bk1`): counted once with the device class, taken out of the address

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>The landing page – OSCT docs</title>
+  <meta name="description" content="What a computer gets instead of the app, the landing workspace that shows the draft's landing page, and how to choose its hero.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Editor guide</p>
+  <h1>The landing page</h1>
+  <p class="lead">A phone or a tablet opens the reader app. A computer opens the experience's landing page instead: the book, its 3D hero, a QR code for the phone and the shop. The landing workspace shows that page with your draft.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+
+  <h2 id="computer">What a computer gets</h2>
+  <ul>
+    <li>On a computer, every experience's address (<code>/osct/</code>, <code>/demo/</code>) shows its <b>landing page</b>, not the app. It loads at once, without the app.</li>
+    <li>The page has the experience's <b>title</b> and author, the <b>hero</b> – the book lies open on one scene, and one target's AR content rises from its print –, the <b>QR code</b> that opens the experience on a phone, the <b>shop</b> and a footer with the publisher and <b>Privacy &amp; terms</b>.</li>
+    <li>The texts are in the visitor's language (English, French, Dutch or German).</li>
+    <li><b>Privacy &amp; terms</b> is a static page beside the app, at <code>/privacy</code> or <code>/&lt;experience&gt;/privacy</code>. The app links to the same page.</li>
+    <li>Readers get the landing page of the <b>published</b> version. Publish writes it (the version's <code>landing.json</code>).</li>
+  </ul>
+
+  <h2 id="workspace">The landing workspace</h2>
+  <p>Open it with <b>Landing</b> in the top bar (next to <b>Scenes</b>, while an experience is open), with <i>Landing page</i> in the experience's <a href="/docs/guide/inspector/#experience">Inspector</a> (⚙ → <i>landing page</i>), or with <b>Landing page</b> in an experience's sheet on the <a href="/docs/guide/experiences/#sheet">Experiences page</a>. Its address is <code>/editor/&lt;experience&gt;/landing/</code>; the top bar reads <i>Experiences › experience › Landing</i>. <b>Scenes</b> takes you back to the scene you had open.</p>
+  <ul>
+    <li><b>The stage</b> is the landing page a computer gets, with the draft – in English. Scroll it inside the stage. It is the reader's own page, so what you see is what is published next.</li>
+    <li><b>Inspector</b>: the hero's <b>scene</b> and <b>target</b>, whether the stored hero is up to date, <b>Refresh</b> and <b>Remove</b>.</li>
+    <li><b>Scenes</b>: the same filmstrip as in a scene. The hero's scene is highlighted; a click on another card makes it the hero's scene.</li>
+    <li><b>History</b> and <b>Info</b> work as in a scene. The panels can be moved, folded and closed; the layout is remembered for this workspace.</li>
+  </ul>
+  <p>If the experience has plugins, the hero runs them in the editor's page. As on the scene's stage, the editor asks first before it runs code someone else saved; the page shows at once, the hero after your answer.</p>
+  <p>The shop's items and the publisher are not edited here yet.</p>
+
+  <h2 id="hero">Choosing the hero</h2>
+  <p>The hero is one <b>target with AR content</b> – a model, a video or a component – on one scene: the book opens on that scene's surface and the content rises from the target's print. Marginalia and links cannot be the hero.</p>
+  <ul>
+    <li><b>In the landing workspace</b>: choose the <b>scene</b> in the Inspector; it takes its first target with AR content. Then choose the <b>target</b>. Only scenes and targets that can be the hero are listed. A click on a scene card does the same as choosing the scene.</li>
+    <li><b>On a scene's stage</b>: right-click the target and choose <b>Use for the landing page</b>. It is greyed out, with the reason, on a target without AR content.</li>
+  </ul>
+  <p>The choice saves itself, like every edit, and the stage shows the new hero. History lists it.</p>
+  <p>Without a choice the landing shows the experience's first model.</p>
+
+  <h3 id="out-of-date">Up to date, out of date</h3>
+  <p>The hero is stored with its picture, the content and the experience's looks when you choose it. The <b>hero</b> row says:</p>
+  <div class="table"><table>
+    <tr><th>It says</th><th>What it means</th></tr>
+    <tr><td>up to date</td><td class="wrap">The stored hero is what the draft holds now.</td></tr>
+    <tr><td>out of date</td><td class="wrap">The content, a print, the looks or the print layout changed since. <b>Refresh</b> stores it again from the draft.</td></tr>
+    <tr><td>a problem</td><td class="wrap">The target was removed or has no AR content any more. Choose another one.</td></tr>
+  </table></div>
+  <p><b>Remove</b> takes the choice away: after the next publish the landing shows the first model again.</p>
+
+  <h2 id="reserved">A scene cannot be called <i>landing</i></h2>
+  <p><code>landing</code> is the landing workspace's address, so no scene can have that id. New scenes get ids like <code>scene-3</code>; an AI agent or the API that asks for <code>landing</code> is refused.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_FONT_BASE_URL, fontBaseUrl, fontFileUrls, renderFontFaces } from "../font-face-html";
+import { DEFAULT_FONT_BASE_URL, fontBaseUrl, fontFileUrls, renderFontFaces } from "../font-face";
 
 describe("design font (index.html)", () => {
   it("loads from the CDN font folder unless the build sets another base URL; an empty one means no web font", () => {

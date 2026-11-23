@@ -31,6 +31,11 @@ final class Scenes
     public const KIND = 'scene';
     /** A label when a request names none */
     public const DEFAULT_LABEL = 'New scene';
+    /**
+     * Scene ids the editor's own addresses take (`/editor/<experience>/landing/`, #356) – shared/api/names.ts
+     * `RESERVED_SCENE_IDS` (mcp/test/php-rules.test.ts compares the two); compared lower-case
+     */
+    public const RESERVED_IDS = ['landing'];
 
     // ── Reading ──────────────────────────────────────────────────────────────────────────────────
 
@@ -152,7 +157,7 @@ final class Scenes
      * page's width, `single` – one page, `wall` – a wall standing ahead (`rx` 90); `surfaces` replaces the preset's (a
      * surface without `place` lies in a row). The place: after the scene `after`, before `before`, or at `position` (0 =
      * first); none = last. The label: `label`, else "New scene". Its id is `id`, else the first free `scene-<n>`. 400
-     * `invalid-scene`, `unknown-scene`, `unknown-group`; 409 `duplicate-id`.
+     * `invalid-scene`, `unknown-scene`, `unknown-group`, `reserved-id` (`RESERVED_IDS`); 409 `duplicate-id`.
      */
     public static function add(string $experienceId): never
     {
@@ -162,6 +167,9 @@ final class Scenes
         $preset = $body->preset ?? 'double';
         if (!in_array($preset, self::PRESETS, true)) throw new ApiError(400, 'invalid-scene', 'preset must be one of ' . implode(', ', self::PRESETS) . ' (a cover is a single scene first in the order).');
         $id = property_exists($body, 'id') ? Editor::id($body->id, 'id') : null;
+        if ($id !== null && in_array(strtolower($id), self::RESERVED_IDS, true)) {
+            throw new ApiError(400, 'reserved-id', "\"$id\" is the editor's own address for the experience's landing page – a scene needs another id.", ['id' => $id]);
+        }
         $placement = self::placement($body);
         [$scene, $position] = Db::transaction(static function () use ($experienceId, $experience, $preset, $id, $placement, $body, $user) {
             $before = self::context($experienceId, true);
