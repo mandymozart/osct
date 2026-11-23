@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landing texts and shop – concept (#365)</title>
+<style>
+  :root { --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --muted: #a3a3a3; --line: #4a4a4a;
+          --panel: #2c2c2c; --control: #383838; --sel: #5a5a5a;
+          --gold: linear-gradient(90deg,#f5e7c8,#7f6032 30%,#d2ae5a 57%,#f3cc94 74%); }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; font: 13px/1.45 var(--font); color: #fff; background: #111; width: 1300px; }
+  h1 { font-size: 19px; margin: 0 0 4px; } .lead { color: var(--muted); margin: 0 0 22px; font-size: 14px; max-width: 1180px; }
+  .cap { display: flex; gap: 12px; align-items: baseline; margin: 0 0 8px; } .cap b { font-size: 15px; } .cap span { color: var(--muted); }
+  .muted { color: var(--muted); } .small { font-size: 11.5px; }
+  .win { position: relative; height: 640px; border: 1px solid #333; overflow: hidden; background: #000; }
+  .bar { position: absolute; top: 0; left: 0; right: 0; height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: #1e1e1e; border-bottom: 1px solid #333; font-size: 12px; z-index: 3; }
+  .bar .on { background: var(--sel); padding: 1px 8px; }
+  .lp { position: absolute; inset: 30px 0 0 0; display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
+  .lp .t { padding-left: 60px; } .lp .title { font-size: 44px; line-height: 1.05; background: var(--gold); -webkit-background-clip: text; color: transparent; display: inline-block; }
+  .lp .by { margin-top: 10px; background: var(--gold); -webkit-background-clip: text; color: transparent; display: inline-block; }
+  .lp p { max-width: 380px; margin: 16px 0; font-size: 14px; } .lp .get { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; text-decoration: underline; }
+  .book { justify-self: start; width: 230px; height: 150px; transform: perspective(700px) rotateX(48deg) rotateZ(-8deg); background: linear-gradient(135deg,#efe9dc,#cfc6b4); }
+  .hl { outline: 2px dashed #e0e0e0; outline-offset: 4px; }
+  .fp { position: absolute; right: 10px; top: 40px; width: 360px; bottom: 10px; background: #2c2c2cf5; border: 1px solid var(--line); z-index: 2; overflow: hidden; }
+  .fp .h { display: flex; gap: 2px; padding: 5px 6px; border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .fp .h span { padding: 1px 7px; } .fp .h span.on { background: var(--sel); color: #fff; }
+  .sec { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .sec h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 400; display: flex; justify-content: space-between; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid #555; } .seg span { padding: 1px 8px; font-size: 11px; color: #bbb; } .seg span.on { background: var(--sel); color: #fff; }
+  .row { display: grid; grid-template-columns: 74px 1fr; gap: 7px; align-items: start; margin: 5px 0; } .row .l { color: var(--muted); padding-top: 4px; }
+  .field { background: var(--control); border: 1px solid #555; padding: 3px 7px; min-height: 24px; }
+  .field.ph { color: #8a8a8a; font-style: italic; }
+  .field.area { min-height: 54px; }
+  .item { display: grid; grid-template-columns: 40px 1fr 18px; gap: 7px; align-items: center; margin: 6px 0; }
+  .item i { width: 40px; height: 40px; border: 1px solid #555; background: linear-gradient(135deg,#777,#333); } .item i.cov { background: linear-gradient(160deg,#3a3326,#15130f); }
+  .item .f { display: grid; gap: 3px; } .x { color: var(--muted); }
+  .btn { display: inline-block; background: var(--control); border: 1px solid #555; padding: 2px 9px; font-size: 12px; }
+  .q { margin-top: 26px; background: #1a1a1a; border: 1px solid #333; padding: 12px 18px; font-size: 13.5px; max-width: 1240px; }
+  .q li { margin: 7px 0; } .q em { font-style: normal; text-decoration: underline; text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<h1>#365 – the landing's texts and shop, edited in the landing workspace</h1>
+<p class="lead">Two new sections in the Inspector of <code>/editor/&lt;experience&gt;/landing/</code>, under the hero's pick. The stage (the landing
+draft) follows every edit at once. A field left empty shows the app's own text, in the visitor's language – so nothing has to be
+filled in, and today's landing stays as it is until someone types.</p>
+
+<div class="cap"><b>The landing workspace with the two new sections</b><span>a field in focus marks its place on the stage</span></div>
+<div class="win">
+  <div class="bar"><span>Experiences › The Demo Book › <b>Landing</b></span><span class="muted">Scenes</span><span class="on">Landing</span></div>
+  <div class="lp">
+    <div class="t"><div class="title">The Demo<br>Book</div><br><span class="by">OSCT</span>
+      <p class="hl">An experiment in augmented print: point your phone at the pages and the book answers back.</p>
+      <span class="get">Get the app ↓</span></div>
+    <div class="book"></div>
+  </div>
+  <div class="fp">
+    <div class="h"><span class="on">Inspector</span><span>Library</span><span>History</span></div>
+    <div class="sec"><h4>Landing page – hero</h4><div class="small muted">scene 1–2 · target key · up to date</div></div>
+    <div class="sec"><h4>Texts <span class="seg"><span class="on">EN</span><span>DE</span><span>FR</span><span>NL</span></span></h4>
+      <div class="row"><span class="l">Intro</span><span class="field area hl">An experiment in augmented print: point your phone at the pages and the book answers back.</span></div>
+      <div class="row"><span class="l">Get the app</span><span class="field ph">Get the app</span></div>
+      <div class="row"><span class="l">QR line</span><span class="field ph">The app is made for phones and tablets – on a computer it doesn't open…</span></div>
+      <div class="row"><span class="l">Shop heading</span><span class="field ph">In the shop</span></div>
+      <div class="small muted">Greyed = the app's text, shown while the field is empty. <code>{title}</code> and <code>{author}</code> fill in.</div>
+    </div>
+    <div class="sec"><h4>Shop <span class="btn">+ item</span></h4>
+      <div class="item"><i class="cov"></i><span class="f"><span class="field">The book</span><span class="field small">buildingfictions.com/shop/osct</span></span><span class="x">✕</span></div>
+      <div class="item"><i></i><span class="f"><span class="field">The T-shirt</span><span class="field small">buildingfictions.com/shop/shirt</span></span><span class="x">✕</span></div>
+      <div class="small muted">Picture: from the Library, or the book's cover. No items: no shop section. Up to 4.</div>
+    </div>
+  </div>
+</div>
+
+<div class="q">
+  <b>Decisions – my recommendation underlined</b>
+  <ol>
+    <li><b>Languages.</b> The landing shows the visitor's language today. → <em>Texts per language, EN DE FR NL as a switch above the fields</em>;
+      each empty field shows the app's text for that language. Alternative: one set of texts for every visitor (simpler, but a German visitor
+      then reads English where you typed English).</li>
+    <li><b>Which texts.</b> → <em>Intro, Get the app, the QR line, the shop heading</em>. The QR code's alt text, "Scan with your phone" and
+      "Privacy &amp; terms" stay the app's (accessibility and the legal link should not drift).</li>
+    <li><b>Shop.</b> → <em>Up to 4 items, each a label, a link and a picture</em> (from the Library, or the book's cover as today). Labels per
+      language? → <em>no, one label</em> – product names rarely translate. An experience without items keeps today's two placeholders until
+      someone edits the list; an emptied list removes the shop section.</li>
+    <li><b>Stored</b> → <em>in the experience</em> (<code>landing.texts</code>, <code>landing.shop</code>), published in <code>landing.json</code> –
+      export, versions and publish carry it, like the hero.</li>
+  </ol>
+</div>
+</body>
+</html>
