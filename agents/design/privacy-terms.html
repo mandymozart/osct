@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy &amp; terms – concept (#353)</title>
+<style>
+  :root { --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --muted: #8b8d8c; --rule: .5px solid #8b8d8c;
+          --gold: linear-gradient(90deg, #f5e7c8 0%, #f5e7c8 3.8%, #7f6032 31.5%, #d2ae5a 57%, #f3cc94 73.6%, #f3cc94 100%); }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #2a2a2a; font: 15px/1.45 var(--font); color: #fff; }
+  h1 { font-size: 18px; margin: 0 0 4px; } .lead { color: #bbb; margin: 0 0 20px; max-width: 1300px; }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .frame > b { display: block; margin-bottom: 8px; font-size: 13px; color: #f3cc94; }
+  .frame > small { display: block; margin-top: 8px; color: #bbb; font-size: 12.5px; max-width: 393px; }
+  .phone { width: 393px; height: 820px; border-radius: 34px; overflow: hidden; position: relative; border: 6px solid #111;
+           background: linear-gradient(160deg, #6b5a44, #2f3a33 60%, #1c1c1c); }
+  .sheet { position: absolute; inset: 0; background: rgba(0,0,0,.82); padding: 64px 22px 24px; overflow: hidden; font-size: 13px; }
+  .top { position: absolute; top: 18px; left: 22px; right: 22px; display: flex; justify-content: space-between; color: var(--muted); }
+  h2 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 400;
+       margin: 18px 0 8px; padding-bottom: 6px; border-bottom: var(--rule); }
+  h2:first-of-type { margin-top: 0; }
+  h3 { font-size: 13px; margin: 12px 0 4px; }
+  p { margin: 0 0 8px; } .m { color: var(--muted); } .s { font-size: 11.5px; }
+  a { color: #d2ae5a; }
+  .hl { outline: 2px dashed #f3cc94; outline-offset: 4px; }
+  .fade { opacity: .45; }
+  .desk { width: 640px; border: 6px solid #111; border-radius: 10px; background: #000; padding: 0; }
+  .desk .hero { height: 250px; display: grid; place-items: center; color: #555; border-bottom: var(--rule); }
+  .desk footer { padding: 22px 28px; display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+  .q { margin-top: 28px; max-width: 1300px; background: #1d1d1d; border: 1px solid #3a3a3a; padding: 16px 20px; font-size: 14px; }
+  .q h2 { all: unset; display: block; font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .q li { margin: 6px 0; } .q em { color: #f3cc94; font-style: normal; }
+</style>
+</head>
+<body>
+<h1>#353 – one page "Privacy &amp; terms" (<code>/privacy</code>), linked from the Info page and the landing page</h1>
+<p class="lead">Built like the image credits page (<code>/credits</code>): opened from a link, × goes back. Plain text in the app's
+type, sections with the muted rule titles. All wording below is a <b>draft</b> from what the code does – Building Fictions
+(or their lawyer) checks it before release; it is not legal advice.</p>
+
+<div class="row">
+  <div class="frame"><b>A · Info page – a line in the first paragraph block</b>
+    <div class="phone"><div class="sheet">
+      <div class="top"><span>×</span><span>Info</span></div>
+      <h2>Info</h2>
+      <p>Onion Skin &amp; Crocodile Tears is the companion app to the book by Kévin Bray.</p>
+      <p>Scan the pages of the printed book to unlock video content and marginalia entries.</p>
+      <p>Find the credits of photographs and reference images displayed in the margins of the book <a href="#">here</a>.</p>
+      <p class="hl">How the app handles your data and the terms of use: <a href="#">Privacy &amp; terms</a>.</p>
+      <h2 class="fade">Account</h2>
+      <p class="fade m">Sign in · progress · …</p>
+      <h2 class="fade">Settings</h2>
+      <p class="fade m">Sound · language · graphics · videos from other sites · download</p>
+      <h2 class="fade">Colophon</h2>
+      <p class="fade m">Author · app development · design · publisher · ISBN</p>
+      <p class="fade m">© Building Fictions, Kévin Bray, 2027 · <span class="hl" style="opacity:1">Privacy &amp; terms</span></p>
+    </div></div>
+    <small>Same pattern as the credits' "here" link. Also at the very end, after the © line – where people look for it.</small>
+  </div>
+
+  <div class="frame"><b>B · The page (top – privacy)</b>
+    <div class="phone"><div class="sheet">
+      <div class="top"><span>×</span><span>Privacy &amp; terms</span></div>
+      <h2>Who we are</h2>
+      <p>Building Fictions [legal form], [street], Amsterdam, the Netherlands · KvK [number] · <a href="#">[email]</a></p>
+      <h2>Privacy</h2>
+      <p><b>No tracking.</b> The app has no analytics, no advertising and no social media trackers. Recognising the pages
+        of the book happens on your device; the camera image never leaves it.</p>
+      <h3>Without an account</h3>
+      <p>Your progress and settings are kept only on this device (browser storage). We receive nothing but the usual
+        requests for the app and its content.</p>
+      <h3>With an account</h3>
+      <p>Your email address, language, your progress and – only if you said yes – your consent to updates. We use them to
+        sign you in and to keep your progress across devices (GDPR Art. 6(1)(b); updates: Art. 6(1)(a)).</p>
+      <h3>Who processes data for us</h3>
+      <p>[Hosting provider, EU] runs our server · bunny.net (BunnyWay d.o.o., Slovenia) delivers the content ·
+        Amazon Web Services (Ireland) sends the sign-in emails.</p>
+      <h3>Videos from other sites</h3>
+      <p>Some entries show YouTube or Vimeo videos. They load only after you tap Play; from then on YouTube (Google) or
+        Vimeo may set cookies – <a href="#">their policies</a>. Info → Settings shows what you allowed.</p>
+      <h3>Your rights</h3>
+      <p>Access, correction, deletion (Info → Account → delete), objection and data portability – write to us. You may
+        complain to the Autoriteit Persoonsgegevens.</p>
+      <p class="m s">… continues ↓</p>
+    </div></div>
+    <small>Placeholders in [brackets] are what I need from you.</small>
+  </div>
+
+  <div class="frame"><b>B′ · The page (bottom – terms)</b>
+    <div class="phone"><div class="sheet">
+      <div class="top"><span>×</span><span>Privacy &amp; terms</span></div>
+      <h3>How long we keep it</h3>
+      <p>Account data until you delete your account; server logs [14] days.</p>
+      <h2>Terms of use</h2>
+      <p>The app is free to use with the book. Texts, images, videos and models are protected by copyright of Kévin Bray,
+        Building Fictions and the credited authors; you may use them privately, not copy or publish them.</p>
+      <p>We keep the app running as well as we can but cannot promise it always works on every device. We are liable
+        only as far as Dutch law requires.</p>
+      <p>Don't misuse the app or its server (no automated access, no attempts to break in).</p>
+      <p>We may change these terms; the date below shows the version.</p>
+      <h2>Applicable law</h2>
+      <p>Dutch law applies; courts in Amsterdam are competent. If you are a consumer in another EU country, the mandatory
+        protection of your country's law still applies.</p>
+      <p class="m s">Last changed: [date] · App version 6.x</p>
+    </div></div>
+    <small>Short and plain on purpose – no shop, no payments, so no long consumer-sale terms.</small>
+  </div>
+
+  <div class="frame"><b>C · Landing page (desktop) – footer</b>
+    <div class="desk">
+      <div class="hero">… landing: book, phone preview, "Get the app" …</div>
+      <footer><span>Onion Skin &amp; Crocodile Tears · Kévin Bray</span>
+        <span>Building Fictions · <span class="hl"><a href="#">Privacy &amp; terms</a></span></span></footer>
+    </div>
+    <small>Next to the publisher in the existing footer. Opens <code>/privacy</code> in the same desktop frame.</small>
+  </div>
+</div>
+
+<div class="q">
+  <h2>Open decisions – my recommendation in <em>gold</em></h2>
+  <ol>
+    <li>One page or two? → <em>one page "Privacy &amp; terms"</em> at <code>/privacy</code> – it is short; two links would only split it.</li>
+    <li>Where the text lives → <em>in the app's translations (EN, DE, FR, NL)</em> like the Info page, not in the book content – it is the
+      app's, the same for every experience. White-label instances (STRATEGY) later get their own text; not now.</li>
+    <li>The #351 consent card links to this page as well → <em>yes</em>, next to the provider's policy.</li>
+    <li><b>I need from you:</b> Building Fictions' legal form and name, street address, KvK number, contact email for privacy
+      requests, the server's hosting provider (and country), how long server logs are kept – and who checks the final text.</li>
+  </ol>
+</div>
+</body>
+</html>
