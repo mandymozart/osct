@@ -1069,6 +1069,7 @@ export class ScanStage {
 
   /** The target comes into the screen or leaves it: the experience's look for the moment, as the reader plays it */
   private scan() {
+    if (this.rise < 1) return;   // nothing is found before the screen is awake: the reveal plays where it is seen
     // Where the phone's camera looks: where it is held, or – pulled to the eye – the middle of the target (`film`)
     const x = MathUtils.lerp(this.aim.x, this.centre.x, this.stick);
     const y = MathUtils.lerp(this.aim.y, this.centre.y, this.stick);
