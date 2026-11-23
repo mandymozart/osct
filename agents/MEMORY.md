@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – The desktop landing: a computer never enters; a 3D scan stage in the hero (#354, 6.7.0)
+- Tilman: *"the desktop does not allow to enter the experience. you need to switch to phone or tablet. and you cant
+  install on desktop either"* – "Open the app here", the install button and its notes are gone (an agreed removal, RULES
+  #1). Only developers pass: `sessionStorage["osct-desktop-landing-skipped"] = "1"` (docs/pages.md).
+- Also removed on his markup: the kicker, the three steps (*"it should be self explaining"*), the phone mockup, the Mark
+  above the title (it sits on the stage's phone screen now).
+- The scan stage (`desktop-landing/scan-stage.ts`) was designed live in the preview with Tilman, round by round, instead
+  of concept sketches first (he asked to *"experiement with the animation as we go"*). It reads everything from the
+  content – the print layout's cover and spreads, the scene and model of `LANDING_CONFIG.scanEntries`, the experience's
+  plugins and looks – so it is the first candidate for the landing's slots of #355.
+- The phone's screen is a second camera rendered into a texture (not a stencil window): it magnifies, shows the model as
+  the reader draws it over the camera picture, and can film the page's own text (a copy on `TEXT_LAYER`).
+- [ ] The local content folder (`osct-content/content`) is still in the pre-experience format (no `experience.yaml`):
+  `npm run build` fails against it; the build check for #354 ran against `fixtures/content`.
+- [ ] The scattered images of the hero overlap the stage in places – Tilman did not ask; left as is.
+
 ## 2026-11-23 – Privacy & terms: one page in the reader, under Dutch law (#353, 6.6.0)
 - Tilman: *"terms and conditions, privacy and applicable to european law. building fictions is based in Amsterdam"*;
   concept `agents/design/privacy-terms.html`, *"build as sketched"*. Details from buildingfictions.com/About and /Terms:

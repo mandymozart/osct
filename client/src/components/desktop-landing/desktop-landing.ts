@@ -96,7 +96,6 @@ export class DesktopLanding extends HTMLElement {
         pageImages: pick(getScenes().flatMap(scene => scene.targets.map(target => target.imageSrc)).filter(src => !prints.has(src)), 6, 354),
       });
       await this.stage.load();
-      box.classList.add("ready");
     } catch (error) {
       console.warn("[landing] scan stage:", error);
       this.stage?.stop();

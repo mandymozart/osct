@@ -71,14 +71,17 @@ Two overlays have no route – they sit outside `<pages-router>` and follow the 
 - `<loading-page>` – startup and scene switch (`game.startLoading()` / `game.finishLoading()`)
 - `<camera-permission-page>` – shown while the camera is being asked for or was denied (`cameraPermission`)
 
-<a id="desktop-landing"></a>**The desktop landing** (`components/desktop-landing/`, #293, #324) covers the app for a visitor on a computer
-(`isDesktopVisitor`: no installed app, no touch-first pointer, no phone/tablet browser, a window ≥ 56.25 em) until they
-choose "Open the app here" (remembered for the tab, `skipLanding`); `main.ts` waits for it before the start. Its first
-paint does not wait for the bundle (#343, Tilman 2026-11-22): index.html decides and shows it at once –
+<a id="desktop-landing"></a>**The desktop landing** (`components/desktop-landing/`, #293, #324, #354) covers the app for a visitor on a
+computer (`isDesktopVisitor`: no installed app, no touch-first pointer, no phone/tablet browser, a window ≥ 56.25 em). A
+computer does not enter the experience and cannot install the app – the page sends the visitor to a phone or tablet
+(QR code and address); `main.ts` waits for it before the start, so nothing starts behind it. Only developers get past it:
+`sessionStorage["osct-desktop-landing-skipped"] = "1"` in the browser's dev tools, for the tab. Pages linked from it
+(`/privacy`, #353) open without it. Its first paint does not wait for the bundle (#343, Tilman 2026-11-22): index.html
+decides and shows it at once –
 
 | | before the bundle (index.html) | when the bundle arrives |
 |---|---|---|
-| computer, default experience's path (`/osct/…`, or no experience in a bundled build) | the static landing (`<html data-osct-landing>`), not the static splash | `<desktop-landing>` renders the same page underneath (`landing-html.ts`), then takes the static page's scroll position and removes it once its images and the QR code are there (≤ 2 s) – no flash; the QR code, the drifting images, install and the book's cover come with it |
+| computer, default experience's path (`/osct/…`, or no experience in a bundled build) | the static landing (`<html data-osct-landing>`), not the static splash | `<desktop-landing>` renders the same page underneath (`landing-html.ts`), then takes the static page's scroll position and removes it once its images and the QR code are there (≤ 2 s) – no flash; the QR code, the drifting images, the book's cover and the scan stage come with it |
 | computer, another experience (`/demo/`) | the static splash (the static page carries the default's texts) | `<desktop-landing>` as before |
 | phone, tablet, installed app, narrow window | the static splash | unchanged – no landing |
 
@@ -86,9 +89,21 @@ The decision is an inline script in the head after the legacy redirect (`landing
 `desktop-visitor.ts`'s rules – a test keeps both equal case by case); the static page is `landing-html.ts`'s markup in a
 declarative shadow root with the design primitives' CSS (`styles/design-css.ts`), written at build time from the build's
 game configuration – English texts (`landing` namespace), the targets' images of the content the build read. A small
-script after it writes the address and makes "Open the app here" work before the bundle (the static splash then shows as
-for anyone else). In another language `<desktop-landing>` swaps in its texts when it takes over. When it decides
+script after it writes the address before the bundle. In another language `<desktop-landing>` swaps in its texts when it takes over. When it decides
 otherwise than the head (a window made narrow meanwhile), it removes the static page and the splash shows.
+
+**The scan stage** (`scan-stage.ts`, #354) is the hero's right side: a three.js scene, loaded lazily after the page is up
+(the `three` chunk – the static landing shows its quiet glow until then). Its canvas fills the hero and ends at its line.
+The book lies as a picture of its lacquered cover (the print layout's `cover-front` sheet, a physical material whose
+lacquer and gold masks are read from the picture), turns to the stage, opens, and three of the book's spreads turn
+before it lies open on the scene; a phone comes up from in front of it and scans. Its screen is its own camera's picture
+(magnified, with the app's Mark and scanning ring); the model stands on the page there only, with the experience's own
+`reveal` / `found` / `lost` looks (its plugins, the engine's `celebrate`). A click takes the phone – it follows the
+mouse over the hero, comes to the eye when pulled down, keeps the model in its picture; another click, leaving the hero
+or a resting mouse give it back. What it shows comes from the content: the scene and model of the first of
+`LANDING_CONFIG.scanEntries` that has a model (else the content's first model – the test fixture offline), the spread and
+the spreads before it from the print layout (`utils/book-cover.ts`; without a layout the spread is laid out from its
+targets). Without WebGL or a model the stage stays empty. Reduced motion: one still of the open book with the model.
 
 Base classes: `page.ts` (full page), `page-minimal.ts` (transparent, over the camera),
 `consultation-page.ts` (shared layout of the consultation pages).

@@ -8,6 +8,33 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.7.0 – 2026-11-23
+
+### Added
+- **The landing page shows the book being scanned** (Tilman, 2026-11-23, #354: *"put a actual 3d scene there … use the
+  stage with the book on the page as the back drop and simulate scaning the page with a phone frame that works as a
+  portal"*). A 3D scene replaces the phone mockup beside the title. The book first lies there like a picture, its cover
+  catching the light on its lacquer and gold. Then it turns to the stage and opens, and three of its spreads turn
+  before it lies open on pages 10–11. A phone comes up from in front of it and scans. On its screen, with the app's
+  eye and scanning ring, the page is magnified and Kévin's *There Is a Face* stands on it, with the experience's own
+  reveal. The covers and spreads are the print layout's, and the model and its looks are the content's, so another
+  experience shows its own.
+- **A click takes the phone**: it follows the mouse over the whole hero, magnifies the title text too, comes to the eye
+  when pulled down and keeps the sculpture in its picture. Another click, leaving the hero or resting the mouse give it
+  back to the autopilot.
+
+### Changed
+- **A computer cannot enter the experience any more** (Tilman: *"the desktop does not allow to enter the experience.
+  you need to switch to phone or tablet. and you cant install on desktop either"*). The landing says the app is made for
+  phones and tablets and shows the QR code and the address. The Privacy & terms page still opens on a computer.
+- The landing is quieter: the eye moved from above the title onto the phone's screen, the QR card stands straight.
+- The book's cover and print layout load on staging again: a layout an earlier content build left in its own folder is
+  found through `files.json` (this also fixes the book's cover in the shop and on the marginalia card).
+
+### Removed
+- From the landing: the kicker *An augmented reality companion*, **Open the app here**, the install button and its note,
+  the three *Open · Point · Unlock* steps, and the phone mockup's picture (`app-preview.webp`).
+
 ## 6.6.1 – 2026-11-23
 
 ### Changed

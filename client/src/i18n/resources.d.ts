@@ -162,7 +162,7 @@ export default interface Resources {
     "intro": "The companion app to <em>{{title}}</em> by {{author}}. Point your phone at the pages of the printed book to unlock videos, texts and references in augmented reality.",
     "label": "About the app",
     "openOnPhone": "The app is made for phones and tablets – on a computer it doesn't open. Open this address in your phone's or tablet's browser.",
-    "previewAlt": "The app on a phone",
+    "previewAlt": "A phone scans the open book – the sculpture appears on its screen",
     "privacy": "Privacy & terms",
     "qrAlt": "QR code that opens the app on your phone",
     "scan": "Scan with your phone",
