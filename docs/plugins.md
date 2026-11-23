@@ -523,7 +523,8 @@ An artist who tunes an animation or an effect can work with an AI agent – Clau
 edits files and runs commands – on their own computer. There is no kit or sandbox repository to download (Tilman,
 2026-11-23: *"we can put this in the docs as a tutorial rather than an entire repo"*): the agent builds the small
 preview it needs in minutes, and the plugin's API types come from the editor, so nothing goes stale. This section is
-the tutorial – the agent reads it as `osct://guides/plugins` through the MCP server, the artist reads it here.
+the tutorial – the agent reads it as `osct://guides/plugins` through the MCP server; the artists' version is the
+documentation site's `/docs/tutorials/plugins/` ([docs-site](docs-site.md)).
 
 **1 · Connect the agent.** Connect the agent to the instance's MCP server ([mcp](mcp.md): the editor's experiences page,
 *AI connections – Connect an AI agent*, shows the setup for each client). The MCP server serves this guide and saves the

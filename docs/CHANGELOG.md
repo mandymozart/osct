@@ -8,6 +8,16 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.16.1 – 2026-11-23
+
+### Added
+- **Plugin development with an agent** (#363): a tutorial for artists who develop and tune a plugin – an animation, an
+  effect, a look – on their own computer with Claude Code or another agent. No kit to download: a folder from the Code
+  tab's Download (or `osct plugin link`), rules to copy into its `AGENTS.md`, the questions the agent asks first and the
+  register call each answer leads to, a throwaway preview of the agent's own under the reader's conditions, and the
+  hand-off to the editor's stage. On the documentation site at `/docs/tutorials/plugins/` (the hub, the sidebar, a link
+  from the Plugin API page) and in the plugin guide (`docs/plugins.md`, served to agents as `osct://guides/plugins`).
+
 ## 6.16.0 – 2026-11-23
 
 ### Added

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Plugin development with an agent – OSCT docs</title>
+  <meta name="description" content="Develop and fine-tune an OSCT plugin – an animation, an effect, a look – on your own computer with an AI agent such as Claude Code: the folder, the rules, the questions, a preview of its own, the hand-off to the editor.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/docs/docs.css">
+  <script src="/docs/docs.js" defer></script>
+</head>
+<body>
+<nav id="nav" aria-label="Documentation"><a class="home" href="/docs/">OSCT docs</a></nav>
+<main>
+  <p class="kicker">Tutorials</p>
+  <h1>Plugin development with an agent</h1>
+  <p class="lead">Develop and fine-tune an animation or an effect on your own computer with an AI agent – Claude Code, Codex, Cursor, any agent that edits files and runs commands. There is nothing to download but your plugin: the agent builds the small preview it needs, and the editor's stage is where it is judged.</p>
+  <nav id="toc" aria-label="On this page"></nav>
+
+  <h2 id="connect">1 · Connect the agent</h2>
+  <ol class="steps">
+    <li><p>In the editor's experiences page, open <b>AI connections</b> and <b>Connect an AI agent</b>. It shows the setup for your agent (<a href="/docs/api/mcp/">MCP server</a>).</p></li>
+    <li><p>Start the agent and ask it to read <code>osct://guides/plugins</code> – the full plugin guide, served by the MCP server. It knows the API from there.</p></li>
+  </ol>
+
+  <h2 id="folder">2 · Make a folder</h2>
+  <ol class="steps">
+    <li><p>In the editor's <a href="/docs/guide/code/">Code tab</a>, press <b>new</b> for a new plugin (or pick one), then <b>Download</b>. Unpack the zip into an empty folder: the plugin's files, <code>plugin-api.d.ts</code>, <code>shader-files.d.ts</code> and <code>tsconfig.json</code>.</p></li>
+    <li><p>With a checkout of the repository you can instead run <code>osct plugin link &lt;experience&gt; ./&lt;folder&gt;</code> – it writes the same files (<a href="/docs/api/plugins/#own-folder">Your own folder</a>).</p></li>
+    <li><p>In the folder: <code>npm install --save-dev typescript @types/three@0.174 three@0.174</code> – the reader's three.js. <code>npx tsc --noEmit</code> then checks the plugin as the editor's Publish does.</p></li>
+  </ol>
+
+  <h2 id="rules">3 · Give the folder its rules</h2>
+  <p>Save this as <code>AGENTS.md</code> in the folder (and a <code>CLAUDE.md</code> that says <i>read AGENTS.md</i>). The agent reads it at every start.</p>
+  <pre><code># An OSCT plugin
+
+- The plugin is `index.ts` (it exports `register(api)`) and the `.ts` / `.frag` / `.vert` / `.glsl` / `.wgsl` files next
+  to it. The guide is osct://guides/plugins (the MCP server) – read it before writing code.
+- Import nothing but the plugin's own files (`./name`) and `import type`. three.js is `api.three` (or the context's
+  `three`), never `import "three"` – the build refuses a second three.js.
+- Type names in camelCase. Every parameter the author should tune goes into the spec, with `min`, `max`, a `default`, a
+  `description` and a short `label` – the editor builds its controls from it.
+- It runs on a phone: few draw calls, no allocation per frame, a feedback buffer at 256² first, at most 256 KB bundled.
+  Dispose what you create in `dispose`.
+- A layer's GLSL works in linear RGB; a ShaderMaterial ends with `#include &lt;colorspace_fragment&gt;`.
+- Borrowed code (Shadertoy, GitHub) keeps its author, link and licence at the top of its file.
+- `harness/` is my preview only – throwaway, never part of the plugin. The editor's stage decides how it looks.
+- `npx tsc --noEmit` before every hand-off. Save to the experience with put_plugin only when I ask; never publish.</code></pre>
+
+  <h2 id="questions">4 · Let it ask first</h2>
+  <p>Tell the agent what you have in mind and let it ask. These questions decide what the plugin is:</p>
+  <div class="table"><table>
+    <thead><tr><th>Question</th><th>What it decides</th></tr></thead>
+    <tbody>
+      <tr><td class="wrap">What should change: how something <b>looks</b>, what it <b>does</b>, what it <b>is</b>, the <b>whole picture</b>, how it <b>appears or disappears</b>, the <b>card's</b> pick-up?</td><td>A layer or material · a component · a node type · a pass · a look · a card look (<a href="/docs/api/plugins/#register">what a plugin can register</a>)</td></tr>
+      <tr><td class="wrap">On what – a video, an image, a model, text, something new? Which experience and scene?</td><td>Which nodes it fits</td></tr>
+      <tr><td class="wrap">How should it feel? Timing, references, what happens when the page is found, lost, tapped?</td><td>The hooks and the timing</td></tr>
+      <tr><td class="wrap">What should you tune in the editor, and within which range?</td><td>The spec – the rows of the Inspector</td></tr>
+      <tr><td class="wrap">Does it react to the story – a rule, another node, a variable?</td><td>Events and variables, or a <a href="/docs/api/logic/">rule</a> and no code</td></tr>
+      <tr><td class="wrap">Which files: a model, a picture, a shader, borrowed code?</td><td>Library parameters, the plugin's files, the credit</td></tr>
+    </tbody>
+  </table></div>
+  <p>Ask it to show the spec first. The parameters are what you will tune, so agree on them before the code.</p>
+
+  <h2 id="preview">5 · Tune it in a preview of its own</h2>
+  <ol class="steps">
+    <li><p>Ask the agent for a preview page in <code>harness/</code>: a page in the place of the book, your plugin on it, sliders made from the spec, and a reload in a second.</p></li>
+    <li><p>Ask for the reader's conditions: a transparent picture, linear colour, the page one unit wide, a 60° camera, a little hand-held wobble. The repository's <code>sandbox/reveal/</code> shows how the engine's own sandboxes do it.</p></li>
+    <li><p>Tune. When you like a value, have the agent write it into the spec's default.</p></li>
+  </ol>
+  <div class="note"><p>The preview only comes close: the engine's lights, glow, placement and the camera picture are the reader's. Judge it on the editor's stage.</p></div>
+
+  <h2 id="hand-off">6 · Hand it over and look at it on the stage</h2>
+  <ol class="steps">
+    <li><p>Ask the agent to save it to the experience (<code>put_plugin</code>, or <code>osct plugin push --watch</code>). It is a saved change of the draft, in History like a save in the Code tab.</p></li>
+    <li><p>Have it placed on a node to try, and open the link the agent gives you. The Inspector shows your parameters as rows; tune them on the stage.</p></li>
+    <li><p>Readers get it with the editor's <b>Publish</b> – your button, never the agent's.</p></li>
+  </ol>
+  <p>The whole plugin API: <a href="/docs/api/plugins/">Plugin API</a> and its <a href="/docs/api/plugins/reference/">reference</a>.</p>
+  <footer id="pager"></footer>
+</main>
+</body>
+</html>

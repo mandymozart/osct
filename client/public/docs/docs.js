@@ -28,6 +28,7 @@
     ["Tutorials", [
       ["/docs/tutorials/editor/", "For editors"],
       ["/docs/tutorials/admin/", "For admins"],
+      ["/docs/tutorials/plugins/", "Plugins with an agent"],
       ["/docs/tutorials/", "Content and demo walkthrough"],
     ]],
     ["API", [

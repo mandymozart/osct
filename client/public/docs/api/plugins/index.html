@@ -156,6 +156,8 @@ osct plugin push ./aquarium --watch      # checks the types, sends the files –
 osct plugin pull ./aquarium              # takes edits made in the editor back</code></pre>
   <p>A push is a save like the Code tab's: it is in History, the stage runs it, and the Code tab shows the plugin as <i>linked</i>. Anyone who may edit the experience can still change it there; the later save wins, and <code>pull</code> brings it home. The folder's own files (<code>plugin-api.d.ts</code>, <code>shader-files.d.ts</code>, <code>tsconfig.json</code>, a README) stay in the folder.</p>
 
+  <p>Working with an AI agent: <a href="/docs/tutorials/plugins/">plugin development with an agent</a>.</p>
+
   <h2 id="shaders">Layers, materials, passes</h2>
   <ul>
     <li><b>A layer's GLSL</b> is the body of a function. It gets <code>rgba</code> (the pixel so far, linear RGB), <code>uv</code>, <code>time</code>, then the parameters in the spec's order (a number or boolean as <code>float</code>, a colour as <code>vec3</code>, a choice as <code>int</code>), and returns a <code>vec4</code>.</li>
