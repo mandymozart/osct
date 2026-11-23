@@ -15,7 +15,7 @@
     ]],
     ["Editor guide", [
       ["/docs/guide/", "The editor at a glance"],
-      ["/docs/guide/experiences/", "Experiences, import, publish"],
+      ["/docs/guide/experiences/", "Experiences, versions, publish"],
       ["/docs/guide/workspace/", "Workspace and panels"],
       ["/docs/guide/stage/", "The stage"],
       ["/docs/guide/scenes/", "Scenes and surfaces"],
