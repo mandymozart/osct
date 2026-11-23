@@ -6,7 +6,8 @@
  * version with when it was current, so `purge` can remove old ones that are provably out of use.
  *
  * sync:  upload the build into `<root>/<build>/` (skipped when that version is already complete there: its
- *        game.config.json – written last – exists), then versions.json, then latest.json (the switch).
+ *        game.config.json – written last – exists; the landing's landing.json goes in before it, #355), then
+ *        versions.json, then latest.json (the switch).
  *        Syncing an older content build again only moves latest.json back (rollback). Syncing the current build
  *        again repairs a versions.json that does not record it as current (#175).
  * purge: delete version folders that are not current, not served by the CDN's latest.json, not among the newest
@@ -27,7 +28,8 @@ import {
 } from '../../../shared/types/content-manifest';
 import { assertGameConfiguration, GameConfigurationError } from '../../../shared/guards/game-config';
 import { parseContentSchema } from '../../../shared/types/game-config';
-import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, OUTPUT_FILE } from '../config';
+import { isLandingFile, LANDING_FILE } from '../../../shared/api/landing';
+import { CLIENT_PUBLIC_ASSETS_DIR, DEMO_MARKER, FIXTURE_MARKER, LANDING_OUTPUT_FILE, OUTPUT_FILE } from '../config';
 import { listFiles } from './files';
 import { contentTypeOf, sha256, type StorageClient, type StoredFile } from './storage';
 import { ARCHIVE_FOLDER } from './export-archive';
@@ -52,6 +54,8 @@ export interface ContentBuild {
   /** The experience the build is of (`experience.id` of its configuration) */
   experience?: string;
   config: Buffer;
+  /** The landing's data the build wrote beside the configuration (`landing.json`, #355) – none from a build before it */
+  landing?: Buffer;
   files: LocalFile[];
 }
 
@@ -82,9 +86,13 @@ export function readContentBuild(): ContentBuild {
     const data = fs.readFileSync(path.join(CLIENT_PUBLIC_ASSETS_DIR, file));
     return { file, size: data.length, sha256: sha256(data) };
   });
+  // The landing's data of this very build (its experience and schema): another build's is left behind
+  const landing = fs.existsSync(LANDING_OUTPUT_FILE) ? fs.readFileSync(LANDING_OUTPUT_FILE) : null;
+  const landingData: unknown = landing ? JSON.parse(landing.toString('utf8')) : null;
+  const ownLanding = isLandingFile(landingData) && landingData.experience === experience.id && landingData.schema === version.schema;
   return {
     build: contentBuildName(version.hash), hash: version.hash, schema: version.schema, version: version.version,
-    experience: experience.id, config, files,
+    experience: experience.id, config, ...(landing && ownLanding ? { landing } : {}), files,
   };
 }
 
@@ -245,6 +253,7 @@ export async function runSync(storage: StorageClient, plan: SyncPlan): Promise<v
       }
     };
     await Promise.all(Array.from({ length: PARALLEL_UPLOADS }, worker));
+    if (build.landing) await storage.put(`${folder}/${LANDING_FILE}`, build.landing, 'application/json');
     await storage.put(`${folder}/files.json`, JSON.stringify(fileIndex(build)), 'application/json');
     // Last: the configuration marks the version as complete
     await storage.put(`${folder}/game.config.json`, build.config, 'application/json');

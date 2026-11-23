@@ -27,7 +27,9 @@
   import { sceneLabel } from "@engine/content/scenes";
   import { surfaceGrids } from "#lib/surface-grids.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
-  import { deleteEntry, deleteScene, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import { deleteEntry, deleteScene, errorText, isMediaAsset, putExperience, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import { extractLanding } from "#lib/landing-pick.js";
+  import { landingContentProblem } from "@shared/api/landing-extract";
   import type { SurfaceReferences } from "#lib/stage/surfaces.js";
   import { surfaceMode as surfaceTool } from "#lib/surface-mode.svelte.js";
   import type { SurfacePlace } from "@shared/types/game-config";
@@ -773,6 +775,20 @@
     openTab("inspector");
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
   };
+  /**
+   * "Use for the landing page" (#355): the target becomes the desktop landing's hero – its hero extracted from the draft
+   * (after the edits waiting before it) and stored in the experience, saved like any edit (RULES #37); History shows it
+   */
+  const useForLanding = (targetId: string) => {
+    stageMenu = null;
+    const id = experienceId;
+    const pick = { scene: sceneId, target: targetId };
+    autosave.queue(`experience:${id}:landing`, async () => {
+      const result = await extractLanding(id, pick);
+      if ("problem" in result) throw new Error(`Landing page: ${result.problem}`);
+      await putExperience(id, { landing: result.landing });
+    });
+  };
   const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · F = focus on the selection · Home or double tap = the reader's view · ← → = the scenes. A click picks what lies there, right click opens its menu.";
 
   const scene = $derived(content.scene(sceneId));
@@ -1059,6 +1075,8 @@
         ...(hasTree ? [{ label: hit.path.length ? "Remove node" : "Remove entity", select: menuRemoveNode }] : []),
         { label: "Placement on the surface…", select: menuPlacement },
         { label: "Replay the first find", select: () => stage?.replayUnlock() },
+        { label: "Use for the landing page", disabled: landingContentProblem(stage.treeOf(hit.targetId)), select: () => useForLanding(hit.targetId),
+          help: "The desktop landing's hero shows this target's AR content (a model, a video, a component) on its print, on this scene's surface: its picture, the entity and the experience's looks are taken from the draft now and stored in the experience – publish writes them into the version's landing.json. The experience's Inspector (⚙) shows the pick, refreshes it and removes it." },
         { label: "Library…", select: () => chooseTab("library") },
         { label: "Remove target", danger: true, select: () => { const t = content.scene(sceneId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
       ]} />

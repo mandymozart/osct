@@ -36,6 +36,12 @@ declare module "virtual:osct-game-config" {
   export default config;
 }
 
+/** The bundled content's landing.json (#355, the content build writes it beside the configuration); null in a CDN build or without one */
+declare module "virtual:osct-landing" {
+  const landing: unknown;
+  export default landing;
+}
+
 /** Sizes of the content files in bytes by URL (`/assets/content/…`), from the build (vite.config.js) */
 declare module "virtual:osct-content-sizes" {
   const sizes: Record<string, number>;

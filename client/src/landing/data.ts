@@ -5,8 +5,8 @@ import { LANDING_CONFIG, type ShopItem } from "./landing-config";
 /**
  * What the landing shows of an experience (#355) – everything the page and its hero need, URLs ready to load: one plain
  * block, so the very same page can be mounted with an experience's draft elsewhere (the editor's landing workspace,
- * later). From the content version's `landing.json` (shared/api/landing.ts, written by publish) or, until a version
- * has one, derived from its game configuration (`derive.ts`).
+ * later). From the content version's `landing.json` (shared/api/landing.ts, written by publish and by the content build)
+ * or, until a version has one, derived from its game configuration (`derive.ts`).
  */
 export interface LandingData {
   /** The experience's id */
@@ -72,6 +72,11 @@ export interface LoadLandingOptions {
   /** The experience's content base URL (`<environment base>/<experience>`); "" = the content bundled with the app */
   baseUrl: string;
   /**
+   * The bundled content's `landing.json` (the content build writes it beside the bundled configuration – `null` without
+   * one), read when there is no base URL; its content paths are the app's own
+   */
+  bundled?: () => Promise<unknown>;
+  /**
    * The fallback without a readable `landing.json`: derives the data from the game configuration (`derive.ts`, loaded
    * only then); `fetch` answers the latest.json already read from memory
    */
@@ -80,13 +85,17 @@ export interface LoadLandingOptions {
 }
 
 /**
- * The landing's data: the current content version's `landing.json` (`<base>/latest.json` names the version) when it is
- * there and readable, else `derive`. A missing or broken file is no error – every version before publish wrote one has
- * none.
+ * The landing's data: the current content version's `landing.json` (`<base>/latest.json` names the version) – or the
+ * bundled content's (`bundled`) – when it is there and readable, else `derive`. A missing or broken file is no error –
+ * every version published before publish wrote one has none.
  */
-export const loadLandingData = async ({ baseUrl, derive, fetch: fetchFn = globalThis.fetch.bind(globalThis) }: LoadLandingOptions): Promise<LandingData> => {
+export const loadLandingData = async ({ baseUrl, bundled, derive, fetch: fetchFn = globalThis.fetch.bind(globalThis) }: LoadLandingOptions): Promise<LandingData> => {
   const base = baseUrl.replace(/\/+$/, "");
   let latest: unknown = null;
+  if (!base && bundled) {
+    const file = await bundled().catch(() => null);
+    if (isLandingFile(file) && await readableHere(file.schema)) return landingDataFromFile(file, path => path);
+  }
   if (base) {
     try {
       const response = await fetchFn(`${base}/latest.json?t=${Math.floor(Date.now() / 60000)}`, { cache: "no-cache" });

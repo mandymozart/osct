@@ -22,6 +22,8 @@ import { logicProblems } from "../../shared/types/logic";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
+import { extractDraftLanding } from "../../shared/api/landing-draft";
+import type { GameConfiguration } from "../../shared/types/game-config";
 import type {
   AssetCreditsSaved,
   AssetList,
@@ -885,6 +887,41 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if (check.refused) return check.refused;
       const result = await api.call<ExperiencePassesSaved>("PUT", `/editor/experiences/${encodeURIComponent(experience)}/passes`, { passes });
       return text({ ...result, ...check.warnings, open: editorHref(links, experience) });
+    }),
+  );
+
+  server.registerTool(
+    "put_experience_landing",
+    {
+      description:
+        "Picks the desktop landing's hero (content schema 6.1, #355): one target with AR content (a model, a video, a plugin's node type or a node a component drives) on one scene – the landing's book opens on the scene's surface the target lies on and its content rises from its print. The tool extracts the hero from the draft as the editor does (the surface, its prints, the target's entity, the print layout's pictures, the experience's plugins and looks) and saves it with the pick in experience.landing; publish writes the version's landing.json from it. A target without AR content (marginalia, a link, a target without an entity) is refused. remove: true removes the pick – the landing shows the experience's first model again. Re-run it after the entity, the prints or the looks changed (the editor's Inspector says when the stored hero is out of date). The change is recorded.",
+      inputSchema: z.object({
+        experience: EXPERIENCE,
+        scene: z.string().min(1).optional().describe("the scene's id"),
+        target: z.string().min(1).optional().describe("the id of a target on that scene with AR content (a model, a video, a component)"),
+        remove: z.boolean().optional().describe("true removes the pick"),
+      }),
+      annotations: write,
+    },
+    guard(async ({ experience, scene, target, remove }) => {
+      const path = `/editor/experiences/${encodeURIComponent(experience)}`;
+      if (remove) {
+        const result = await api.call<ExperienceSaved>("PUT", path, { landing: null });
+        return text({ ...result, open: editorHref(links, experience) });
+      }
+      if (!scene || !target) return fail({ error: { code: "mcp", message: "send scene and target (or remove: true)" } });
+      const [{ experience: summary }, manifest] = await Promise.all([tree(experience), api.call<DraftManifest>("GET", `${path}/draft/latest.json`)]);
+      const [configuration, files] = await Promise.all([
+        api.call<GameConfiguration>("GET", `${path}/draft/${manifest.build}/game.config.json`),
+        api.call<Record<string, unknown>>("GET", `${path}/draft/${manifest.build}/files.json`),
+      ]);
+      // The print layout is a public file of the import (its assets base): read without the token
+      const extracted = await extractDraftLanding({ configuration, files, assetsBase: summary.assetsBase ?? "", fetch: (input, init) => fetch(input, init) }, { scene, target });
+      if ("problem" in extracted) {
+        return fail({ error: { code: "invalid-landing", message: `The pick cannot be the landing's hero: ${extracted.problem} (nothing was sent).` }, hint: "get_scene lists a scene's targets with their entities; the hero needs a target with AR content (a model, a video, a component)." });
+      }
+      const result = await api.call<ExperienceSaved>("PUT", path, { landing: extracted.landing });
+      return text({ ...result, open: editorHref(links, experience) });
     }),
   );
 

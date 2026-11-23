@@ -29,6 +29,7 @@ import { textureSetProblems } from "../types/textures";
 import { mediaLevelProblems } from "../types/media-levels";
 import { placementProblems } from "../types/placement";
 import { subtitleProblems } from "../types/subtitles";
+import { experienceLandingProblems } from "../types/landing";
 import { isObject } from "./primitives";
 import { BEHAVIOUR_TYPE, type BehaviourRule, readRules } from "../types/behaviour";
 import { logicProblems, logicRules } from "../types/logic";
@@ -241,6 +242,8 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (experience.environment !== undefined) environmentProblems(experience.environment, "experience.environment", false).forEach(problem => problems.push(problem));
     if (experience.appearance !== undefined) appearanceProblems(experience.appearance, "experience.appearance", appearanceOptions).forEach(problem => problems.push(problem));
     if (experience.variables !== undefined) variablesProblems(experience.variables, "experience.variables").forEach(problem => problems.push(problem));
+    // Schema 6.1 (#355): the landing's pick – its shape; whether the scene and target exist is the build's and the API's
+    if (experience.landing !== undefined) experienceLandingProblems(experience.landing).forEach(problem => problems.push(problem));
     if (experience.logic !== undefined) {
       logicProblems(experience.logic, "experience.logic", "experience").forEach(problem => problems.push(problem));
       collect(logicRules(experience.logic), "experience.logic.rules", null, true);

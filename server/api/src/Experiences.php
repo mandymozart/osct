@@ -1630,6 +1630,8 @@ final class Experiences
         if (property_exists($experience, 'recognition') && !in_array($experience->recognition, self::RECOGNITION_MODES, true)) {
             $fail('experience.recognition must be "original" or "prepared".');
         }
+        // The landing's pick (#355, schema 6.1): its shape – whether its scene and target exist is the content build's check
+        if (property_exists($experience, 'landing') && ($problem = Landing::shapeProblem($experience->landing)) !== null) $fail($problem);
         if (property_exists($experience, 'logic')) {
             try {
                 Logic::check($experience->logic, 'experience', 'experience.logic', 'invalid-configuration');

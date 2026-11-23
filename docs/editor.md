@@ -1156,7 +1156,7 @@ bounds) and the pointer cursor; with a finger there is no hover – a tap select
 
 A **right click** on the stage opens the menu for what lies there – the filters' pick, else the printed image under the
 pointer: on a target *Add node… / Add AR content…*, *Remove node / entity*, *Placement on the page…*, *Library…*,
-*Remove target*; on the page or the table *+ target…*, *Replay the first find* and *View settings…* (the toolbar's
+*Use for the landing page* ([below](#the-landings-hero)), *Remove target*; on the page or the table *+ target…*, *Replay the first find* and *View settings…* (the toolbar's
 *view* group). It is the editor's one context menu (`ContextMenu.svelte` – the keys as on the experience page's cards); while
 it is open no key reaches the stage's shortcuts.
 
@@ -1384,6 +1384,23 @@ Last, the experience's **rules** and **variables** (content schema 5.0, #334 L-T
   (*mood · string · inferred*) with **declare**; at the end a name and a type to declare a new one. Every change is checked
   first – a bad name, a name twice, a default of another type is refused with the reason under the list, never saved –
   and saves itself (`PUT …/variables`, change kind `variables`; none left removes the field).
+
+### The landing's hero
+
+(#355, content schema 6.1 – [content](content.md) "The landing's hero".) The desktop landing's hero shows one target with
+its AR content on one scene's surface. **Pick it on the stage**: right-click a target, *Use for the landing page* –
+disabled, with the reason, on a target without AR content (marginalia and links cannot be the hero; a model, a video, a
+plugin's node type or a node a component drives can). The hero is extracted from the draft as it is saved (after the
+edits waiting before it – `editor/src/lib/landing-pick.ts`, the shared extractor) and stored in the experience
+(`PUT /editor/experiences/{id} { landing }`) through the autosaver like every edit; History lists it as an `experience`
+change.
+
+The experience's Inspector (⚙) has a **landing page** section (`panels/LandingSection.svelte`, closed at first; its
+summary *scene › target* or *none*): the **scene** (a link – it opens the scene with the target selected), the
+**target**, the **hero** – *up to date*, *out of date* with **Refresh** (the hero extracted again and saved), or the
+problem when the pick cannot be the hero any more – and **Remove** (`{ landing: null }`; the landing shows the
+experience's first model again after the next publish). Publish writes the version's `landing.json` from it. The landing
+workspace that shows the draft's landing itself is the next step (#356 b).
 
 ### Inspector: a group
 

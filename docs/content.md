@@ -27,7 +27,7 @@ folders after release: reading progress is stored by id.
 
 ```
 content/
-├── experience.yaml               the experience (id, title; book: the printed book's author, publisher)
+├── experience.yaml               the experience (id, title; book: the printed book's author, publisher; landing: the hero's scene and target)
 ├── scenes/
 │   └── s2-3/
 │       └── scene.yaml            label, order and surfaces of the scene
@@ -1119,6 +1119,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 5.2 | 4.6.0 | in develop | **the deck's canvas** (#334 L-T7, [editor](editor.md) "The deck's canvas"): a logic canvas may carry `positions` (box id → `{ x, y }`: boxes pinned over the automatic layout, on the 1rem grid) and a canvas group `colour` (`#rrggbb`) and `folded` (true: drawn as one pill). Authoring data only – the editor's database and its export carry it, the content build and a publish leave the canvas out | not touched: a canvas never reaches a reader |
 | 5.3 | 4.11.0 | in develop | **notes on the Logic canvas** (#334, [editor](editor.md) "Notes"): a canvas note may carry `box` (it stands beside that box; its `x`, `y` are then the offset from the box), `author` (who wrote it) and `view` (the target's level of a scene's canvas it belongs to: `<target>` or `<target>/<node path>`). Authoring data only, like 5.2 | not touched: a canvas never reaches a reader |
 | 6.0 | 6.0.0 | in develop | **listen, not hear** (#341, plugin API 4.0 – Tilman, 2026-11-21: *"you use the word hear for events. i think it is listen"*): a plugin's recorded spec names what its code listens to `uses.listens` (was `uses.hears`: `{ listens, emits, reads, sets }`). A plugin source is rewritten with `osct plugins listen` (`--dir <content folder>`; `--experience <id>` / `--all` the instance's database through the editor API, `--dry-run` first), the server's rows by `Migration6` (the deploy's `Db::migrate`: 5.x experiences → 6.0, the declared plugins' recorded `uses`; a dry run: `php server/deploy/migrate.php --plan-6`) | refused: an app since 6.0 reads 6.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 6) and refuses plugins built against plugin API 3.x; a 5.x app refuses 6.0 content – every published experience is published again after the migration |
+| 6.1 | 6.10.0 | in develop | **the landing's hero** (#355, [editor](editor.md) "The landing's hero"): the experience's optional `landing` – `{ scene, target }` by id, a target with AR content (a model, a video, a component) on that scene (its surface is the hero's), and what the editor (or the content build, or the MCP's `put_experience_landing`) extracted from it: `hero` (the `LandingHeroData` of `landing.json`) and the print layout's `cover`. Publish writes the version's `landing.json` from it | ignored: the landing derives its hero from the configuration as before |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
@@ -1398,28 +1399,68 @@ builds those targets without their AR video.
 | Where | What |
 |---|---|
 | `client/src/game.config.json` | Everything the app needs to know about the experience (not in git) |
+| `client/src/game.landing.json` | The landing's data beside it ("landing.json" below, #355 – not in git) |
 | `client/public/assets/content/` | The content media, optimised, and every plugin's compiled `plugin.js` next to its source (not in git) |
 
 ### landing.json
 
 What the desktop landing shows of an experience ([pages, "The desktop landing"](pages.md#desktop-landing)), in one
-small file next to the game configuration of a content version: `<base>/<experience>/<build>/landing.json`. **Written by
-publish from the next step of #355 on** (the editor's landing workspace: the experience's scene and surface for the
-hero); the content build does not write it. Until a version has one, the reader's landing derives the same data from
-`game.config.json` (`client/src/landing/derive.ts`: the scene and model of the first of `LANDING_CONFIG.scanEntries` that
-has a model, else the content's first model). Shape and guard: `shared/api/landing.ts` (`LandingFile`, `isLandingFile`):
+small file next to the game configuration of a content version: `<base>/<experience>/<build>/landing.json`. **Written
+by publish** (`server/api/src/Landing.php`, before `files.json` and `game.config.json`) from the experience's pick
+`experience.landing` (below) – without a pick, or with a pick that has no hero yet, publish writes none (the server
+does not run the TypeScript extractor). **The content build** writes it too, next to the bundled configuration
+(`client/src/game.landing.json` – the landing reads it for the bundled content; `osct content sync` uploads it into the
+version's folder): from the pick, else from the default the landing always took (the first of
+`LANDING_FALLBACK_ENTRIES` with a model, else the content's first model, else its first video). Without a readable file
+the reader's landing derives the same data from `game.config.json` (`client/src/landing/derive.ts`, the same
+extractor). Shape and guard: `shared/api/landing.ts` (`LandingFile`, `isLandingFile`):
 
 | Field | |
 |---|---|
-| `format` | `1` – the shape's own version; a reader that does not know it derives the data instead |
+| `format` | `2` – the shape's own version (format 1, step 1 of #355, had a model-only `asset`); a reader that does not know it derives the data instead |
 | `schema` | the content schema `MAJOR.MINOR` of the version it was made from – a reader that cannot read that MAJOR derives the data |
 | `experience`, `title`, `author`, `publisher` | the experience's id, title, its book's author and publisher (`""` without) |
 | `images` | the experience's target images in scene order (the hero's drifting pictures) |
 | `cover` | the print layout's front cover, `null` without |
-| `hero` | `null` (nothing to show) or the scan stage: `aspect` (the surface's height in surface widths), `pages` (its printed page numbers), `prints` and `target` (images on the surface: `src`, `x`, `top`, `width`, `height?` in surface widths), `entity` and `asset` (the model – `EntityData` / `AssetData`), `spread` and `earlier` (the layout's pictures of the surface and the spreads before it), `pageImages` (other prints for the turning pages), `plugins` (`PluginData[]`) and `appearance` (the experience's looks) |
+| `hero` | `null` (nothing to show) or the scan stage: `aspect` (the surface's height in surface widths), `pages` (its printed page numbers), `prints` and `target` (images on the surface: `src`, `x`, `top`, `width`, `height?` in surface widths), `entity` (the target's entity as the configuration has it – a model, a video, a plugin's node type, a node a component drives), `spread` and `earlier` (the layout's pictures of the surface and the spreads before it), `pageImages` (other prints for the turning pages), `plugins` (`{ id, src, api }` of the version's plugins) and `appearance` (the experience's looks) |
 | `shop` | optional – the shop items (`id` `book` / `shirt`, `url`, `image?`, `cover?`); none: the app's |
 
-Paths are content paths (`/assets/content/…`), resolved against the version's folder like the configuration's.
+Paths are content paths (`/assets/content/…`), resolved against the version's folder like the configuration's – or URLs
+where the configuration names URLs (a server publish names the import's files below its assets base).
+
+### The landing's hero: `experience.landing` (schema 6.1, #355)
+
+Tilman, 2026-11-23: *"the landing page hero needs only a specific target on a surface on a scene to show of how they
+work. so that data can be extracted in the editor to fill in the data needed to build the landing page."* – *"or video
+or component. marginalia and links wouldnt work."*
+
+```yaml
+# experience.yaml
+landing:
+  scene: studio-a        # a scene's id
+  target: studio-dragon  # a target on it with AR content – its surface is the hero's
+```
+
+An author writes `scene` and `target`; the target needs AR content (a model, a video, a plugin's node type or a node a
+component drives – an entry without a target, a target without an entity cannot be the hero). Whoever picks extracts
+the hero once and stores it with the pick – `hero` (the `LandingHeroData` above) and the print layout's `cover`: the
+editor (a target's stage menu, [editor](editor.md) "The landing's hero"), the MCP's `put_experience_landing`, and the
+content build (after the media got their final names; a `hero` or `cover` written by hand is an error). One pure
+extractor does it everywhere – `shared/api/landing-extract.ts` (the draft's side: `landing-draft.ts`):
+
+- the **surface** is the one the target lies on (its `place.surface`, else the scene's first; a double page without
+  surfaces: 460 × 320 mm); `aspect` its height in widths;
+- the **prints** are every placed, switched-on target on that surface (unplaced: only the target's own, centred, 0.6
+  wide); the **pages** the numbers in the surface's label, else the scene's (`10–11` → [10, 11]);
+- the **layout's pictures** come from `layout/layout.json`: the sheet whose `pages` hold all the hero's pages is the
+  `spread`, the three sheets of two or more pages before it are `earlier`, the `cover-front` sheet is the `cover`;
+- `pageImages` are six other target images (a stable shuffle), `plugins` the experience's (`id`, `src`, `api`),
+  `appearance` its looks.
+
+`landingHeroStale(stored, fresh)` compares a stored hero with one extracted again (key order aside): the editor's
+Inspector says *out of date* when they differ. The content build, the guard (shape only) and the API (scene, target,
+AR content, the hero's shape – `Landing::check`) refuse a pick that cannot be the hero. An app before 6.1 ignores the
+field; the export writes `scene` and `target` only (the build extracts the hero again).
 
 ### Folders
 

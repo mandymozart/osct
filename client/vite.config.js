@@ -23,6 +23,8 @@ const APP_VERSION = JSON.parse(readFileSync(resolve(import.meta.dirname, 'packag
 const GAME_CONFIG_FILE = resolve(import.meta.dirname, 'src/game.config.json');
 const MISSING_CONTENT = 'client/src/game.config.json is missing – build the content first: `npm run content` (in client/), ' +
   'or build against the content CDN (VITE_CONTENT_BASE_URL)';
+/** The landing's data the content build writes beside it (#355) – bundled with it */
+const LANDING_FILE = resolve(import.meta.dirname, 'src/game.landing.json');
 const readLocalGameConfig = () => (existsSync(GAME_CONFIG_FILE) ? JSON.parse(readFileSync(GAME_CONFIG_FILE, 'utf8')) : null);
 
 /**
@@ -71,6 +73,25 @@ function gameConfigModule(contentBaseUrl) {
       if (!existsSync(GAME_CONFIG_FILE)) throw new Error(MISSING_CONTENT);
       this.addWatchFile(GAME_CONFIG_FILE);
       return `export default ${readFileSync(GAME_CONFIG_FILE, 'utf8')};`;
+    },
+  };
+}
+
+/**
+ * The bundled content's landing data (`virtual:osct-landing`, imported only by src/landing/entry.ts – #355): the local
+ * content build's `src/game.landing.json` beside the configuration, or `null` in a CDN build (the landing reads the content
+ * version's own) or without one (the landing derives the data from the configuration).
+ */
+function landingModule(contentBaseUrl) {
+  const id = 'virtual:osct-landing';
+  return {
+    name: 'osct-landing',
+    resolveId: (source) => (source === id ? `\0${id}` : undefined),
+    load(loaded) {
+      if (loaded !== `\0${id}`) return undefined;
+      if (contentBaseUrl || !existsSync(LANDING_FILE)) return 'export default null;';
+      this.addWatchFile(LANDING_FILE);
+      return `export default ${readFileSync(LANDING_FILE, 'utf8')};`;
     },
   };
 }
@@ -429,7 +450,7 @@ export default defineConfig(async ({command,mode})=>{
   return {
   plugins: [
     legacyRedirect(experience), staticLanding(experience, shellConfig, shellContentBase), privacyPage(experience, shellConfig, contentBaseUrl),
-    designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
+    designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), landingModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
     manifestLink(), entryPreload(), contentFromCdn(contentBaseUrl), docsIndex(), ...(https ? [basicSsl()] : []),
   ],
   define: {

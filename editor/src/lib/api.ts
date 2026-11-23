@@ -1,5 +1,6 @@
 import type { ExperienceAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
+import type { ExperienceLanding } from "@shared/types/landing";
 import type { AssetType, ExperienceData, LogicData, RecognitionMode, SurfaceData, TargetPlace, TargetRecognitionData, VariableDeclaration } from "@shared/types/game-config";
 import type {
   Asset,
@@ -477,6 +478,10 @@ export const listEnvironments = () => api<EnvironmentsInfo>("GET", "/editor/envi
 /** The draft's manifest: its build now (what a publish would write) */
 export const getDraftManifest = (experienceId: string) => api<DraftManifest>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/draft/latest.json`);
 
+/** A file of the draft's version (`game.config.json`, `files.json`) – every content path in it below the import's assets base */
+export const getDraftFile = <T>(experienceId: string, build: string, file: "game.config.json" | "files.json") =>
+  api<T>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/draft/${encodeURIComponent(build)}/${file}`);
+
 export const putEntity = (experienceId: string, ref: string, entity: EntityData) =>
   api<EntitySaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/entities/${encodeURIComponent(ref)}`, entity);
 
@@ -583,7 +588,7 @@ export const putEntry = (experienceId: string, entryId: string, changes: Record<
  * The experience's title and its printed book (#320): `book` sets the book's author and publisher (`publisher: null`
  * removes it; a new book needs its author), `book: null` removes the printed book – the experience is no book then
  */
-export const putExperience = (experienceId: string, changes: { title?: string; book?: { author?: string; publisher?: string | null } | null; recognition?: RecognitionMode | null }) =>
+export const putExperience = (experienceId: string, changes: { title?: string; book?: { author?: string; publisher?: string | null } | null; recognition?: RecognitionMode | null; landing?: ExperienceLanding | null }) =>
   api<ExperienceSaved>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}`, changes);
 
 // ── The change log and its reverts (#312, docs/server.md "Reverting saved changes") ──────────────────

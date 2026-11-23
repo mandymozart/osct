@@ -1,8 +1,10 @@
 /**
  * `landing.json` – what an experience's desktop landing shows (#355), in one small file next to the game configuration
  * of a content version: `<base>/<experience>/<build>/landing.json` (content-store.ts). Publish writes it from the
- * experience's choice of a scene and a surface (the editor's landing workspace); until a version has one, the reader's
- * landing derives the same data from `game.config.json` (`client/src/landing/derive.ts`). docs/content.md "landing.json".
+ * experience's pick (`experience.landing`: a target with a model on a surface of a scene, its hero extracted when it was
+ * picked – `landing-extract.ts`), the content build next to its game configuration; until a version has one, the
+ * reader's landing derives the same data from `game.config.json` (`client/src/landing/derive.ts`). docs/content.md
+ * "landing.json".
  *
  * Paths are content paths (`/assets/content/…`) as in the game configuration; the reader resolves them against the
  * version's folder. The hero's model, its target and its plugins are the configuration's own shapes (`EntityData`,
@@ -11,52 +13,40 @@
  * schema lock (RULES #10) – the file is the instance's, made from the content.
  */
 import { isObject } from "../guards/primitives";
-import type { ExperienceAppearance } from "../types/appearance";
-import type { AssetData, EntityData } from "../types/game-config";
-import type { PluginData } from "../types/plugins";
+import type { LandingHeroData, LandingPrintData } from "../types/landing";
+
+// The hero's shape is the content's (`experience.landing.hero`, schema 6.1): defined with the contract
+export type { LandingHeroData, LandingPrintData } from "../types/landing";
 
 /** Its name in a version's folder */
 export const LANDING_FILE = "landing.json";
-/** The shape's own version: a change a reader cannot read is a new number (and the reader derives the data instead) */
-export const LANDING_FORMAT = 1;
+/**
+ * The shape's own version: a change a reader cannot read is a new number (and the reader derives the data instead). 2
+ * (#355): the hero carries the target's entity only (any AR content) – format 1's model file `asset` is gone
+ */
+export const LANDING_FORMAT = 2;
 
 /**
- * A printed image on the hero's open book. Units: the surface's width is 1, its centre the origin, x → right, y → the
- * top of the page (as the engine's placement)
+ * The hero without the experience's pick (`experience.landing`): the first of these entries (or targets) that has a model
+ * (#354 – the book's "There Is a Face" on pages 10–11: staging and production name it `p10-3`, the local content
+ * `p010-3`), else the content's first model (the test fixture offline) – `landing-extract.ts` `defaultLandingPick`
  */
-export interface LandingPrintData {
-  src: string;
-  /** Its centre across, in surface widths */
-  x: number;
-  /** Its top edge, up from the surface's centre; null = centred (a target without a place) */
-  top: number | null;
-  width: number;
-  /** In surface widths; none = from the image's proportions */
-  height?: number;
-}
+export const LANDING_FALLBACK_ENTRIES: readonly string[] = ["p10-3", "p010-3"];
 
-/** The hero: the book open on one surface of one scene, the target with the model on it, and how the model appears */
-export interface LandingHeroData {
-  /** The surface's height in surface widths (a 460 × 320 mm spread: 0.696) */
-  aspect: number;
-  /** The printed page numbers the surface shows (its sheet in the print layout) */
-  pages: number[];
-  /** The surface's printed images where they lie */
-  prints: LandingPrintData[];
-  /** The target that holds the model */
-  target: LandingPrintData;
-  /** The model's node and its file */
-  entity: EntityData;
-  asset: AssetData;
-  /** The print layout's picture of the surface and of the spreads before it (nearest last); null / [] without a layout */
-  spread: string | null;
-  earlier: string[];
-  /** Other printed images of the book, for turning pages without a picture of their own */
-  pageImages: string[];
-  /** The experience's plugins (their looks play on reveal, found and lost) and its own looks */
-  plugins: PluginData[];
-  appearance?: ExperienceAppearance;
-}
+/**
+ * A stable shuffle (a seeded linear congruential generator): the same items give the same pick on every visit – the
+ * landing's scattered pictures and the hero's turning pages
+ */
+export const seededPick = <T>(items: readonly T[], count: number, seed = 324): T[] => {
+  const out = [...items];
+  let state = seed;
+  for (let i = out.length - 1; i > 0; i--) {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    const j = state % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out.slice(0, count);
+};
 
 /** A shop item: its name is the app's text (`landing:shopBook`, `landing:shopShirt`) */
 export interface LandingShopData {
@@ -96,12 +86,11 @@ const isPrint = (value: unknown): value is LandingPrintData =>
   isObject(value) && isString(value.src) && isNumber(value.x) && isNumber(value.width) &&
   (value.top === null || isNumber(value.top)) && (value.height === undefined || isNumber(value.height));
 
-/** The model's node and file as far as the landing reads them; the engine's loader checks the model itself */
+/** The hero's entity as far as the landing reads it; the engine's builder reads the rest of the tree as the reader does */
 const isHero = (value: unknown): value is LandingHeroData =>
   isObject(value) && isNumber(value.aspect) && Array.isArray(value.pages) && value.pages.every(isNumber) &&
   Array.isArray(value.prints) && value.prints.every(isPrint) && isPrint(value.target) &&
   isObject(value.entity) && isString(value.entity.type) && Array.isArray(value.entity.assets) &&
-  isObject(value.asset) && isString(value.asset.src) && isString(value.asset.assetType) &&
   (value.spread === null || isString(value.spread)) && isStrings(value.earlier) && isStrings(value.pageImages) &&
   Array.isArray(value.plugins) && value.plugins.every(plugin => isObject(plugin) && isString(plugin.id) && isString(plugin.src)) &&
   (value.appearance === undefined || isObject(value.appearance));

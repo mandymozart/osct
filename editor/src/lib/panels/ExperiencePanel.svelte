@@ -4,13 +4,14 @@
   import PassesPanel from "./PassesPanel.svelte";
   import AppearancePanel from "./AppearancePanel.svelte";
   import RecognitionSetting from "./RecognitionSetting.svelte";
+  import LandingSection from "./LandingSection.svelte";
   import LogicRules from "./LogicRules.svelte";
   import type { Stage } from "#lib/stage/stage.svelte.js";
 
   /**
    * The Inspector while the experience is selected (#237 – the top bar's ⚙ after the experience's crumb): its texts
-   * (the title, and the **Printed book** switch with the book's author and publisher – `ExperienceTexts`, #320), its
-   * post-processing and appearance (#307 3c – every scene without its own shows them) and where its content files live.
+   * (the title, and the **Printed book** switch with the book's author and publisher – `ExperienceTexts`, #320), the
+   * desktop landing's hero (`LandingSection`, #355), its post-processing and appearance (#307 3c – every scene without its own shows them) and where its content files live.
    */
   let { experienceId, stage = null, sceneId = null }: {
     experienceId: string;
@@ -40,6 +41,8 @@
     <ExperienceTexts {experienceId} experience={tree.experience.experience} onsaved={reload} />
     <!-- How the reader gets its targets' recognition frames (#306): Original by default -->
     <RecognitionSetting {experienceId} experience={tree.experience.experience} />
+    <!-- The desktop landing's hero (#355, schema 6.1): the pick, out of date or not, refresh and remove -->
+    <LandingSection {experienceId} experience={tree.experience.experience} sceneLabels={Object.fromEntries(tree.scenes.map(s => [s.id, s.label]))} />
   {/key}
   {#if sceneId}
     <!-- The experience's looks (#307 3c, Tilman): its post-processing and how entities appear – every scene without its own -->

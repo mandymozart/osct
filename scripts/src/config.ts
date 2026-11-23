@@ -38,6 +38,8 @@ export const requireContentDir = (): string => {
   process.exit(1);
 };
 export const OUTPUT_FILE = resolve(projectRoot, 'client/src/game.config.json');
+/** The landing's data next to it (#355, shared/api/landing.ts) – the reader's landing reads it for the bundled content, a sync uploads it */
+export const LANDING_OUTPUT_FILE = resolve(projectRoot, 'client/src/game.landing.json');
 export const SCRIPTS_SRC_DIR = resolve(projectRoot, 'scripts/src');
 export const CLIENT_PUBLIC_ASSETS_DIR = resolve(projectRoot, 'client/public/assets/content');
 

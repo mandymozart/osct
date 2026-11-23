@@ -7,6 +7,7 @@ import { appearanceProblems, type AppearanceSpec, type ExperienceAppearance } fr
 import { environmentProblems, type EnvironmentData } from '../../../shared/types/environment';
 import { type LogicData, type LogicHome, logicProblems, withoutCanvas } from '../../../shared/types/logic';
 import { type VariableDeclaration, variablesProblems } from '../../../shared/types/variables';
+import { experienceLandingProblems, type ExperienceLanding } from '../../../shared/types/landing';
 import { buildErrors, buildWarnings } from '../lib/errors';
 import { contractPart, readYaml, validate } from '../lib/content';
 
@@ -63,6 +64,20 @@ export function checkedLogic(logic: unknown, label: string, home: LogicHome): Lo
   return problems.length ? checked : withoutCanvas({ logic: checked }).logic!;
 }
 
+/**
+ * The landing's pick (schema 6.1, #355): `{ scene, target }` – an author writes the ids only, the build extracts the hero
+ * (`withLandingHero`, after the media got their final names); whether the pick exists is checked with the scenes
+ * (`buildConfig`)
+ */
+export function checkedLanding(landing: unknown, label: string): ExperienceLanding {
+  const problems = experienceLandingProblems(landing, 'landing');
+  const value = (typeof landing === 'object' && landing !== null ? landing : {}) as Record<string, unknown>;
+  const extra = Object.keys(value).filter(key => key !== 'scene' && key !== 'target');
+  if (!problems.length && extra.length) problems.push(`landing: write scene and target only – ${extra.join(', ')} ${extra.length > 1 ? 'are' : 'is'} extracted by the build`);
+  contractPart<ExperienceLanding>(landing, problems, label);
+  return { scene: String(value.scene ?? ''), target: String(value.target ?? '') };
+}
+
 /** The print data that lives in `book:` – on the top level of experience.yaml it is an error */
 const PRINT_FIELDS = ['author', 'publisher'] as const;
 const GONE = 'sourceOfTruth is gone – every experience adds and removes its scenes (`npm run convert:4` drops it)';
@@ -82,7 +97,7 @@ export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = ne
   }
   const experience = validate(readYaml(file), 'experience', label);
   if (!experience) return { id: '', title: '' };
-  const { passes, environment, appearance, book, recognition, logic, variables, ...fields } = experience;
+  const { passes, environment, appearance, book, recognition, logic, variables, landing, ...fields } = experience;
   PRINT_FIELDS.filter(key => fields[key] !== undefined)
     .forEach(key => buildErrors.push(`${label}: ${key} belongs to the printed book – write it under book:`));
   if (fields.sourceOfTruth !== undefined) buildErrors.push(`${label}: ${GONE}`);
@@ -102,6 +117,7 @@ export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = ne
   if (logic !== undefined) result.logic = checkedLogic(logic, label, 'experience');
   // The typed variables (schema 5.0, B7): their declarations here, the rules checked against them with the whole configuration
   if (variables !== undefined) result.variables = contractPart<Record<string, VariableDeclaration>>(variables, variablesProblems(variables, 'variables'), label);
+  if (landing !== undefined) result.landing = checkedLanding(landing, label);
   if (environment !== undefined) {
     const resolved = resolveEnvironment(environment);
     const problems = resolved.problems.length ? resolved.problems : environmentProblems(resolved.environment);

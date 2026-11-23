@@ -8,6 +8,29 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.10.0 – 2026-11-23
+
+### Added
+- **Pick the landing's hero in the editor** (#355): right-click a target on the stage – *Use for the landing page*. The
+  desktop landing then opens its book on that scene's page and shows that target's AR content rising from its print – a
+  model, a video or a plugin's component; a note or a link without AR content cannot be picked (the menu says why). What
+  the hero needs – the page, its prints, the target's content, the book's pictures, the experience's looks – is taken
+  from the draft when you pick and stored with the experience (content schema 6.1).
+- **The experience's settings (⚙) show the pick** in a *landing page* section: the scene (a click opens it with the
+  target selected), the target, whether the stored hero is still up to date – *Refresh* takes it from the draft again –
+  and *Remove*.
+- **Publish writes the landing's data** (`landing.json`) into the published version, so a computer's landing reads one
+  small file instead of the whole experience. Without a pick, the landing works out its hero from the experience as
+  before.
+- **AI connections** can pick it too: `put_experience_landing { scene, target }` (or `remove: true`).
+- The content build writes the landing's data beside its configuration, and `osct content sync` uploads it with the
+  version; `landing:` in `experience.yaml` names the pick (`scene`, `target`).
+
+### Changed
+- The landing's hero is built by the engine the reader uses, so a video (keyed or not) or a plugin's component plays on
+  the hero as it does on the page – always muted on the landing.
+
+
 ## 6.9.0 – 2026-11-23
 
 ### Changed

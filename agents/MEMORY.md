@@ -4,6 +4,35 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – Step 2: the landing's hero is picked in the editor, publish writes landing.json (6.10.0, schema 6.1, #355)
+- Tilman: *"the landing page hero needs only a specific target on a surface on a scene to show of how they work. so that
+  data can be extracted in the editor to fill in the data needed to build the landing page."* · *"the landing.json is
+  fine, if we can speed up performance"* · on the kinds: *"or video or component. marginalia and links wouldnt work."*
+- Built: `experience.landing { scene, target, hero?, cover? }` (content schema **6.1**, `shared/types/landing.ts` – the
+  hero's type moved there from `shared/api/landing.ts`, so the stored shape is the contract's). One pure extractor,
+  `shared/api/landing-extract.ts` (outside the schema lock: how the hero is made is the instance's), used by the editor
+  and the MCP (`landing-draft.ts`: draft + files.json + the import's `layout.json`, stored in content paths), the
+  content build (`withLandingHero` after the media renames; `client/src/game.landing.json` beside the configuration,
+  synced into the version) and the reader's fallback (`derive.ts`). Pickable = an entity that draws something (any node
+  but an empty group or a light, or a node with components); the default without a pick: fallback entries with a model
+  → first model → first video. `landing.json` is **format 2**: the hero carries the target's `entity` only (format 1's
+  model `asset` is gone – a 6.9.0 reader derives instead).
+- Editor: the stage's target menu *Use for the landing page* (disabled with the reason), the Inspector's *landing page*
+  section (scene link, target, up to date / out of date → Refresh, Remove) – autosaved, History shows it. No workspace.
+- API: `PUT /editor/experiences/{id} { landing }` (`Landing::check`; null removes); publish writes `landing.json` before
+  files.json from the stored hero + the version's texts, images, plugins and looks (`Landing::file`); **no pick → no
+  file** (PHP does not run the TS extractor; the reader derives). MCP `put_experience_landing` runs the extractor itself.
+- The hero renders through the engine's own `buildEntity` + `AssetStore` (the reader's path) instead of `loadGltf`:
+  models, videos (keyed, muted on the landing – `setMediaSound(() => false)`), images, texts, plugin node types and
+  components after `loadPlugins`. The hero chunk now carries the engine's entity builders (bigger than 6.9.0's).
+- My calls: the generated file is `game.landing.json` (a `landing.json` beside `src/landing/` shadowed the barrel `..`);
+  a pick also stores the layout's `cover` (PHP cannot read the layout); the export writes only `scene`/`target`.
+- [ ] Step 3: the editor's landing workspace (#356 b) mounts `mountLanding` with the draft – `extractLanding` +
+  `landingFileOf` give it the data without a publish.
+- [ ] #357: model and texture sizes for the landing (not touched here).
+- [ ] A stored hero goes stale when the entity, prints, looks or layout change after the pick; the Inspector says so,
+  publish still writes the stored one (it cannot re-extract in PHP).
+
 ## 2026-11-23 – Step 1: a computer gets the landing without the app; Privacy & terms static (6.9.0, #355 #356)
 - Tilman: *"the landing page hero needs only a specific target on a surface on a scene to show of how they work. so that
   data can be extracted in the editor to fill in the data needed to build the landing page. that's part one."* ·

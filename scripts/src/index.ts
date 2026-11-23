@@ -1,10 +1,11 @@
 /**
- * OSCT content build: `content/` (YAML + media) → `client/src/game.config.json`
+ * OSCT content build: `content/` (YAML + media) → `client/src/game.config.json` and the landing's
+ * `client/src/game.landing.json` beside it (#355)
  * (+ copy of `content/` in `client/public/assets/content` with optimised media – lib/optimize-media.ts).
  * The app makes the image targets from the target images itself (8th Wall engine).
  *
  * Source layout (folder name = id):
- *   content/experience.yaml            id, title, book? { author, publisher? }, passes?, environment?, appearance?
+ *   content/experience.yaml            id, title, book? { author, publisher? }, passes?, environment?, appearance?, landing? { scene, target }
  *   content/scenes/<id>/scene.yaml     label, order, surfaces [{ id, label?, widthMm, heightMm, place? }], passes?
  *   content/entries/<id>/entry.yaml    category, title, scene, surface?, body, …, target? { image, id?, entity?, place? }
  *   content/entities/<id>/entity.yaml  type, assets[{ id?, src }], params   (referenced as entity: { ref })
@@ -19,12 +20,14 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_MARKER, DEMO_REFUSED_ENV, FIXTURE_MARKER, OUTPUT_FILE, projectRoot, requireContentDir } from './config';
+import { APP_VERSION, CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, DEMO_MARKER, DEMO_REFUSED_ENV, FIXTURE_MARKER, LANDING_OUTPUT_FILE, OUTPUT_FILE, projectRoot, requireContentDir } from './config';
 import { buildConfig } from './build/game-config';
 import { buildPlugins, writePluginBundles } from './build/plugins';
 import { hashBuildInputs, readPreviousHash } from './lib/hash';
 import { imageFormat, optimizeMedia, renameContentPaths, textureSetFiles } from './lib/optimize-media';
 import { buildWarnings } from './lib/errors';
+import { landingFileOf, withLandingHero } from '../../shared/api/landing-extract';
+import { readLayout } from './lib/layout';
 
 console.log('🚀 OSCT Content Build Tool 🚀');
 console.log('----------------------------');
@@ -76,8 +79,15 @@ async function generateConfigFile(): Promise<void> {
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
+    // The landing's hero (#355): extracted from the experience's pick with the final media names, and landing.json beside
+    // the configuration – what publish writes into a version's folder, read by the landing for the bundled content
+    const layout = readLayout(CLIENT_PUBLIC_ASSETS_DIR);
+    config = withLandingHero(config, layout);
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(config, null, 2));
     console.log(`🎉 Successfully generated ${OUTPUT_FILE} (version: ${config.version.version})`);
+    const landing = landingFileOf(config, layout);
+    fs.writeFileSync(LANDING_OUTPUT_FILE, JSON.stringify(landing, null, 2));
+    console.log(`🖥️  ${path.relative(projectRoot, LANDING_OUTPUT_FILE)}: ${landing.hero ? `the hero ${config.experience.landing ? `picked (${config.experience.landing.scene} › ${config.experience.landing.target})` : 'by default (no landing in experience.yaml)'}` : 'no hero (no 3D model)'}`);
   } catch (error) {
     console.error('❌ Error generating config file:', error);
     process.exit(1);

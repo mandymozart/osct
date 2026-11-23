@@ -16,6 +16,7 @@ import { DESIGN_PRIMITIVES_CSS } from "../styles/design-css";
 import { escapeHtml } from "../utils/strings";
 import { goldButton } from "../components/buttons/gold-button";
 import type { LandingConfig, ShopItem } from "./landing-config";
+import { seededPick } from "../../../shared/api/landing";
 
 /** The static landing's element in index.html: the landing's page mounts into it (`mount.ts`) */
 export const STATIC_LANDING_ID = "static-landing";
@@ -41,17 +42,8 @@ export const SCATTER: ReadonlyArray<{ x: number; y: number; size: number; turn: 
   { x: 38, y: 89, size: 6.5, turn: 2 }, { x: 64, y: 93, size: 5, turn: -5 },
 ];
 
-/** A stable shuffle (the same images every visit of the same content): a seeded linear congruential generator */
-export const pick = <T>(items: readonly T[], count: number, seed = 324): T[] => {
-  const out = [...items];
-  let state = seed;
-  for (let i = out.length - 1; i > 0; i--) {
-    state = (state * 1103515245 + 12345) % 2147483648;
-    const j = state % (i + 1);
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out.slice(0, count);
-};
+/** A stable shuffle (the same images every visit of the same content) – the landing's one (`shared/api/landing.ts`) */
+export const pick = seededPick;
 
 /** The texts of the `landing` i18n namespace, translated; `intro` with the title and the author filled in (escaped) */
 export type LandingTexts = Record<

@@ -29,6 +29,7 @@ const start = async (): Promise<void> => {
   if (!host) return;
   const data = await loadLandingData({
     baseUrl: contentBaseUrl(),
+    bundled: () => import("virtual:osct-landing").then(module => module.default),
     derive: async fetch => (await import("./derive")).deriveLandingData({
       baseUrl: contentBaseUrl(),
       bundled: () => import("virtual:osct-game-config").then(module => module.default),
