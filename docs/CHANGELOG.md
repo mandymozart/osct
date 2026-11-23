@@ -8,6 +8,18 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.20.0 – 2026-11-23
+
+### Added
+- The MCP server updates itself (#367). It compares its version with its instance's – at start, in `whoami`
+  (`version: { mcp, instance, outdated }`) and when a call fails the way an outdated server's would – and the new
+  tool `update_server` downloads the file the instance serves now and replaces its own. The person reconnects the
+  server once; a server run from a checkout is never replaced and says to `git pull` instead.
+
+### Changed
+- The editor's *Set it up by hand* and the documentation site no longer ask to download the server file again after
+  a deploy: the agent updates it.
+
 ## 6.19.0 – 2026-11-23
 
 ### Changed
