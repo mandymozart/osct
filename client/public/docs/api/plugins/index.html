@@ -126,9 +126,34 @@
     <tr><td>The node's own</td><td class="wrap">a node type's spec says <code>src: "glb" | "video" | "image" | "none"</code></td><td class="wrap"><code>asset</code> in <code>build</code></td></tr>
     <tr><td>A picture or video</td><td class="wrap">a <code>texture</code> parameter</td><td class="wrap">a <code>Texture</code> in <code>params</code></td></tr>
     <tr><td>A model</td><td class="wrap">a <code>model</code> parameter</td><td class="wrap">its address; <code>await api.loadModel(address)</code> → <code>{ scene, animations }</code></td></tr>
-    <tr><td>A shader</td><td class="wrap">upload it to the Library, <i>Copy URL</i></td><td class="wrap"><code>await api.loadText(url)</code></td></tr>
+    <tr><td>A shader of the plugin</td><td class="wrap">a file of the plugin (<code>.frag</code>, <code>.vert</code>, <code>.glsl</code>, <code>.wgsl</code>)</td><td class="wrap"><code>import WATER from "./water.frag"</code> – its text, at once (a layer's <code>glsl</code> too)</td></tr>
+    <tr><td>A shader several plugins share</td><td class="wrap">upload it to the Library, <i>Copy URL</i></td><td class="wrap"><code>await api.loadText(url)</code></td></tr>
   </table></div>
   <p>Loaded files are <b>shared</b> by every node that uses them: clone what you change, never dispose them. They arrive after <code>build</code> returns: start with what you have and apply the file when its promise resolves.</p>
+
+  <h2 id="several-files">A plugin of several files</h2>
+  <p>A plugin is a folder: <code>index.ts</code> and, when it grows, more files next to it. TypeScript files are brought in by their name, shaders as text:</p>
+  <pre><code>// index.ts
+import type { PluginApi } from "osct-plugin-api";
+import { bob } from "./bob";                // bob.ts
+import TINT from "./tint.glsl";              // the file's text
+
+export const register = (api: PluginApi): void => {
+  api.registerLayer("seaTint", { description: "Tints towards the sea.", params: {} }, { glsl: TINT });
+  bob(api);
+};</code></pre>
+  <ul>
+    <li>File names: letters, digits, <code>.</code>, <code>_</code>, <code>-</code>, ending in <code>.ts</code>, <code>.frag</code>, <code>.vert</code>, <code>.glsl</code> or <code>.wgsl</code>. No folders.</li>
+    <li>Nothing else can be imported – no package (three.js is <code>api.three</code>), only the plugin's own files and <code>import type</code>.</li>
+    <li>At most 256 KB a file, 1 MB a plugin, 32 files. Every build puts the files together into one module for the reader.</li>
+  </ul>
+
+  <h2 id="own-folder">Your own folder</h2>
+  <p>To develop a plugin with your own editor, tests and repository, link a folder to it with the <code>osct</code> command (in the repository's <code>scripts/</code>; <code>OSCT_API_URL</code> is the instance's API, <code>OSCT_EDITOR_TOKEN</code> a token from the editor's experiences page, <i>AI connections</i>):</p>
+  <pre><code>osct plugin link demo ./aquarium        # links the folder, pulls the plugin if it exists, adds the type files
+osct plugin push ./aquarium --watch      # checks the types, sends the files – again on every change
+osct plugin pull ./aquarium              # takes edits made in the editor back</code></pre>
+  <p>A push is a save like the Code tab's: it is in History, the stage runs it, and the Code tab shows the plugin as <i>linked</i>. Anyone who may edit the experience can still change it there; the later save wins, and <code>pull</code> brings it home. The folder's own files (<code>plugin-api.d.ts</code>, <code>shader-files.d.ts</code>, <code>tsconfig.json</code>, a README) stay in the folder.</p>
 
   <h2 id="shaders">Layers, materials, passes</h2>
   <ul>
@@ -154,9 +179,9 @@
 
   <h2 id="shipping">Shipping</h2>
   <ul>
-    <li><b>Publish</b> carries every saved source, compiled in the browser like a Run: no type check, one file per plugin.</li>
-    <li>The publish is refused when a node uses a type no plugin registers, or when a source does not compile.</li>
-    <li>Keep plugins small (a warning above 256 KB). Everything runs on the reader's phone: up to three passes and one bloom per scene.</li>
+    <li><b>Publish</b> carries every saved plugin: its files type-checked, then put together in the browser like a Run.</li>
+    <li>The publish is refused on a type error (with the plugin, file and line), when a plugin does not build, or when a node uses a type no plugin registers.</li>
+    <li>Keep plugins small (a warning above 256 KB bundled). Everything runs on the reader's phone: up to three passes and one bloom per scene.</li>
     <li>Unsubscribe in <code>dispose</code> what a component subscribed. Never emit a core event.</li>
   </ul>
 

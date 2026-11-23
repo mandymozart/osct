@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MCP tools reference – OSCT docs</title>
-  <meta name="description" content="Every tool of the OSCT MCP server (56) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
+  <meta name="description" content="Every tool of the OSCT MCP server (57) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/docs/docs.css">
@@ -16,7 +16,7 @@
 <main class="reference">
   <p class="kicker">API</p>
   <h1>MCP tools reference</h1>
-  <p class="lead">All 56 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
+  <p class="lead">All 57 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <div class="table"><table>
     <tr><th>Area</th><th>Tools</th></tr>
@@ -31,6 +31,7 @@
     <tr><td><a href="#import">New experiences, import and deliveries</a></td><td class="wrap"><a href="#create_experience"><code>create_experience</code></a> · <a href="#preview_import"><code>preview_import</code></a> · <a href="#import_experience"><code>import_experience</code></a> · <a href="#preview_delivery"><code>preview_delivery</code></a> · <a href="#import_delivery"><code>import_delivery</code></a> · <a href="#list_deliveries"><code>list_deliveries</code></a></td></tr>
     <tr><td><a href="#history">History</a></td><td class="wrap"><a href="#list_changes"><code>list_changes</code></a> · <a href="#list_versions"><code>list_versions</code></a> · <a href="#revert_change"><code>revert_change</code></a> · <a href="#revert_to"><code>revert_to</code></a></td></tr>
     <tr><td><a href="#seeing">Seeing and publishing</a></td><td class="wrap"><a href="#render_scene"><code>render_scene</code></a> · <a href="#publish"><code>publish</code></a> · <a href="#publish_status"><code>publish_status</code></a> · <a href="#activate_version"><code>activate_version</code></a></td></tr>
+    <tr><td><a href="#other">Other</a></td><td class="wrap"><a href="#put_experience_landing"><code>put_experience_landing</code></a></td></tr>
   </table></div>
 
   <h2 id="start">Start</h2>
@@ -432,15 +433,15 @@
 
   <h2 id="plugins">Plugins</h2>
   <h3 id="list_plugins"><code>list_plugins</code> <span class="who">reads</span></h3>
-  <p>The experience's plugin sources (the Code tab, the Library's scripts).</p>
+  <p>The experience's plugins (the Code tab, the Library's scripts).</p>
   <pre><code>list_plugins { experience }</code></pre>
   <div class="table"><table>
     <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
     <tr id="list_plugins-experience"><td><code>experience</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id (list_experiences)</td></tr>
   </table></div>
-  <details><summary>Details</summary><p>id, size, usages (the draft's rows that use a type it registers), who saved it, when – without the source (get_plugin).</p></details>
+  <details><summary>Details</summary><p>id, size and fileCount (a plugin is a folder of files), origin (linked: the folder <code>osct plugin push</code> sends it from), usages (the draft's rows that use a type it registers), who saved it, when – without the files (get_plugin).</p></details>
   <h3 id="get_plugin"><code>get_plugin</code> <span class="who">reads</span></h3>
-  <p>One plugin source with the component, layer, node and pass types it registers (read from the text).</p>
+  <p>One plugin with its files ([{ name, text }], index.ts first – TypeScript and shader files) and the component, layer, node and pass types it registers (read from its files).</p>
   <pre><code>get_plugin { experience, plugin }</code></pre>
   <div class="table"><table>
     <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
@@ -448,17 +449,18 @@
     <tr id="get_plugin-plugin"><td><code>plugin</code></td><td class="wrap"><code>string</code></td><td class="wrap">the plugin's id, e.g. tint</td></tr>
   </table></div>
   <h3 id="put_plugin"><code>put_plugin</code> <span class="who">writes</span></h3>
-  <p>Saves a plugin source (new or changed; at most 256 KB; a change is recorded).</p>
-  <pre><code>put_plugin { experience, plugin, source }</code></pre>
+  <p>Saves a plugin (new or changed; a change is recorded).</p>
+  <pre><code>put_plugin { experience, plugin, files?, source? }</code></pre>
   <div class="table"><table>
     <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
     <tr id="put_plugin-experience"><td><code>experience</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id (list_experiences)</td></tr>
     <tr id="put_plugin-plugin"><td><code>plugin</code></td><td class="wrap"><code>string</code></td><td class="wrap">the plugin's id, e.g. tint</td></tr>
-    <tr id="put_plugin-source"><td><code>source</code></td><td class="wrap"><code>string</code></td><td class="wrap">the TypeScript source</td></tr>
+    <tr id="put_plugin-files"><td><code>files</code> <span class="muted">optional</span></td><td class="wrap"><code>{ name, text }[]</code></td><td class="wrap">every file of the plugin; one left out is deleted</td></tr>
+    <tr id="put_plugin-source"><td><code>source</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">a plugin of one file: its index.ts</td></tr>
   </table></div>
-  <details><summary>Details</summary><p>TypeScript that exports register(api) – see osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js (never import it), api.loadText(url) for a shader file of the Library (upload_asset, kind shader – in a material's or pass's build, never a layer's glsl), api.feedback({ width, height, fragment }) for a GPU feedback buffer and api.shadertoy(source) for a Shadertoy pass as its fragment (plugin API 1.6). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get the saved source with the person's next Publish in the editor (transpiled, not type-checked).</p></details>
+  <details><summary>Details</summary><p>A plugin is a folder of files (#352): <code>files</code> = all of them [{ name, text }] – index.ts (it exports register(api)), TypeScript it imports by ./name, shader files (.frag, .vert, .glsl, .wgsl) it imports as strings (import WATER from &quot;./water.frag&quot;) – a file left out is deleted; or <code>source</code> = a plugin of one file (index.ts). At most 256 KB a file, 1 MB together, 32 files. See osct://guides/plugins: api.registerLayer(type, spec, { glsl }) for a material layer, api.registerComponent(type, spec, apply) for code on a node, api.registerNodeType(type, spec, build) for a node type of its own, api.three for three.js (never import it), api.loadText(url) for a shader file of the Library several plugins share (upload_asset, kind shader), api.feedback({ width, height, fragment }) for a GPU feedback buffer and api.shadertoy(source) for a Shadertoy pass as its fragment (plugin API 1.6). Nothing runs here: the person presses Run in the Code tab to see it on the stage; readers get the saved files with the person's next Publish in the editor (type-checked and bundled there).</p></details>
   <h3 id="upload_plugin"><code>upload_plugin</code> <span class="who">writes</span></h3>
-  <p>Uploads a script file from this computer (.ts or .js, at most 256 KB, UTF-8 text) as a plugin source – what the editor's Library does with a dropped script.</p>
+  <p>Uploads a script file from this computer (.ts or .js, at most 256 KB, UTF-8 text) as a plugin of one file (its index.ts) – what the editor's Library does with a dropped script; `replace.</p>
   <pre><code>upload_plugin { experience, file, plugin?, replace? }</code></pre>
   <div class="table"><table>
     <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
@@ -467,7 +469,7 @@
     <tr id="upload_plugin-plugin"><td><code>plugin</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the plugin's id (default: from the file's name)</td></tr>
     <tr id="upload_plugin-replace"><td><code>replace</code> <span class="muted">optional</span></td><td class="wrap"><code>boolean</code></td><td class="wrap">true: the file replaces the source of an existing plugin</td></tr>
   </table></div>
-  <details><summary>Details</summary><p>The id is <code>plugin</code> or the file's name (<code>Wobble Effect.ts</code> → wobble-effect); an id that exists is refused (409 plugin-exists) unless <code>replace: true</code>, which makes the file that plugin's new source. A change is recorded. Answers the plugin and the types it registers (read from its text).</p></details>
+  <details><summary>Details</summary><p>true<code> makes it an existing plugin's index.ts (its other files stay). For a plugin of several files: put_plugin with files. The id is </code>plugin<code> or the file's name (</code>Wobble Effect.ts<code> → wobble-effect); an id that exists is refused (409 plugin-exists) unless </code>replace: true`, which makes the file that plugin's new source. A change is recorded. Answers the plugin and the types it registers (read from its text).</p></details>
   <h3 id="plugin_usages"><code>plugin_usages</code> <span class="who">reads</span></h3>
   <p>Where the draft uses what a plugin source registers – the experience's passes, scenes, targets, shared entities and entries that name one of its types – and those types.</p>
   <pre><code>plugin_usages { experience, plugin }</code></pre>
@@ -635,6 +637,19 @@
     <tr id="activate_version-build"><td><code>build</code></td><td class="wrap"><code>string</code></td><td class="wrap">the version's build (list_versions)</td></tr>
   </table></div>
   <details><summary>Details</summary><p><code>build</code> (list_versions) becomes the version readers get on their next start – versions.json and latest.json switch back, a row in the publish log says who did it. Builds are kept in the store, the draft is not changed. Ask the person first, naming the version's time and the environment. Signed in with an AI connection's token (osct_…) the API refuses it (403 not-for-ai): then the person does it in the editor (experiences page → the book's Versions). 404 unknown-build (not in this environment's publish log), 409 already-live, publish-running, build-missing (purged from the store), unreadable-schema (a content schema today's reader cannot read).</p></details>
+
+  <h2 id="other">Other</h2>
+  <h3 id="put_experience_landing"><code>put_experience_landing</code> <span class="who">writes</span></h3>
+  <p>Picks the desktop landing's hero (content schema 6.1, #355).</p>
+  <pre><code>put_experience_landing { experience, scene?, target?, remove? }</code></pre>
+  <div class="table"><table>
+    <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
+    <tr id="put_experience_landing-experience"><td><code>experience</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id (list_experiences)</td></tr>
+    <tr id="put_experience_landing-scene"><td><code>scene</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the scene's id</td></tr>
+    <tr id="put_experience_landing-target"><td><code>target</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the id of a target on that scene with AR content (a model, a video, a component)</td></tr>
+    <tr id="put_experience_landing-remove"><td><code>remove</code> <span class="muted">optional</span></td><td class="wrap"><code>boolean</code></td><td class="wrap">true removes the pick</td></tr>
+  </table></div>
+  <details><summary>Details</summary><p>one target with AR content (a model, a video, a plugin's node type or a node a component drives) on one scene – the landing's book opens on the scene's surface the target lies on and its content rises from its print. The tool extracts the hero from the draft as the editor does (the surface, its prints, the target's entity, the print layout's pictures, the experience's plugins and looks) and saves it with the pick in experience.landing; publish writes the version's landing.json from it. A target without AR content (marginalia, a link, a target without an entity) is refused. remove: true removes the pick – the landing shows the experience's first model again. Re-run it after the entity, the prints or the looks changed (the editor's Inspector says when the stored hero is out of date). The change is recorded.</p></details>
   <footer id="pager"></footer>
 </main>
 </body>

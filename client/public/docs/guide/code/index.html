@@ -15,7 +15,7 @@
 <main>
   <p class="kicker">Editor guide</p>
   <h1>The Code tab</h1>
-  <p class="lead">The Code tab holds the experience's plugins: TypeScript that adds components, node types, materials, passes and looks. You try code on the stage with Run and keep it with Save.</p>
+  <p class="lead">The Code tab holds the experience's plugins: TypeScript that adds components, node types, materials, passes and looks. A plugin can be one file or a few – each is a tab. You try code on the stage with Run and keep it with Save.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <p>What a plugin can do is in the <a href="/docs/api/plugins/">Plugin API</a>; this page is about the tab.</p>
   <h2 id="tab">The tab</h2>
@@ -23,27 +23,39 @@
     <div>
       <ul>
         <li><b>Plugin</b>: pick one of the experience's plugins. <b>new</b> starts one with two examples. An asterisk marks unsaved edits (<i>spin*</i>).</li>
-        <li><b>The editor</b> knows the plugin API: completion (<kbd>Ctrl</kbd>+<kbd>Space</kbd>), documentation on hover, type errors underlined.</li>
-        <li><b>On the stage</b>: the line under the editor says what of this plugin runs there: <i>the saved version</i>, <i>edits not saved</i>, <i>failed</i>, or <i>not loaded</i>.</li>
-        <li><b>Run</b> (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>): tries the text on the stage, saved or not.</li>
-        <li><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>): stores the source and runs it.</li>
-        <li><b>Download</b>: the plugin as a zip with its types, to work on in your own editor.</li>
-        <li><b>Delete</b>: refused while the draft uses something the plugin registers.</li>
+        <li><b>The files</b>: one tab each, <code>index.ts</code> first. See <a href="#files">The plugin's files</a>.</li>
+        <li><b>The editor</b> knows the plugin API: completion (<kbd>Ctrl</kbd>+<kbd>Space</kbd>), documentation on hover, type errors underlined – also across the plugin's files.</li>
+        <li><b>On the stage</b>: the line under the editor says what of this plugin runs there (<i>the saved version</i>, <i>edits not saved</i>, <i>failed</i>, <i>not loaded</i>), how many files it has and how big its last bundle was.</li>
+        <li><b>Run</b> (<kbd>Ctrl</kbd>+<kbd>Enter</kbd>): tries the files on the stage, saved or not.</li>
+        <li><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>): stores the files and runs them.</li>
+        <li><b>Download</b>: the plugin as a zip with its types, to work on in your own editor – or to drop into another experience.</li>
+        <li><b>Delete</b>: the whole plugin; refused while the draft uses something it registers.</li>
       </ul>
     </div>
     <figure>
-      <a href="/docs/img/code.webp"><img src="/docs/img/code.webp" width="576" height="844" alt="The Code tab with the spin plugin open." loading="lazy"></a>
-      <figcaption>The demo's <i>spin</i> plugin.</figcaption>
+      <a href="/docs/img/code.webp"><img src="/docs/img/code.webp" width="576" height="844" alt="The Code tab with a plugin of four files open: index.ts, bob.ts, foam.frag and tint.glsl as tabs, bob.ts shown, the line saying it is linked to a folder." loading="lazy"></a>
+      <figcaption>A plugin of four files, linked to someone's folder.</figcaption>
     </figure>
   </div>
 
+  <h2 id="files">The plugin's files</h2>
+  <p>A plugin is a folder of files. <code>index.ts</code> is its entry: it exports <code>register(api)</code> and keeps its name. Next to it can be more TypeScript files and shaders (<code>.frag</code>, <code>.vert</code>, <code>.glsl</code>, <code>.wgsl</code>).</p>
+  <ul>
+    <li><b>+</b> at the right of the tabs adds a file – a TypeScript file, a fragment or vertex shader, a GLSL include, WGSL – or uploads files from your computer. Files dropped on the tabs join the plugin.</li>
+    <li><b>Rename</b> a file with a double-click on its tab, <kbd>F2</kbd>, or its menu (right click).</li>
+    <li><b>The close cross deletes the file</b> right away, as a change of its own. <b>Undo</b> in the top bar brings it back (so does History). Your unsaved edits in the other files stay as they are.</li>
+    <li>In <code>index.ts</code>, bring in a file by its name: <code>import { wave } from "./wave"</code> for TypeScript, <code>import WATER from "./water.frag"</code> for a shader – you get its text.</li>
+    <li>A plugin's <b>zip</b> (from Download) dropped on the tabs or into the Library becomes a new plugin.</li>
+  </ul>
+  <p>Every save, push or delete of a plugin is in <b>History</b> and can be reverted there or with Undo – a deleted plugin comes back with all its files.</p>
+
   <h2 id="run">What Run does</h2>
   <ol>
-    <li>The TypeScript is turned into JavaScript in your browser. Types are removed, not checked.</li>
+    <li>The plugin's files are put together into one module in your browser (a plugin of several files loads a small bundler the first time). Types are removed, not checked.</li>
     <li>The stage loads it and registers what it adds, replacing the previous Run.</li>
     <li>The scene is built again. A new component now shows under <i>add component</i> in the Inspector, a pass under <i>add pass</i>, a node type under <i>+ node</i>.</li>
   </ol>
-  <p>Errors show under the editor and on their line. What ran before stays registered. The <b>log</b> below has the plugin's <code>api.log</code> lines and its errors on the stage.</p>
+  <p>Errors show under the editor and on their line – in another file, its tab comes forward. What ran before stays registered. The <b>log</b> below has the plugin's <code>api.log</code> lines and its errors on the stage.</p>
 
   <h2 id="saved">Saved sources load by themselves</h2>
   <p>Every time the workspace opens, the saved plugins are loaded onto the stage. Run is only for trying edits before you save them.</p>
@@ -51,12 +63,15 @@
 
   <h2 id="shipping">Reaching readers</h2>
   <ul>
-    <li><b>A Run reaches no reader. Publish does</b>: it carries every <b>saved</b> source.</li>
+    <li><b>A Run reaches no reader. Publish does</b>: it carries every <b>saved</b> plugin.</li>
     <li>Unsaved edits stay behind.</li>
-    <li>A source that does not compile stops the publish and names the line.</li>
-    <li>Type errors are <b>not</b> checked at publish. Fix what the editor underlines first.</li>
-    <li>A node that uses a component, node type, material, pass or look that no plugin provides stops the publish too.</li>
+    <li>Publish <b>checks the types</b> of every file first: a type error stops it and names the plugin, the file and the line.</li>
+    <li>A plugin that does not build stops the publish too, and so does a node that uses a component, node type, material, pass or look no plugin provides.</li>
+    <li>A plugin above 256 KB (bundled) is a warning in the publish, not a stop – readers download it with the AR scene.</li>
   </ul>
+
+  <h2 id="linked">Developing in your own folder</h2>
+  <p>A plugin can live in a folder on your computer, where your own editor and tools work on it. The <code>osct</code> command links the folder to a plugin of the experience: <code>osct plugin link</code> once, then <code>osct plugin push</code> sends the folder's files (it checks the types first; <code>--watch</code> sends every change). The stage runs them at once, and the Code tab shows a line <i>linked · … folder, pushed …</i>. Edits made in the Code tab are allowed – <code>osct plugin pull</code> brings them back to the folder. <i>Unlink</i> ends the link; the files stay. How to set it up: <a href="/docs/api/plugins/#own-folder">Plugin API · your own folder</a>.</p>
 
   <h2 id="safety">Where the code runs</h2>
   <div class="beside">

@@ -8,6 +8,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.12.1 – 2026-11-23
+
+### Changed
+- **The documentation site knows plugins of several files** (#352): the Code tab guide shows the file tabs (a new
+  screenshot), how to add, rename and delete a file, that Undo brings a deleted file back, that Publish checks the
+  types, and how to develop a plugin in your own folder with `osct plugin link`, `push` and `pull`. The plugin API
+  guide has a plugin of several files and shaders as files; History and the Library say what they do with plugins now.
+  The MCP and content references are generated again.
+
 ## 6.12.0 – 2026-11-23
 
 ### Added
