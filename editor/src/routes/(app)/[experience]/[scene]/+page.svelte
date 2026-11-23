@@ -1075,10 +1075,11 @@
         ...(hasTree ? [{ label: hit.path.length ? "Remove node" : "Remove entity", select: menuRemoveNode }] : []),
         { label: "Placement on the surface…", select: menuPlacement },
         { label: "Replay the first find", select: () => stage?.replayUnlock() },
-        { label: "Use for the landing page", disabled: landingContentProblem(stage.treeOf(hit.targetId)), select: () => useForLanding(hit.targetId),
+        // The target's id is taken now: the menu closes before an item runs, and `hit` is gone by then
+        { label: "Use for the landing page", disabled: landingContentProblem(stage.treeOf(hit.targetId)), select: (id => () => useForLanding(id))(hit.targetId),
           help: "The desktop landing's hero shows this target's AR content (a model, a video, a component) on its print, on this scene's surface: its picture, the entity and the experience's looks are taken from the draft now and stored in the experience – publish writes them into the version's landing.json. The experience's Inspector (⚙) shows the pick, refreshes it and removes it." },
         { label: "Library…", select: () => chooseTab("library") },
-        { label: "Remove target", danger: true, select: () => { const t = content.scene(sceneId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
+        { label: "Remove target", danger: true, select: (id => () => { const t = content.scene(sceneId)?.targets.find(x => x.id === id); if (t) void removeEntry(t.entryId, t.id); })(hit.targetId) },
       ]} />
     {:else if stageMenu}
       <ContextMenu at={stageMenu} label="Stage" head={scene ? sceneLabel(scene) : sceneId} onclose={() => (stageMenu = null)} items={[
