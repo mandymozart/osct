@@ -8,6 +8,16 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.13.1 – 2026-11-23
+
+### Changed
+- **The documentation site knows the landing page** (Tilman, 2026-11-23: *"when finished update docs"*): a new guide
+  page *The landing page* – what a computer gets instead of the app, Privacy & terms as a static page, the landing
+  workspace (its stage with the draft, the Inspector, the Scenes panel, Scenes · Landing in the top bar), choosing the
+  hero (in the workspace or with *Use for the landing page* on the stage), *out of date* / Refresh / Remove, and the
+  reserved scene id `landing`. The guide's first page, the workspace, stage, Inspector and Experiences pages link to it,
+  and the tutorials for editors have a twelfth: *Choose the landing page's hero*. No new screenshots yet.
+
 ## 6.13.0 – 2026-11-23
 
 ### Added

@@ -19,6 +19,7 @@
       ["/docs/guide/workspace/", "Workspace and panels"],
       ["/docs/guide/stage/", "The stage"],
       ["/docs/guide/scenes/", "Scenes and surfaces"],
+      ["/docs/guide/landing/", "The landing page"],
       ["/docs/guide/inspector/", "The Inspector"],
       ["/docs/guide/library/", "Library and Environment"],
       ["/docs/guide/logic/", "The Logic panel"],
