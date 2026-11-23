@@ -37,5 +37,10 @@
   "historyConfirmAccount": "Supprimer toute la progression de ce livre – sur cet appareil et dans ton compte ?",
   "installAdded": "L'application est installée – ouvre-la depuis ton écran d'accueil ou ta liste d'applications.",
   "subtitlesLabel": "Sous-titres",
-  "subtitlesDescription": "Affiche en texte ce qui est dit dans une vidéo."
+  "subtitlesDescription": "Affiche en texte ce qui est dit dans une vidéo.",
+  "embedsLabel": "Vidéos et pages d'autres sites",
+  "embedsDescription": "Certaines entrées montrent des vidéos de YouTube ou Vimeo ou des pages d'autres sites. Elles ne se chargent qu'après votre accord, car ces sites peuvent déposer des cookies et suivre ce que vous regardez.",
+  "embedsAllowed": "Se charge sans demander",
+  "embedsAsk": "Demande d'abord",
+  "embedsAskAgain": "Redemander"
 }

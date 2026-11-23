@@ -8,6 +8,17 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.5.0 – 2026-11-23
+
+### Added
+- **Videos and pages from other sites load only after the reader agrees** (Tilman, 2026-11-23, #351: *"a player that
+  embeds the youtube but asks to confirm since this is third party embed which does tracking a cookies. like big
+  newspapers do"*): a Links entry's YouTube / Vimeo player or embedded page is replaced by a card – who would load,
+  that they may set cookies and track, their privacy policy, **Play video** / **Show page** and *Always for <provider>*.
+  Nothing is requested from the provider before the tap (no thumbnail; the entry's own picture is the poster, if it has
+  one); after **Play video** the player starts at once. Info → Settings lists YouTube, Vimeo and every site allowed with
+  *Ask again* – kept on this device only (`EmbedConsentService`).
+
 ## 6.4.1 – 2026-11-23
 
 ### Changed

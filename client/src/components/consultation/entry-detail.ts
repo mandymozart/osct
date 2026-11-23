@@ -4,7 +4,9 @@ import { escapeHtml } from "@/utils";
 import { GraphicsService } from "@/services/GraphicsService";
 import { renderEntryText, type VariableLookup } from "@shared/text/entry-text";
 import { getEntryPlaceLabel } from "@/utils/game-config";
-import { categoryLabel, linkEmbed } from "./entries-model";
+import { EmbedConsentService } from "@/services/EmbedConsentService";
+import { goldButton } from "@/components/buttons";
+import { categoryLabel, type LinkEmbed, linkEmbed } from "./entries-model";
 import { t } from "i18next";
 
 /**
@@ -12,6 +14,10 @@ import { t } from "i18next";
  * Author –, then per category – glossary: text + image with its caption (the entry's `caption`, Small, muted); text:
  * long text; video: a note to scan the access page + a preview player; link: the embedded player across the screen's
  * full width (the page's gutter, `--content-gutter`, is bled) or the embedded page, + "open in a new tab".
+ * Another site's player or page loads only after the reader agreed (#351): until then a card in its place says who
+ * would load and that they may set cookies and track, with the provider's privacy policy, a button that loads it
+ * (a video then plays at once) and "Always for <provider>" (`EmbedConsentService`, taken back in Info → Settings).
+ * Nothing is requested from the provider before that – the card's poster is the entry's own image, if it has one.
  * The body is set in Medium (`--text-size`).
  * The body is the content's Markdown with the experience's variables (`renderEntryText`, the editor's preview renders the same):
  * the page sets `variables` (their values when the entry opens), then `entry`; `null` empties it and stops media.
@@ -25,6 +31,7 @@ export class EntryDetail extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     adoptDesignStyles(this.shadowRoot);
+    this.shadowRoot!.addEventListener("click", this.handleClick);
   }
 
   get entry(): Entry | null {
@@ -75,6 +82,26 @@ export class EntryDetail extends HTMLElement {
             margin-inline: calc(-1 * var(--content-gutter, 0px));
           }
           iframe.page { height: 70vh; background: #fff; }
+          /* The consent card (#351) in the embed's place, across the gutter like the player */
+          .gate {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: .75rem;
+            aspect-ratio: 16 / 9;
+            width: calc(100% + 2 * var(--content-gutter, 0px));
+            margin: 1rem calc(-1 * var(--content-gutter, 0px));
+            padding: 1rem var(--content-gutter, 1rem);
+            box-sizing: border-box;
+            background: #000 center / cover no-repeat;
+            font-size: var(--text-size-small);
+            line-height: var(--text-line);
+          }
+          .gate .who { color: var(--color-muted); text-transform: uppercase; letter-spacing: .08em; }
+          .gate p { margin: 0; }
+          .gate .acts { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; margin-top: .25rem; }
+          .gate label { display: inline-flex; align-items: center; gap: .4rem; }
+          .gate input { accent-color: #d2ae5a; margin: 0; }
           .hint { color: var(--color-muted); font-size: var(--text-size-small); }
         </style>
         <table class="rule-table">
@@ -111,13 +138,8 @@ export class EntryDetail extends HTMLElement {
       }
       case EntryCategory.Link: {
         const embed = entry.media ? linkEmbed(entry.media) : undefined;
-        const frame = !embed
-          ? ""
-          : embed.kind === "video"
-            ? `<iframe class="video" src="${escapeHtml(embed.src)}" title="${escapeHtml(entry.title)}" loading="lazy"
-                allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
-            : `<iframe class="page" src="${escapeHtml(embed.src)}" title="${escapeHtml(entry.title)}" loading="lazy"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        const allowed = embed && EmbedConsentService.getInstance().isAllowed(embed.provider.id);
+        const frame = !embed ? "" : allowed ? this.frameHtml(embed, entry.title, false) : this.gateHtml(embed, src);
         return /* html */ `
           ${text}
           ${frame}
@@ -126,6 +148,46 @@ export class EntryDetail extends HTMLElement {
       }
     }
   }
+
+  /** The player or page itself; `play`: the reader just tapped, so a video starts at once */
+  private frameHtml(embed: LinkEmbed, title: string, play: boolean): string {
+    return embed.kind === "video"
+      ? `<iframe class="video" src="${escapeHtml(play ? embed.playSrc : embed.src)}" title="${escapeHtml(title)}" loading="lazy"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
+      : `<iframe class="page" src="${escapeHtml(embed.src)}" title="${escapeHtml(title)}" loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  }
+
+  /** The consent card in the embed's place (#351); `poster`: the entry's own image, darkened behind the text */
+  private gateHtml(embed: LinkEmbed, poster: string): string {
+    const provider = embed.provider.name;
+    const video = embed.kind === "video";
+    const background = poster ? ` style="background-image: linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,.8)), url(&quot;${escapeHtml(poster)}&quot;)"` : "";
+    const policy = embed.provider.policy
+      ? ` <a href="${escapeHtml(embed.provider.policy)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("entry:embedPolicy", { provider }))}</a>`
+      : "";
+    return /* html */ `
+      <div class="gate" data-embed-gate${background}>
+        <div class="who">${escapeHtml(t(video ? "entry:embedVideoFrom" : "entry:embedPageFrom", { provider }))}</div>
+        <p>${escapeHtml(t(video ? "entry:embedVideoNotice" : "entry:embedPageNotice", { provider }))}${policy}</p>
+        <div class="acts">
+          ${goldButton({ label: t(video ? "entry:embedPlay" : "entry:embedShow"), primary: true, attrs: { "data-action": "load-embed" } })}
+          <label><input type="checkbox" data-embed-always> ${escapeHtml(t("entry:embedAlways", { provider }))}</label>
+        </div>
+      </div>
+    `;
+  }
+
+  /** The card's button: remember "Always" if ticked, then put the player or page in the card's place */
+  private handleClick = (event: Event) => {
+    const button = (event.target as HTMLElement).closest<HTMLElement>("[data-action=load-embed]");
+    const gate = button?.closest<HTMLElement>("[data-embed-gate]");
+    const entry = this._entry;
+    const embed = entry?.media ? linkEmbed(entry.media) : undefined;
+    if (!gate || !entry || !embed) return;
+    if (gate.querySelector<HTMLInputElement>("[data-embed-always]")?.checked) EmbedConsentService.getInstance().allow(embed.provider.id);
+    gate.outerHTML = this.frameHtml(embed, entry.title, true);
+  };
 }
 
 customElements.define("entry-detail", EntryDetail);

@@ -37,5 +37,10 @@
   "historyConfirmAccount": "Delete all saved progress for this book – on this device and in your account?",
   "installAdded": "The app is installed – open it from your home screen or app list.",
   "subtitlesLabel": "Subtitles",
-  "subtitlesDescription": "Shows what a video says as text while it plays."
+  "subtitlesDescription": "Shows what a video says as text while it plays.",
+  "embedsLabel": "Videos and pages from other sites",
+  "embedsDescription": "Some entries show videos from YouTube or Vimeo or pages from other sites. They load only after you agree, because these sites may set cookies and track what you watch.",
+  "embedsAllowed": "Loads without asking",
+  "embedsAsk": "Asks first",
+  "embedsAskAgain": "Ask again"
 }

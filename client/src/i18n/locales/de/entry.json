@@ -7,5 +7,13 @@
   "goToPlace": "Geh im Scanmodus zu {{place}}, um das Video zu sehen.",
   "preview": "Vorschau (die AR-Version erscheint auf der Seite):",
   "openInNewTab": "In neuem Tab öffnen",
-  "missing": "Dieser Eintrag ist (nicht mehr) Teil des Buches."
+  "missing": "Dieser Eintrag ist (nicht mehr) Teil des Buches.",
+  "embedVideoFrom": "Video auf {{provider}}",
+  "embedPageFrom": "Seite auf {{provider}}",
+  "embedVideoNotice": "Beim Abspielen wird der Player von {{provider}} geladen, der Cookies setzen und erfassen kann, was du ansiehst.",
+  "embedPageNotice": "Beim Anzeigen wird die Seite von {{provider}} geladen. Die Seite kann dabei Cookies setzen und erfassen, was du dort tust.",
+  "embedPolicy": "Datenschutzerklärung von {{provider}}",
+  "embedPlay": "Video abspielen",
+  "embedShow": "Seite anzeigen",
+  "embedAlways": "Immer für {{provider}}"
 }

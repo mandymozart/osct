@@ -37,5 +37,10 @@
   "historyConfirmAccount": "Alle opgeslagen voortgang voor dit boek verwijderen – op dit apparaat en in je account?",
   "installAdded": "De app is geïnstalleerd – open hem vanaf je beginscherm of je lijst met apps.",
   "subtitlesLabel": "Ondertitels",
-  "subtitlesDescription": "Toont als tekst wat er in een video gezegd wordt."
+  "subtitlesDescription": "Toont als tekst wat er in een video gezegd wordt.",
+  "embedsLabel": "Video's en pagina's van andere sites",
+  "embedsDescription": "Sommige items tonen video's van YouTube of Vimeo of pagina's van andere sites. Ze laden pas als je toestemming geeft, omdat deze sites cookies kunnen plaatsen en kunnen volgen wat je bekijkt.",
+  "embedsAllowed": "Laadt zonder te vragen",
+  "embedsAsk": "Vraagt eerst",
+  "embedsAskAgain": "Opnieuw vragen"
 }

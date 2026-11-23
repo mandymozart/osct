@@ -13,3 +13,4 @@ export * from "./InstallService";
 export * from "./ApiService";
 export * from "./UserService";
 export * from "./ArrivalService";
+export * from "./EmbedConsentService";

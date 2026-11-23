@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – Other sites' videos and pages wait for the reader's yes (#351, 6.5.0)
+- Tilman: *"a player that embeds the youtube but asks to confirm since this is third party embed which does tracking a
+  cookies. like big newspapers do this with a disclaimer that has to be confirmed before loading the iframe"*. Concept
+  `agents/design/video-consent.html`; Tilman: *"Yes, build it"* – with the recommendations: *Always for <provider>*
+  offered unticked and taken back in Settings; embedded **pages** gated too, one *Always* per host; the entry's own
+  `image` as the card's poster (never the provider's thumbnail).
+- Consent is per device (`osct-embed-consent` in localStorage), not on the account – RULES #33's consent is the account's
+  newsletter options; this one is the browser's own, like the other reader settings.
+- [ ] The card's wording is a placeholder – the final text with whoever writes the app's privacy page (and that page
+      should name YouTube / Vimeo as third parties loaded on request).
+
 ## 2026-11-22 – Which PDF is the book: the final preview spreads, not the litho print (#349)
 - Tilman's *very final* version is `OSCT_FULL_preview_spreads_HIGHRES.pdf` (Virginie's Dropbox "Higher Res Exports for
   Tilman", 1 114 098 658 bytes – the same file as `osct-incoming-content/final-2026-11-19/`). `OSCT_LAST_LithographyPRINT.pdf`

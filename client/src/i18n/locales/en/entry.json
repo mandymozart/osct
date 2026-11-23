@@ -7,5 +7,13 @@
   "goToPlace": "Go to {{place}} in scan mode to see the video.",
   "preview": "Preview (the AR version is shown on the page):",
   "openInNewTab": "Open in a new tab",
-  "missing": "This entry is not part of the book (anymore)."
+  "missing": "This entry is not part of the book (anymore).",
+  "embedVideoFrom": "Video on {{provider}}",
+  "embedPageFrom": "Page on {{provider}}",
+  "embedVideoNotice": "Playing loads the player from {{provider}}, which may set cookies and record what you watch.",
+  "embedPageNotice": "Showing it loads the page from {{provider}}, which may set cookies and track what you do there.",
+  "embedPolicy": "Privacy policy of {{provider}}",
+  "embedPlay": "Play video",
+  "embedShow": "Show page",
+  "embedAlways": "Always for {{provider}}"
 }

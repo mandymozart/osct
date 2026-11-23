@@ -46,6 +46,7 @@ export class AboutPage extends ConsultationPage {
           <settings-feedback></settings-feedback>
           <settings-language></settings-language>
           <settings-graphics></settings-graphics>
+          <settings-embeds></settings-embeds>
           <settings-download></settings-download>
         </div>
 

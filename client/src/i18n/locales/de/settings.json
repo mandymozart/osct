@@ -37,5 +37,10 @@
   "historyConfirmAccount": "Deinen gesamten Fortschritt für dieses Buch löschen – auf diesem Gerät und in deinem Konto?",
   "installAdded": "Die App ist installiert – öffne sie über deinen Startbildschirm oder deine App-Liste.",
   "subtitlesLabel": "Untertitel",
-  "subtitlesDescription": "Zeigt als Text, was in einem Video gesprochen wird."
+  "subtitlesDescription": "Zeigt als Text, was in einem Video gesprochen wird.",
+  "embedsLabel": "Videos und Seiten anderer Anbieter",
+  "embedsDescription": "Manche Einträge zeigen Videos von YouTube oder Vimeo oder Seiten anderer Websites. Sie laden erst, wenn du zustimmst, weil diese Anbieter Cookies setzen und erfassen können, was du ansiehst.",
+  "embedsAllowed": "Lädt ohne Nachfrage",
+  "embedsAsk": "Fragt vorher",
+  "embedsAskAgain": "Wieder fragen"
 }

@@ -104,13 +104,28 @@ export const groupEntries = <T extends Pick<Entry, "title" | "category" | "scene
   return groups;
 };
 
+/**
+ * Who serves an embed (#351): `id` is what the reader's consent is kept under (`EmbedConsentService`) – `youtube`,
+ * `vimeo`, or a page's host –, `name` is shown, `policy` is the provider's privacy policy (none for an arbitrary site).
+ */
+export interface EmbedProvider {
+  id: string;
+  name: string;
+  policy?: string;
+}
+
+/** `src` loads the embed as it is; `playSrc` (videos) the same player starting at once, after the reader's tap */
 export type LinkEmbed =
-  | { kind: "video"; src: string }
-  | { kind: "page"; src: string };
+  | { kind: "video"; src: string; playSrc: string; provider: EmbedProvider }
+  | { kind: "page"; src: string; provider: EmbedProvider };
+
+const YOUTUBE: EmbedProvider = { id: "youtube", name: "YouTube", policy: "https://policies.google.com/privacy" };
+const VIMEO: EmbedProvider = { id: "vimeo", name: "Vimeo", policy: "https://vimeo.com/privacy" };
 
 /**
- * How a Links entry is shown: YouTube / Vimeo as a player, everything else as an embedded page.
- * Pages may refuse embedding (X-Frame-Options), so the view always offers "open in a new tab" as well.
+ * How a Links entry is shown: YouTube / Vimeo as a player, everything else as an embedded page – each only after the
+ * reader agreed (#351, `<entry-detail>`'s gate). Pages may refuse embedding (X-Frame-Options), so the view always
+ * offers "open in a new tab" as well.
  */
 export const linkEmbed = (url: string): LinkEmbed | undefined => {
   let parsed: URL;
@@ -128,10 +143,16 @@ export const linkEmbed = (url: string): LinkEmbed | undefined => {
       : host === "youtube.com"
         ? parsed.searchParams.get("v") ?? parsed.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1]
         : undefined;
-  if (youtubeId) return { kind: "video", src: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}` };
+  if (youtubeId) {
+    const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}`;
+    return { kind: "video", src, playSrc: `${src}?autoplay=1`, provider: YOUTUBE };
+  }
 
   const vimeoId = host === "vimeo.com" ? parsed.pathname.match(/^\/(\d+)/)?.[1] : undefined;
-  if (vimeoId) return { kind: "video", src: `https://player.vimeo.com/video/${vimeoId}?dnt=1` };
+  if (vimeoId) {
+    const src = `https://player.vimeo.com/video/${vimeoId}?dnt=1`;
+    return { kind: "video", src, playSrc: `${src}&autoplay=1`, provider: VIMEO };
+  }
 
-  return { kind: "page", src: parsed.href };
+  return { kind: "page", src: parsed.href, provider: { id: host, name: host } };
 };

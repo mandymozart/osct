@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { GameStoreService } from "@/services";
+import { EMBED_CONSENT_STORAGE_KEY, EmbedConsentService, GameStoreService } from "@/services";
 import { EntryCategory, Pages } from "@/types";
 import { getEntries, getScene } from "@/utils/game-config";
 import { placeLabel } from "../entries-model";
@@ -160,5 +160,57 @@ describe("entry detail", () => {
     expect(figure.querySelector("figcaption")?.textContent).toBe("Image: <b>Kevin Hong</b>");
     detail.entry = { ...glossaryEntry(), image: undefined, caption: "Image: nothing" };
     expect(detail.shadowRoot!.querySelector("figcaption")).toBeNull();
+  });
+
+  describe("another site's video or page (#351)", () => {
+    const consent = EmbedConsentService.getInstance();
+    const linkEntry = (media: string, image?: string) => ({ ...glossaryEntry(), category: EntryCategory.Link, media, image });
+    beforeEach(() => {
+      consent.revoke("youtube");
+      consent.revoke("example.org");
+    });
+
+    it("shows the card, not the player, until the reader taps Play – then the player starts at once", () => {
+      const detail = mount<EntryDetail>("entry-detail");
+      detail.entry = linkEntry("https://www.youtube.com/watch?v=abc123");
+      const root = detail.shadowRoot!;
+      expect(root.querySelector("iframe")).toBeNull();
+      const gate = root.querySelector<HTMLElement>("[data-embed-gate]")!;
+      expect(gate.textContent).toContain("Video on YouTube");
+      expect(gate.querySelector<HTMLAnchorElement>("a")?.href).toBe("https://policies.google.com/privacy");
+
+      gate.querySelector<HTMLElement>("[data-action=load-embed]")!.click();
+      expect(root.querySelector("[data-embed-gate]")).toBeNull();
+      expect(root.querySelector("iframe.video")?.getAttribute("src")).toBe("https://www.youtube-nocookie.com/embed/abc123?autoplay=1");
+      expect(consent.isAllowed("youtube")).toBe(false);
+
+      detail.entry = linkEntry("https://www.youtube.com/watch?v=abc123");
+      expect(root.querySelector("[data-embed-gate]")).not.toBeNull();
+    });
+
+    it("remembers Always for the provider: the next entry loads its player without asking", () => {
+      const detail = mount<EntryDetail>("entry-detail");
+      detail.entry = linkEntry("https://youtu.be/abc123");
+      const root = detail.shadowRoot!;
+      root.querySelector<HTMLInputElement>("[data-embed-always]")!.checked = true;
+      root.querySelector<HTMLElement>("[data-action=load-embed]")!.click();
+      expect(consent.isAllowed("youtube")).toBe(true);
+      expect(JSON.parse(localStorage.getItem(EMBED_CONSENT_STORAGE_KEY)!)).toContain("youtube");
+
+      detail.entry = linkEntry("https://youtu.be/xyz");
+      expect(root.querySelector("[data-embed-gate]")).toBeNull();
+      expect(root.querySelector("iframe.video")?.getAttribute("src")).toBe("https://www.youtube-nocookie.com/embed/xyz");
+    });
+
+    it("asks before another site's page too, per site, with the entry's own picture as the poster", () => {
+      const detail = mount<EntryDetail>("entry-detail");
+      detail.entry = linkEntry("https://example.org/article", "/poster.jpg");
+      const gate = detail.shadowRoot!.querySelector<HTMLElement>("[data-embed-gate]")!;
+      expect(gate.textContent).toContain("Page on example.org");
+      expect(gate.getAttribute("style")).toContain("/poster.jpg");
+      expect(detail.shadowRoot!.querySelector("iframe")).toBeNull();
+      gate.querySelector<HTMLElement>("[data-action=load-embed]")!.click();
+      expect(detail.shadowRoot!.querySelector("iframe.page")?.getAttribute("src")).toBe("https://example.org/article");
+    });
   });
 });

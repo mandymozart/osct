@@ -72,10 +72,21 @@ describe("entries model", () => {
   });
 
   it("embeds YouTube / Vimeo as a player and other pages as a page", () => {
-    expect(linkEmbed("https://www.youtube.com/watch?v=abc123&t=4")).toEqual({ kind: "video", src: "https://www.youtube-nocookie.com/embed/abc123" });
-    expect(linkEmbed("https://youtu.be/abc123")).toEqual({ kind: "video", src: "https://www.youtube-nocookie.com/embed/abc123" });
-    expect(linkEmbed("https://vimeo.com/76979871")).toEqual({ kind: "video", src: "https://player.vimeo.com/video/76979871?dnt=1" });
-    expect(linkEmbed("https://www.theguardian.com/media/article")).toEqual({ kind: "page", src: "https://www.theguardian.com/media/article" });
+    const youtube = { id: "youtube", name: "YouTube", policy: "https://policies.google.com/privacy" };
+    const player = "https://www.youtube-nocookie.com/embed/abc123";
+    expect(linkEmbed("https://www.youtube.com/watch?v=abc123&t=4")).toEqual({ kind: "video", src: player, playSrc: `${player}?autoplay=1`, provider: youtube });
+    expect(linkEmbed("https://youtu.be/abc123")).toEqual({ kind: "video", src: player, playSrc: `${player}?autoplay=1`, provider: youtube });
+    expect(linkEmbed("https://vimeo.com/76979871")).toEqual({
+      kind: "video",
+      src: "https://player.vimeo.com/video/76979871?dnt=1",
+      playSrc: "https://player.vimeo.com/video/76979871?dnt=1&autoplay=1",
+      provider: { id: "vimeo", name: "Vimeo", policy: "https://vimeo.com/privacy" },
+    });
+    expect(linkEmbed("https://www.theguardian.com/media/article")).toEqual({
+      kind: "page",
+      src: "https://www.theguardian.com/media/article",
+      provider: { id: "theguardian.com", name: "theguardian.com" },
+    });
     expect(linkEmbed("javascript:alert(1)")).toBeUndefined();
     expect(linkEmbed("not a url")).toBeUndefined();
   });

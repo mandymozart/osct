@@ -71,7 +71,7 @@ Lines starting with `#` are comments and are ignored.
 | `author` | no | for texts – shown in the list as *'Title', Author* |
 | `image` | no | an image shown in the entry (glossary), file in the entry folder |
 | `caption` | no | the line under the image ("Image: anatomical illustration by …"), plain text in Small (schema 2.34, #289) – the entry's own text, not the Library's credit line (`credits`) |
-| `media` | no | for links: the web address (YouTube / Vimeo play inside the app, other pages are embedded) |
+| `media` | no | for links: the web address (YouTube / Vimeo play inside the app, other pages are embedded – each only after the reader agreed, #351) |
 | `tags` | no | list of keywords, e.g. `tags: [forest, animal]` |
 | `target` | no | the printed image that unlocks the entry – see below |
 
