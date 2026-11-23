@@ -86,8 +86,16 @@ export interface PreviewOrbit {
   distance: number;
   tilt: number;
   yaw: number;
-  /** The looked-at point moved from the scene's own: mm in the page plane (a pan) */
-  pan?: { x: number; y: number };
+  /** The looked-at point moved from the scene's own (mm, the stage's frame): a pan, a focus; `z` above the table (#335) */
+  pan?: { x: number; y: number; z?: number };
+  /**
+   * What the looked-at point is fixed to (#335): a surface's id – a pan slides it along that surface's plane; none =
+   * the table. `label` names what was focused (the stage's corner says what the camera turns around).
+   */
+  surface?: string;
+  label?: string;
+  /** Free (#335): the looked-at point is fixed to nothing – a pan moves it along the screen, anywhere in the room */
+  free?: boolean;
 }
 
 /**
@@ -305,7 +313,10 @@ const isOrbit = (value: unknown): value is PreviewOrbit => {
   const orbit = value as Record<string, unknown>;
   if (!["distance", "tilt", "yaw"].every(key => Number.isFinite(orbit[key]))) return false;
   const pan = orbit.pan as Record<string, unknown> | undefined;
-  return pan === undefined || (!!pan && typeof pan === "object" && Number.isFinite(pan.x) && Number.isFinite(pan.y));
+  const panOk = pan === undefined || (!!pan && typeof pan === "object" && Number.isFinite(pan.x) && Number.isFinite(pan.y)
+    && (pan.z === undefined || Number.isFinite(pan.z)));
+  const optional = (key: string, type: string) => orbit[key] === undefined || typeof orbit[key] === type;
+  return panOk && optional("surface", "string") && optional("label", "string") && optional("free", "boolean");
 };
 
 const writeSettings = (settings: PreviewSettings): void => {

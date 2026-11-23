@@ -8,7 +8,7 @@
   import { Stage, type StagePick } from "#lib/stage/stage.svelte.js";
   import { PICK_KINDS, toggleKind, type PickKind } from "#lib/stage/pick.js";
   import { STAGE_TOOLS, TOOL_KEYS, type StageTool } from "#lib/stage/gizmo.js";
-  import { updatePreview, type ShadingMode } from "#lib/stage/preview.js";
+  import { getPreview, subscribePreview, updatePreview, type PreviewOrbit, type ShadingMode } from "#lib/stage/preview.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
   import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
   import GridSnapMenu from "#lib/components/GridSnapMenu.svelte";
@@ -717,6 +717,29 @@
   /** The view group: the stage's menu opens it (*View settings…*) */
   let viewMenu = $state<{ open: () => void }>();
 
+  // ── the camera (#335): Home, Focus on the selection (nothing: the whole scene), the point fixed to a surface or free ──
+  let cameraOrbit = $state<PreviewOrbit | null>(getPreview().orbit);
+  onMount(() => subscribePreview(state => (cameraOrbit = state.orbit)));
+  const cameraFree = $derived(!!cameraOrbit?.free);
+  /** What the stage's corner says the camera turns around: a focused thing, free – nothing at Home */
+  const cameraCorner = $derived(cameraOrbit?.free ? "Free camera" : (cameraOrbit?.label ?? null));
+  /** Focus on what is selected on this scene's stage: a surface, a node, a target – else the whole scene */
+  const focusSelection = () => {
+    if (!stage) return;
+    const surface = selection.surface && selection.surface.scene === sceneId ? selection.surface.id : undefined;
+    if (surface) {
+      const label = content.scene(sceneId)?.surfaces?.find(s => s.id === surface)?.label || surface;
+      stage.focusCamera({ surface, label });
+    } else if (selection.target && !selection.onTarget) {
+      const label = selection.node.length ? `${selection.target} › ${selection.node.join(" › ")}` : selection.target;
+      stage.focusCamera({ node: { targetId: selection.target, path: [...selection.node] }, target: selection.target, label });
+    } else if (selection.target) {
+      stage.focusCamera({ target: selection.target, label: selection.target });
+    } else {
+      stage.focusCamera({});
+    }
+  };
+
   // ── the stage's menu (right click): what lies there decides the actions ──
   let stageMenu = $state<{ hit: StagePick | null; x: number; y: number } | null>(null);
   const menuRemoveNode = () => {
@@ -750,7 +773,7 @@
     openTab("inspector");
     requestAnimationFrame(() => document.querySelector<HTMLButtonElement>("button.placement-toggle")?.click());
   };
-  const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · double tap = the reader's view · ← → = the scenes. A click picks what lies there, right click opens its menu.";
+  const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · F = focus on the selection · Home or double tap = the reader's view · ← → = the scenes. A click picks what lies there, right click opens its menu.";
 
   const scene = $derived(content.scene(sceneId));
 
@@ -772,8 +795,8 @@
     const metrics = { button, gap: rem / 8, rule: (3 * rem) / 8 + 1, chrome: rem / 4 + 2 };
     if (JSON.stringify(metrics) !== JSON.stringify(untrack(() => toolMetrics))) toolMetrics = metrics;
     // The Tools panel's room: the width it was resized to, else the room between the Tree and the Inspector
-    // Less the groups that never fold: undo / redo / history (3 buttons, #312) and Live (2), each with its rule
-    const fixed = 5 * button + 3 * metrics.gap + 2 * (metrics.gap + metrics.rule);
+    // Less the groups that never fold: undo / redo / history (3 buttons, #312), the camera (3, #335) and Live (2), each with its rule
+    const fixed = 8 * button + 5 * metrics.gap + 3 * (metrics.gap + metrics.rule);
     const room = floatingRoom(rem) - ROOM_SLACK - fixed;
     // A column (#315): every group one button and its menu – side by side its options would make it wide
     const next = floats.vertical("tools") ? TOOL_SHAPES.map(() => false) : expandedGroups(TOOL_SHAPES, room, metrics);
@@ -785,12 +808,13 @@
   // toolbar's whole length (every group in it, `along`), so the room it is given never depends on what is hidden: each
   // group's length is measured where it last stood in the toolbar (an estimate from its buttons before that), the room
   // is the panel's laid-out size less its chrome, and `fittingGroups` decides – no loop, no flicker ──
-  /** The toolbar's groups in order: undo / redo / history, the tool, the select filters, render quality, grid & snap, view, live */
-  const GROUP_COUNT = 7;
+  /** The toolbar's groups in order: undo / redo / history, the tool, the select filters, render quality, grid & snap, view, camera, live */
+  const GROUP_COUNT = 8;
+  const CAMERA_GROUP = 6;
   const VIEW_GROUP = 5;
   let toolMetrics = $state<ToolbarMetrics>({ button: 28, gap: 2, rule: 7, chrome: 6 });
   /** Each group's buttons, for its estimate (the tool and the filters side by side when expanded) */
-  const groupButtons = (i: number) => [3, expanded[0] ? TOOL_OPTIONS.length : 1, expanded[1] ? FILTER_OPTIONS.length : 1, 1, 1, 1, 2][i];
+  const groupButtons = (i: number) => [3, expanded[0] ? TOOL_OPTIONS.length : 1, expanded[1] ? FILTER_OPTIONS.length : 1, 1, 1, 1, 3, 2][i];
   /** A measured length's key: a group's length depends on the orientation, a finger's button size and its expansion */
   const lengthKey = (part: number | "more" | "end") => {
     const at = `${floats.vertical("tools") ? "v" : "h"}${coarse ? "c" : "f"}`;
@@ -931,6 +955,11 @@
     if (event.key === "ArrowRight") step(1);
     const tool = TOOL_KEYS[event.key.toLowerCase()];
     if (tool && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setTool(tool);
+    // The camera (#335): F focuses on the selection, Home goes back to the reader's view
+    if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (event.key === "f" || event.key === "F") focusSelection();
+      if (event.key === "Home") { event.preventDefault(); stage?.cameraHome(); }
+    }
     // Esc deselects a selected surface (#314, the Surface mode): the scene is selected again
     if (event.key === "Escape" && selection.surface && !picking) selection.clear();
     // Delete removes the selected node (the tree does the same when it has the focus and stops the event)
@@ -990,6 +1019,20 @@
       <GridSnapMenu />
     {:else if i === VIEW_GROUP}
       <ViewMenu bind:this={viewMenu} />
+    {:else if i === CAMERA_GROUP}
+      <!-- #335: the camera – Home, Focus on the selection, the point it turns around fixed to a surface or free -->
+      <span class="tool-group camera" role="group" aria-label="Camera">
+        <button type="button" class="icon-button" onclick={() => stage?.cameraHome()} aria-label="Home" title="Home (Home key, double click): the reader's view around the scene's origin"
+          data-help-name="Home" data-help="Back to the start view: the reader's view, turning around the scene's origin on the table. The Home key and a double click on the stage do the same.">
+          <Icon name="home" /></button>
+        <button type="button" class="icon-button" onclick={focusSelection} aria-label="Focus" title="Focus (F): turn around the selection – a surface, a target, a node; nothing selected: the whole scene"
+          data-help-name="Focus" data-help="The camera faces the selection and turns around its middle: a surface (a standing poster, a wall) front-on and whole, a printed target, a node of an entity. With nothing selected it shows the whole scene. A pan then slides along that surface.">
+          <Icon name="crosshair" /></button>
+        <button type="button" class="icon-button" class:on={cameraFree} aria-pressed={cameraFree} onclick={() => stage?.cameraFree(!cameraFree)}
+          aria-label={cameraFree ? "Camera: free" : "Camera: fixed"} title={cameraFree ? "Free: a pan moves the camera's point along the screen, anywhere – click to fix it to its surface again" : "Fixed: a pan slides the camera's point along its surface – click to free it"}
+          data-help-name="Fixed / free" data-help="Fixed: the point the camera turns around stays on its surface (the table, or the surface you focused) and a pan slides it along. Free: a pan moves it along the screen – up, down, anywhere in the room. Back to fixed, it lands on the surface along your line of sight, so the view does not jump.">
+          <Icon name={cameraFree ? "unlock" : "lock"} /></button>
+      </span>
     {:else}
       <!-- #269: the stage runs the experience live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
       <span class="tool-group live" role="group" aria-label="Live">
@@ -1026,6 +1069,12 @@
         { label: "View settings…", select: () => void openViewSettings() },
       ]} />
     {/if}
+  {/if}
+  {#if stage && stage.status === "running" && cameraCorner}
+    <p class="camera-corner" data-app-ui>
+      <Icon name={cameraFree ? "unlock" : "crosshair"} /> <span class="what">{cameraCorner}</span>
+      <button type="button" class="icon-button" aria-label="Home" title="Home: the reader's view around the scene's origin" onclick={() => stage?.cameraHome()}><Icon name="close" /></button>
+    </p>
   {/if}
   {#if stage?.subtitle}
     <p class="subtitle" data-help-name="Subtitle" data-help="What the playing video says: the cue of its subtitle file – a WebVTT file named like the video with a language, speak.en.vtt beside speak.mp4. The stage shows English; a reader sees their own language.">{stage.subtitle}</p>
@@ -1170,6 +1219,10 @@
   :global(.workspace > .stage .stage-host) { position: absolute; inset: 0; overflow: hidden; }
   :global(.workspace > .stage .stage-host canvas) { display: block; }
   .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
+  /* #335: what the camera turns around, bottom right of the stage – the docked panels' tabs keep the left (Home clears it) */
+  .camera-corner { position: absolute; right: .75rem; bottom: .75rem; z-index: 1; margin: 0; display: flex; align-items: center; gap: .375rem; max-width: calc(100% - 1.5rem);
+    padding: 0 0 0 .5rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: .8125rem; }
+  .camera-corner .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;

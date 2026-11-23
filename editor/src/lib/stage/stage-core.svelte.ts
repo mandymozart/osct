@@ -1,6 +1,6 @@
 import { asset } from "$app/paths";
 import type { AssetPath } from "$app/types";
-import { type BufferAttribute, type BufferGeometry, type Camera, Group, type Intersection, type Object3D, Quaternion, Raycaster, Vector2, Vector3 } from "three";
+import { Box3, type BufferAttribute, type BufferGeometry, type Camera, Group, type Intersection, type Object3D, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import { entityNodes } from "@engine/content/game-config";
@@ -71,6 +71,15 @@ export interface GhostPlace {
   y: number;
   width: number;
   height?: number;
+}
+
+/** What the camera focuses on (#335): the selection's surface, node or target, each by id; none = the whole scene */
+export interface CameraFocus {
+  surface?: string;
+  node?: { targetId: string; path: number[] };
+  target?: string;
+  /** What the stage's corner calls it */
+  label?: string;
 }
 
 export class StageCore {
@@ -859,6 +868,44 @@ export class StageCore {
   /** The Live switch (#269): off holds the entities' clock (`ArScene.holdClock`) – the scene stands still for placing */
   setLive(live: boolean): void {
     this.arScene.holdClock(!live);
+  }
+
+  // ── The camera (#335): Home, a focus on what is selected (nothing: the whole scene), fixed to a surface or free ──
+
+  cameraHome(): void {
+    this.tracker?.home();
+  }
+
+  cameraFree(free: boolean): void {
+    this.tracker?.setFree(free);
+  }
+
+  /** Focus on a surface, a node of an entity or a printed target – the first that is on the stage – else the whole scene */
+  focusCamera(on: CameraFocus): void {
+    const tracker = this.tracker;
+    if (!tracker) return;
+    if (on.surface && tracker.focusSurface(on.surface, on.label)) return;
+    if (on.node && this.focusNode(on.node, on.label)) return;
+    if (on.target && tracker.focusTarget(on.target, on.label)) return;
+    tracker.focusScene();
+  }
+
+  /** A node's box on the stage (the stage frame, mm): its middle, the camera from where it looks now */
+  private focusNode(node: { targetId: string; path: number[] }, label = node.targetId): boolean {
+    const object = this.arScene.inspect()?.nodeObject(node.targetId, node.path);
+    const frame = this.tracker?.stageFrame();
+    if (!object || !frame || !this.tracker) return false;
+    const box = new Box3().setFromObject(object);
+    if (box.isEmpty()) box.setFromCenterAndSize(object.getWorldPosition(new Vector3()), new Vector3(0.05, 0.05, 0.05));
+    frame.updateWorldMatrix(true, false);
+    const { min, max } = box;
+    const corners = [0, 1, 2, 3, 4, 5, 6, 7].map(i => frame.worldToLocal(new Vector3(i & 1 ? max.x : min.x, i & 2 ? max.y : min.y, i & 4 ? max.z : min.z)).multiplyScalar(1000));
+    const local = new Box3().setFromPoints(corners);
+    const centre = local.getCenter(new Vector3());
+    const size = Math.max(20, local.getSize(new Vector3()).length());
+    const surface = this.tracker.placeOf(node.targetId)?.surface;
+    this.tracker.focusOn({ centre: { x: centre.x, y: centre.y, z: centre.z }, width: size, height: size, label, ...(surface ? { surface } : {}) });
+    return true;
   }
 
   resetNarrative(): void {

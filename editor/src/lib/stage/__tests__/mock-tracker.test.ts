@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { Target } from "@engine/types";
-import { setPreviewActive, setTargetHidden, updatePreview } from "../preview";
+import { getPreview, setPreviewActive, setTargetHidden, updatePreview } from "../preview";
 import { getEngineState } from "@engine/utils/tracker-debug";
 import { sceneFrames } from "../surfaces";
 
@@ -16,7 +16,7 @@ vi.mock("@engine/content/game-config", () => ({ getScene: (id: string) => ({ id,
 const pages = sceneFrames({ surfaces: SURFACES });
 
 const {
-  cameraMatrix, layoutTargets, MockTracker, PREVIEW_FOV, targetCentre, VIEW_PRESETS, wobbled,
+  cameraMatrix, facing, fitDistance, layoutTargets, MockTracker, PREVIEW_FOV, targetCentre, VIEW_PRESETS, wobbled,
 } = await import("../mock-tracker");
 type StageTarget = import("../mock-tracker").StageTarget;
 type StageView = import("../mock-tracker").StageView;
@@ -413,5 +413,124 @@ describe("MockTracker: the placement being edited is the target itself (#191)", 
     const guessed = anchorOf("a"); // the 0.75 box until the image is known
     aspect = 1.45; // a portrait image: 116 mm high, its centre 28 mm lower
     expect(anchorOf("a").y - guessed.y).toBeCloseTo(-0.028, 6);
+  });
+});
+
+describe("MockTracker camera: Home, Focus, fixed or free (#335)", () => {
+  // A standing A3 poster behind the double page (rx 90, as the Demo Book's catpope-poster)
+  const POSTER = { id: "poster", widthMm: 297, heightMm: 420, place: { x: 0, y: 300, z: 0, rx: 90, ry: 0, rz: 0 } };
+  let container: HTMLElement;
+  let tracker: MockTracker;
+  let now = 1000;
+  const FLIGHT_DONE = 1000;
+
+  const drag = (dx: number, dy: number, shiftKey = false) => {
+    const at = { clientX: 100, clientY: 100 };
+    container.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, button: 0, ...at, shiftKey }));
+    container.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, button: 0, clientX: 100 + dx, clientY: 100 + dy, shiftKey }));
+    container.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, button: 0, clientX: 100 + dx, clientY: 100 + dy, shiftKey }));
+  };
+  const eyeOf = (orbit: MockTracker["currentOrbit"]) => {
+    const pan = orbit.pan ?? { x: 0, y: 0 };
+    return new Vector3().setFromMatrixPosition(cameraMatrix(orbit, new Vector3(pan.x, pan.y, pan.z ?? 0).divideScalar(1000)));
+  };
+  const posterFrame = () => sceneFrames({ surfaces: [POSTER] })[0];
+
+  beforeEach(async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    localStorage.clear();
+    setPreviewActive(true);
+    updatePreview({ view: "reader", orbit: null, wobble: 0, hidden: [] });
+    SURFACES.push(POSTER);
+    document.body.innerHTML = `<div class="stage"><canvas></canvas></div>`;
+    container = document.querySelector(".stage")!;
+    Object.defineProperty(container, "clientWidth", { value: 800, configurable: true });
+    Object.defineProperty(container, "clientHeight", { value: 600, configurable: true });
+    now = 1000;
+    tracker = new MockTracker(container, { onUpdate: () => {} }, () => now);
+    await tracker.startCamera();
+    await tracker.loadTargets({ sceneId: "s", targets: [plainTarget("a")] });
+  });
+
+  afterEach(() => {
+    tracker.stop();
+    SURFACES.splice(SURFACES.indexOf(POSTER), 1);
+    setPreviewActive(false);
+    document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
+
+  it("looks front-on at a face: the table from above, a poster facing the reader level, a side wall from the side", () => {
+    expect(facing([0, 0, 1])).toEqual({ tilt: 0, yaw: 0 });
+    expect(facing([0, -1, 0])).toEqual({ tilt: 90, yaw: 0 });
+    expect(facing([1, 0, 0])).toEqual({ tilt: 90, yaw: 90 });
+  });
+
+  it("shows a face whole: the farther, the bigger, the narrower view the farther still", () => {
+    expect(fitDistance(400, 400, 1)).toBeGreaterThan(fitDistance(200, 200, 1));
+    expect(fitDistance(400, 100, 0.5)).toBeGreaterThan(fitDistance(400, 100, 2));
+  });
+
+  it("flies to a standing poster, turns around its middle and fixes the point to it", () => {
+    expect(tracker.focusSurface("poster", "A3 poster")).toBe(true);
+    now += FLIGHT_DONE;
+    tracker.tick(now);
+    const frame = posterFrame();
+    const orbit = tracker.currentOrbit;
+    const middle = new Vector3(...frame.origin).addScaledVector(new Vector3(...frame.right), frame.widthMm / 2).addScaledVector(new Vector3(...frame.down), frame.heightMm / 2);
+    expect(new Vector3(orbit.pan!.x, orbit.pan!.y, orbit.pan!.z).distanceTo(middle)).toBeLessThan(1e-3);
+    expect(middle.z).toBeGreaterThan(100); // the poster's middle stands above the table
+    const forward = new Vector3(0, 0, -1).applyQuaternion(new Quaternion().setFromRotationMatrix(cameraMatrix(orbit, middle.clone().divideScalar(1000))));
+    expect(forward.dot(new Vector3(...frame.normal))).toBeCloseTo(-1, 5); // front-on
+    expect(orbit).toMatchObject({ surface: "poster", label: "A3 poster" });
+    expect(getPreview().orbit).toMatchObject({ surface: "poster", label: "A3 poster" });
+  });
+
+  it("frames the whole scene with nothing selected, the standing poster in it", () => {
+    tracker.focusScene();
+    now += FLIGHT_DONE;
+    tracker.tick(now);
+    expect(tracker.currentOrbit.pan!.z).toBeGreaterThan(50);
+    expect(tracker.currentOrbit.distance).toBeGreaterThan(VIEW_PRESETS.reader.distance);
+  });
+
+  it("fixed: a pan slides the point along its surface; free: along the screen, up off the table", () => {
+    updatePreview({ orbit: { distance: 400, tilt: 90, yaw: 0 } }); // level with the table
+    drag(0, 50, true);
+    expect(tracker.currentOrbit.pan!.z).toBeCloseTo(0, 6); // fixed to the table
+    tracker.setFree(true);
+    expect(getPreview().orbit?.free).toBe(true);
+    drag(0, 50, true);
+    expect(tracker.currentOrbit.pan!.z).toBeGreaterThan(10); // the scene follows the pointer down: the point goes up
+    drag(0, -100, true);
+    expect(tracker.currentOrbit.pan!.z).toBeLessThan(-10);
+  });
+
+  it("back to fixed, the point lands on its surface along the line of sight – the camera does not move", () => {
+    updatePreview({ orbit: { distance: 400, tilt: 30, yaw: 10, pan: { x: 20, y: 30, z: 120 }, free: true } });
+    const before = eyeOf(tracker.currentOrbit);
+    tracker.setFree(false);
+    const orbit = tracker.currentOrbit;
+    expect(orbit.free).toBeUndefined();
+    expect(orbit.pan!.z).toBeCloseTo(0, 6);
+    expect(eyeOf(orbit).distanceTo(before)).toBeLessThan(1e-6);
+  });
+
+  it("Home flies back to the reader's view and forgets the focus; a drag stops a flight where it is", () => {
+    tracker.focusSurface("poster");
+    now += 100;
+    tracker.tick(now);
+    drag(40, 0);
+    const stopped = tracker.currentOrbit;
+    expect(stopped.distance).not.toBe(VIEW_PRESETS.reader.distance);
+    now += FLIGHT_DONE;
+    tracker.tick(now);
+    expect(tracker.currentOrbit.distance).toBe(stopped.distance); // no flight resumes
+    tracker.home();
+    expect(getPreview().orbit).toBeNull();
+    now += FLIGHT_DONE;
+    tracker.tick(now);
+    expect(tracker.currentOrbit).toEqual(VIEW_PRESETS.reader);
   });
 });
