@@ -2119,7 +2119,8 @@ try {
     foreach ([[['preset' => 'cover'], 400, 'invalid-scene', 'a preset that is gone (cover)'], [['id' => 's1'], 409, 'duplicate-id', 'a scene id that exists'],
         [['after' => 'ghost'], 400, 'unknown-scene', 'after an unknown scene'], [['label' => ' '], 400, 'invalid-scene', 'an empty label'],
         [['surfaces' => []], 400, 'invalid-scene', 'no surface'], [['surfaces' => [['id' => 'a', 'side' => 'left', 'widthMm' => 1, 'heightMm' => 1]]], 400, 'invalid-scene', 'a surface with a side (2.x)'],
-        [['group' => 'ghost'], 400, 'unknown-group', 'an unknown group']] as [$body, $code, $error, $what]) {
+        [['group' => 'ghost'], 400, 'unknown-group', 'an unknown group'],
+        [['id' => 'landing'], 400, 'reserved-id', 'the address of the landing workspace (#356)'], [['id' => 'Landing'], 400, 'reserved-id', 'the same in capitals']] as [$body, $code, $error, $what]) {
         [$status, $data] = call($api, 'POST', '/editor/experiences/osct/scenes', $body, $editor);
         check($status === $code && ($data['error']['code'] ?? null) === $error, "POST scenes: $what → $code $error");
     }

@@ -27,10 +27,14 @@
    * size). The experience's crumb always leads to the experience page – the scenes overview (#274); in a scene's
    * workspace the ⚙ after it selects the experience (#237): the Inspector shows its texts and settings. When the open
    * experience's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
-   * opens their list: the stage shows the experience without them.
+   * opens their list: the stage shows the experience without them. With an experience open, **Scenes · Landing** switches
+   * between its two workspaces (#356): Scenes opens the scene last open (the experience's address), Landing the landing
+   * workspace – whose crumb is `Experiences › experience › Landing`.
    */
   const experienceId = $derived(page.params.experience ?? null);
   const sceneId = $derived(page.params.scene ?? null);
+  /** The experience's landing workspace (#356): `/editor/<experience>/landing/` */
+  const onLanding = $derived(page.route.id === "/(app)/[experience]/landing");
   const isAdminRoute = $derived(isAdminPath(page.url.pathname));
 
   /** Experience titles by id, read once per experience */
@@ -100,17 +104,28 @@
     {/if}
     {#if experienceId}
       <span class="sep" aria-hidden="true">›</span>
-      <a href={resolve(`${experienceId}/`)} class="crumb" aria-current={sceneId ? undefined : "page"}
-        title={sceneId ? "Back to the experience" : undefined}>{titles[experienceId] ?? experienceId}</a>
+      <a href={resolve(`${experienceId}/`)} class="crumb" aria-current={sceneId || onLanding ? undefined : "page"}
+        title={sceneId || onLanding ? "Back to the experience" : undefined}>{titles[experienceId] ?? experienceId}</a>
       {#if sceneId}
         <button type="button" class="icon-button experience-settings" class:on={selection.experience} aria-pressed={selection.experience} onclick={selectExperience}
           aria-label="Experience settings" title="The experience's title, printed book and settings in the Inspector"><Icon name="settings" stroke={2} /></button>
         <span class="sep" aria-hidden="true">›</span>
         <span class="crumb current scene" aria-current="page" title={sceneCrumb}>{sceneCrumb}</span>
+      {:else if onLanding}
+        <span class="sep" aria-hidden="true">›</span>
+        <span class="crumb current" aria-current="page">Landing</span>
       {/if}
     {:else if isAdminRoute}
       <span class="sep" aria-hidden="true">›</span>
       <span class="crumb current" aria-current="page">Admin</span>
+    {/if}
+    {#if experienceId && (sceneId || onLanding)}
+      <span class="workspaces" role="group" aria-label="Workspaces">
+        <a href={resolve(`${experienceId}/`)} class="workspace" aria-current={sceneId ? "page" : undefined}
+          data-help-name="Scenes" data-help="The scene workspace: the experience's scenes on the 3D stage – it opens the scene last open here.">Scenes</a>
+        <a href={resolve(`${experienceId}/landing/`)} class="workspace" aria-current={onLanding ? "page" : undefined}
+          data-help-name="Landing" data-help="The landing workspace: the landing page a computer gets, with this draft – its hero, QR card, shop and footer.">Landing</a>
+      </span>
     {/if}
   </nav>
   {#if skipped.length}
@@ -148,6 +163,13 @@
   .crumbs > .crumb:first-child { flex-shrink: 4; }
   .crumbs > .crumb:nth-child(3) { min-width: 3rem; }
   .experience-settings, .account, .panels { flex: none; }
+  /* Scenes · Landing: the experience's two workspaces, the open one pressed */
+  .workspaces { flex: none; display: flex; gap: .125rem; margin-left: .5rem; }
+  .workspace { display: inline-flex; align-items: center; height: var(--control-height); padding: 0 .5rem; border-radius: var(--control-radius); color: var(--muted); }
+  .workspace[aria-current="page"] { background: var(--pressed-background); color: var(--pressed-color); }
+  @media (hover: hover) {
+    .workspace:not([aria-current="page"]):hover { background: var(--hover-background); color: var(--text); }
+  }
   .sep { flex: none; color: var(--muted); }
   .crumb.scene { flex: none; }
   .skipped { position: relative; flex: none; }

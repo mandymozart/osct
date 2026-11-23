@@ -103,23 +103,27 @@ entry's files. Then one loader module imports **either** the app (`src/main.ts`)
 | computer, another experience (`/demo/…`) | `data-osct-landing="skeleton"` – the same static page, the experience's parts as placeholders | the landing's entry, which fills them from that experience's data |
 | phone, tablet, installed app, narrow window, a developer past it | nothing | the app, as before (its files are asked for at once, as when index.html named its script) |
 
-The static landing (`landing-html.ts`'s markup in a declarative shadow root, written at build time from the build's game
+The static landing (`ui/landing/landing-html.ts`'s markup in a declarative shadow root, written at build time from the build's game
 configuration – English texts, the targets' images) is the first paint; a small script after it writes the address and
 turns on the placeholders for another experience. The landing's entry then counts the arrival (`?s=`, as the app does –
 `lp1` for its own QR code, #324), loads the experience's **landing data** (`data.ts`: the current content version's
 `landing.json` – [content](content.md#landingjson) –, else derived from its game configuration with the engine's
-loader, `derive.ts`, loaded only then) and **mounts the page** (`mount.ts`): it keeps the static page when its own render
+loader, `derive.ts`, loaded only then) and **mounts the page** (`ui/landing/mount.ts`): it keeps the static page when its own render
 is the same (`renderKey` – the default experience in English: no flash) or renders it in the reader's language
-(`texts.ts`, the app's `landing` texts without i18next), then fills in the book's cover, the QR code and – loaded lazily
-(`hero.ts` with three.js) – the 3D hero. What is still loading shows a quiet skeleton placeholder (agents/DESIGN.md §6b).
+(`texts.ts` picks it, `ui/landing/texts.ts` – the app's `landing` texts without i18next), then fills in the book's cover,
+the QR code and – loaded lazily (`ui/landing/hero.ts` with three.js) – the 3D hero. What is still loading shows a quiet skeleton placeholder (agents/DESIGN.md §6b).
 
-**A piece of its own**: `mountLanding(host, { data, texts, qrUrl, address, privacyHref }, { contained })` imports
-nothing of the app – a function of the landing's data (`LandingData`: title, author, publisher, images, cover, the
-hero's scan stage with its model, plugins and looks, the shop) and a host element – so the editor's landing workspace
-can mount the very same page with an experience's draft (next steps of #355/#356). The host's document provides the
-page tokens (`main.css`) and the font.
+**A piece of its own** (`ui/landing/`, #356 – outside `client/`, so the editor imports it without importing the reader,
+RULES #32): `mountLanding(host, { data, texts, qrUrl, address, privacyHref }, { contained, styles })` imports nothing of
+the app – a function of the landing's data (`LandingData`: title, author, publisher, images, cover, the hero's scan stage
+with its model, plugins and looks, the shop) and a host element. The reader keeps its side in `client/src/landing/`
+(the entry, when a computer gets the page, loading `landing.json` or deriving it, the links, the language). The editor's
+landing workspace mounts the very same page with an experience's draft ([editor](editor.md#the-landing-workspace-356)).
+The brand's tokens (`ui/brand/tokens.css`) and the font come from the reader's document; the editor passes the tokens
+as `styles` for the shadow host and declares the font's faces on its document. The landing's texts are the reader's
+`landing` namespace, kept beside the piece (`ui/landing/locales/`).
 
-**The scan stage** (`scan-stage.ts`, #354) is the hero's right side: a three.js scene, loaded lazily after the page is up
+**The scan stage** (`ui/landing/scan-stage.ts`, #354) is the hero's right side: a three.js scene, loaded lazily after the page is up
 (the `three` chunk – a placeholder until then). Its canvas fills the hero and ends at its line.
 The book lies as a picture of its lacquered cover (the print layout's `cover-front` sheet, a physical material whose
 lacquer and gold masks are read from the picture), turns to the stage, opens, and three of the book's spreads turn

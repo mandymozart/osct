@@ -2,8 +2,9 @@
  * Renders the first onboarding step as plain HTML into `index.html` at build time (vite.config.js,
  * `transformIndexHtml`) so it paints before any script loads. `utils/static-splash.ts` removes it at runtime.
  *
- * No imports: vite.config.js loads this file directly (no path aliases there).
+ * Relative imports only: vite.config.js loads this file directly (no path aliases there).
  */
+import { ONBOARDING_ICON_SRC } from "../../../ui/brand/marks";
 
 /** The step fields the splash needs (`Step` in types/tutorial.ts) */
 export interface SplashStepSource {
@@ -20,10 +21,10 @@ export interface SplashStepSource {
 
 /**
  * The icon of the splash and the onboarding steps (#281): the design's green eye, a placeholder until Kévin's icon
- * arrives – swap the file in `public/` (same name, same proportions) and nothing else changes. Its size and place in
- * row 1 are tokens in `main.css` (`--onboarding-icon-*`). The header shows the same eye (#297).
+ * arrives (`ui/brand/marks.ts`). Its size and place in row 1 are tokens in `main.css` (`--onboarding-icon-*`). The
+ * header shows the same eye (#297).
  */
-export const ONBOARDING_ICON_SRC = "/assets/ui/onboarding/icon.png";
+export { ONBOARDING_ICON_SRC };
 
 /**
  * The onboarding's first step, the splash (design p. 5–7, #281): the icon and the experience's title at once, then the

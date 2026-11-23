@@ -11,12 +11,12 @@
  *
  * Imports are relative and import-free modules only: vite.config.js loads this file.
  */
-import { MEDIA_QUERY } from "../constants";
-import { DESIGN_PRIMITIVES_CSS } from "../styles/design-css";
-import { escapeHtml } from "../utils/strings";
-import { goldButton } from "../components/buttons/gold-button";
+import { MEDIA_QUERY } from "../brand/breakpoints";
+import { DESIGN_PRIMITIVES_CSS } from "../brand/design-css";
+import { goldButton } from "../brand/gold-button";
+import { escapeHtml } from "../brand/html";
 import type { LandingConfig, ShopItem } from "./landing-config";
-import { seededPick } from "../../../shared/api/landing";
+import { seededPick } from "../../shared/api/landing";
 
 /** The static landing's element in index.html: the landing's page mounts into it (`mount.ts`) */
 export const STATIC_LANDING_ID = "static-landing";

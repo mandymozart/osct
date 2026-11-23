@@ -4,6 +4,40 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – Step 3: the editor's landing workspace on the shell; the landing piece moves to `ui/` (6.13.0, #356 #355)
+- Tilman: *"the editor shows the final product the landing page draft"* · *"shared ui for the landing page should be
+  very little"* · the concept `agents/design/workspace-shell.html` frame 2/3, *"Yes, as recommended"*.
+- **The bridge `ui/`** (alias `@ui`, beside `engine/` and `shared/`, RULES #32): `ui/landing/` – mount, markup and CSS,
+  hero and scan stage, `LandingData` + `landingDataFromFile`, the shop config, `landingTexts` with the `landing`
+  translations (`ui/landing/locales/`, i18next-cli writes them there – `client/i18next.config.ts` output function), the
+  QR library's types, the QR/privacy link builders; `ui/brand/` – the brand's tokens (`tokens.css`, `main.css` imports it),
+  `design-css.ts`, `gold-button.ts`, `escapeHtml`, the breakpoints, the onboarding icon's path, the font faces. The
+  reader keeps `client/src/landing/` (entry, data loading/derive, links, language, decision) and re-exports where many
+  files import (constants, strings, ArrivalService, static-splash). The client's vitest runs `ui/**` tests; `ui/tsconfig.json`
+  maps `three` to the reader's node_modules (as engine/); the Dockerfile, .dockerignore and the demo workflow carry `ui/`.
+- Reader build before/after (fixture): the landing's first files 36 927 → 36 848 bytes (entry 17 423 → 20 123, the
+  shared chunk 11 436 → 8 613, renamed `landing-…` → `languages-…`, ArrivalService 5 017 → 5 059; index, contract-base,
+  landing-config and the shared/api/landing chunk unchanged), hero 23 470 → 23 418, main 210 556 → 210 471
+  (the landing's translations left the app's i18next resources – nothing called `t("landing:…")`), main.css +6 bytes
+  (the tokens in their own `:root` rule). The static landing and privacy.html are byte-equal but for the hashes.
+- **Workspace** `/editor/<experience>/landing/` (`routes/(app)/[experience]/landing/+page.svelte`, `Floats("landing")`):
+  stage = `LandingStage.svelte` (the piece `contained`, the brand's tokens as `styles` on its shadow host, the font faces on
+  the document; data = `landingFileOf` on the draft + `draftFileUrl`, `lib/landing-draft.ts`); Inspector =
+  `LandingSection` with `choices` (`landingPickScenes`); Scenes = `ScenesPanel` (a card picks the scene's first AR
+  target); History, Info. Saves: `saveLandingPick` (one helper for the stage menu and the workspace). Top bar *Scenes ·
+  Landing* inside the crumbs; *Landing page* in the ⚙ section and the experience sheet. Checked locally (editor 5193,
+  API 8093): the route wins over `[scene]`, the page renders and scrolls, the QR draws, the font is Areal inside, the
+  editor's document has no brand token.
+- My calls: the hero's plugins go through the plugin guard (RULES #35) – the page mounts at once without its hero, the
+  hero after the answer (same render, no flash); `mountLanding` got `styles` (empty for the reader); the mark's path is
+  passed by mount to the hero (no tiny extra chunk); `landing` is a reserved scene id (`RESERVED_SCENE_IDS`,
+  `Scenes::RESERVED_IDS`, 400 `reserved-id`, MCP `add_scene` – the new-scene form makes `scene-<n>` ids).
+- [ ] (c) the Experiences page into the shell (#356).
+- [ ] The landing workspace: shop items and publisher editable (concept frame 2), a click on a part of the page opening
+  its section, Privacy & terms as a second view.
+- [ ] The guard lists every plugin of the experience for the hero (the hero carries them all); a hero that needs none
+  could skip them (extractor, #357 or later).
+
 ## 2026-11-23 – Step 2: the landing's hero is picked in the editor, publish writes landing.json (6.10.0, schema 6.1, #355)
 - Tilman: *"the landing page hero needs only a specific target on a surface on a scene to show of how they work. so that
   data can be extracted in the editor to fill in the data needed to build the landing page."* · *"the landing.json is
@@ -27,7 +61,7 @@ outcome in the line (or move it into a dated decision block).
   components after `loadPlugins`. The hero chunk now carries the engine's entity builders (bigger than 6.9.0's).
 - My calls: the generated file is `game.landing.json` (a `landing.json` beside `src/landing/` shadowed the barrel `..`);
   a pick also stores the layout's `cover` (PHP cannot read the layout); the export writes only `scene`/`target`.
-- [ ] Step 3: the editor's landing workspace (#356 b) mounts `mountLanding` with the draft – `extractLanding` +
+- [x] Step 3 (6.13.0, above): the editor's landing workspace (#356 b) mounts `mountLanding` with the draft – `extractLanding` +
   `landingFileOf` give it the data without a publish.
 - [ ] #357: model and texture sizes for the landing (not touched here).
 - [ ] A stored hero goes stale when the entity, prints, looks or layout change after the pick; the Inspector says so,
@@ -60,7 +94,7 @@ outcome in the line (or move it into a dated decision block).
   debug `?content=` override.
 - [ ] Step 2: the editor extracts the hero (scene + surface, #355 concept 2) and **publish writes `landing.json`**
   (`LandingFile`) into the version folder – the reader reads it already.
-- [ ] Step 3: the editor's landing workspace (#356 b) mounts `mountLanding(host, data, { contained: true })` with the
+- [x] Step 3 (6.13.0): the editor's landing workspace (#356 b) mounts `mountLanding(host, data, { contained: true })` with the
   draft; the host must provide main.css's tokens and the font.
 - [ ] Open: the static privacy page names the default experience's book; another experience's title/author come only
   from its `landing.json` (none before step 2).

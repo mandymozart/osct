@@ -22,6 +22,7 @@
       "@/*": ["./src/*"],
       "@shared/*": ["../shared/*"],
       "@engine/*": ["../engine/src/*"],
+      "@ui/*": ["../ui/*"],
       "vitest": ["./node_modules/vitest"]
     }
   },
@@ -30,7 +31,8 @@
     "src/**/*.d.ts",
     "src/types/env.d.ts",
     "../shared/**/*.ts",
-    "../engine/src/**/*.ts"
+    "../engine/src/**/*.ts",
+    "../ui/**/*.ts"
   ],
   "exclude": ["./node_modules"]
 }

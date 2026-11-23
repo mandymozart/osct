@@ -1,6 +1,6 @@
 /**
- * The design primitives' CSS (styles/design-styles.ts lists them) without imports, so the build can write it into
- * index.html too: the desktop landing's static first paint (#343, landing/landing-html.ts) uses the
+ * The design primitives' CSS (the reader's client/src/styles/design-styles.ts lists them) without imports, so the build
+ * can write it into index.html too: the desktop landing's static first paint (#343, ui/landing/landing-html.ts) uses the
  * same rules as the components. `DESIGN_CSS` = the gold spinner + this.
  */
 export const DESIGN_PRIMITIVES_CSS = /* css */ `

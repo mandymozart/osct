@@ -13,8 +13,8 @@
  *
  * Imports are relative and import-free modules only: vite.config.js loads this file.
  */
-import { DESIGN_PRIMITIVES_CSS } from "../styles/design-css";
-import { escapeHtml } from "../utils/strings";
+import { DESIGN_PRIMITIVES_CSS } from "../../../ui/brand/design-css";
+import { escapeHtml } from "../../../ui/brand/html";
 
 /** Who is responsible for the app (#353, from buildingfictions.com/About and /Terms) – the same in every language */
 export const PUBLISHER = {

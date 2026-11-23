@@ -45,6 +45,7 @@ import {
 } from "../../shared/api/rules";
 import { DEFAULT_TITLE } from "../../shared/api/content-store";
 import { EXPERIENCE_SLUG, isReservedPath, RESERVED_PATHS } from "../../shared/api/experience-paths";
+import { RESERVED_SCENE_IDS } from "../../shared/api/names";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../server/api/src");
 
@@ -101,7 +102,7 @@ function readPhp(): Record<string, unknown> {
       'links' => array_map(static fn(string $url): bool => ExperienceTexts::isLinkUrl($url), $input['links']),
       'MAX_NODE_DEPTH' => Editor::MAX_NODE_DEPTH,
       'MAX_TARGETS_PER_SCENE' => Deliveries::MAX_TARGETS_PER_SCENE,
-      'SCENES' => ['presets' => Scenes::PRESETS, 'pageMm' => Scenes::PAGE_MM, 'wallMm' => Scenes::WALL_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS],
+      'SCENES' => ['presets' => Scenes::PRESETS, 'pageMm' => Scenes::PAGE_MM, 'wallMm' => Scenes::WALL_MM, 'surfacesMax' => Scenes::SURFACES_MAX, 'referenceFits' => SurfaceReferences::FITS, 'reservedIds' => Scenes::RESERVED_IDS],
       'PASS_TYPES' => Experiences::PASS_TYPES,
       'MOMENTS' => Experiences::MOMENTS,
       'RECOGNITION_MODES' => Experiences::RECOGNITION_MODES,
@@ -201,12 +202,14 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
   });
 
   it("scenes (schema 3.0, Scenes): the presets, a page's and a wall's size, the most surfaces, a reference's fits (#314)", () => {
-    const scenes = php.SCENES as { presets: string[]; pageMm: unknown; wallMm: unknown; surfacesMax: number; referenceFits: string[] };
+    const scenes = php.SCENES as { presets: string[]; pageMm: unknown; wallMm: unknown; surfacesMax: number; referenceFits: string[]; reservedIds: string[] };
     expect(scenes.referenceFits).toEqual([...SURFACE_REFERENCE_FITS]);
     expect(scenes.presets).toEqual([...SCENE_PRESETS]);
     expect(scenes.pageMm).toEqual(SCENE_PAGE_MM);
     expect(scenes.wallMm).toEqual(SCENE_WALL_MM);
     expect(scenes.surfacesMax).toBe(SCENE_SURFACES_MAX);
+    // #356: the landing workspace's address is no scene's
+    expect(scenes.reservedIds).toEqual([...RESERVED_SCENE_IDS]);
   });
 
   it("the Library's file kinds and their extensions (Assets::KINDS)", () => {

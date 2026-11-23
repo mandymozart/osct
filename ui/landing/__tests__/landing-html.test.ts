@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import en from "@/i18n/locales/en/landing.json";
-import { DESIGN_PRIMITIVES_CSS } from "@/styles/design-css";
+import { DESIGN_PRIMITIVES_CSS } from "../../brand/design-css";
+import en from "../locales/en/landing.json";
 import { isEntryInExperience } from "@shared/types/game-config";
 import { LANDING_CONFIG } from "../landing-config";
 import {

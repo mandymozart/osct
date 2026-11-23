@@ -19,10 +19,11 @@ COPY editor/package.json editor/package-lock.json editor/
 RUN cd client && npm ci --no-audit --no-fund && cd ../scripts && npm ci --no-audit --no-fund \
     && cd ../editor && npm ci --no-audit --no-fund --ignore-scripts
 
-# Everything the build reads: the shared types, the engine, the content build, the reader and the editor (the book
-# content is not in git – it comes from the CDN, VITE_CONTENT_BASE_URL)
+# Everything the build reads: the shared types, the engine, the reader-facing UI both apps show (ui/, #356), the content
+# build, the reader and the editor (the book content is not in git – it comes from the CDN, VITE_CONTENT_BASE_URL)
 COPY shared shared
 COPY engine engine
+COPY ui ui
 COPY scripts scripts
 COPY client client
 COPY editor editor

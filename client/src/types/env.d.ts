@@ -20,7 +20,7 @@ interface ImportMetaEnv {
    */
   readonly VITE_EXPERIENCE?: string;
   /**
-   * Font folder of the design font (ABC Areal – `utils/font-face-html.ts`); read by the build only. Unset = the shared
+   * Font folder of the design font (ABC Areal – `ui/brand/font-face.ts`); read by the build only. Unset = the shared
    * folder on the CDN, empty = no web font (Arial)
    */
   readonly VITE_FONT_BASE_URL?: string;

@@ -1,5 +1,7 @@
-import { DESIGN_PRIMITIVES_CSS } from "../styles/design-css";
+import { DESIGN_PRIMITIVES_CSS } from "../brand/design-css";
+import { ONBOARDING_ICON_SRC } from "../brand/marks";
 import type { LandingData } from "./data";
+import type { IQRCodeStatic } from "./qrcode";
 import { CONTAINED_ATTRIBUTE, type LandingTexts, renderKeyOf, renderLanding, SKELETON_ATTRIBUTE } from "./landing-html";
 
 /** The QR code library the dev tools load too (`public/assets/deps/qrcode.js`, davidshimjs/qrcodejs) */
@@ -22,6 +24,11 @@ export interface LandingInput {
 export interface LandingOptions {
   /** Inside another page's box (the editor's stage) instead of over the window */
   contained?: boolean;
+  /**
+   * CSS put first into the shadow root: a host page whose own UI must not get the brand gives the brand's tokens here, on
+   * `:host` (the editor – `ui/brand/tokens.css`); the reader has them on its document
+   */
+  styles?: string;
 }
 
 export interface LandingView {
@@ -33,9 +40,10 @@ export interface LandingView {
 
 /**
  * The desktop landing page (#293, #324, #354; a piece of its own, #355): a function of the landing's data and a host
- * element, nothing of the app – so the same page shows on a computer instead of the app (`entry.ts`) and, later, on the
- * editor's landing workspace with an experience's draft. agents/DESIGN.md: black, the gold gradient, Areal, the glass
- * buttons; the page tokens (`main.css`) and the font come from the host's document.
+ * element, nothing of the app – so the same page shows on a computer instead of the app (client/src/landing/entry.ts)
+ * and on the editor's landing workspace with an experience's draft (#356, `contained`). agents/DESIGN.md: black, the gold
+ * gradient, Areal, the glass buttons; the brand's tokens (`ui/brand/tokens.css`) come from the host's document or from
+ * `styles`, the font's faces from the host's document (`ui/brand/font-face.ts`).
  *
  * Renders `landing-html.ts`'s page into the host's shadow root – or keeps what is there when it is the same render (the
  * static landing in index.html, `renderKey`: no flash, no image loaded twice) – and fills in, one after the other, what
@@ -51,7 +59,7 @@ export const mountLanding = (host: HTMLElement, input: LandingInput, options: La
     privacyHref: input.privacyHref,
   });
   if (root.querySelector<HTMLElement>("main")?.dataset.render !== renderKeyOf(html)) {
-    root.innerHTML = `<style>${DESIGN_PRIMITIVES_CSS}</style>${html}`;
+    root.innerHTML = `<style>${options.styles ?? ""}${DESIGN_PRIMITIVES_CSS}</style>${html}`;
   }
   host.removeAttribute(SKELETON_ATTRIBUTE);
   host.toggleAttribute(CONTAINED_ATTRIBUTE, !!options.contained);
@@ -84,7 +92,7 @@ export const mountLanding = (host: HTMLElement, input: LandingInput, options: La
   const heroData = data.hero;
   const heroRuns = box && heroData
     ? import("./hero")
-      .then(({ startHero }) => (stopped ? null : startHero(box, heroData, data)))
+      .then(({ startHero }) => (stopped ? null : startHero(box, heroData, data, ONBOARDING_ICON_SRC)))
       .then(started => {
         if (stopped) started?.stop();
         else stage = started;
@@ -105,6 +113,9 @@ export const mountLanding = (host: HTMLElement, input: LandingInput, options: La
   };
 };
 
+/** The shared QR library once its script ran (a global of the page – `window.QRCode`) */
+const qrLibrary = (): IQRCodeStatic | undefined => (window as { QRCode?: IQRCodeStatic }).QRCode;
+
 /** The QR code, drawn by the shared QR library; without it the card goes and the address stays */
 const drawQrCode = async (root: ShadowRoot, text: string, alt: string): Promise<void> => {
   const box = root.querySelector<HTMLElement>(".qr-code");
@@ -115,15 +126,16 @@ const drawQrCode = async (root: ShadowRoot, text: string, alt: string): Promise<
     box.closest("figure")?.toggleAttribute("hidden", true);
     return;
   }
-  if (!window.QRCode) return;
+  const QRCode = qrLibrary();
+  if (!QRCode) return;
   box.replaceChildren();
-  new window.QRCode(box, {
+  new QRCode(box, {
     text,
     width: 512,
     height: 512,
     colorDark: "#000000",
     colorLight: "#f5e7c8",
-    correctLevel: window.QRCode.CorrectLevel?.M,
+    correctLevel: QRCode.CorrectLevel?.M,
   });
   box.querySelector("img")?.setAttribute("alt", alt);
   box.querySelector("canvas")?.setAttribute("aria-hidden", "true");
@@ -131,7 +143,7 @@ const drawQrCode = async (root: ShadowRoot, text: string, alt: string): Promise<
 
 /** Loads the shared QR code library once (the dev tools' QR generator uses the same script) */
 const loadQrLibrary = (): Promise<void> => {
-  if (window.QRCode) return Promise.resolve();
+  if (qrLibrary()) return Promise.resolve();
   const existing = document.getElementById(QR_SCRIPT_ID) as HTMLScriptElement | null;
   return new Promise((resolve, reject) => {
     const script = existing ?? document.createElement("script");

@@ -1,3 +1,4 @@
+@import "../../ui/brand/tokens.css";
 @import "./styles/gold-spinner.css";
 @import "./styles/static-splash.css";
 
@@ -10,17 +11,8 @@
 
   --offset-top: 4rem;
 
-  /* Design tokens (agents/DESIGN.md) – components use only these */
-  /* ABC Areal from the CDN font folder (index.html, utils/font-face-html.ts); Arial until it has loaded or without it */
-  --font-design: "ABC Areal", Arial, Helvetica, sans-serif;
-  --tracking-design: 0.04em;
-  /* Two type sizes (DESIGN.md §2): Medium – titles, body text, buttons; Small – captions, counters, small instructions */
-  --text-size: 1rem;
-  --text-size-small: 0.75rem;
-  --text-line: 1.375;
-  /* Centred short texts (onboarding steps, camera notices) are set looser */
-  --text-line-loose: 1.5625;
-  --row-height: 1.5rem;
+  /* Design tokens (agents/DESIGN.md) – components use only these; the brand's own (type, gold, colours, glass,
+     shadows) are ui/brand/tokens.css, imported above */
 
   /* Vertical grid (DESIGN.md §3a, #295): the page area – the screen without the safe areas – in six equal rows.
      The splash and onboarding place their parts on it: icon row 1, illustration row 2, text rows 3–4, button or
@@ -32,30 +24,6 @@
   --grid-row-min: 6rem;              /* the Mark's height: row 1 always holds it (and the onboarding icon) */
   --grid-row: max(var(--grid-row-min), calc(var(--grid-height) / var(--grid-rows)));
 
-  /* Gold is always this gradient, clipped to the text, left → right per element (DESIGN.md §1) */
-  --gold-1: #f5e7c8;
-  --gold-2: #7f6032;
-  --gold-3: #d2ae5a;
-  --gold-4: #f3cc94;
-  --gold-gradient: linear-gradient(90deg,
-    var(--gold-1) 0%, var(--gold-1) 3.8%, var(--gold-2) 31.5%,
-    var(--gold-3) 57%, var(--gold-4) 73.6%, var(--gold-4) 100%);
-  --color-accent: var(--gold-3);   /* where a gradient is not possible (borders, focus) */
-  /* Shimmer (#280, DESIGN.md §5): a pale band sweeping left → right through the gold of a text, laid over
-     --gold-gradient; slow with a pause on gold text (.gold.shimmer), quick and constant on primary labels (.primary) */
-  --gold-shimmer: linear-gradient(110deg, transparent 40%, rgba(255, 248, 230, .95) 50%, transparent 60%);
-  --shimmer-duration: 4s;
-  --shine-duration: 1.8s;
-  /* Placeholders while data loads (the desktop landing's skeleton, #355): a quiet grey block, a faint band over it */
-  --skeleton: rgba(139, 141, 140, .14);
-  --skeleton-shine: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .07) 50%, transparent 70%);
-
-  --color-muted: #8b8d8c;
-  --color-inactive: #d6d8d8;
-  --color-on-dark: #ffffff;
-  --rule: 0.0625rem solid var(--color-muted);
-
-  --app-background: #000;
   --consultation-background: rgba(0, 0, 0, 0.82);
   --loading-background:
     radial-gradient(ellipse 60% 55% at 50% 50%, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.82) 100%);
@@ -63,28 +31,13 @@
   --onboarding-background:
     radial-gradient(ellipse farthest-corner at 50% 50%, #000 0%, #000 35%, #070707 52%, #0c0c0c 71%, #1a1a1a 100%);
 
-  /* Glass buttons: alpha must stay non-zero, otherwise backdrop-filter does not blur */
-  --glass-background: rgba(255, 255, 255, 0.001);
-  --glass-blur: blur(0.625rem);
   /* The subtitle line over the camera picture: its backdrop, and how far above the screen's bottom edge it sits (clear of the scene menu) */
   --subtitle-background: rgba(0, 0, 0, 0.62);
   /* The coach marks' veil over the first scan, around the hole that shows the scroller or the icon (#282, design p. 15–16) */
   --coach-veil: rgba(0, 0, 0, 0.8);
   --subtitle-offset: 7rem;
-  --shadow-dark: 0 0.15rem 1.2rem rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 0.95rem rgba(255, 255, 255, 0.6);
-  --shadow-bronze: 0 0.15rem 1.2rem rgba(149, 113, 73, 0.55);
-  --shadow-grey: 0 0.2rem 1.4rem rgba(139, 141, 140, 0.45);
-  --shadow-glow-soft: 0 0 0.5rem rgba(255, 255, 255, 0.25);
-  /* The page scroller's active scene (#284, design p. 17-22): a transparent glass pill with a gold glow (no fill, #297;
-     measured: glow #c7a144 about 6.5 pt round the 31 x 15 pt body) */
-  --shadow-gold: 0 0 0.75rem 0.15rem rgba(199, 161, 68, 0.85);
 
   --category-width: 6.25rem;
-
-  /* The phone frame around the app preview on the desktop landing page (#293) */
-  --phone-frame: #1c1c1c;
-  --phone-frame-width: .6rem;
 
   /* The header icon: the onboarding's crocodile eye at the same size (#297, design p. 53: about 182 px wide at 390) */
   --mark-width: var(--onboarding-icon-width);

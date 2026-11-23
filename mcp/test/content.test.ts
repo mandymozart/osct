@@ -431,6 +431,9 @@ describe("the content tools", () => {
     expect((await rec.call("add_scene", { experience: "osct", after: "s1", position: 0 })).ok).toBe(false);
     expect((await rec.call("move_scenes", { experience: "osct", scenes: ["s2"] })).ok).toBe(false);
     expect(seen).toHaveLength(0);
+    // #356: `landing` is the editor's address of the landing workspace, never a scene's id – refused before the API
+    for (const id of ["landing", "Landing"]) await expect(rec.call("add_scene", { experience: "osct", id })).rejects.toThrow();
+    expect(seen).toHaveLength(0);
     // 2.x presets and fields are gone
     for (const preset of ["cover", "back", "foldout"]) await expect(rec.call("add_scene", { experience: "osct", preset })).rejects.toThrow();
     await rec.call("add_scene", { experience: "osct", title: "Old", layout: "free", format: "cover" });

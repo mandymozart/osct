@@ -8,6 +8,25 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.13.0 – 2026-11-23
+
+### Added
+- **The editor's landing workspace shows the landing page draft** (#356, #355): `/editor/<experience>/landing/` – the
+  stage is the landing page a computer gets, with the experience's draft (title, 3D hero, QR card, shop, footer), and it
+  scrolls inside the stage. The Inspector picks the hero: a scene, then one of its targets with a model, a video or a
+  component (marginalia and links are not offered); the pick saves itself and the stage follows. It says whether the
+  stored hero is up to date (*Refresh*) and removes the pick. The Scenes filmstrip picks the hero's scene with a click;
+  History and Info are there as in a scene. The hero runs the experience's plugins only after the same question as the
+  scene's stage.
+- **Scenes · Landing** in the top bar switches between an experience's two workspaces; the ⚙ landing section and an
+  experience's sheet on the Experiences page open the landing workspace too.
+
+### Changed
+- The landing page and the brand it needs (tokens, design primitives, the Areal font, the gold button) live in a new
+  folder `ui/` that the reader and the editor both use – the editor shows the reader's own landing without importing
+  the reader. The reader looks and loads as before (the landing's first files are 79 bytes smaller).
+- `landing` can no longer be a scene's id (it is the landing workspace's address): the API and the MCP server refuse it.
+
 ## 6.12.1 – 2026-11-23
 
 ### Changed

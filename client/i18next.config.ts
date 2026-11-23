@@ -16,7 +16,10 @@ export default defineConfig({
   extract: {
     input: ["src/**/*.ts"],
     ignore: ["src/**/__tests__/**", "src/i18n/**", "src/**/*.d.ts"],
-    output: "src/i18n/locales/{{language}}/{{namespace}}.json",
+    // The landing's namespace lives beside the landing piece the editor shows too (ui/landing/locales, #356)
+    output: (language, namespace) => namespace === "landing"
+      ? `../ui/landing/locales/${language}/landing.json`
+      : `src/i18n/locales/${language}/${namespace}.json`,
     primaryLanguage: DEFAULT_LANGUAGE,
     // Every key carries its namespace: i18next.t("entry:accessPage")
     defaultNS: false,

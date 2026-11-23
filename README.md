@@ -28,6 +28,7 @@ the camera only works over https). The accounts API runs locally with `npm run d
 | Folder | What |
 |---|---|
 | `engine/` | The base of reader and editor: the content runtime and the AR scene (three.js, trackers behind one interface) – a source folder both apps compile (`@engine/*`) |
+| `ui/` | Reader-facing UI the editor shows too, with the brand it needs: the desktop landing page (`ui/landing/`) and the brand's tokens, primitives and font (`ui/brand/`) – a source folder both apps compile (`@ui/*`, RULES #32) |
 | `client/` | The reader: TypeScript, Vite, vanilla web components; the engine with the 8th Wall tracker |
 | `editor/` | The authors' editor: a SvelteKit app at `/editor` – the engine over the mock stage, saving and publishing through the API |
 | `scripts/` | Content build and the `osct` CLI (content sync to the CDN), delivery import |

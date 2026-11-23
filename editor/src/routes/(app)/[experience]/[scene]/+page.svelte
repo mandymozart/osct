@@ -27,8 +27,8 @@
   import { sceneLabel } from "@engine/content/scenes";
   import { surfaceGrids } from "#lib/surface-grids.svelte.js";
   import { entries } from "#lib/entries.svelte.js";
-  import { deleteEntry, deleteScene, errorText, isMediaAsset, putExperience, putTarget, type Asset, type MediaKind } from "#lib/api.js";
-  import { extractLanding } from "#lib/landing-pick.js";
+  import { deleteEntry, deleteScene, errorText, isMediaAsset, putTarget, type Asset, type MediaKind } from "#lib/api.js";
+  import { saveLandingPick } from "#lib/landing-pick.js";
   import { landingContentProblem } from "@shared/api/landing-extract";
   import type { SurfaceReferences } from "#lib/stage/surfaces.js";
   import { surfaceMode as surfaceTool } from "#lib/surface-mode.svelte.js";
@@ -782,13 +782,7 @@
    */
   const useForLanding = (targetId: string) => {
     stageMenu = null;
-    const id = experienceId;
-    const pick = { scene: sceneId, target: targetId };
-    autosave.queue(`experience:${id}:landing`, async () => {
-      const result = await extractLanding(id, pick);
-      if ("problem" in result) throw new Error(`Landing page: ${result.problem}`);
-      await putExperience(id, { landing: result.landing });
-    });
+    saveLandingPick(experienceId, { scene: sceneId, target: targetId });
   };
   const NAVIGATION_HELP = "Drag = orbit · Shift-drag, the middle button or two fingers = pan · wheel / pinch = distance · F = focus on the selection · Home or double tap = the reader's view · ← → = the scenes. A click picks what lies there, right click opens its menu.";
 

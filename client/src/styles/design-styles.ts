@@ -29,7 +29,7 @@
  * inside follows – one set of components, two looks. (The editor's neutral day/night palette lives in the editor app.)
  */
 import goldSpinnerCss from "./gold-spinner.css?inline";
-import { DESIGN_PRIMITIVES_CSS } from "./design-css";
+import { DESIGN_PRIMITIVES_CSS } from "@ui/brand/design-css";
 
 export const DESIGN_CSS = goldSpinnerCss + DESIGN_PRIMITIVES_CSS;
 

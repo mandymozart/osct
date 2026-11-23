@@ -85,7 +85,7 @@ second time. Since then (`PublishJob`, docs/server.md "Publish jobs"):
 `osct/fonts/abc-areal/` at the zone root holds the reader's design font, ABC Areal by Dinamo (WOFF2 as delivered, never
 in git – the repository is public; licence: Dinamo's permission for this release). It sits outside the environment
 folders, so staging and production share it and `osct content purge` never touches it (it is no experience's store).
-The app build writes the `@font-face` rules for it into `index.html` (`client/src/utils/font-face-html.ts`; the
+The app build writes the `@font-face` rules for it into `index.html` (`client/ui/brand/font-face.ts`; the
 reader loads `ABCArealVariable.woff2` and `ABCAreal-RegularItalic.woff2`), the service worker keeps the files in a
 cache of its own for offline use. `VITE_FONT_BASE_URL` points a build elsewhere; empty = no web font (Arial). The pull
 zone must answer with `access-control-allow-origin` (fonts are CORS requests). A replaced file gets a new name, or
@@ -233,7 +233,7 @@ page title, the description and the home-screen title from the loaded content.
 (`client/vite.config.js`): the legacy redirect (`utils/legacy-redirect-html.ts`), the manifest link of the address's
 experience (`utils/manifest-link-html.ts`), the desktop landing's decision (`landing/landing-decision-html.ts` –
 `<html data-osct-landing>` for a computer, on every experience's path) and the early preload of the entry it chose. The
-body carries the static landing (`landing/landing-html.ts`) and the static splash (`utils/static-splash-html.ts`); the
+body carries the static landing (`ui/landing/landing-html.ts`) and the static splash (`utils/static-splash-html.ts`); the
 first paint shows one of them, and the page then loads **either** the app **or** the landing's own entry – never both
 ([pages, "The desktop landing"](pages.md#desktop-landing)).
 

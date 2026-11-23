@@ -174,8 +174,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
       (`content`, `session`, `selection`, `plugins`). Texts are English, written in the component (RULES #20).
 
 18. **Design styles** ("no CSS mess"): values come from `agents/DESIGN.md` (measured from the PDF). Colors,
-    gradients, shadows, sizes only as tokens in `client/src/main.css`; controls and text effects only through
-    the shared primitives in `client/src/styles/design-styles.ts` (`adoptDesignStyles(shadowRoot)`: `.design`,
+    gradients, shadows, sizes only as tokens – the brand's in `ui/brand/tokens.css` (imported by `client/src/main.css`,
+    #356), the app's layout ones in `client/src/main.css`; controls and text effects only through
+    the shared primitives in `client/src/styles/design-styles.ts` (their CSS: `ui/brand/design-css.ts`) (`adoptDesignStyles(shadowRoot)`: `.design`,
     `.gold`, `.muted`, `.button`, `.pill`, `.icon-button`, `.text-link`, `.rule-table`, `.section-title`).
     Components keep layout only – no literal colors.
     - `.gold` replaces the element's background (it is `background-clip: text`): put it on the label
@@ -208,7 +209,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     - Inside a folder (or a component group, e.g. `ar-bridges/ar` → `../utils`) import relative files;
       never the own barrel (`types/*.ts` import their siblings, not `@/types`).
     - A component group's barrel registers its elements – pages import the group, not single files.
-    - **The desktop landing** (`src/landing/`, #355) and the static pages (`src/privacy/`) import **files, never a barrel**
+    - **The desktop landing** (`src/landing/` and the piece in `ui/landing/`, #355, #356) and the static pages (`src/privacy/`) import **files, never a barrel**
       (relative paths, or `@/…/<file>`): a barrel brings the app along, and the landing must load none of it – no store,
       router, pages, services' singletons, dev tools or i18next runtime. index.html loads either the app or the landing's
       entry, never both; `landing/__tests__/landing-decision-html.test.ts` checks the loader.
@@ -236,7 +237,7 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     `src/i18n/locales/<lang>/<ns>.json`, maintained with **i18next-cli** (`npm run i18n`; the build runs it
     and warns – never fails – about missing translations, which fall back to English).
     The desktop landing and the static Privacy & terms page (#355) load no i18next: they read the same JSON files
-    (`landing`, `privacy`) and pick the language as the app's detector does (`landing/texts.ts` `pickLanguage`, a test
+    (`landing` – kept beside the landing piece in `ui/landing/locales/`, #356, i18next-cli maintains it there –, `privacy`) and pick the language as the app's detector does (`landing/texts.ts` `pickLanguage`, a test
     keeps them equal). Book content (titles, entries) is not UI text; the onboarding is (the app's own steps, `utils/onboarding.ts`, #236). The language is stored by the i18next language
     detector (`osct-language`), not in the progress. Dev tools and the **editor** (`/editor`, an authors' tool, not a
     reader's view) stay English.
@@ -388,7 +389,11 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     app at `/editor`, same image) uses the same engine with the mock tracker and the mock stage in process, simulates
     the game (scene, found targets, replay) in its own state, and owns the stage, the panels, saving (`/api/editor/*`)
     and publishing. Never a second renderer or scene model: what the author sees is the engine the reader runs,
-    built from the same commit. The editor never imports the reader; the reader never imports the editor.
+    built from the same commit. The editor never imports the reader; the reader never imports the editor. **Reader-facing
+    UI the editor must show lives in `ui/`** (#356, alias `@ui`, beside `engine/` and `shared/`) – for now the desktop
+    landing (`ui/landing/`) and the brand it needs (`ui/brand/`: tokens, primitives' CSS, font faces, the gold button);
+    both apps import it, it imports neither, and the editor shows it inside a shadow root with the brand's tokens on its
+    host, never on its own document (#38).
     **The MCP server** (`mcp/`, #75, docs/mcp.md) is a client of the editor's API like the editor app – over HTTP with the
     editor's token, never a second path into the database – built after SCUTOONS' MCP (Tilman, 2026-10-29: "do it like in
     scutoons … this will one day merge"): the API is the only authority, a save is the draft with the editor's link, and

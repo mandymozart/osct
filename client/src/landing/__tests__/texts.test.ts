@@ -2,8 +2,8 @@ import i18next from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { describe, expect, it } from "vitest";
 import { LANGUAGE_STORAGE_KEY, LANGUAGES, resources } from "@/i18n";
-import en from "@/i18n/locales/en/landing.json";
-import { LANGUAGE_KEY, landingTexts, pickLanguage } from "../texts";
+import { LANDING_LANGUAGES } from "@ui/landing/texts";
+import { LANGUAGE_KEY, pickLanguage } from "../texts";
 
 /** The landing and the static Privacy & terms page pick the language without i18next (#355) – as the app's i18next does */
 describe("pickLanguage", () => {
@@ -30,10 +30,8 @@ describe("pickLanguage", () => {
   });
 });
 
-describe("landingTexts", () => {
-  it("fills title and author, escaped, in the language asked for", () => {
-    expect(landingTexts("en", { title: "A & B", author: "<x>" }).intro).toContain("<em>A &amp; B</em> by &lt;x&gt;");
-    expect(landingTexts("de", { title: "T", author: "A" }).getApp).toBe("Hol dir die App");
-    expect(landingTexts("fr", { title: "T", author: "A" }).getApp).not.toBe(en.getApp);
+describe("the landing piece's languages", () => {
+  it("are the app's: every language the reader picks has the landing's texts (ui/landing/locales, #356)", () => {
+    expect([...LANDING_LANGUAGES].sort()).toEqual([...LANGUAGES].sort());
   });
 });

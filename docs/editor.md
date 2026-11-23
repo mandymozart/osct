@@ -342,6 +342,8 @@ it ([Floating panels](#floating-panels), #308) – the **Tree**, the **Inspector
 a sheet at the bottom with the tree as a tab, ‹ › over the stage – is gone (#317). The Inspector's tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is selected), **Environment**,
 **Library**, **Code** – no Stage tab: the scene is the Inspector's, the preview settings are the stage toolbar's; a tab
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
+The experience's second workspace, on the same shell, is its landing page ([The landing workspace](#the-landing-workspace-356));
+the top bar's **Scenes · Landing** switches between the two.
 
 The Inspector's head: its grip and icon (the handle), the tabs – as words, or as icons in a panel too narrow for them
 (under 24rem, 28rem with a finger), so the head stays one line (#172) – and, on the last scene,
@@ -1401,8 +1403,41 @@ The experience's Inspector (⚙) has a **landing page** section (`panels/Landing
 summary *scene › target* or *none*): the **scene** (a link – it opens the scene with the target selected), the
 **target**, the **hero** – *up to date*, *out of date* with **Refresh** (the hero extracted again and saved), or the
 problem when the pick cannot be the hero any more – and **Remove** (`{ landing: null }`; the landing shows the
-experience's first model again after the next publish). Publish writes the version's `landing.json` from it. The landing
-workspace that shows the draft's landing itself is the next step (#356 b).
+experience's first model again after the next publish). Publish writes the version's `landing.json` from it. Its
+**Landing page** link opens the landing workspace ([below](#the-landing-workspace-356)).
+
+### The landing workspace (#356)
+
+`/editor/<experience>/landing/` – the experience's second workspace on the same shell as a scene's (`Workspace.svelte`):
+the **stage is the landing page a computer gets**, with the draft, and the panels float over it. The top bar's
+**Scenes · Landing** switches between the experience's two workspaces (Scenes opens the scene last open, as the
+experience's address does); the crumb reads *Experiences › experience › Landing*. Ways in: the switch, the ⚙ section's
+*Landing page* link, and *Landing page* in an experience's sheet on the Experiences page.
+
+- **The stage** (`lib/LandingStage.svelte`): the reader's own landing piece (`ui/landing/`, RULES #32 – the editor imports
+  it, never the reader) mounted with the draft: `lib/landing-draft.ts` reads the draft's configuration and files.json,
+  makes the `landing.json` publish would write (`landingFileOf` – the stored hero of `experience.landing`, else the hero
+  extracted from the default, the first model) and resolves its content paths where the draft keeps the files
+  (`draftFileUrl`). It renders what a computer gets – the title, the hero, the QR card (the experience's reader address,
+  `?s=lp1`), the shop, the footer with Privacy & terms – in English, and scrolls inside the stage (`contained`). The
+  brand's tokens (`ui/brand/tokens.css`) sit on the piece's shadow host, the font's faces on the document: the editor's
+  own UI stays monochrome (#38). The hero runs the experience's plugins in this page, so it goes through the plugin guard
+  like the scene's stage (#35): the page shows at once, the hero once the prompt is answered (plugins kept off are left
+  out). Every landing save and every revert reads the draft again, and the stage mounts the page again.
+- **Inspector**: the landing's settings (`panels/LandingSection.svelte` with `choices`) – the hero's **scene** and
+  **target** as two selects that list only scenes with a target that has AR content and only those targets
+  (`landingPickScenes` in `lib/landing-pick.ts`: a model, a video, an image, a text, a plugin's node type or a component –
+  never marginalia or links; switched-off targets are left out); a scene takes its first such target. A choice saves
+  itself through the autosaver like the stage's *Use for the landing page* (`saveLandingPick`, History lists it); the
+  **hero** row says *saving…*, *up to date*, *out of date* with **Refresh**, or the problem; **Remove**.
+- **Scenes**: the scene workspace's filmstrip (`ScenesPanel.svelte`, the same panel): the hero's scene is the current
+  card, a click on another card picks that scene (its first target with AR content; a scene without one says so).
+- **History** and **Info** as in a scene; the layout is remembered per workspace (`Floats("landing", …)`).
+
+The shop's items and the publisher are not edited here yet (they stay the app's configuration and the experience's
+book). **`landing` is a reserved scene id** (`RESERVED_SCENE_IDS` in `shared/api/names.ts`, any case): the API refuses a
+new scene so named (`POST …/scenes { id }` → 400 `reserved-id`, `Scenes::RESERVED_IDS`), as does the MCP's `add_scene` –
+SvelteKit's static `landing` segment wins over `[scene]`, so such a scene could never open.
 
 ### Inspector: a group
 
@@ -1879,7 +1914,8 @@ design tokens):
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` on the stage, rebuild), the plugins' log; `plugin-guard.ts`, `plugin-guard.svelte.ts`, `components/PluginGuardPrompt.svelte` – the prompt before others' code (#340) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
-| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `admin/` |
+| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `[experience]/landing/` (#356), `admin/` |
+| The landing workspace | `editor/src/lib/LandingStage.svelte`, `landing-draft.ts`, `landing-pick.ts`, `panels/LandingSection.svelte`; `ui/landing/`, `ui/brand/` | [The landing workspace](#the-landing-workspace-356); the piece is the reader's (`@ui/…`, an alias like `@engine/…`); the dev server serves the reader's `public/assets/ui/` and `assets/deps/` so its pictures and QR library load as on an instance |
 | The API | `server/api/src/Experiences.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php`, `ExperienceTexts.php` | [server](server.md) "Editor data", "Plugin sources", "Texts" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |
 
@@ -1887,7 +1923,7 @@ Stack (#157): **SvelteKit 3** with adapter-static 4 (a single-page app, `index.h
 `/editor`), Svelte 5, Vite 8, TypeScript 6, Vitest 5; Node 22.17 or later. SvelteKit's configuration is in
 `editor/vite.config.ts` (`sveltekit({...})` – there is no `svelte.config.js`). `src/lib` is imported as `#lib/…` with
 the file's extension (`#lib/api.js`, `#lib/TopBar.svelte` – `imports` in `editor/package.json`); `@engine/…` and
-`@shared/…` are Vite aliases plus `paths` in `editor/tsconfig.json` (which extends `$app/tsconfig`), because the
+`@shared/…` (and `@ui/…`, #356) are Vite aliases plus `paths` in `editor/tsconfig.json` (which extends `$app/tsconfig`), because the
 engine's own files import `@shared/…` too. Links and static files go through `resolve()` and `asset()` of
 `$app/paths`, never a hand-built base path.
 

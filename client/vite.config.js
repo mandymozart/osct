@@ -5,12 +5,12 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 import { VitePWA } from 'vite-plugin-pwa';
 import { networkInterfaces } from 'os';
 import { ONBOARDING_ICON_SRC, renderStaticSplash, SPLASH_STEP, splashFields } from './src/utils/static-splash-html.ts';
-import { fontBaseUrl, renderFontFaces } from './src/utils/font-face-html.ts';
+import { fontBaseUrl, renderFontFaces } from '../ui/brand/font-face.ts';
 import { legacyRedirectData, renderLegacyRedirect } from './src/utils/legacy-redirect-html.ts';
 import { manifestLinkData, renderManifestLink, withoutBuildManifestLink } from './src/utils/manifest-link-html.ts';
 import { landingDecisionData, renderEntryPreload, renderLandingDecision } from './src/landing/landing-decision-html.ts';
-import { fillTexts, LANDING_ATTRIBUTE, landingImages, renderStaticLanding } from './src/landing/landing-html.ts';
-import { LANDING_CONFIG } from './src/landing/landing-config.ts';
+import { fillTexts, LANDING_ATTRIBUTE, landingImages, renderStaticLanding } from '../ui/landing/landing-html.ts';
+import { LANDING_CONFIG } from '../ui/landing/landing-config.ts';
 import { renderPrivacyPage } from './src/privacy/privacy-html.ts';
 import { DEFAULT_LANGUAGE, LANGUAGES } from './src/i18n/languages.ts';
 
@@ -223,7 +223,7 @@ function manifestLink() {
 }
 
 /**
- * The desktop landing in the skeleton (#343, #355 – src/landing/landing-decision-html.ts and landing-html.ts): an inline
+ * The desktop landing in the skeleton (#343, #355 – src/landing/landing-decision-html.ts and ui/landing/landing-html.ts): an inline
  * script after the legacy redirect decides at once whether this is a computer (`<html data-osct-landing>`: `page` on the
  * default experience's path, `skeleton` on another's), and the landing page itself is written into the body from the
  * build's game configuration (English texts, the targets' images from the content the build read) – so a computer sees
@@ -241,7 +241,7 @@ function staticLanding(experience, config, contentBase) {
         .replace('<!--osct:landing-decision-->', renderLandingDecision(landingDecisionData(experience)))
         .replace('<!--osct:static-landing-->', renderStaticLanding({
           ...LANDING_CONFIG,
-          texts: fillTexts(read('src/i18n/locales/en/landing.json'), { title: fields.title, author: fields.author }),
+          texts: fillTexts(read('../ui/landing/locales/en/landing.json'), { title: fields.title, author: fields.author }),
           title: fields.title,
           author: fields.author,
           publisher: fields.publisher,
@@ -313,7 +313,7 @@ function privacyPage(experience, config, contentBaseUrl) {
       const { head, body } = renderPrivacyPage({
         languages: Object.fromEntries(LANGUAGES.map(lang => [lang, {
           texts: read(`src/i18n/locales/${lang}/privacy.json`),
-          name: read(`src/i18n/locales/${lang}/landing.json`).privacy,
+          name: read(`../ui/landing/locales/${lang}/landing.json`).privacy,
           close: read(`src/i18n/locales/${lang}/header.json`).close,
         }])),
         defaultLanguage: DEFAULT_LANGUAGE,
@@ -333,7 +333,7 @@ function privacyPage(experience, config, contentBaseUrl) {
 }
 
 /**
- * The design font (ABC Areal, src/utils/font-face-html.ts): `@font-face` rules for the font folder on the CDN
+ * The design font (ABC Areal, ui/brand/font-face.ts): `@font-face` rules for the font folder on the CDN
  * (`VITE_FONT_BASE_URL`, default the shared folder; empty = no web font), written into index.html before the
  * stylesheet. The files are licensed and never part of the build.
  */
@@ -439,7 +439,7 @@ export default defineConfig(async ({command,mode})=>{
     throw new Error('VITE_EXPERIENCE is not set – a build against the content CDN (VITE_CONTENT_BASE_URL) names the experience it opens (docs/content-cdn.md)');
   }
   const shellConfig = await readShellConfig(contentBaseUrl && `${contentBaseUrl}/${encodeURIComponent(experience)}`);
-  // The design font's folder (src/utils/font-face-html.ts); the service worker caches what it loads from there
+  // The design font's folder (ui/brand/font-face.ts); the service worker caches what it loads from there
   const fontUrl = fontBaseUrl(loadEnv(mode, import.meta.dirname, 'VITE_').VITE_FONT_BASE_URL);
   const port = 5173;
   // Dev server over https: phones only grant camera access on https (http works on localhost only).
@@ -472,6 +472,8 @@ export default defineConfig(async ({command,mode})=>{
       '@': resolve(import.meta.dirname, 'src'),
       '@shared': resolve(import.meta.dirname, '../shared'),
       '@engine': resolve(import.meta.dirname, '../engine/src'),
+      // Reader-facing pieces the editor shows too (ui/, RULES #32): the landing and the brand it needs
+      '@ui': resolve(import.meta.dirname, '../ui'),
     }
   },
   server: {
@@ -481,7 +483,7 @@ export default defineConfig(async ({command,mode})=>{
     proxy: { '/api': 'http://127.0.0.1:8080' },
     fs: {
       // shared/ (game configuration contract) lives next to client/
-      allow: [resolve(import.meta.dirname), resolve(import.meta.dirname, '../shared'), resolve(import.meta.dirname, '../engine')],
+      allow: [resolve(import.meta.dirname), resolve(import.meta.dirname, '../shared'), resolve(import.meta.dirname, '../engine'), resolve(import.meta.dirname, '../ui')],
     },
   },
   build: {
@@ -539,8 +541,8 @@ export default defineConfig(async ({command,mode})=>{
       reportsDirectory: './coverage'
     },
     globals: true,
-    // The engine's tests run here too (engine/ has no test runner of its own; the reader is its first app)
-    include: ['src/**/*.{test,spec}.{js,ts}', '../engine/src/**/*.test.ts'],
+    // The engine's and ui/'s tests run here too (neither has a test runner of its own; the reader is their first app)
+    include: ['src/**/*.{test,spec}.{js,ts}', '../engine/src/**/*.test.ts', '../ui/**/*.test.ts'],
     setupFiles: ['./src/test/setup.ts']
   }
 }});

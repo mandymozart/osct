@@ -21,13 +21,12 @@
  */
 import { EXPERIENCE_NAME, experienceBaseUrl } from "@shared/api/content-store";
 import { experienceOfSource, isReservedPath } from "@shared/api/experience-paths";
+import { privacyHrefOf, SOURCE_PARAM } from "@ui/landing/links";
 
 /** The path segment of the old prefix (#87: `/x/<experience>/…`) – redirected to `/<experience>/…` */
 export const LEGACY_SEGMENT = "x";
 /** Where this browser keeps the experience it opened last (the installed app's `/` opens it) */
 export const LAST_EXPERIENCE_KEY = "osct-experience";
-/** The arrival's source parameter (`ArrivalService.SOURCE_PARAM`, here too so this module loads nothing else) */
-const SOURCE_PARAM = "s";
 
 /** A path split into the experience it names (null = none) and the route path below it (`/` for the start) */
 export interface ExperiencePath {
@@ -72,7 +71,7 @@ export const experiencePrefix = (experience: string | null = activeExperience())
   experience ? `/${encodeURIComponent(experience)}` : "";
 
 /** Privacy & terms: the static page beside the app (privacy.html, #355) below the experience's path – the installed app keeps it in its window */
-export const privacyHref = (prefix: string = experiencePrefix()): string => `${prefix}/privacy`;
+export const privacyHref = (prefix: string = experiencePrefix()): string => privacyHrefOf(prefix);
 
 /**
  * The content base URL of the experience: the environment's (`VITE_CONTENT_BASE_URL`) + the experience; "" without an

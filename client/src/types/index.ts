@@ -15,4 +15,4 @@ export * from "./targets"
 export * from "./tutorial"
 export type { GraphicsSettings, GraphicsSource } from "@engine/types/graphics"
 
-export * from "./qr/qrcode"
+export * from "@ui/landing/qrcode"

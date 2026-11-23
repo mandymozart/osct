@@ -4,11 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 import { isLandingFile, LANDING_FORMAT, type LandingFile } from "@shared/api/landing";
 import { CONTENT_SCHEMA_VERSION, type EntityData, OLDEST_READABLE_SCHEMA_MAJOR } from "@shared/types/game-config";
 import { getExperience, getPlugins, getScenes } from "@/utils/game-config";
-import { landingDataFromFile, type LandingData, loadLandingData, readableSchema } from "../data";
-import { deriveLandingData } from "../derive";
-import { LANDING_CONFIG } from "../landing-config";
 import { extractLandingHero, landingSourceOf } from "@shared/api/landing-extract";
-import { scanStagePick } from "../scan-stage-data";
+import { landingDataFromFile, type LandingData } from "@ui/landing/data";
+import { LANDING_CONFIG } from "@ui/landing/landing-config";
+import { scanStagePick } from "@ui/landing/scan-stage-data";
+import { loadLandingData, readableSchema } from "../data";
+import { deriveLandingData } from "../derive";
 
 const print = { src: "/assets/content/targets/p10.webp", x: 0.1, top: 0.2, width: 0.3 };
 
