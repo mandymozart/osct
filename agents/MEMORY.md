@@ -4,6 +4,16 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – A plugin is a folder of files: file tabs in the Code tab (#352, decided, not built)
+- Tilman: *"folders in the tab … allow us to see what a plugin is made of … download would make them distributable"* ·
+  *"no file tree. just file tabs. like shader toy"* · shaders: *"Keep both"* (the plugin's own tabs and the Library's shared
+  ones). Option A over B (opaque uploaded bundles): the files are the truth everywhere; esbuild-wasm bundles in the
+  browser, Monaco's TS worker type-checks at Publish (half of #266); `osct plugin link/push/pull` from an IDE; no versions
+  of our own; 256 KB per file hard, bundle warning at 256 KB, 1 MB per plugin. Export carries `{ id, files }` (schema MAJOR).
+  Note: `agents/research/2026-11-23-plugin-files.md`; draft `agents/design/plugin-files.html`.
+- [ ] Today's trap until it's built: a multi-file plugin from the content build opens as its `index.ts` alone; Save
+  makes a stored copy whose sibling import fails at Run and Publish.
+
 ## 2026-11-23 – The desktop landing: a computer never enters; a 3D scan stage in the hero (#354, 6.7.0)
 - Tilman: *"the desktop does not allow to enter the experience. you need to switch to phone or tablet. and you cant
   install on desktop either"* – "Open the app here", the install button and its notes are gone (an agreed removal, RULES
@@ -19,6 +29,16 @@ outcome in the line (or move it into a dated decision block).
 - [ ] The local content folder (`osct-content/content`) is still in the pre-experience format (no `experience.yaml`):
   `npm run build` fails against it; the build check for #354 ran against `fixtures/content`.
 - [ ] The scattered images of the hero overlap the stage in places – Tilman did not ask; left as is.
+
+## 2026-11-23 – The landing per experience: a scene and a surface, nothing else (#355)
+- Tilman: *"for the landing page animation, the user just has to choose a scene and a surface. the animation will load
+  that as preview. should be enough information without manually setting things"*, *"a light weight solution in the
+  editor"* – concept 2 (`agents/design/landing-cms.html`) replaces the slot editor of concept 1: one **Landing page**
+  section in the experience's settings (Scene, Surface), `experience.landing: { scene, surface }`, the hero plays that
+  surface with the engine. Everything else comes from the experience and the app's texts.
+- Left out: picked images / own texts, shop items (stay in `landing-config.ts`), publisher and privacy additions per
+  experience (with the white label, #347).
+- [ ] Build **after #354** (Tilman: *"Yes, after #354"*) – its branch must merge develop ≥ 6.6.0 first (footer link, `LANDING_FREE_PAGES`).
 
 ## 2026-11-23 – Privacy & terms: one page in the reader, under Dutch law (#353, 6.6.0)
 - Tilman: *"terms and conditions, privacy and applicable to european law. building fictions is based in Amsterdam"*;
