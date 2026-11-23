@@ -2,7 +2,7 @@ import { t } from "i18next";
 import { LANDING_SOURCE, SOURCE_PARAM } from "@/services/ArrivalService";
 import { adoptDesignStyles } from "@/styles";
 import { experiencePrefix, hideStaticSplash } from "@/utils";
-import { bookCoverUrl } from "@/utils/book-cover";
+import { bookCoverUrl, sheetUrl, spreadSheets } from "@/utils/book-cover";
 import { getExperience, getScenes } from "@/utils/game-config";
 import { ONBOARDING_ICON_SRC } from "@/utils/static-splash-html";
 import { isDesktopVisitor, landingSkipped, readDeviceSignals } from "./desktop-visitor";
@@ -85,7 +85,11 @@ export class DesktopLanding extends HTMLElement {
       const experience = getExperience();
       const prints = new Set(data.prints.map(print => print.src));
       this.stage = new ScanStage(box, data, {
-        cover: bookCoverUrl(),
+        sheets: Promise.all([bookCoverUrl(), spreadSheets(data.pages, 3)]).then(([cover, found]) => ({
+          cover,
+          spread: found ? sheetUrl(found.spread) : null,
+          earlier: (found?.earlier ?? []).map(sheetUrl).filter((src): src is string => !!src),
+        })),
         title: experience.title,
         author: experience.book?.author ?? "",
         pageImages: pick(getScenes().flatMap(scene => scene.targets.map(target => target.imageSrc)).filter(src => !prints.has(src)), 6, 354),

@@ -1,8 +1,8 @@
 import {
-  ACESFilmicToneMapping, AlwaysStencilFunc, AmbientLight, AnimationMixer, BackSide, BoxGeometry, CanvasTexture, Clock,
+  AlwaysDepth, AlwaysStencilFunc, AmbientLight, AnimationMixer, BackSide, BoxGeometry, BufferAttribute, CanvasTexture, Clock,
   DirectionalLight, EqualStencilFunc, ExtrudeGeometry, FrontSide, Group, type Material, MathUtils, Mesh,
-  MeshBasicMaterial, MeshStandardMaterial, type Object3D, PerspectiveCamera, Plane, PlaneGeometry, PMREMGenerator, Raycaster,
-  ReplaceStencilOp, Scene, Shape, ShapeGeometry, SRGBColorSpace, type Texture, Vector2, Vector3, WebGLRenderer,
+  MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, type Object3D, PerspectiveCamera, Plane, PlaneGeometry, PMREMGenerator, Raycaster,
+  RepeatWrapping, ReplaceStencilOp, ShaderMaterial, Scene, Shape, ShapeGeometry, SRGBColorSpace, type Texture, Vector2, Vector3, WebGLRenderer,
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -31,11 +31,15 @@ import type { ScanPrint, ScanStageData } from "./scan-stage-data";
  */
 
 export interface ScanStageExtras {
-  /** The book's front cover as a picture (the print layout's), null without: the cover is set in gold on black */
-  cover: Promise<string | null>;
+  /**
+   * The print layout's pictures (`utils/book-cover.ts`): the front cover, the scene's spread and the spreads before it
+   * (nearest last) – each null / missing without a layout (the test fixture): the cover is then set in gold on black,
+   * the spread laid out from its targets, the turning pages show other prints of the book
+   */
+  sheets: Promise<{ cover: string | null; spread: string | null; earlier: string[] }>;
   title: string;
   author: string;
-  /** Other prints of the book for the pages that turn on the way */
+  /** Other prints of the book for turning pages without a sheet */
   pageImages: readonly string[];
 }
 
@@ -46,16 +50,34 @@ const PAGES = 3;
 const LOOP_S = 15;
 /** A click takes the phone; the mouse rests this long (s), leaves the stage or clicks again: the autopilot takes over */
 const IDLE_S = 3.5;
-/** The phone (surface widths): its size, its distance from the page point it looks at, along the line of sight */
-const PHONE = { width: 0.27, height: 0.56, depth: 0.018, radius: 0.046, bezel: 0.008, distance: 0.6 };
+/**
+ * The phone (surface widths): its size, its distance from the page point it looks at along the line of sight – and
+ * while the visitor steers it, nearer the eye, bigger ("when clicking the phone it comes closer to the cameara")
+ */
+const PHONE = { width: 0.27, height: 0.56, depth: 0.018, radius: 0.046, bezel: 0.008, distance: 0.6, steered: 1.0 };
 /** The autopilot aims this much above the target's centre: more of a standing model's upper part is in the screen */
 const AIM_UP = 0.07;
 /** The target counts as in the screen while the aimed point lies within this share of its half size */
 const FIND_SHARE = 0.72;
 const STENCIL_REF = 1;
-const PAPER = "#f3eee4";
-/** The paper is unlit (its colours as printed), dimmed to sit in the dark hero */
-const PAPER_LIGHT = "#bdb7ab";
+const LIGHT = { ambient: 2.2, sun: 1.5 };
+const PAPER = "#f6f3ec";
+/**
+ * The book (surface widths): its thickness closed, a cover's, and the share of its pages that lie on the left once it
+ * is open on the scene – the left half grows and the right one thins as the cover and the pages turn
+ */
+const BOOK = { thickness: 0.05, cover: 0.0025, opened: 0.16 };
+/** The pages dip into the gutter (this deep at the fold, level again about `reach` from it) and are a shade darker there */
+const GUTTER = { dip: 0.006, reach: 0.045, shade: 0.14, shadeReach: 0.018 };
+const dipAt = (distance: number): number => -GUTTER.dip * Math.exp(-((distance / GUTTER.reach) ** 2));
+/** The leaves lie this far above one another (no flicker, no visible step) */
+const LIFT = 0.00025;
+/**
+ * The canvas is larger than the stage's box by this share on every side, so the book's lower edge and a phone held
+ * near the eye are never cut off; the camera's angle widens with it and the picture in the box stays the same
+ */
+const OVERSCAN = 0.3;
+const FOV = 30;
 const GOLD = "#b8914a";
 /** The spread's picture, this many px across */
 const CANVAS_WIDTH = 2048;
@@ -91,6 +113,15 @@ const loadImage = (src: string): Promise<HTMLImageElement> => new Promise((resol
   image.src = src;
 });
 
+/** An image as a canvas (a texture of it can be cut into halves with its own repeat and offset) */
+const toCanvas = (image: HTMLImageElement): HTMLCanvasElement => {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  canvas.getContext("2d")!.drawImage(image, 0, 0);
+  return canvas;
+};
+
 const canvasTexture = (canvas: HTMLCanvasElement): CanvasTexture => {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -119,21 +150,16 @@ const paintPaper = (g: CanvasRenderingContext2D, width: number, height: number, 
     g.fillStyle = gradient;
     g.fillRect(at - reach, 0, reach * 2, height);
   };
-  if (gutter === 0) shade(width / 2, width * 0.05);
-  else shade(gutter < 0 ? 0 : width, width * 0.1);
+  // The fold itself is shaded by the leaf (`GUTTER.shade`): only a page of its own gets a soft shade here
+  if (gutter !== 0) shade(gutter < 0 ? 0 : width, width * 0.06);
 };
 
-/** The cover: the book's own when the content has it, else its title and author in gold on black, in a gold frame */
-const paintCover = async (extras: ScanStageExtras, aspect: number): Promise<HTMLCanvasElement> => {
+/** The cover without a picture of its own: the title and the author in gold on black, in a gold frame */
+const paintCover = (extras: ScanStageExtras, aspect: number): HTMLCanvasElement => {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = Math.round(1024 * aspect * 2);
   const g = canvas.getContext("2d")!;
-  const own = await extras.cover.then(src => (src ? loadImage(src) : null)).catch(() => null);
-  if (own) {
-    g.drawImage(own, 0, 0, canvas.width, canvas.height);
-    return canvas;
-  }
   const { width, height } = canvas;
   g.fillStyle = "#0b0a08";
   g.fillRect(0, 0, width, height);
@@ -160,6 +186,85 @@ const paintCover = async (extras: ScanStageExtras, aspect: number): Promise<HTML
   return canvas;
 };
 
+/**
+ * The printed cover as a material (Tilman: "the front cover is wrong. we can create a special texture material for it,
+ * since it has this special laquer in the print"): the paper with its dot screen matte, the brush strokes – flat white
+ * where the screen is left out – a glossy lacquer (clear coat), the gold title metal. The masks are read from the
+ * picture itself into one texture: red = lacquer (clearcoatMap), green = roughness, blue = metalness.
+ */
+const lacquerCover = (image: HTMLImageElement, environment: Texture): MeshPhysicalMaterial => {
+  const { width, height } = image;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const g = canvas.getContext("2d", { willReadFrequently: true })!;
+  g.drawImage(image, 0, 0);
+  const pixels = g.getImageData(0, 0, width, height);
+  const data = pixels.data;
+  const count = width * height;
+  const light = new Float32Array(count);
+  const gold = new Uint8Array(count);
+  for (let i = 0; i < count; i++) {
+    const [r, green, b] = [data[i * 4], data[i * 4 + 1], data[i * 4 + 2]];
+    light[i] = (0.299 * r + 0.587 * green + 0.114 * b) / 255;
+    gold[i] = r - b > 45 && light[i] < 0.9 ? 1 : 0;
+  }
+  // The dot screen varies at a small scale, the lacquer's strokes are flat white: a low variance around the pixel
+  const radius = 4;
+  const stride = width + 1;
+  const sum = new Float64Array(stride * (height + 1));
+  const squares = new Float64Array(stride * (height + 1));
+  for (let y = 0; y < height; y++) {
+    let row = 0;
+    let rowSquares = 0;
+    for (let x = 0; x < width; x++) {
+      const v = light[y * width + x];
+      row += v;
+      rowSquares += v * v;
+      const at = (y + 1) * stride + x + 1;
+      sum[at] = sum[at - stride] + row;
+      squares[at] = squares[at - stride] + rowSquares;
+    }
+  }
+  const box = (table: Float64Array, x0: number, y0: number, x1: number, y1: number) =>
+    table[y1 * stride + x1] - table[y0 * stride + x1] - table[y1 * stride + x0] + table[y0 * stride + x0];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const x0 = Math.max(0, x - radius);
+      const y0 = Math.max(0, y - radius);
+      const x1 = Math.min(width, x + radius + 1);
+      const y1 = Math.min(height, y + radius + 1);
+      const n = (x1 - x0) * (y1 - y0);
+      const mean = box(sum, x0, y0, x1, y1) / n;
+      const variance = box(squares, x0, y0, x1, y1) / n - mean * mean;
+      const i = y * width + x;
+      const lacquer = !gold[i] && mean > 0.95 && variance < 0.0004;
+      data[i * 4] = lacquer ? 255 : 0;
+      data[i * 4 + 1] = gold[i] ? 70 : lacquer ? 25 : 215;
+      data[i * 4 + 2] = gold[i] ? 255 : 0;
+      data[i * 4 + 3] = 255;
+    }
+  }
+  g.putImageData(pixels, 0, 0);
+  const masks = new CanvasTexture(canvas);
+  const map = new CanvasTexture(image);
+  map.colorSpace = SRGBColorSpace;
+  map.anisotropy = 8;
+  return new MeshPhysicalMaterial({
+    map,
+    roughness: 1,
+    roughnessMap: masks,
+    metalness: 1,
+    metalnessMap: masks,
+    clearcoat: 1,
+    clearcoatMap: masks,
+    clearcoatRoughness: 0.08,
+    envMap: environment,
+    envMapIntensity: 0.45,
+    color: "#c9c9c9",   // under the stage's bright light the paper stays just below white: its dot screen and the gold read
+  });
+};
+
 /** A leaf's face: paper and one of the book's prints in its middle */
 const paintPage = async (src: string | undefined, aspect: number, gutter: -1 | 1): Promise<HTMLCanvasElement> => {
   const canvas = document.createElement("canvas");
@@ -176,19 +281,30 @@ const paintPage = async (src: string | undefined, aspect: number, gutter: -1 | 1
   return canvas;
 };
 
-/** A leaf of the book: a plane of half the spread, hinged at the gutter, bending as it turns */
+/**
+ * A leaf of the book: a plane of half the spread, hinged at the gutter. It dips into the fold where it is bound
+ * (`GUTTER`), is a shade darker there (vertex colours – the paper itself is unlit), and bends while it turns – a page
+ * much, the cover little.
+ */
 class Leaf {
   readonly group = new Group();
+  /** How far it is turned, eased: 0 = lying on the right, 1 = on the left */
+  progress = 0;
   private readonly geometry: PlaneGeometry;
-  private readonly columns = 24;
+  private readonly columns = 28;
 
   constructor(
     private readonly width: number, height: number,
-    readonly front: MeshBasicMaterial, readonly back: MeshBasicMaterial,
-    private readonly lift: [number, number], private readonly tint = PAPER_LIGHT,
+    readonly front: MeshBasicMaterial | MeshPhysicalMaterial, readonly back: MeshBasicMaterial,
+    private readonly lift: [number, number], private readonly bend = 0.75,
   ) {
     this.geometry = new PlaneGeometry(width, height, this.columns, 1);
-    this.geometry.translate(width / 2, 0, 0);
+    const colors = new Float32Array(this.geometry.attributes.position.count * 3);
+    for (let i = 0; i < colors.length / 3; i++) {
+      const distance = ((i % (this.columns + 1)) / this.columns) * width;
+      colors.fill(1 - GUTTER.shade * Math.exp(-((distance / GUTTER.shadeReach) ** 2)), i * 3, i * 3 + 3);
+    }
+    this.geometry.setAttribute("color", new BufferAttribute(colors, 3));
     front.side = FrontSide;
     back.side = BackSide;
     this.group.add(new Mesh(this.geometry, front), new Mesh(this.geometry, back));
@@ -197,8 +313,9 @@ class Leaf {
 
   /** 0 = lying on the right, 1 = turned over onto the left; the free edge trails while it turns */
   turn(t: number) {
-    const angle = Math.PI * smooth(t);
-    const bend = -0.75 * Math.sin(angle);
+    this.progress = smooth(t);
+    const angle = Math.PI * this.progress;
+    const bend = -this.bend * Math.sin(angle);
     const step = this.width / this.columns;
     const xs = [0];
     const zs = [0];
@@ -211,28 +328,48 @@ class Leaf {
     for (let i = 0; i < position.count; i++) {
       const j = i % (this.columns + 1);
       position.setX(i, xs[j]);
-      position.setZ(i, zs[j]);
+      position.setZ(i, zs[j] + dipAt(j * step));
     }
     position.needsUpdate = true;
     this.geometry.computeVertexNormals();
-    this.group.position.z = MathUtils.lerp(this.lift[0], this.lift[1], smooth(t));
-    // The page darkens a little as it stands up from the light
-    const shade = 1 - 0.22 * Math.sin(angle);
-    this.front.color.set(this.tint).multiplyScalar(shade);
-    this.back.color.set(PAPER_LIGHT).multiplyScalar(shade);
+    this.group.position.z = MathUtils.lerp(this.lift[0], this.lift[1], this.progress);
+    // Barely darker while it stands: the colours stay the print's
+    const shade = 1 - 0.06 * Math.sin(angle);
+    if (this.front instanceof MeshBasicMaterial) this.front.color.setScalar(shade);
+    this.back.color.setScalar(shade);
   }
 }
+
+/** The pages' edges seen from the side: fine lines, one per few pages (they vary along the texture's height) */
+const edgeTexture = (): CanvasTexture => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 4;
+  canvas.height = 256;
+  const g = canvas.getContext("2d")!;
+  let state = 354;
+  for (let y = 0; y < canvas.height; y++) {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    const light = Math.round(185 + (state / 2147483648) * 70);
+    g.fillStyle = `rgb(${light}, ${light}, ${light})`;
+    g.fillRect(0, y, canvas.width, 1);
+  }
+  const texture = canvasTexture(canvas);
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
+};
 
 export class ScanStage {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
-  private readonly camera = new PerspectiveCamera(30, 1, 0.01, 20);
+  private readonly camera = new PerspectiveCamera(MathUtils.radToDeg(2 * Math.atan(Math.tan(MathUtils.degToRad(FOV / 2)) * (1 + 2 * OVERSCAN))), 1, 0.1, 20);
   private readonly clock = new Clock(false);
   private readonly phone = new Group();
   private readonly anchor = new Group();
   private readonly placed = new Group();
   private readonly leaves: Leaf[] = [];
-  private readonly leftBlock = new Group();
+  private blocks: { left: Mesh; right: Mesh; spine: Mesh } | null = null;
+  /** Reflections for the metal, the gilt edges and the cover's lacquer only – the model is lit as in the reader */
+  private readonly environment: Texture;
   private readonly cameraHome = new Vector3(0, -1.55, 1.85);
   private readonly cameraStart = new Vector3(0.12, -1.25, 2.05);
   private readonly look = new Vector3(0.02, 0.02, 0);
@@ -247,6 +384,8 @@ export class ScanStage {
   private readonly aim = new Vector2(0.9, -0.2);
   private mouse: Vector2 | null = null;
   private steering = false;
+  /** 0 = the autopilot's distance, 1 = steered: nearer the eye */
+  private near = 0;
   private mouseAt = -Infinity;
   private mixer: AnimationMixer | null = null;
   private model: Object3D | null = null;
@@ -259,20 +398,23 @@ export class ScanStage {
 
   constructor(private readonly container: HTMLElement, private readonly data: ScanStageData, private readonly extras: ScanStageExtras) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true, stencil: true, powerPreference: "low-power" });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.renderer.outputColorSpace = SRGBColorSpace;
-    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.renderer.outputColorSpace = SRGBColorSpace;   // no tone mapping: the colours as printed and as modelled
     this.renderer.setClearColor(0x000000, 0);
-    this.renderer.domElement.setAttribute("aria-hidden", "true");
-    container.appendChild(this.renderer.domElement);
+    const canvas = this.renderer.domElement;
+    canvas.setAttribute("aria-hidden", "true");
+    canvas.style.inset = `${-OVERSCAN * 100}%`;
+    canvas.style.width = canvas.style.height = `${(1 + 2 * OVERSCAN) * 100}%`;
+    canvas.style.pointerEvents = "none";               // over the text beside the stage: the stage's box takes the mouse
+    container.appendChild(canvas);
 
     const pmrem = new PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
-    this.scene.environmentIntensity = 0.8;
-    this.scene.add(new AmbientLight(0xfff2dd, 0.4));
-    const sun = new DirectionalLight(0xfff0d6, 2);
-    sun.position.set(-0.6, 0.4, 1.4);
+    // White light only, bright and even: nothing tints the model or the cover
+    this.scene.add(new AmbientLight(0xffffff, LIGHT.ambient));
+    const sun = new DirectionalLight(0xffffff, LIGHT.sun);
+    sun.position.set(-0.4, -0.5, 1.6);
     this.scene.add(sun);
 
     this.camera.up.set(0, 0, 1);
@@ -334,6 +476,7 @@ export class ScanStage {
     this.container.removeEventListener("pointermove", this.handlePointer);
     this.container.removeEventListener("pointerleave", this.handleLeave);
     disposeObject(this.scene);
+    this.environment.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -341,46 +484,93 @@ export class ScanStage {
   // ── Building ─────────────────────────────────────────────────────────────────────────────────────
 
   /**
-   * The book: gold boards under both halves, the right half's page (the scene's right page) at the bottom, and over it
-   * the leaves that turn – the cover first, then the pages, the last one's back the scene's left page
+   * The book, a softcover: its pages as two blocks with gilt edges under the halves (`buildBlocks`), the scene's right
+   * page lying on the right one, and over it the leaves that turn – the cover first, then the pages, each the right
+   * page of a spread with the next spread's left page on its back; the last one's back is the scene's left page. Cover
+   * and pages are the same size and lie flush: the open spread is one picture across the fold.
    */
   private async buildBook() {
     const { aspect } = this.data;
-    const gold = new MeshStandardMaterial({ color: GOLD, metalness: 0.95, roughness: 0.28 });
-    const board = (side: -1 | 1) => {
-      const mesh = new Mesh(new BoxGeometry(0.515, aspect + 0.03, 0.022), gold);
-      mesh.position.set(side * 0.2575, 0, -0.012);
-      return mesh;
-    };
-    this.scene.add(board(1));
-    this.leftBlock.add(board(-1));
-    this.leftBlock.visible = this.still;
-    this.scene.add(this.leftBlock);
-
-    const material = (map: Texture) => new MeshBasicMaterial({ map, color: PAPER_LIGHT, toneMapped: false });
-    const [spread, pages, cover, endpaper] = await Promise.all([
+    const page = (map: Texture) => new MeshBasicMaterial({ map, vertexColors: true, toneMapped: false });
+    const sheets = await this.extras.sheets.catch(() => ({ cover: null, spread: null, earlier: [] as string[] }));
+    const picture = (src: string | null | undefined): Promise<Texture | null> =>
+      src ? loadImage(src).then(image => canvasTexture(toCanvas(image))).catch(() => null) : Promise.resolve(null);
+    const [laidOut, spreadSheet, earlier, coverImage, endpaper, fallback] = await Promise.all([
       this.paintSpread(),
-      Promise.all(Array.from({ length: PAGES * 2 - 1 }, (_, i) =>
-        paintPage(this.extras.pageImages[i], aspect, i % 2 ? -1 : 1).then(canvasTexture))),
-      paintCover(this.extras, aspect).then(canvasTexture),
+      picture(sheets.spread),
+      Promise.all(sheets.earlier.slice(-PAGES).map(picture)),
+      sheets.cover ? loadImage(sheets.cover).catch(() => null) : Promise.resolve(null),
       paintPage(undefined, aspect, -1).then(canvasTexture),
+      Promise.all(Array.from({ length: PAGES * 2 }, (_, i) =>
+        paintPage(this.extras.pageImages[i], aspect, i % 2 ? -1 : 1).then(canvasTexture))),
     ]);
-    const right = new Mesh(new PlaneGeometry(0.5, aspect), material(half(spread, 1)));
-    right.position.set(0.25, 0, 0.0004);
-    this.scene.add(right);
+    // The scene's spread: its layout sheet, else laid out from its targets
+    const spread = spreadSheet ?? laidOut;
+    // The spreads the turning pages show (nearest last): the layout's before the scene's, else pages with other prints
+    const before: Array<Texture | null> = Array.from({ length: PAGES }, (_, i) => earlier[earlier.length - PAGES + i] ?? null);
+    const right = page(half(spread, 1));
+    this.scene.add(new Leaf(0.5, aspect, right, right.clone(), [0, 0]).group);
 
     const count = PAGES + 1;
     // On the right the cover lies on top; on the left the last page turned does
-    const lift = (i: number): [number, number] => [0.001 + (count - i) * 0.0012, 0.0006 + i * 0.0012];
-    this.leaves.push(new Leaf(0.512, aspect + 0.024, material(cover), material(endpaper), lift(0), "#ffffff"));
+    const lift = (i: number): [number, number] => [(count - i) * LIFT, (i + 1) * LIFT];
+    const cover = coverImage ? lacquerCover(coverImage, this.environment) : page(canvasTexture(paintCover(this.extras, aspect)));
+    this.leaves.push(new Leaf(0.5, aspect, cover, page(endpaper), lift(0), 0.25));
     for (let i = 0; i < PAGES; i++) {
-      const back = i === PAGES - 1 ? half(spread, 0, true) : pages[i * 2 + 1];
-      this.leaves.push(new Leaf(0.5, aspect, material(pages[i * 2]), material(back), lift(i + 1)));
+      const current = before[i];
+      const next = i === PAGES - 1 ? spread : before[i + 1];
+      const front = current ? half(current, 1) : fallback[i * 2];
+      const back = next ? half(next, 0, true) : fallback[i * 2 + 1];
+      this.leaves.push(new Leaf(0.5, aspect, page(front), page(back), lift(i + 1)));
     }
+    this.buildBlocks(aspect);
     this.leaves.forEach(leaf => {
       if (this.still) leaf.turn(1);
       this.scene.add(leaf.group);
     });
+    this.thicken();
+  }
+
+  /** The pages below the leaves: a block per half with gilt edges, and the spine between them */
+  private buildBlocks(aspect: number) {
+    const lines = edgeTexture();
+    const across = lines.clone();
+    across.center.set(0.5, 0.5);
+    across.rotation = Math.PI / 2;
+    across.needsUpdate = true;
+    const gilt = (map: Texture) => new MeshStandardMaterial({ color: "#d9b56a", map, metalness: 1, roughness: 0.36, envMap: this.environment });
+    const paper = new MeshBasicMaterial({ color: PAPER, toneMapped: false });
+    // A box's faces: ±x (the pages stack along the texture's width there), ±y (along its height), top, bottom
+    const faces = [gilt(across), gilt(across), gilt(lines), gilt(lines), paper, paper];
+    const block = (side: -1 | 1): Mesh => {
+      const mesh = new Mesh(new BoxGeometry(0.5, aspect, 1), faces);
+      mesh.position.x = side * 0.25;
+      this.scene.add(mesh);
+      return mesh;
+    };
+    const spine = new Mesh(new BoxGeometry(0.004, aspect - 0.002, 1), new MeshBasicMaterial({ color: "#ece8df", toneMapped: false }));
+    spine.position.x = -0.002;
+    this.scene.add(spine);
+    this.blocks = { left: block(-1), right: block(1), spine };
+  }
+
+  /** The blocks' thickness from the leaves turned so far: the cover and the pages move from the right block to the left */
+  private thicken() {
+    if (!this.blocks) return;
+    const [cover = 0, ...pages] = this.leaves.map(leaf => leaf.progress);
+    const turned = pages.reduce((sum, progress) => sum + progress, 0) / Math.max(1, pages.length);
+    const all = BOOK.thickness - 2 * BOOK.cover;
+    const left = BOOK.cover * cover + all * BOOK.opened * turned;
+    const right = BOOK.cover + all * (1 - BOOK.opened * turned);
+    const top = -GUTTER.dip - 0.0006;
+    const set = (mesh: Mesh, thickness: number) => {
+      mesh.visible = thickness > 0.0003;
+      mesh.scale.z = Math.max(thickness, 0.0003);
+      mesh.position.z = top - thickness / 2;
+    };
+    set(this.blocks.left, left);
+    set(this.blocks.right, right);
+    set(this.blocks.spine, Math.max(left, right));
   }
 
   /** The scene's spread as one picture: the paper, the gutter, the prints where they lie; places the anchor on the target */
@@ -417,13 +607,13 @@ export class ScanStage {
     const inner = { width: width - 2 * bezel, height: height - 2 * bezel, radius: radius - bezel };
     const outer = roundedRect(width, height, radius);
     outer.holes.push(roundedRect(inner.width, inner.height, inner.radius));
-    const metal = new MeshStandardMaterial({ color: "#1c1a18", metalness: 0.85, roughness: 0.3 });
+    const metal = new MeshStandardMaterial({ color: "#1c1a18", metalness: 0.85, roughness: 0.3, envMap: this.environment });
     const body = new Mesh(new ExtrudeGeometry(outer, { depth, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.003, bevelSegments: 4, curveSegments: 14 }), metal);
     body.position.z = -depth;
     const ring = roundedRect(width + 0.007, height + 0.007, radius + 0.0035);
     ring.holes.push(roundedRect(width - 0.001, height - 0.001, radius));
     const rim = new Mesh(new ExtrudeGeometry(ring, { depth: depth * 0.7, bevelEnabled: false, curveSegments: 14 }),
-      new MeshStandardMaterial({ color: GOLD, metalness: 1, roughness: 0.25 }));
+      new MeshStandardMaterial({ color: GOLD, metalness: 1, roughness: 0.25, envMap: this.environment }));
     rim.position.z = -depth * 0.85;
     const buttons = ([[-1, 0.12, 0.05], [-1, 0.045, 0.05], [1, 0.08, 0.08]] as const).map(([side, y, length]) => {
       const button = new Mesh(new BoxGeometry(0.005, length, depth * 0.5), metal);
@@ -432,8 +622,12 @@ export class ScanStage {
     });
     [body, rim, ...buttons].forEach(mesh => (mesh.renderOrder = 3));
     const screenShape = roundedRect(inner.width, inner.height, inner.radius);
-    const screen = new Mesh(new ShapeGeometry(screenShape, 14), new MeshBasicMaterial({
-      colorWrite: false, depthWrite: false, depthTest: false,
+    // The screen draws nothing: it marks its pixels (stencil) and clears their depth, so what stands on the page is
+    // drawn over the book there as the reader draws it over the camera's picture – also the part sunk into the page
+    const screen = new Mesh(new ShapeGeometry(screenShape, 14), new ShaderMaterial({
+      vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: "void main() { gl_FragColor = vec4(0.0); gl_FragDepth = 1.0; }",
+      colorWrite: false, depthTest: true, depthFunc: AlwaysDepth, depthWrite: true,
       stencilWrite: true, stencilRef: STENCIL_REF, stencilFunc: AlwaysStencilFunc, stencilZPass: ReplaceStencilOp,
     }));
     screen.renderOrder = 1;
@@ -499,7 +693,7 @@ export class ScanStage {
   // ── Running ──────────────────────────────────────────────────────────────────────────────────────
 
   private fit() {
-    const { clientWidth: w, clientHeight: h } = this.container;
+    const { clientWidth: w, clientHeight: h } = this.renderer.domElement;
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
@@ -523,7 +717,7 @@ export class ScanStage {
   /** While steering: the page point under the mouse is where the phone looks */
   private handlePointer = (event: PointerEvent) => {
     if (!this.steering) return;
-    const box = this.container.getBoundingClientRect();
+    const box = this.renderer.domElement.getBoundingClientRect();
     const ndc = new Vector2(((event.clientX - box.left) / box.width) * 2 - 1, -((event.clientY - box.top) / box.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     const hit = this.raycaster.ray.intersectPlane(this.page, new Vector3());
@@ -560,7 +754,7 @@ export class ScanStage {
       const start = i === 0 ? INTRO.hold : INTRO.hold + INTRO.cover * 0.7 + (i - 1) * INTRO.stagger;
       leaf.turn((seconds - start) / (i === 0 ? INTRO.cover : INTRO.page));
     });
-    this.leftBlock.visible = seconds > INTRO.hold + INTRO.cover * 0.5;
+    this.thicken();
     this.camera.position.lerpVectors(this.cameraStart, this.cameraHome, smooth((seconds - INTRO.hold) / (this.introEnd - INTRO.hold)));
   }
 
@@ -589,6 +783,7 @@ export class ScanStage {
       const wanted = following ? this.mouse! : this.autopilot(seconds - this.introEnd);
       if (this.still) this.aim.copy(wanted);
       else this.aim.lerp(wanted, 1 - Math.exp(-(following ? 7 : 3) * delta));
+      this.near = MathUtils.damp(this.near, this.steering ? 1 : 0, 5, delta);
       this.placePhone(seconds);
       this.scan();
     }
@@ -607,7 +802,7 @@ export class ScanStage {
   private placePhone(seconds: number) {
     const onPage = new Vector3(this.aim.x, this.aim.y, 0);
     const sight = this.camera.position.clone().sub(onPage).normalize();
-    this.phone.position.copy(onPage).addScaledVector(sight, PHONE.distance);
+    this.phone.position.copy(onPage).addScaledVector(sight, MathUtils.lerp(PHONE.distance, PHONE.steered, smooth(this.near)));
     this.phone.up.set(0, 0, 1);
     this.phone.lookAt(this.camera.position);
     this.phone.rotateX(-0.4);

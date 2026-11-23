@@ -8,6 +8,8 @@ import type { AssetData, EntityData, Scene, Target } from "@engine/types/content
 export interface ScanStageData {
   /** The surface's height in surface widths (a 460 × 320 mm spread: 0.696) */
   aspect: number;
+  /** The printed page numbers the surface shows, read from its label or its scene's (`10–11` → [10, 11]) – its layout sheet */
+  pages: number[];
   /** The printed images on the paper: the scene's targets where they lie (`place`) */
   prints: ScanPrint[];
   /** The target that holds the model */
@@ -71,5 +73,7 @@ export const scanStageData = (scenes: readonly Scene[], entryIds: readonly strin
     ? scene.targets.filter(t => t.place && (t.place.surface ?? scene.surfaces[0]?.id) === (target.place!.surface ?? scene.surfaces[0]?.id))
       .map(t => printOf(t, scene)!)
     : [own];
-  return { aspect: surface.heightMm / surface.widthMm, prints: placed, target: own, entity, asset };
+  const label = ("label" in surface && surface.label) || scene.label || "";
+  const pages = (label.match(/\d+/g) ?? []).map(Number);
+  return { aspect: surface.heightMm / surface.widthMm, pages, prints: placed, target: own, entity, asset };
 };
