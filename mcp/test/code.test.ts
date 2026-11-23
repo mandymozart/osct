@@ -40,7 +40,7 @@ describe("the Code tab's plugin tools", () => {
     expect((await rec.call("list_plugins", { experience: "osct" })).data.plugins[0].id).toBe("tint");
     const one = await rec.call("get_plugin", { experience: "osct", plugin: "tint" });
     expect(one.data.plugin.files).toEqual([{ name: "index.ts", text: SOURCE }]);
-    expect(one.data.registers).toEqual({ components: [], layers: ["tint"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] });
+    expect(one.data.registers).toEqual({ components: [], layers: ["tint"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [], cardLooks: [] });
   });
 
   it("saves a source and names what it registers, with warnings for a source the engine would refuse", async () => {

@@ -13,6 +13,9 @@ another MAJOR ("… was built against plugin API 3.1, this engine runs 4.0 – n
 again; stored sources are rewritten with `osct plugins listen` (`--dir` a content source, `--experience` / `--all` the
 instance's database – [content](content.md) "Schema and app versions").
 
+**Plugin API 4.1** (content schema 6.3, #361): `api.registerCardLook` – how the marginalia card is picked up, in code ("A
+card look" below).
+
 ## The shape
 
 ```ts
@@ -53,6 +56,9 @@ nodes and pages, four more ("Across nodes and pages" below):
 - **`api.registerAppearance(type, spec, factory)`** (API 1.8) – a **look**: how an entity appears and disappears, in
   code. The experience names it for a moment – `reveal`, `found`, `lost` – in a built-in look's place (content schema 2.29,
   "A look" below).
+- **`api.registerCardLook(type, spec, factory)`** (API 4.1) – a **card look**: how the marginalia card is picked up, in
+  code. The experience names it as `appearance.card` in the built-in `cardFlight`'s place (content schema 6.3, "A card
+  look" below).
 - **`api.log(…)`** – to the console, prefixed with the plugin's id; in the editor also the Code tab's log.
 
 A `spec` describes the parameters the author sets in the editor: every one with a `kind` (`number` with `min`
@@ -821,6 +827,55 @@ const shown = (node: Object3D | null): number => {
 An engine before 1.73.0 writes nothing, which reads as all of it. The demo's and OSCT's `contact-shadow` plugin
 fades this way.
 
+## A card look: how the card is picked up (API 4.1)
+
+A glossary target found in the reader's scan flies its **marginalia card**: the printed picture leaves the page, lands
+on the screen and becomes the entry's own picture, and the entry opens over it. The engine's flight is the built-in
+card look `cardFlight` (peel, rise, spin, slap – its values in [content](content.md) "How the card is picked up"). A
+plugin brings its own with `api.registerCardLook(type, spec, factory)`, and the experience names it in
+`appearance.card` in the built-in one's place:
+
+```yaml
+appearance:
+  card: { type: cardDrift, rise: 0.8 }
+```
+
+The factory runs **once per flight** and returns `{ duration, update(t, delta), dispose? }`. The engine calls `update`
+every frame with `t` from 0 to 1 over `duration` (ms) and opens the entry when it is over; the card stays a moment longer
+under it, then `dispose` runs. What the factory gets (`CardLookContext`, the [reference](/docs/api/plugins/reference/#card-look)):
+
+- `scene` – the AR scene: add the card's objects to it, remove them in `dispose`;
+- `camera` – the AR camera; read `camera.matrixWorld` every frame (the landing is in front of it);
+- `anchor` – the page the card leaves: its `matrix` is the page's pose (x to the right, y up the page, z out of it, its
+  scale the target's width); it follows the page while `found()` is true and keeps its last pose after;
+- `front`, `back`, `reveal` – the printed picture, the card's back (the book's cover, else a default pattern) and the
+  entry's own picture (null when it is the printed one); `aspect` = height / width. The engine owns them – never
+  dispose them;
+- `landing(width, fill?)` – how far in front of the camera a card `width` wide fills `fill` of the screen (where the
+  built-in lands, 0.62);
+- `vibrate(pattern)` – the phone's vibration where there is one;
+- `params` (the spec's defaults filled in) and `three`.
+
+The demo's `plugins/card` (`cardDrift`) is one to copy: the card floats up off the page, rocks like a leaf, turns
+towards the reader and glides to the middle of the screen, where its front becomes `reveal`:
+
+```ts
+api.registerCardLook("cardDrift", SPEC, ({ three, scene, camera, anchor, front, reveal, aspect, landing, params }) => {
+  const card = new three.Mesh(new three.PlaneGeometry(1, aspect), new three.MeshBasicMaterial({ map: front, depthTest: false }));
+  scene.add(card);
+  return {
+    duration: params.duration,
+    update: t => { /* the page's pose from anchor.matrix, the landing in front of camera.matrixWorld, between them by t */ },
+    dispose: () => { card.removeFromParent(); card.geometry.dispose(); card.material.dispose(); },
+  };
+});
+```
+
+A factory or an `update` that throws ends the flight (logged) – the entry still opens; a card look nobody registers
+(its plugin failed to load) plays the built-in flight. The content build records the spec as `registered.cardLooks`, so
+the editor's appearance panel offers it under *card* with the rows of its spec, and its *play* flies a shown target's card
+on the stage. Reduced motion skips every card look: the entry opens at once.
+
 ## Across nodes and pages: events, variables, the progress (API 1.1)
 
 A component knows its own node. A **narrative** needs more: a key found on one page opens a door on another, a lamp
@@ -1050,6 +1105,6 @@ the door's opening and the lamp as plugin code, a tally of the pages found, a ta
 own node type), the aquarium with its material, texture and WebGPU fluid, the ink painting on two feedback buffers, a
 video on a bent sheet of paper picked as a model file (`plugins/paper`), and a
 film grain pass over *The twins* (`plugins/grain`) and a scan-line pass on *The switch*, switched off to be found
-(`plugins/scanlines`), and the built-in looks written as plugins' looks (`plugins/reveal`: the dissolve; `plugins/lifts`: `printLiftCode` and `fadeCode`). Build it with
+(`plugins/scanlines`), and the built-in looks written as plugins' looks (`plugins/reveal`: the dissolve; `plugins/lifts`: `printLiftCode` and `fadeCode`), and a card look that drifts instead of the built-in flight (`plugins/card`, `cardDrift`). Build it with
 `OSCT_CONTENT_DIR=fixtures/demo`, import it into the editor ([editor](editor.md) "Try it"); the plugins are the examples to copy from. What it shows per scene, and what the
 model still lacks: `agents/research/2026-10-30-demo-book.md`.

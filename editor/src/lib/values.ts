@@ -27,7 +27,7 @@ import {
   type Vector3Data,
 } from "@engine/types";
 import { passSpecOf } from "#lib/plugin-passes.js";
-import { liveLookChoices, lookSpecOf } from "#lib/plugin-appearances.js";
+import { cardLookSpecOf, liveLookChoices, lookSpecOf } from "#lib/plugin-appearances.js";
 import type { AppearanceData, AppearanceSpec } from "@engine/types";
 
 /**
@@ -187,6 +187,14 @@ export const passRows = (pass: PassData, index: number, specOf: (type: string) =
 export const lookRows = (look: AppearanceData, moment: string, specOf: (type: string) => AppearanceSpec | undefined = lookSpecOf): ValueRow[] => {
   const spec = specOf(look.type);
   return spec ? specRows(`appearance.${moment}`, spec.params) : [];
+};
+
+/**
+ * The rows of the card look (`appearance.card.{name}` – #361), from its spec – the built-in `cardFlight`'s or a plugin's
+ */
+export const cardLookRows = (look: AppearanceData, specOf: (type: string) => AppearanceSpec | undefined = cardLookSpecOf): ValueRow[] => {
+  const spec = specOf(look.type);
+  return spec ? specRows("appearance.card", spec.params) : [];
 };
 
 /** The words a pass's choice row shows for its options (`{type}.{name}`); an option without one shows its value */

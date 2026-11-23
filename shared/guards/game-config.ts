@@ -123,6 +123,9 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     unknown: "ignore",
     spec: type => recorded.appearances.get(type),
     pluginTypes: [...recorded.appearances.keys()],
+    // The card look (schema 6.3): a plugin's as a plugin's look
+    cardSpec: type => recorded.cardLooks.get(type),
+    cardPluginTypes: [...recorded.cardLooks.keys()],
     unknownTypes: allowUnknown ? "allow" : "refuse",
   };
 

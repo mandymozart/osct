@@ -14,6 +14,7 @@ import {
   type Texture,
   Vector3,
 } from "three";
+import { CARD_LOOKS, type CardFlightValues } from "@shared/types/card-look";
 
 /**
  * The marginalia card (#285): the printed picture peels off the page as a playing card, rises, spins about its
@@ -34,6 +35,10 @@ import {
  *   time   0.8 s from a close page to 1.2 s from a far one (`flightMs`); all of it fluid, only the smash is hard
  *   impact after landing (`IMPACT_MS`): the front becomes the entry's picture, the card is pushed at the reader and
  *          bounces back, shakes, the phone vibrates once.
+ *
+ * The built-in card look `cardFlight` (#361, `shared/types/card-look.ts`): the experience may change its flight times,
+ * the fill, the lift, the spins, the impact and the rumble (`CardFlightValues`); the defaults are the constants below.
+ * A plugin's card look (`registerCardLook`) plays instead of all of this (`card-looks.ts`).
  */
 
 /** Share of the screen's width and height the card may fill at the end */
@@ -47,13 +52,20 @@ export const CARD_HOLD_MS = 250;
 /** Where the rise ends and the slap starts (0…1 of the flight) */
 const RISE_END = 0.28;
 const SLAP_START = 0.8;
-/** Up off the page, in card widths; how far the turn swings out to the side */
-const LIFT = 0.6;
 /** First the card slides up the page (towards its top edge), barely off it, in card widths */
 const SLIDE = 0.45;
+/** How far the turn swings out to the side, in card widths (how far it rises off the page: the look's `lift`) */
 const SWING = 0.18;
 /** The slap starts from this far behind the landing, in end distances */
 const BEHIND = 1.9;
+/** The built-in look's values with every one at its default */
+export const CARD_FLIGHT_DEFAULTS: CardFlightValues = Object.fromEntries(
+  Object.entries(CARD_LOOKS.cardFlight.params).map(([name, param]) => [name, param.default]),
+) as unknown as CardFlightValues;
+
+/** The values of a flight: the given ones over the defaults */
+const valuesOf = (values: Partial<CardFlightValues> = {}): CardFlightValues => ({ ...CARD_FLIGHT_DEFAULTS, ...values });
+
 /** The bend's strongest curl of the top edge, radians */
 const CURL = 1.8;
 /** The twist's strongest turn between the bottom and the top edge, radians */
@@ -95,7 +107,6 @@ export const endDistance = (projection: Matrix4, width: number, aspect: number, 
 
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x));
 export const easeInOutCubic = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-const easeOutCubic = (t: number): number => 1 - (1 - t) ** 3;
 const easeInOutSine = (t: number): number => -(Math.cos(Math.PI * t) - 1) / 2;
 
 /** The three phases' local progress (each 0…1) at `t` of the flight */
@@ -165,12 +176,18 @@ export const twistAt = (t: number): number => {
  * How long a flight from this page takes (ms): `near` when the page is about as close as the landing (the card barely
  * travels), `far` from three landing distances away and more – in between in proportion.
  */
-export const flightMs = (start: CardStart, camera: Pick<PerspectiveCamera, "matrixWorld" | "projectionMatrix">, aspect: number): number => {
-  const d = endDistance(camera.projectionMatrix, start.width, aspect);
+export const flightMs = (
+  start: CardStart,
+  camera: Pick<PerspectiveCamera, "matrixWorld" | "projectionMatrix">,
+  aspect: number,
+  values: Partial<CardFlightValues> = {},
+): number => {
+  const { near, far, fill } = valuesOf(values);
+  const d = endDistance(camera.projectionMatrix, start.width, aspect, fill);
   const camPos = new Vector3().setFromMatrixPosition(camera.matrixWorld);
   const away = start.position.distanceTo(camPos) / d;
   const share = clamp01((away - 1) / 2);
-  return CARD_FLIGHT_MS.near + (CARD_FLIGHT_MS.far - CARD_FLIGHT_MS.near) * share;
+  return near + (far - near) * share;
 };
 
 const X_AXIS = new Vector3(1, 0, 0);
@@ -186,15 +203,17 @@ export const cardPose = (
   camera: Pick<PerspectiveCamera, "matrixWorld" | "projectionMatrix" | "quaternion">,
   aspect: number,
   t: number,
+  values: Partial<CardFlightValues> = {},
 ): { position: Vector3; rotation: Quaternion } => {
   t = clamp01(t);
-  const d = endDistance(camera.projectionMatrix, start.width, aspect);
+  const { fill, lift, spins } = valuesOf(values);
+  const d = endDistance(camera.projectionMatrix, start.width, aspect, fill);
   const end = new Vector3(0, 0, -d).applyMatrix4(camera.matrixWorld);
   const right = new Vector3(1, 0, 0).transformDirection(camera.matrixWorld);
   // Up the page first (its +y, towards the top edge), only just off it – then up off the page
   const pageUp = new Vector3(0, 1, 0).applyQuaternion(start.rotation);
   const slide = start.position.clone().addScaledVector(pageUp, SLIDE * start.width).addScaledVector(start.normal, 0.08 * start.width);
-  const up = slide.clone().addScaledVector(start.normal, LIFT * start.width);
+  const up = slide.clone().addScaledVector(start.normal, lift * start.width);
   // The turn: on the way to a point straight behind the landing (so the slap comes straight at the reader), swung
   // out a little to the side
   const behind = new Vector3(0, 0, -BEHIND * d).applyMatrix4(camera.matrixWorld);
@@ -206,7 +225,7 @@ export const cardPose = (
   // Every turn rises and falls smoothly over the whole way to the slap (no phase starts or stops a turn abruptly)
   const facing = easeInOutSine(clamp01(t / SLAP_START));
   const peel = new Quaternion().setFromAxisAngle(X_AXIS, -0.35 * Math.sin(Math.PI * rise) ** 2);
-  const turnY = new Quaternion().setFromAxisAngle(Y_AXIS, 2 * Math.PI * easeInOutSine(spin));
+  const turnY = new Quaternion().setFromAxisAngle(Y_AXIS, 2 * Math.PI * spins * easeInOutSine(spin));
   const roll = new Quaternion().setFromAxisAngle(Z_AXIS, 0.28 * Math.sin(Math.PI * clamp01(t / SLAP_START)));
   const rotation = start.rotation.clone().slerp(camera.quaternion, facing).multiply(peel).multiply(turnY).multiply(roll);
   return { position, rotation };
@@ -214,10 +233,10 @@ export const cardPose = (
 
 /**
  * The impact at `ms` after the card reached the screen: `push` towards the reader (a share of the distance; it
- * bounces back) and `shake` sideways (card widths).
+ * bounces back) and `shake` sideways (card widths) – over `length` ms (the look's `impact`).
  */
-export const impactAt = (ms: number): { push: number; shake: [number, number] } => {
-  if (ms < 0 || ms >= IMPACT_MS) return { push: 0, shake: [0, 0] };
+export const impactAt = (ms: number, length = IMPACT_MS): { push: number; shake: [number, number] } => {
+  if (ms < 0 || ms >= length) return { push: 0, shake: [0, 0] };
   const decay = Math.exp(-ms / 110);
   return {
     push: 0.09 * Math.exp(-ms / 70) * Math.cos(ms / 38),
@@ -226,7 +245,7 @@ export const impactAt = (ms: number): { push: number; shake: [number, number] } 
 };
 
 /** The card's back until the experience has one of its own: dark, a gold frame and a gold diamond (DESIGN.md's golds) */
-const defaultBack = (): Texture => {
+export const defaultCardBack = (): Texture => {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 256;
@@ -291,6 +310,7 @@ export class CardFlight {
   private flat: Float32Array;
   private frontMaterial: MeshBasicMaterial;
   private revealed = false;
+  private values: CardFlightValues;
 
   constructor(
     anchor: Matrix4,
@@ -299,10 +319,12 @@ export class CardFlight {
     back: Texture | null = null,
     duration: number | null = null,
     private reveal: Texture | null = null,
+    values: Partial<CardFlightValues> = {},
   ) {
+    this.values = valuesOf(values);
     this.start = startFromAnchor(anchor);
     this.duration = duration ?? 0;
-    const backTexture = back ?? defaultBack();
+    const backTexture = back ?? defaultCardBack();
     this.textures = [front, backTexture, ...(reveal ? [reveal] : [])];
     this.geometry = new PlaneGeometry(1, aspect, 1, BEND_SEGMENTS);
     this.flat = (this.geometry.getAttribute("position").array as Float32Array).slice();
@@ -328,11 +350,11 @@ export class CardFlight {
       // Only the pose follows the page; the width stays, so the end distance does not jump with the tracking's scale
       this.start = { ...startFromAnchor(anchor), width: this.start.width };
     }
-    if (!this.duration) this.duration = flightMs(this.start, camera, this.aspect);
+    if (!this.duration) this.duration = flightMs(this.start, camera, this.aspect, this.values);
     this.elapsed += delta * 1000;
     const t = Math.min(1, this.elapsed / this.duration);
-    const { position, rotation } = cardPose(this.start, camera, this.aspect, t);
-    const impact = impactAt(this.elapsed - this.duration);
+    const { position, rotation } = cardPose(this.start, camera, this.aspect, t, this.values);
+    const impact = impactAt(this.elapsed - this.duration, this.values.impact);
     if (this.elapsed >= this.duration) {
       if (!this.revealed) {
         // The smash: the printed picture becomes the entry's own
@@ -341,7 +363,7 @@ export class CardFlight {
           this.frontMaterial.map = this.reveal;
           this.frontMaterial.needsUpdate = true;
         }
-        if (typeof navigator !== "undefined") navigator.vibrate?.([40, 30, 60]);
+        if (this.values.rumble && typeof navigator !== "undefined") navigator.vibrate?.([40, 30, 60]);
       }
       const towards = new Vector3().setFromMatrixPosition(camera.matrixWorld).sub(position);
       position.addScaledVector(towards, impact.push);
@@ -353,7 +375,7 @@ export class CardFlight {
     this.object.position.copy(position);
     this.object.quaternion.copy(rotation);
     this.object.scale.setScalar(this.start.width);
-    return this.elapsed < this.duration + IMPACT_MS;
+    return this.elapsed < this.duration + this.values.impact;
   }
 
   /** Curl the card's top edge up off the page by `amount` (0 = flat): a cylinder whose axis lies along the bottom edge */

@@ -1,6 +1,7 @@
 import { getPlugins } from "@engine/content/game-config";
 import { appearanceRegistration, registeredAppearanceTypes } from "@engine/scene/appearances";
-import { APPEARANCE_TYPES, APPEARANCES, type AppearanceSpec, type PluginData } from "@engine/types";
+import { cardLookRegistration, registeredCardLookTypes } from "@engine/scene/card-looks";
+import { APPEARANCE_TYPES, APPEARANCES, type AppearanceSpec, CARD_LOOK_TYPES, CARD_LOOKS, type PluginData } from "@engine/types";
 
 /**
  * The looks the appearance panel offers and the specs its rows come from (#265): the built-in looks of the contract
@@ -67,3 +68,36 @@ export const registeredLooks = (): RegisteredLook[] =>
 export const liveLookChoices = (): LookChoice[] => lookChoices(registeredLooks(), getPlugins());
 export const lookSpecOf = (type: string): AppearanceSpec | undefined => specOfLook(type, registeredLooks(), getPlugins());
 export const lookPluginOf = (type: string): string | null => pluginOfLook(type, registeredLooks(), getPlugins());
+
+// ── Card looks (#361): the same for `appearance.card` – the built-in `cardFlight` and the plugins' `registerCardLook` ──
+
+const isBuiltInCard = (type: string) => (CARD_LOOK_TYPES as readonly string[]).includes(type);
+
+/** The plugins' card looks: registered first, then what a declared plugin recorded (`registered.cardLooks`) */
+export const pluginCardLooks = (registered: readonly RegisteredLook[], declared: readonly PluginData[]): LookChoice[] => {
+  const choices = new Map<string, LookChoice>();
+  registered.filter(look => !isBuiltInCard(look.type)).forEach(look => choices.set(look.type, { type: look.type, plugin: look.owner, spec: look.spec }));
+  declared.forEach(plugin => Object.entries(plugin.registered?.cardLooks ?? {}).forEach(([type, spec]) => {
+    if (!choices.has(type) && !isBuiltInCard(type)) choices.set(type, { type, plugin: plugin.id, spec });
+  }));
+  return [...choices.values()];
+};
+
+/** What the card picker offers: the built-in card looks, then the plugins' by plugin */
+export const cardLookChoices = (registered: readonly RegisteredLook[], declared: readonly PluginData[]): LookChoice[] => [
+  ...CARD_LOOK_TYPES.map(type => ({ type, plugin: null, spec: CARD_LOOKS[type] })),
+  ...pluginCardLooks(registered, declared).map((choice, i) => ({ choice, i })).sort((a, b) => a.choice.plugin!.localeCompare(b.choice.plugin!) || a.i - b.i).map(({ choice }) => choice),
+];
+
+/** The engine's card look registry as it stands */
+export const registeredCardLooks = (): RegisteredLook[] =>
+  registeredCardLookTypes().flatMap(type => {
+    const registration = cardLookRegistration(type);
+    return registration ? [{ type, owner: registration.owner, spec: registration.spec }] : [];
+  });
+
+export const liveCardLookChoices = (): LookChoice[] => cardLookChoices(registeredCardLooks(), getPlugins());
+export const cardLookSpecOf = (type: string): AppearanceSpec | undefined =>
+  isBuiltInCard(type) ? CARD_LOOKS[type as keyof typeof CARD_LOOKS] : pluginCardLooks(registeredCardLooks(), getPlugins()).find(choice => choice.type === type)?.spec;
+export const cardLookPluginOf = (type: string): string | null =>
+  pluginCardLooks(registeredCardLooks(), getPlugins()).find(choice => choice.type === type)?.plugin ?? null;

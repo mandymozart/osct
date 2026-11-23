@@ -1578,6 +1578,13 @@ names no look). A collapsible section per moment, each closed on a first visit:
 - **play** in a moment's head plays its look on the stage's shown targets: reveal replays the first find (as the
   stage menu's *Replay the first find*), found loses and finds them again, lost loses them and finds them again once the
   look has played out. A change plays at once – the stage's next animations take the panel's looks (`overrideAppearance`).
+- **card** (#361, content schema 6.3, [content guide](content.md) "How the card is picked up"), below the moments: how the
+  marginalia card is picked up – a glossary target found in the reader's scan flies its card. **look** picks the built-in
+  **cardFlight** or a card look of the experience's plugins (`registerCardLook`, under the plugin's id); the first choice,
+  **default (cardFlight)**, names none. The rows are those of the card look that plays (cardFlight's: flight near / far,
+  fills, lift, spins, impact, rumble); the first change gives the experience a card look of its own. Closed, its head names
+  the look and up to two values set (*card · cardFlight · spins 2*). **play** flies the card of the first shown target with a
+  picture on the stage, with the panel's card look; nothing opens after it lands.
 - An edit is [saved by itself](#autosave) (`PUT /editor/experiences/{id}/appearance`, the whole appearance; an experience whose
   moments all play another's look saves `null`). *Undo edits* takes it back (`editor/src/lib/appearance-edit.ts`, the
   looks offered `plugin-appearances.ts`).

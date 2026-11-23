@@ -38,6 +38,7 @@ final class Plugins
     private const REGISTERS = [
         'components' => 'registerComponent', 'layers' => 'registerLayer', 'nodeTypes' => 'registerNodeType', 'passes' => 'registerPass',
         'materials' => 'registerMaterial', 'textures' => 'registerTexture', 'appearances' => 'registerAppearance',
+        'cardLooks' => 'registerCardLook',
     ];
 
     /** GET /editor/experiences/{id}/plugins → { plugins: [{ id, size, fileCount, origin, usages, updatedAt, updatedBy }] } */

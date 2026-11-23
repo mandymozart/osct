@@ -21,7 +21,7 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
   const recorded = recordedRegistrations(plugins);
   const pluginPasses = recorded.passes;
   // The looks they recorded (schema 2.29): the experience may name them in `appearance`
-  const experience = buildExperience(pluginPasses, recorded.appearances);
+  const experience = buildExperience(pluginPasses, recorded.appearances, recorded.cardLooks);
   const scenes = buildScenes(pluginPasses);
   const entities = buildEntities();
   const builds = buildEntries(scenes, entities);

@@ -1,4 +1,4 @@
-import { type AppearanceData, type ExperienceAppearance, DEFAULT_APPEARANCE_TYPE, type Moment, MOMENTS, type PassData } from "@engine/types";
+import { type AppearanceData, type ExperienceAppearance, DEFAULT_APPEARANCE_TYPE, DEFAULT_CARD_LOOK_TYPE, type Moment, MOMENTS, type PassData } from "@engine/types";
 import { passSummary } from "./passes-edit";
 import { setPassValue, type RowValue, type ValueRow } from "./values";
 
@@ -7,18 +7,22 @@ import { setPassValue, type RowValue, type ValueRow } from "./values";
  * find), `lost` (the page is lost). A moment without a look of its own plays `found`'s, and without that the default
  * (`momentAppearance`, shared/types/appearance.ts). The panel edits a copy of the experience's `appearance` and saves it whole
  * (`PUT …/appearance`); an experience whose copy names no moment saves `null` – it holds no field then. Pure, for the tests.
+ *
+ * Beside the moments the card look (`card`, #361): how the marginalia card is picked up – no moment of an entity, it never
+ * plays `found`'s; without one the built-in `cardFlight` plays with its defaults.
  */
 
 /** Where a moment's look comes from: its own, `found`'s, or the default */
 export type LookSource = "own" | "found" | "default";
 
-/** A copy in the moments' order, each look copied (the panel never edits the loaded content) */
+/** A copy in the moments' order and the card look last, each look copied (the panel never edits the loaded content) */
 export const draftAppearance = (appearance: ExperienceAppearance | null | undefined): ExperienceAppearance => {
   const draft: ExperienceAppearance = {};
   for (const moment of MOMENTS) {
     const look = appearance?.[moment];
     if (look) draft[moment] = { ...look };
   }
+  if (appearance?.card) draft.card = { ...appearance.card };
   return draft;
 };
 
@@ -88,6 +92,30 @@ export const momentSummary = (draft: ExperienceAppearance, moment: Moment, rows:
   if (!look) return `${lookSource(draft, moment) === "found" ? "as found" : "default"} · ${playedType(draft, moment)}`;
   const values = passSummary(look as PassData, rows);
   // passSummary names the first parameter when none is set – a look at its defaults says only its type
+  const changed = rows.some(row => look[row.id.split(".")[2]] !== undefined);
+  return changed && values ? `${look.type} · ${values}` : look.type;
+};
+
+/** The card look that plays: the experience's, else the built-in default at its defaults */
+export const playedCardLook = (draft: ExperienceAppearance): AppearanceData => draft.card ?? { type: DEFAULT_CARD_LOOK_TYPE };
+
+/** The card look of `type` – or, `null`, none (the default plays); the same type keeps its values */
+export const setCardLook = (draft: ExperienceAppearance, type: string | null): ExperienceAppearance => {
+  const next = draftAppearance(draft);
+  if (type === null) delete next.card;
+  else next.card = next.card?.type === type ? next.card : { type };
+  return draftAppearance(next);
+};
+
+/** The card look with one value changed; without a card look of its own it takes a copy of the default first */
+export const setCardLookValue = (draft: ExperienceAppearance, row: ValueRow, value: RowValue): ExperienceAppearance =>
+  draftAppearance({ ...draft, card: setPassValue({ ...playedCardLook(draft) } as PassData, row, value) as AppearanceData });
+
+/** The line the closed card section shows: its look and up to two values set ("cardFlight · spins 2"), "default · cardFlight" */
+export const cardSummary = (draft: ExperienceAppearance, rows: readonly ValueRow[]): string => {
+  const look = draft.card;
+  if (!look) return `default · ${DEFAULT_CARD_LOOK_TYPE}`;
+  const values = passSummary(look as PassData, rows);
   const changed = rows.some(row => look[row.id.split(".")[2]] !== undefined);
   return changed && values ? `${look.type} · ${values}` : look.type;
 };

@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { Box3, Group, type Matrix4, type Object3D, type Quaternion, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from "three";
 import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type MediaQuality, type PassData, type SceneInspection, ArState, type Target,
@@ -13,7 +14,9 @@ import { deviceHints, wantedTextureSize } from "./model-textures";
 import { chooseMediaSrc, mediaHints } from "./media-levels";
 import { isLevelledKind } from "@shared/types/media-levels";
 import { type AnimationKind, celebrate, type Celebration, together } from "./celebration";
-import { CARD_HOLD_MS, CardFlight } from "./card-flight";
+import { CARD_HOLD_MS } from "./card-flight";
+import { type CardPlay, playCardLook } from "./card-looks";
+import { experienceCardLook } from "@shared/types/card-look";
 import { buildEntity, type EntityInstance, placeEntity } from "./entities";
 import { loadPlugins } from "./plugins";
 import { cameraGrades, cameraGradeShader } from "./post/grade";
@@ -129,7 +132,7 @@ export class ArScene implements IArScene {
   /** Running appear / disappear animation per target id (reveal, found, lost), removed when done */
   private animations = new Map<string, Celebration>();
   /** The marginalia card in flight (#285), at most one */
-  private card: { flight: CardFlight; targetId: string; landed: boolean; done: (flown: boolean) => void; timer?: number } | null = null;
+  private card: { flight: CardPlay; targetId: string; landed: boolean; done: (flown: boolean) => void; timer?: number } | null = null;
   /** The entities' clock holds (the editor's Live switch off, #269): their updates get no time, the looks play on */
   private clockHeld = false;
   /** Entities shown with other values than the content's, by target id (the editor's live edit) */
@@ -215,7 +218,8 @@ export class ArScene implements IArScene {
   /**
    * The marginalia card (#285): the printed picture `front` peels off the found target's page, rises, spins (showing
    * `back`, a default pattern without one) and slaps against the screen dead centre, where it becomes `reveal` (the
-   * entry's own picture in full resolution) with a rumble (`card-flight.ts`). Resolves true once the impact is over (the card stays a moment longer, for the entry to open
+   * entry's own picture in full resolution) with a rumble (`card-flight.ts`) – or as the experience's card look names it
+   * (`appearance.card`, #361: the built-in `cardFlight` with its values, or a plugin's, `card-looks.ts`). Resolves true once the impact is over (the card stays a moment longer, for the entry to open
    * over it), false at once when there is nothing to fly from
    * (the target is not found, the scene does not run, the picture does not load) or a newer flight or a teardown
    * ended it.
@@ -241,8 +245,9 @@ export class ArScene implements IArScene {
             reveal?.dispose();
             return resolve(false);
           }
-          const flight = new CardFlight(anchor.group.matrix, front, aspect, back, undefined, reveal);
-          view.scene.add(flight.object);
+          const flight = playCardLook(this.cardLook(), { front, back, reveal, aspect }, {
+            scene: view.scene, anchor: anchor.group, camera: view.camera, found: () => this.found.has(targetId), three: THREE,
+          });
           this.card = { flight, targetId, landed: false, done: resolve };
         },
         () => resolve(false),
@@ -250,12 +255,18 @@ export class ArScene implements IArScene {
     });
   }
 
+  /** The card look the experience names (`appearance.card`) – the editor's override, else the content's */
+  private cardLook(): AppearanceData {
+    const override = this.appearanceOverride;
+    return experienceCardLook(override ? { appearance: override.appearance ?? undefined } : getExperience());
+  }
+
   /** Card: one frame of the flight; once landed, resolve and remove it after the hold */
   private updateCard(delta: number): void {
     const card = this.card;
     if (!card || card.landed || !this.view) return;
     const anchor = this.found.has(card.targetId) ? this.content?.anchors.find(a => a.target.id === card.targetId) : undefined;
-    if (card.flight.update(delta, anchor?.group.matrix ?? null, this.view.camera)) return;
+    if (card.flight.step(delta, anchor?.group.matrix ?? null, this.view.camera)) return;
     card.landed = true;
     card.done(true);
     card.timer = window.setTimeout(() => {

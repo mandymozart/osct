@@ -909,7 +909,7 @@ final class Experiences
     }
 
     /**
-     * PUT /editor/experiences/{id}/appearance { appearance: { reveal?, found?, lost? } | null } → 200 { appearance }: how the
+     * PUT /editor/experiences/{id}/appearance { appearance: { reveal?, found?, lost?, card? } | null } → 200 { appearance }: how the
      * experience's entities appear and disappear (`experience.appearance`, shared/types/appearance.ts) – a look `{ type, …parameters }`
      * for the first find (`reveal`), every later find (`found`) and the lost page (`lost`), each a built-in look or one
      * the experience's plugins register (`appearances`). A moment left out takes `found`'s look, then the default; `null` – or
@@ -921,9 +921,9 @@ final class Experiences
         self::experience($experienceId);
         $body = Editor::body();
         if (!property_exists($body, 'appearance')) {
-            throw new ApiError(400, 'invalid-appearance', 'Send { appearance: { reveal?, found?, lost? } }, each { type, …parameters }, or { appearance: null }.');
+            throw new ApiError(400, 'invalid-appearance', 'Send { appearance: { reveal?, found?, lost?, card? } }, each { type, …parameters }, or { appearance: null }.');
         }
-        $appearance = $body->appearance === null ? null : self::appearance($body->appearance, Editor::pluginTypesOfExperience($experienceId, 'appearances'));
+        $appearance = $body->appearance === null ? null : self::appearance($body->appearance, Editor::pluginTypesOfExperience($experienceId, 'appearances'), Editor::pluginTypesOfExperience($experienceId, 'cardLooks'));
         // As putPasses: the experience's JSON read, changed and written back in one transaction, the row locked
         Db::transaction(static function () use ($experienceId, $appearance, $user) {
             $row = self::experience($experienceId, true);
@@ -1096,6 +1096,10 @@ final class Experiences
     public const RECOGNITION_MODES = ['original', 'prepared'];
     /** The built-in looks of the contract (shared/types/appearance.ts `APPEARANCES`) */
     public const APPEARANCE_TYPES = ['inflateDissolve', 'printLift', 'fade'];
+    /** The key of `appearance` that names the card look (shared/types/card-look.ts `CARD_LOOK_KEY`, schema 6.3, #361) */
+    public const CARD_LOOK_KEY = 'card';
+    /** The built-in card looks (shared/types/card-look.ts `CARD_LOOKS`) */
+    public const CARD_LOOK_TYPES = ['cardFlight'];
     /** The environment's worlds (shared/types/environment.ts ENVIRONMENT_WORLDS) */
     public const WORLDS = ['cafe'];
     /** The files a world model and a sky may be (shared/types/environment.ts WORLD_MODEL_EXTENSIONS, SKY_IMAGE_EXTENSIONS) */
@@ -1163,29 +1167,33 @@ final class Experiences
      * An experience's `appearance` as the content holds it: an object of moments (MOMENTS), each a look – an object with a
      * built-in `type` or one of the experience's plugins (`$pluginLooks`: a list = the recorded ones, `true` = any camelCase
      * name, `false` = none) and scalar parameters (the engine and the guard check the parameters against the specs; the
-     * API keeps the shape). Null when it names no moment: the experience holds no `appearance` then.
+     * API keeps the shape). Null when it names no moment: the experience holds no `appearance` then. Its `card` (schema 6.3,
+     * #361) is the card look: a built-in one (CARD_LOOK_TYPES) or one of the plugins' card looks (`$pluginCardLooks`, the same way).
      * @param bool|list<string> $pluginLooks
+     * @param bool|list<string> $pluginCardLooks
      */
-    private static function appearance(mixed $value, bool|array $pluginLooks = false): ?stdClass
+    private static function appearance(mixed $value, bool|array $pluginLooks = false, bool|array $pluginCardLooks = false): ?stdClass
     {
         $code = 'invalid-appearance';
-        if (!$value instanceof stdClass) throw new ApiError(400, $code, 'appearance must be an object { reveal?, found?, lost? }, each { type, …parameters }.');
+        if (!$value instanceof stdClass) throw new ApiError(400, $code, 'appearance must be an object { reveal?, found?, lost?, card? }, each { type, …parameters }.');
         $appearance = new stdClass();
         foreach (get_object_vars($value) as $moment => $look) {
-            if (!in_array($moment, self::MOMENTS, true)) throw new ApiError(400, $code, "appearance.$moment is not a moment (" . implode(', ', self::MOMENTS) . ').');
+            $card = $moment === self::CARD_LOOK_KEY;
+            if (!$card && !in_array($moment, self::MOMENTS, true)) throw new ApiError(400, $code, "appearance.$moment is not a moment (" . implode(', ', self::MOMENTS) . ') or ' . self::CARD_LOOK_KEY . '.');
             if (!$look instanceof stdClass || !is_string($look->type ?? null)) throw new ApiError(400, $code, "appearance.$moment needs a type.");
             $type = $look->type;
-            $plugin = is_array($pluginLooks)
-                ? in_array($type, $pluginLooks, true)
-                : $pluginLooks && preg_match('/^' . self::PLUGIN_PASS_TYPE . '$/', $type) === 1;
-            if (!in_array($type, self::APPEARANCE_TYPES, true) && !$plugin) {
+            [$builtIn, $pluginTypes, $what] = $card ? [self::CARD_LOOK_TYPES, $pluginCardLooks, 'card look'] : [self::APPEARANCE_TYPES, $pluginLooks, 'look'];
+            $plugin = is_array($pluginTypes)
+                ? in_array($type, $pluginTypes, true)
+                : $pluginTypes && preg_match('/^' . self::PLUGIN_PASS_TYPE . '$/', $type) === 1;
+            if (!in_array($type, $builtIn, true) && !$plugin) {
                 $plugins = match (true) {
-                    is_array($pluginLooks) && $pluginLooks !== [] => ' or a look a plugin of the experience registers (' . implode(', ', $pluginLooks) . ').',
-                    is_array($pluginLooks) => ' – the experience\'s plugins register no look.',
-                    $pluginLooks => ' or a plugin\'s look (camelCase letters and digits).',
-                    default => ' – a plugin\'s look needs a plugin in the experience.',
+                    is_array($pluginTypes) && $pluginTypes !== [] => " or a $what a plugin of the experience registers (" . implode(', ', $pluginTypes) . ').',
+                    is_array($pluginTypes) => " – the experience's plugins register no $what.",
+                    (bool) $pluginTypes => " or a plugin's $what (camelCase letters and digits).",
+                    default => " – a plugin's $what needs a plugin in the experience.",
                 };
-                throw new ApiError(400, $code, "appearance.$moment.type must be one of " . implode(', ', self::APPEARANCE_TYPES) . $plugins);
+                throw new ApiError(400, $code, "appearance.$moment.type must be one of " . implode(', ', $builtIn) . $plugins);
             }
             foreach (get_object_vars($look) as $name => $param) {
                 if (!is_scalar($param)) throw new ApiError(400, $code, "appearance.$moment.$name must be a number, a string or true / false.");
@@ -1313,6 +1321,11 @@ final class Experiences
         if ($unknownLooks) {
             throw new ApiError(409, 'unknown-appearances', 'The experience\'s appearance or an entity\'s own looks name looks no compiled plugin provides: ' . implode(', ', $unknownLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['appearances' => $unknownLooks]);
         }
+        // And for a plugin's card look (schema 6.3, #361): the reader's guard refuses a card look no declared plugin recorded
+        $unknownCardLooks = $recorded === null ? [] : array_values(array_diff(self::pluginCardLookTypes($version['configuration']), $recorded['cardLooks']));
+        if ($unknownCardLooks) {
+            throw new ApiError(409, 'unknown-card-looks', 'The experience\'s appearance names a card look no compiled plugin provides: ' . implode(', ', $unknownCardLooks) . '. A plugin of the Code tab reaches readers only when the publish carries it (the editor\'s Publish sends the saved sources, #78).', ['cardLooks' => $unknownCardLooks]);
+        }
         // The writing is a job (#345, PublishJob): done within PUBLISH_STEP_SECONDS → 200 with the outcome, else 202 { job }
         PublishJob::answer(PublishJob::start($experienceId, $env, (string) $user['id'], $note, $version, $injected));
     }
@@ -1364,7 +1377,7 @@ final class Experiences
             'components' => [...($registers['components'] ?? []), ...($registers['layers'] ?? [])],
             'nodeTypes' => $registers['nodeTypes'] ?? [], 'passes' => $registers['passes'] ?? [],
             'materials' => $registers['materials'] ?? [], 'textures' => $registers['textures'] ?? [],
-            'appearances' => $registers['appearances'] ?? [],
+            'appearances' => $registers['appearances'] ?? [], 'cardLooks' => $registers['cardLooks'] ?? [],
         ];
         foreach ($expected as $kind => $types) {
             $named = ($registered->{$kind} ?? null) instanceof stdClass ? array_map('strval', array_keys(get_object_vars($registered->{$kind}))) : [];
@@ -1376,11 +1389,11 @@ final class Experiences
         return true;
     }
 
-    /** Why a plugin's `registered` is not { components?, nodeTypes?, passes?, materials?, textures?, appearances? } of type → spec, or null */
+    /** Why a plugin's `registered` is not { components?, nodeTypes?, passes?, materials?, textures?, appearances?, cardLooks? } of type → spec, or null */
     private static function registeredProblem(mixed $registered): ?string
     {
-        if (!$registered instanceof stdClass) return 'must be an object { components?, nodeTypes?, passes?, materials?, textures?, appearances? }.';
-        foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures', 'appearances'] as $kind) {
+        if (!$registered instanceof stdClass) return 'must be an object { components?, nodeTypes?, passes?, materials?, textures?, appearances?, cardLooks? }.';
+        foreach (['components', 'nodeTypes', 'passes', 'materials', 'textures', 'appearances', 'cardLooks'] as $kind) {
             if (property_exists($registered, $kind) && !$registered->{$kind} instanceof stdClass) return ".$kind must be an object of type → spec.";
         }
         return null;
@@ -1431,7 +1444,8 @@ final class Experiences
     {
         $types = [];
         $appearance = $configuration->experience->appearance ?? null;
-        foreach ($appearance instanceof stdClass ? get_object_vars($appearance) : [] as $look) {
+        foreach ($appearance instanceof stdClass ? get_object_vars($appearance) : [] as $moment => $look) {
+            if ($moment === self::CARD_LOOK_KEY) continue;
             $type = $look instanceof stdClass ? ($look->type ?? null) : null;
             if (is_string($type) && !in_array($type, self::APPEARANCE_TYPES, true)) $types[$type] = true;
         }
@@ -1448,6 +1462,17 @@ final class Experiences
         $list = array_map('strval', array_keys($types));
         sort($list);
         return $list;
+    }
+
+    /**
+     * The card look the experience names when it is not built in (schema 6.3, #361) – none or one
+     * @return list<string>
+     */
+    public static function pluginCardLookTypes(stdClass $configuration): array
+    {
+        $card = $configuration->experience->appearance->{self::CARD_LOOK_KEY} ?? null;
+        $type = $card instanceof stdClass ? ($card->type ?? null) : null;
+        return is_string($type) && !in_array($type, self::CARD_LOOK_TYPES, true) ? [$type] : [];
     }
 
     /**

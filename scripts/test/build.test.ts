@@ -265,7 +265,7 @@ describe('the test fixture', () => {
 });
 
 describe('the demo', () => {
-  it('builds without errors: every node type, the covers, a shared entity, twenty plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file, two with looks)', { timeout: 60000 }, async () => {
+  it('builds without errors: every node type, the covers, a shared entity, twenty-one plugins (three with a node type, one with a material and a texture, two with a pass, one that takes a model file, two with looks, one with a card look)', { timeout: 60000 }, async () => {
     const build = await loadBuild({ content: path.resolve(__dirname, '../../fixtures/demo') });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const plugins = await build.plugins.buildPlugins();
@@ -275,7 +275,10 @@ describe('the demo', () => {
     expect(experience.id).toBe('demo');
     // The demo is the staging database's export since #322 (decision (b)): "The Demo Book", with print data
     expect(experience.book?.author).toBe('OSCT');
-    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'contact-shadow', 'cutout-shadow', 'fluid', 'grain', 'hover', 'lifts', 'my-model-look', 'my-sparkle-look', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint', 'toon']);
+    expect(plugins.map(p => p.data.id)).toEqual(['aquarium', 'card', 'contact-shadow', 'cutout-shadow', 'fluid', 'grain', 'hover', 'lifts', 'my-model-look', 'my-sparkle-look', 'narrative', 'paper', 'pulse', 'reveal', 'scanlines', 'scenes', 'sparkle', 'spin', 'tally', 'tint', 'toon']);
+    // A plugin's card look (#361): recorded as `cardLooks`, named by the experience's `appearance.card`
+    expect(Object.keys(plugins.find(p => p.data.id === 'card')!.data.registered!.cardLooks ?? {})).toEqual(['cardDrift']);
+    expect(experience.appearance?.card).toEqual({ type: 'cardDrift' });
     // A plugin's pass (#216): the grain plugin's film grain on The twins, checked against its recorded spec
     expect(Object.keys(plugins.find(p => p.data.id === 'grain')!.data.registered!.passes ?? {})).toEqual(['filmGrain']);
     expect(scenes.find(s => s.id === 'the-twins')?.passes).toEqual([{ type: 'filmGrain', amount: 0.14 }]);

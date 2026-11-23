@@ -16,7 +16,7 @@ import { editSurfaces, SURFACE_SIZE_PRESETS } from "./surfaces.ts";
 import { editorHref, type AppLinks } from "./services.ts";
 import { slugProblem } from "../../shared/api/experience-paths";
 import type { PluginData } from "../../shared/types/game-config";
-import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
+import { APPEARANCE_TYPES, CARD_LOOK_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
 import { MEDIA_LEVELS } from "../../shared/types/media-levels";
 import { pluginText } from "../../shared/types/plugins";
 import { logicProblems } from "../../shared/types/logic";
@@ -189,7 +189,11 @@ async function checkPassWrite(passes: unknown, path: string, experience: () => P
 
 const lookSchema = z.object({ type: z.string().min(1) }).catchall(z.union([z.number(), z.string(), z.boolean()]))
   .describe("a look: { type, …parameters } – only the values that differ from the look's defaults (describe_content_model appearance)");
-const appearanceSchema = z.object(Object.fromEntries(MOMENTS.map(moment => [moment, lookSchema.optional()])) as Record<(typeof MOMENTS)[number], z.ZodOptional<typeof lookSchema>>).strict();
+const appearanceSchema = z.object({
+  ...(Object.fromEntries(MOMENTS.map(moment => [moment, lookSchema.optional()])) as Record<(typeof MOMENTS)[number], z.ZodOptional<typeof lookSchema>>),
+  // The card look (content schema 6.3, #361): how the marginalia card is picked up
+  card: lookSchema.optional(),
+}).strict();
 
 /**
  * Checks an entity against the content contract before it is sent: the guard's verdict as a tool error (`refused`),
@@ -931,7 +935,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_experience_appearance",
     {
       description:
-        `How the experience's AR entities appear and disappear – a look per moment: { reveal?, found?, lost? }, each { type, …parameters } like a pass. reveal = the first find of a target, found = every later find, lost = the target is lost (played rewound in the look's outDuration). A moment left out takes found's look, then the default; null (or {}) removes the field – the default look plays everywhere. The whole appearance is replaced: send every moment that keeps a look. Types: the built-in ${APPEARANCE_TYPES.join(", ")} and the looks the experience's plugins register (describe_content_model { experience } appearance, with every parameter's range and default). Checked against the contract; a change is recorded.`,
+        `How the experience's AR entities appear and disappear – a look per moment: { reveal?, found?, lost?, card? }, each { type, …parameters } like a pass. card is the card look the marginalia card is picked up with (built in: ${CARD_LOOK_TYPES.join(", ")}; or a plugin's registerCardLook) – no moment, it never takes found's. reveal = the first find of a target, found = every later find, lost = the target is lost (played rewound in the look's outDuration). A moment left out takes found's look, then the default; null (or {}) removes the field – the default look plays everywhere. The whole appearance is replaced: send every moment that keeps a look. Types: the built-in ${APPEARANCE_TYPES.join(", ")} and the looks the experience's plugins register (describe_content_model { experience } appearance, with every parameter's range and default). Checked against the contract; a change is recorded.`,
       inputSchema: z.object({ experience: EXPERIENCE, appearance: appearanceSchema.nullable() }),
       annotations: write,
     },

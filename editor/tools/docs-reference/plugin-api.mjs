@@ -37,6 +37,7 @@ const SECTIONS = [
   { id: "material", title: "A material and a texture", intro: "`registerMaterial(type, spec, build)` and `registerTexture(type, spec, draw)`.", types: [["MaterialContext"], ["MaterialInstance"], ["TextureContext"], ["TextureInstance"]] },
   { id: "pass", title: "A pass", intro: "`registerPass(type, spec, factory)`.", types: [["PassContext"], ["PostPass"]] },
   { id: "appearance", title: "A look", intro: "`registerAppearance(type, spec, factory)`.", types: [["AppearanceContext"], ["AppearanceRun"]] },
+  { id: "card-look", title: "A card look", intro: "`registerCardLook(type, spec, factory)` (API 4.1): how the marginalia card is picked up.", types: [["CardLookContext"], ["CardLookRun"]] },
   { id: "feedback", title: "Feedback buffers", intro: "`api.feedback(options)` returns the handle.", types: [["FeedbackOptions"], ["Feedback"]] },
   { id: "files", title: "Files and the module", intro: "What `api.loadModel` resolves to, and what a plugin file exports.", types: [["PluginModel"], ["PluginModule"]] },
 ];

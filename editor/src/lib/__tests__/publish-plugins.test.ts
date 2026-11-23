@@ -16,8 +16,8 @@ const SPIN = `export const register = (api: any) => api.registerComponent("spin"
 
 const snapshot: PluginRegistrySnapshot = {
   plugins: {
-    tint: { components: {}, layers: { tint: { description: "Tints.", params: {} } }, nodeTypes: {}, materials: {}, textures: {}, passes: {}, appearances: {} },
-    aquarium: { components: {}, layers: {}, nodeTypes: { aquarium: { description: "A tank.", params: {} } }, materials: {}, textures: {}, passes: {}, appearances: {} },
+    tint: { components: {}, layers: { tint: { description: "Tints.", params: {} } }, nodeTypes: {}, materials: {}, textures: {}, passes: {}, appearances: {}, cardLooks: {} },
+    aquarium: { components: {}, layers: {}, nodeTypes: { aquarium: { description: "A tank.", params: {} } }, materials: {}, textures: {}, passes: {}, appearances: {}, cardLooks: {} },
   },
   failures: {},
 };

@@ -857,6 +857,16 @@ export class StageCore {
     this.hideFor(this.shownTargets(), moment === "lost" ? (momentDuration(experience, "lost") ?? REPLAY_GAP_MS) + REPLAY_GAP_MS : REPLAY_GAP_MS);
   }
 
+  /**
+   * Play the card look (#361) on the stage: the first shown, found target with an image flies its printed picture as the
+   * reader's scan does for a glossary entry – with the experience's card look (the panel's while it edits). Nothing opens
+   * after it lands: the stage has no entry to open. False when no target is shown.
+   */
+  playCard(): Promise<boolean> {
+    const target = this.shownTargets().map(id => getTarget(id)).find(t => t?.imageSrc);
+    return target?.imageSrc ? this.arScene.flyCard(target.id, { front: target.imageSrc }) : Promise.resolve(false);
+  }
+
   /** The scene's targets with an image that are not hidden (or those of `targetIds`) */
   private shownTargets(targetIds?: readonly string[]): string[] {
     const hidden = new Set(getPreview().hidden);
