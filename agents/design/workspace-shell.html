@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One workspace shell – concept (#356, #355)</title>
+<style>
+  :root { --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --text: #fff; --muted: #a3a3a3; --line: #4a4a4a;
+          --panel: #2c2c2cf2; --control: #383838; --sel: #5a5a5a;
+          --gold: linear-gradient(90deg,#f5e7c8,#7f6032 30%,#d2ae5a 57%,#f3cc94 74%); }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; font: 13px/1.45 var(--font); color: var(--text); background: #111; width: 1300px; }
+  h1 { font-size: 19px; margin: 0 0 4px; } .lead { color: var(--muted); margin: 0 0 22px; font-size: 14px; max-width: 1180px; }
+  .frame { margin-bottom: 30px; }
+  .cap { display: flex; gap: 12px; align-items: baseline; margin: 0 0 8px; } .cap b { font-size: 15px; } .cap span { color: var(--muted); }
+  .muted { color: var(--muted); } .small { font-size: 11.5px; }
+  /* a window */
+  .win { position: relative; height: 470px; border: 1px solid #333; overflow: hidden; background: #0c0c0c; }
+  .bar { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; justify-content: space-between; z-index: 3; }
+  .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px 11px; display: inline-flex; gap: 10px; align-items: center; }
+  .pill b { font-weight: 600; } .pill .on { background: var(--sel); border-radius: 9px; padding: 1px 8px; margin: -1px -4px; }
+  .fp { position: absolute; background: var(--panel); border: 1px solid var(--line); z-index: 2; }
+  .fp .h { display: flex; gap: 2px; padding: 5px 6px; border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .fp .h span { padding: 1px 7px; } .fp .h span.on { background: var(--sel); color: #fff; }
+  .fp .b { padding: 8px 10px; }
+  .fp h4 { margin: 8px 0 5px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 400; } .fp h4:first-child { margin-top: 0; }
+  .row { display: grid; grid-template-columns: 62px 1fr; gap: 7px; align-items: center; margin: 4px 0; } .row .l { color: var(--muted); }
+  .field { background: var(--control); border: 1px solid #555; padding: 3px 7px; display: flex; justify-content: space-between; min-height: 24px; }
+  .btn { display: inline-block; background: var(--control); border: 1px solid #555; padding: 3px 10px; margin: 2px 4px 2px 0; }
+  .hl { outline: 2px dashed #e0e0e0; outline-offset: 3px; }
+  /* stage contents */
+  .stage3d { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 60%, #2a2f2a, #0c0c0c 70%); }
+  .paper { position: absolute; left: 34%; top: 34%; width: 34%; height: 44%; transform: perspective(900px) rotateX(52deg) rotateZ(-8deg); background: linear-gradient(135deg,#efe9dc,#cfc6b4); box-shadow: 0 30px 50px #000a; }
+  .paper::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px solid #0003; }
+  .page { position: absolute; inset: 0; display: grid; place-items: center; }
+  .col { width: 700px; margin-top: 30px; }
+  .covers { display: flex; gap: 22px; }
+  .cover { width: 104px; } .cover i { display: block; height: 146px; background: linear-gradient(160deg,#3a3326,#15130f); border: 1px solid #6b5a3a; margin-bottom: 6px; }
+  .cover.sel i { outline: 2px solid #fff; outline-offset: 3px; }
+  .cover.add i { background: none; border: 1px dashed #666; display: grid; place-items: center; color: #777; font-size: 26px; font-style: normal; }
+  .lp { position: absolute; inset: 0; background: #000; display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
+  .lp .t { padding-left: 250px; } .lp .title { font-size: 34px; line-height: 1.05; background: var(--gold); -webkit-background-clip: text; color: transparent; display: inline-block; }
+  .lp .by { margin-top: 10px; background: var(--gold); -webkit-background-clip: text; color: transparent; display: inline-block; }
+  .lp .book { justify-self: center; margin-right: 250px; width: 190px; height: 130px; position: relative; }
+  .lp .book .paper { left: 0; top: 0; width: 100%; height: 100%; }
+  .lp .ph { position: absolute; left: 96px; top: -6px; width: 62px; height: 112px; border: 3px solid #d0d0d0; border-radius: 10px; background: #0008; }
+  .lp .qr { position: absolute; left: 250px; bottom: 44px; display: flex; gap: 10px; align-items: center; color: #8b8d8c; font-size: 11px; }
+  .lp .qr i { width: 44px; height: 44px; background: repeating-conic-gradient(#fff 0 25%, #000 0 50%) 0 0/11px 11px; }
+  .lp footer { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 250px; display: flex; justify-content: space-between; color: #8b8d8c; font-size: 11px; border-top: .5px solid #555; }
+  .strip { display: flex; gap: 6px; padding: 7px 10px; } .strip i { width: 62px; height: 38px; background: linear-gradient(135deg,#efe9dc,#b9b09c); border: 1px solid #555; } .strip i.sel { outline: 2px solid #fff; }
+  table { border-collapse: collapse; width: 100%; } th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #333; vertical-align: top; } th { color: var(--muted); font-weight: 400; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  code { color: #ddd; }
+  .two { display: grid; grid-template-columns: 1.25fr 1fr; gap: 28px; }
+  .box { background: #1a1a1a; border: 1px solid #333; padding: 12px 16px; } .box ol, .box ul { margin: 0; padding-left: 18px; } .box li { margin: 6px 0; }
+  .box em { font-style: normal; text-decoration: underline; text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<h1>#356 – one workspace shell: the stage is the window, and it is not always 3D</h1>
+<p class="lead">Adopted from SCUTOONS' creator: <b>the stage is the whole window, the address decides what it shows, panels float over it and
+never push it, a workspace is a preset of panels and tabs.</b> OSCT's scene editor already works like this – but only there, with the 3D
+engine built into the page. Lifted out, the same shell carries the Experiences page and the landing page (#355), each with its own stage.</p>
+
+<div class="frame">
+  <div class="cap"><b>1 · Experiences</b><span><code>/editor/</code> – the stage is a plain page: the books. No 3D behind it.</span></div>
+  <div class="win">
+    <div class="bar"><span class="pill"><b>Experiences</b></span><span class="pill"><span>Panels ▾</span><span>☰</span><span>TP</span></span></div>
+    <div class="page"><div class="col">
+      <div class="covers">
+        <div class="cover sel"><i></i>Onion Skin &amp; Crocodile Tears<div class="small muted">Kévin Bray · live on staging</div></div>
+        <div class="cover"><i></i>Demo<div class="small muted">draft</div></div>
+        <div class="cover"><i></i>Vienna Struggle<div class="small muted">draft</div></div>
+        <div class="cover add"><i>+</i><span class="muted">New experience</span></div>
+      </div>
+    </div></div>
+    <div class="fp" style="right:12px;top:52px;width:268px">
+      <div class="h"><span class="on">Inspector</span><span>History</span><span>AI connections</span></div>
+      <div class="b">
+        <h4>Onion Skin &amp; Crocodile Tears</h4>
+        <span class="btn" style="background:var(--sel)">Open</span><span class="btn hl">Landing page</span>
+        <h4>Versions</h4><div class="small">6.7.0 · live on staging<br><span class="muted">6.6.1 · make live</span></div>
+        <h4>Files</h4><span class="btn">Export</span><span class="btn">Replace…</span>
+        <h4>&nbsp;</h4><span class="small" style="color:#e07a6a">Delete experience…</span>
+      </div>
+    </div>
+    <div class="fp" style="left:12px;bottom:12px;width:230px"><div class="h"><span class="on">Info</span></div><div class="b small muted">The name and description of the control under the pointer.</div></div>
+  </div>
+  <p class="muted small" style="margin-top:8px">Today's right-hand column becomes the <b>Inspector</b>: nothing selected → quick access (New, Import, Last worked on); a book selected → its sheet.
+    Same keys as today (Tab through the books, Enter opens, Space selects). AI connections moves from under the books into a tab.</p>
+</div>
+
+<div class="frame">
+  <div class="cap"><b>2 · Landing page</b><span><code>/editor/&lt;experience&gt;/landing/</code> – the stage is the reader's landing itself, live; its content is edited in the Inspector</span></div>
+  <div class="win">
+    <div class="lp">
+      <div class="t"><div class="title">Onion Skin<br>&amp;<br>Crocodile Tears</div><br><span class="by">Kévin Bray</span></div>
+      <div class="book hl"><div class="paper"></div><div class="ph"></div></div>
+      <div class="qr"><i></i><span>osct.buildingfictions.com/osct<br>Made for phones and tablets</span></div>
+      <footer><span>Onion Skin &amp; Crocodile Tears · Kévin Bray</span><span>Building Fictions · Privacy &amp; terms</span></footer>
+    </div>
+    <div class="bar"><span class="pill"><span>Experiences</span><span>›</span><b>Onion Skin &amp; Crocodile Tears</b><span>›</span><span>Scenes</span><span class="on">Landing</span></span>
+      <span class="pill"><span>saved</span><span>↶ ↷</span><span>Publish</span><span>Panels ▾</span></span></div>
+    <div class="fp" style="right:12px;top:52px;width:268px">
+      <div class="h"><span class="on">Inspector</span><span>Library</span><span>History</span></div>
+      <div class="b">
+        <h4>Hero – the book and the phone</h4>
+        <div class="row hl"><span class="l">Scene</span><span class="field"><span>10–11</span><span>▾</span></span></div>
+        <div class="row"><span class="l">Surface</span><span class="field"><span>Right page · 11</span><span>▾</span></span></div>
+        <div class="small muted">The spread the book lies open on, the page the phone scans.</div>
+        <h4>Shop</h4>
+        <div class="row"><span class="l">The book</span><span class="field">buildingfictions.com/…</span></div>
+        <div class="row"><span class="l">T-shirt</span><span class="field">buildingfictions.com/…</span></div>
+        <span class="small muted">+ item · pictures from the Library</span>
+        <h4>Publisher – footer, Privacy &amp; terms</h4>
+        <div class="row"><span class="l">Name</span><span class="field">Building Fictions</span></div>
+        <div class="row"><span class="l">Address</span><span class="field">Lauriergracht 116W, …</span></div>
+        <div class="small muted">KvK · contact · privacy additions ▸</div>
+      </div>
+    </div>
+    <div class="fp" style="left:12px;top:52px;width:300px"><div class="h"><span class="on">Scenes</span></div><div class="strip"><i></i><i></i><i class="sel"></i><i></i></div></div>
+  </div>
+  <p class="muted small" style="margin-top:8px">The landing renders in the stage exactly as readers get it (the reader's own component, with the draft). A click on a part of it – the book,
+    the shop, the footer – opens that section in the Inspector. The <b>Scenes</b> filmstrip is the same panel as in the scene editor: a click on a card picks the
+    hero's scene. Every edit saves itself and the stage follows at once. The Privacy &amp; terms page is a second view of this stage (click the footer link).</p>
+</div>
+
+<div class="frame">
+  <div class="cap"><b>3 · Scene</b><span><code>/editor/&lt;experience&gt;/&lt;scene&gt;/</code> – unchanged for the person; the stage is the 3D engine</span></div>
+  <div class="win" style="height:300px">
+    <div class="stage3d"><div class="paper"></div></div>
+    <div class="bar"><span class="pill"><span>Experiences</span><span>›</span><b>Onion Skin &amp; Crocodile Tears</b><span>›</span><span class="on">Scenes</span><span class="hl">Landing</span></span>
+      <span class="pill"><span>saved</span><span>↶ ↷</span><span>Publish</span><span>Panels ▾</span></span></div>
+    <div class="fp" style="left:12px;top:52px;width:170px"><div class="h"><span class="on">Tree</span></div><div class="b small muted">surfaces · entries · targets · nodes</div></div>
+    <div class="fp" style="right:12px;top:52px;width:268px"><div class="h"><span class="on">Inspector</span><span>Environment</span><span>Library</span><span>Code</span></div><div class="b small muted">whatever is selected</div></div>
+    <div class="fp" style="left:12px;bottom:12px;width:330px"><div class="h"><span class="on">Scenes</span></div><div class="strip"><i></i><i></i><i class="sel"></i><i></i></div></div>
+  </div>
+  <p class="muted small" style="margin-top:8px">New here only: <b>Scenes · Landing</b> in the top bar – the experience's two workspaces. The experience's settings (⚙) keep its texts, looks and rules.</p>
+</div>
+
+<div class="frame two">
+  <div>
+    <div class="cap"><b>4 · What a workspace is</b><span>one host, three presets</span></div>
+    <table>
+      <tr><th>Address</th><th>Stage shows</th><th>Panels (tabs)</th></tr>
+      <tr><td><code>/editor/</code></td><td>the books – a page</td><td>Inspector (quick access / the book's sheet) · History · AI connections · Info</td></tr>
+      <tr><td><code>/editor/&lt;exp&gt;/&lt;scene&gt;/</code></td><td>the 3D engine</td><td>as today: Tree · Inspector · Environment · Library · Code · Log · Variables · Scenes · Logic · History · Info · Tools</td></tr>
+      <tr><td><code>/editor/&lt;exp&gt;/landing/</code></td><td>the reader's landing – a page<br>(view 2: Privacy &amp; terms)</td><td>Inspector (hero · shop · publisher) · Library · Scenes · History · Info</td></tr>
+    </table>
+    <p class="muted small" style="margin-top:8px">A panel tab is declared once (name, icon, about) and filled by the workspace that has content for it – a tab without content is not
+      offered. Layouts stay remembered per workspace in the browser, as today. <code>landing</code> becomes a reserved scene id.</p>
+  </div>
+  <div class="box">
+    <div class="cap"><b>Decisions – my recommendation underlined</b></div>
+    <ol>
+      <li>The Experiences page: SCUTOONS shows its dashboard as an overlay over a dimmed stage. → <em>Here a workspace of its own</em> (frame 1): OSCT has no "empty stage" to dim, and you asked for a stage.</li>
+      <li>What the landing lets you edit → <em>hero (scene, surface), shop items, publisher</em> (frame 2). Its texts stay the app's translations.</li>
+      <li>Where the landing content is stored → <em>in the experience</em> (<code>landing</code>, <code>publisher</code> – a minor content-schema step), so export, versions and publish carry it.</li>
+      <li>Order → <em>(a) lift the shell out of the scene page, nothing visible changes · (b) the landing workspace + its content fields (#355) · (c) the Experiences page into the shell</em>. (a) is the risky part: the scene page is 1 200 lines with the engine wired in.</li>
+    </ol>
+  </div>
+</div>
+</body>
+</html>
