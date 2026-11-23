@@ -910,7 +910,7 @@ page and the plugin guard](#the-stage-in-the-page-and-the-plugin-guard-340)).
   equirectangular image on a sphere around the stage and as `scene.environment`, turned with the stage every frame so
   the room stays put while the camera orbits. **An experience with an environment replaces it** ([Environment](#environment), #185).
 - **The desk** – the tool is for designers, who should feel at home: a steel tube frame after Egon Eiermann's table
-  frame (1953), 72 cm high, with one of two tops of the same 1.8 × 0.8 m and the same surface height (the view settings'
+  frame (1953), 72 cm high – switched off in the view settings, no desk at all (#358) –, with one of two tops of the same 1.8 × 0.8 m and the same surface height (the view settings'
   *top*, #226): **plywood**, the default – a screen-printed plywood board (18 mm; Poly Haven's plywood texture tinted to
   the phenolic brown on the faces) whose edges show cut plywood – 13 plies of birch per 18 mm board, as the trade's 18 mm
   birch plywood, alternating long grain and darker cross grain, parted by glue lines, drawn in code once (`plywood.ts`, a
@@ -1026,9 +1026,11 @@ The toolbar's **camera** group (#335) says what the camera turns around – the 
 All of it is stored on the device with the orbit (`PreviewOrbit`: `pan.z`, `surface`, `label`, `free`).
 
 The toolbar's **view** group – how the editor shows the scene, stored on the device: **shake**: 0 = still, 1 = a hand
-holding a phone. **origin**: the 3 × 3 alignment square ([below](#grid-origin-and-snapping)). **top**: the Eiermann
+holding a phone. **origin**: the 3 × 3 alignment square ([below](#grid-origin-and-snapping)). **desk**: a switch and the Eiermann
 desk's top, *plywood* (the default) or *linoleum* (#226; switching it changes only the top – the experience, the targets, the
-grid and the camera stay; a desk stored before, `desk: "eiermann"` or `"schoepfer"`, becomes *plywood* or *linoleum*).
+grid and the camera stay). The switch off (#358) takes the whole desk away – for work that lies on no table (a wall, a
+poster, a room): the scene floats over the sky, the floor grid and the camera stay; the summary says *no desk*. `desk`
+is that switch since #358 (an older stored `desk: "eiermann"` / `"schoepfer"` reads as on).
 **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is rendered), and a switch that turns
 the HDRI **off** (#327: no sky and no HDRI light – the scene's own lights, remembered per browser); with the experience's
 environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for an experience

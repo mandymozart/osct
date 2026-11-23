@@ -344,6 +344,11 @@ export class MockStage implements StageView {
     this.applyTopLook(top);
   }
 
+  /** The desk shown or not (#358): off hides the frame and the top – the scene, its grids and the camera stay */
+  setDesk(on: boolean): void {
+    this.table.visible = on;
+  }
+
   /** The desk's model, loaded once into the desk's group: the frame and both tops, the chosen one shown */
   private loadDesk(): void {
     new GLTFLoader().load(this.assetUrl(DESK_MODEL), gltf => {

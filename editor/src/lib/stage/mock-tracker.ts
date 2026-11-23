@@ -265,6 +265,8 @@ export interface StageView {
   setHdri(hdri: PreviewState["hdri"] | null): void;
   /** The desk's top under the scene (the frame stays) */
   setTop?(top: PreviewState["top"]): void;
+  /** The desk shown or not (#358): off = no table under the scene */
+  setDesk?(on: boolean): void;
   /**
    * A translucent image where a target is about to be printed (the new-target form, the placement rows); null = none.
    * `handlesOnly`: the target itself moves with the placement (`movePrint`), the ghost adds only its handles.
@@ -437,6 +439,7 @@ export class MockTracker implements IImageTracker {
     stage.setShading?.(this.preview.shading);
     stage.setHdri(hdriOf(this.preview));
     stage.setTop?.(this.preview.top);
+    stage.setDesk?.(this.preview.desk);
     stage.setGrid?.(gridOf(this.preview));
     stage.setGhost?.(this.ghost, this.ghostOptions);
     stage.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
@@ -783,6 +786,7 @@ export class MockTracker implements IImageTracker {
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
     if (initial || state.hdri !== previous.hdri || state.hdriOn !== previous.hdriOn) this.stage?.setHdri(hdriOf(state));
     if (initial || state.top !== previous.top) this.stage?.setTop?.(state.top);
+    if (initial || state.desk !== previous.desk) this.stage?.setDesk?.(state.desk);
     if (initial || !sameGrids(gridOf(state), gridOf(previous))) this.stage?.setGrid?.(gridOf(state));
     if (initial || state.targetMarks !== previous.targetMarks) this.stage?.setTargetMarks?.(state.targetMarks);
     if (state.hidden !== previous.hidden) this.publishState();

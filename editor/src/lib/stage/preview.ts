@@ -71,11 +71,10 @@ export const storedTop = (stored: { top?: unknown }): TopId => (isTopId(stored.t
  * grid and snapping are the *grid & snap* group's own.
  */
 export const viewSummary = (
-  settings: Pick<PreviewSettings, "top" | "wobble" | "origin" | "hdri">,
+  settings: Pick<PreviewSettings, "top" | "wobble" | "origin" | "hdri"> & { desk?: boolean },
   { environment = false }: { environment?: boolean } = {},
 ): string => [
-  DESK_NAME,
-  TOPS.find(t => t.id === settings.top)?.name ?? settings.top,
+  ...(settings.desk === false ? ["no desk"] : [DESK_NAME, TOPS.find(t => t.id === settings.top)?.name ?? settings.top]),
   `origin ${originLabel(settings.origin)}`,
   settings.wobble > 0 ? `shake ${Math.round(settings.wobble * 100) / 100}` : "no shake",
   environment ? "the environment's sky" : `sky ${HDRIS.find(h => h.id === settings.hdri)?.name ?? settings.hdri}`,
@@ -118,6 +117,8 @@ export interface PreviewSettings {
   hdri: HdriId;
   /** The HDRI on (#327): off = no sky and no HDRI light while rendered – the scene's own lights, as in solid / textured */
   hdriOn: boolean;
+  /** The desk under the scene (#358): off = no table – the scene floats over the sky, for work that lies on none */
+  desk: boolean;
   /** The desk's top under the scene (the frame is always the Eiermann) */
   top: TopId;
   /** The size models with a texture set show their map at (the reader's texture quality, previewed) */
@@ -195,7 +196,7 @@ export const isNodeHidden = (hidden: readonly string[], targetId: string, path: 
 const STORAGE_KEY = "osct-preview";
 
 const DEFAULTS: PreviewSettings = {
-  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", hdriOn: true, top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
+  view: "reader", shading: "rendered", orbit: null, hdri: "wooden_studio_17", hdriOn: true, desk: true, top: DEFAULT_TOP, textureQuality: "auto", wobble: 0, grid: false, gridMm: 10, origin: "top-left",
   axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: [...SNAP_TARGETS], snapMove: 1, snapRotate: 15, snapScale: 0.1,
 };
 
@@ -286,6 +287,7 @@ export const parseSettings = (parsed: unknown): PreviewSettings => {
     orbit: isOrbit(stored.orbit) ? stored.orbit : null,
     hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
     hdriOn: stored.hdriOn !== false,
+    desk: stored.desk !== false,
     top: storedTop(stored),
     textureQuality: isTextureQuality(stored.textureQuality) ? stored.textureQuality : DEFAULTS.textureQuality,
     wobble: typeof stored.wobble === "number" && Number.isFinite(stored.wobble) ? Math.min(1, Math.max(0, stored.wobble)) : 0,

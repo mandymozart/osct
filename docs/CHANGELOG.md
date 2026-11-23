@@ -8,6 +8,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.12.0 – 2026-11-23
+
+### Added
+- **The stage without a desk** (#358): the view settings' *desk* row has a switch – off, the Eiermann desk goes away and
+  the scene floats over the sky, for work that lies on no table (a wall, a poster, a room). The scene, the floor grid and
+  the camera stay where they are; the top picker shows while the desk is on. Stored in this browser like the other view
+  settings; the view button's summary says *no desk*.
+
 ## 6.11.0 – 2026-11-23
 
 ### Added

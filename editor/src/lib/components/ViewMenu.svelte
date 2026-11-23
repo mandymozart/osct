@@ -49,10 +49,11 @@
     </span>
   </div>
 
-  <div class="row rule" data-help="The top of the desk the scene lies on (Eiermann's steel frame): its screen-printed plywood, or blue-grey linoleum on oak plywood. Only the top changes – the book, the targets and the camera stay where they are.">
-    <span class="label">top</span>
+  <div class="row rule" data-help="The desk the scene lies on (Eiermann's steel frame) and its top: screen-printed plywood, or blue-grey linoleum on oak plywood. The switch takes the desk away for work that lies on no table – a wall, a poster, a room; the scene, the grids and the camera stay where they are.">
+    <span class="label">desk</span>
     <span class="controls">
-      <Segmented options={TOPS.map(t => t.id)} value={preview.top} label="Desk top" onchange={top => updatePreview({ top })} />
+      <Toggle on={preview.desk} label="Desk on or off" title={preview.desk ? "Take the desk away – the scene without a table" : "Show the desk under the scene"} onchange={desk => updatePreview({ desk })} />
+      {#if preview.desk}<Segmented options={TOPS.map(t => t.id)} value={preview.top} label="Desk top" onchange={top => updatePreview({ top })} />{/if}
     </span>
   </div>
 

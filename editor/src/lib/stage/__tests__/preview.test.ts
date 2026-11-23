@@ -30,7 +30,7 @@ describe("editor preview settings", () => {
     setPreviewActive(true);
     const stored = JSON.parse(localStorage.getItem("osct-preview")!);
     expect(stored).toEqual({
-      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", hdriOn: true, top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
+      view: "top", shading: "rendered", orbit: null, hdri: "wooden_studio_07", hdriOn: true, desk: true, top: "plywood", textureQuality: "auto", wobble: 0.4, grid: false, gridMm: 10, origin: "top-left",
       axis: true, floorGrid: true, floorMm: 50, wallGrid: false, wallZ: -500, targetMarks: false, snap: false, snapTo: ["grid", "axes", "objects", "outlines"], snapMove: 1, snapRotate: 15, snapScale: 0.1,
     });
     expect(getPreview().hidden).toEqual(["a"]);
@@ -149,7 +149,7 @@ describe("editor preview settings", () => {
   it("stores the desk's top, plywood or linoleum (#226)", async () => {
     updatePreview({ top: "linoleum" });
     expect(JSON.parse(localStorage.getItem("osct-preview")!)).toMatchObject({ top: "linoleum" });
-    expect(JSON.parse(localStorage.getItem("osct-preview")!)).not.toHaveProperty("desk");
+    expect(JSON.parse(localStorage.getItem("osct-preview")!).desk).toBe(true); // #358: the desk is a switch now, not a model
     vi.resetModules();
     const fresh = await import("../preview");
     expect(fresh.getPreview().top).toBe("linoleum");
@@ -234,5 +234,14 @@ describe("the HDRI switch (#327)", () => {
     const { hdriOf } = await import("../mock-tracker");
     expect(hdriOf({ hdri: "wooden_studio_17", hdriOn: false })).toBeNull();
     expect(hdriOf({ hdri: "wooden_studio_17", hdriOn: true })).toBe("wooden_studio_17");
+  });
+
+  it("keeps the desk on unless it was switched off, and says so in the summary (#358)", () => {
+    expect(parseSettings({}).desk).toBe(true);
+    expect(parseSettings({ desk: "no" }).desk).toBe(true);
+    expect(parseSettings({ desk: false }).desk).toBe(false);
+    const view = { top: "plywood", wobble: 0, origin: "top-left", hdri: "wooden_studio_17" } as const;
+    expect(viewSummary({ ...view, desk: false })).toBe("no desk · origin top left · no shake · sky Wooden Studio 17");
+    expect(viewSummary({ ...view, desk: true })).toMatch(/^Eiermann · plywood/);
   });
 });
