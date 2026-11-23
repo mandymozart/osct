@@ -28,6 +28,44 @@ const content = (plugin: string, components = '    components:\n      - type: ti
 });
 
 describe('plugins (the experience\'s own code)', () => {
+  it('a plugin of several files (#352): siblings by ./name, a shader as a string, type-checked together; files.json names them', async () => {
+    const dirs = makeContent({
+      ...content(`import type { PluginApi } from "osct-plugin-api";
+import { opacity } from "./spec";
+import GLSL from "./tint.glsl";
+export const register = (api: PluginApi): void => {
+  api.registerLayer("tint", { description: "Tints.", nodeTypes: ["video"], params: { opacity } }, { glsl: GLSL });
+};
+`),
+      'plugins/tint/spec.ts': 'export const opacity = { kind: "number" as const, default: 0.3, min: 0, max: 1, description: "How much." };\n',
+      'plugins/tint/tint.glsl': 'return mix(rgba, vec4(1.0, 0.8, 0.5, rgba.a), opacity);\n',
+      'plugins/tint/README.md': 'not part of the plugin',
+    });
+    const build = await loadBuild(dirs);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const plugins = await build.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(build.errors).toEqual([]);
+    expect(plugins[0].code).toContain('return mix(rgba, vec4(1.0, 0.8, 0.5, rgba.a), opacity);');
+    expect(plugins[0].code).toContain('How much.');
+    expect(plugins[0].files).toEqual(['index.ts', 'spec.ts', 'tint.glsl']);
+    expect(Object.keys(plugins[0].data.registered?.components ?? {})).toEqual(['tint']);
+  }, 30000);
+
+  it('a type error in a sibling is the build\'s error, with its file', async () => {
+    const dirs = makeContent({
+      ...content(`import { opacity } from "./spec";
+export const register = (api: import("osct-plugin-api").PluginApi): void => { api.log(opacity); };
+`),
+      'plugins/tint/spec.ts': 'export const opacity: number = "half";\n',
+    });
+    const build = await loadBuild(dirs);
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await build.plugins.buildPlugins();
+    vi.restoreAllMocks();
+    expect(build.errors.join('\n')).toMatch(/plugins\/tint\/spec\.ts\(1,14\): Type 'string' is not assignable to type 'number'/);
+  }, 30000);
+
   it('type-checks, bundles and records a plugin; the nodes that use its layer pass; the bundle lands in the output', async () => {
     const dirs = makeContent(content(TINT));
     const build = await loadBuild(dirs);

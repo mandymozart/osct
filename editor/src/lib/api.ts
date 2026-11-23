@@ -1,6 +1,7 @@
 import type { ExperienceAppearance, EntityData, EntityRefData, GameConfiguration, PassData } from "@engine/types";
 import type { EnvironmentData } from "@shared/types/environment";
 import type { AssetType, ExperienceData, LogicData, RecognitionMode, SurfaceData, TargetPlace, TargetRecognitionData, VariableDeclaration } from "@shared/types/game-config";
+import type { PluginFile } from "@shared/types/plugins";
 import type {
   Asset,
   Change,
@@ -20,6 +21,7 @@ import type {
   EnvironmentsInfo,
   GroupPlanned,
   GroupSaved,
+  PluginFiles,
   PluginSource,
   PluginSummary,
   PluginUsages,
@@ -433,7 +435,7 @@ export const getExperience = (experienceId: string, { fresh = false }: { fresh?:
 
 /** What an import sends: a configuration, or the instance CDN's current version – `confirm` = the second step */
 export type ImportSource =
-  | { configuration: GameConfiguration; files?: unknown; assetsBase?: string; sources?: { id: string; source: string }[] }
+  | { configuration: GameConfiguration; files?: unknown; assetsBase?: string; sources?: PluginFiles[] }
   | { source: "cdn"; experience?: string };
 /**
  * `rename` (#348): the configuration becomes the path experience's (another experience's export or published version);
@@ -696,8 +698,12 @@ export const listPlugins = (experienceId: string) => api<{ plugins: PluginSummar
 export const getPlugin = (experienceId: string, pluginId: string) =>
   api<{ plugin: PluginSource }>("GET", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}`);
 
-export const putPlugin = (experienceId: string, pluginId: string, source: string) =>
-  api<{ plugin: PluginSource }>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}`, { source });
+/**
+ * Every file of a plugin (#352): one left out is gone. `origin` { folder } links it (the CLI's push), null unlinks, without
+ * it the link stays
+ */
+export const putPlugin = (experienceId: string, pluginId: string, files: readonly PluginFile[], origin?: { folder: string } | null) =>
+  api<{ plugin: PluginSource }>("PUT", `/editor/experiences/${encodeURIComponent(experienceId)}/plugins/${encodeURIComponent(pluginId)}`, { files, ...(origin !== undefined ? { origin } : {}) });
 
 /** Refused while the draft uses a type it registers (409 plugin-in-use with the usages) unless forced */
 export const deletePlugin = (experienceId: string, pluginId: string, force = false) =>

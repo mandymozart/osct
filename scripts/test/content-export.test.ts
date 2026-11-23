@@ -101,7 +101,7 @@ describe('osct content export – the folder', () => {
     ],
     unknown: 0,
     layout: null,
-    plugins: [{ id: 'tint', source: 'export {};\r\n', size: 11, updatedAt: '', updatedBy: null }],
+    plugins: [{ id: 'tint', files: [{ name: 'index.ts', text: 'export {};\r\n' }, { name: 'glow.frag', text: 'void main() {}\r\n' }], size: 27, updatedAt: '', updatedBy: null, origin: null }],
     credits: { 'https://cdn.test/assets/x/target.jpg': 'Photo: someone', 'https://cdn.test/unused.jpg': 'Not used' },
   });
 
@@ -119,6 +119,7 @@ describe('osct content export – the folder', () => {
     expect(plan.texts.get('entries/two/entry.yaml')).toContain('image: target.jpg');
     expect(plan.texts.get('entries/two/entry.yaml')).toContain('id: t2');
     expect(plan.texts.get('plugins/tint/index.ts')).toBe('export {};\n');
+    expect(plan.texts.get('plugins/tint/glow.frag')).toBe('void main() {}\n');
     expect(plan.texts.get('credits.yaml')).toBe('entries/one/target.jpg: "Photo: someone"\nentries/two/target-2.jpg: "Photo: someone"\n');
     expect([...plan.downloads.keys()].sort()).toEqual([
       'entries/one/film.en.vtt', 'entries/one/film.mp4', 'entries/one/frame.png', 'entries/one/target.jpg',

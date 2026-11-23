@@ -295,6 +295,10 @@ CREATE TABLE IF NOT EXISTS plugins (
   PRIMARY KEY (experience_id, id),
   CONSTRAINT plugins_experience_fk FOREIGN KEY (experience_id) REFERENCES experiences (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- A plugin is a folder of files (#352): `source` is its index.ts, files_json the other files [{ name, text }], origin_json
+-- the folder `osct plugin push` linked it from ({ folder, by, at }; NULL: not linked)
+ALTER TABLE plugins ADD COLUMN files_json MEDIUMTEXT NULL DEFAULT NULL;
+ALTER TABLE plugins ADD COLUMN origin_json TEXT NULL DEFAULT NULL;
 ALTER TABLE `experiences` ADD COLUMN `plugins_json` TEXT NOT NULL DEFAULT '[]';
 
 -- A video's duration as its file states it (Assets.php, VideoInfo.php); width / height hold its picture's size

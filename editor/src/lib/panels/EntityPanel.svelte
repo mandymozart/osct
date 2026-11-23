@@ -44,6 +44,7 @@
   import { levelLabel, levelOfAsset, makeImageLevels, setNodeLevels, withLevel, withoutLevel } from "#lib/media-levels.js";
   import { isLevelledKind, MEDIA_LEVELS, type MediaLevelData } from "@shared/types/media-levels";
   import type { TextureSize } from "@shared/types/textures";
+  import { PLUGIN_ENTRY, type PluginFile } from "@shared/types/plugins";
   import TextureField from "#lib/components/TextureField.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import LibraryPanel from "./LibraryPanel.svelte";
@@ -180,12 +181,19 @@
   let making = $state(false);
   /** The error shown is a made plugin's: the Code tab has it too */
   let codeError = $state(false);
-  /** A plugin node type is copied with its plugin's whole source (the source as it runs on the stage) */
+  /**
+   * A plugin node type is copied with its plugin's whole source (the files as they run on the stage): its index.ts is
+   * copied into the made one, its other files come along as they are (#352)
+   */
+  let ownerSiblings: PluginFile[] = [];
   const ownerSource = async (type: string) => {
+    ownerSiblings = [];
     const owner = nodeTypeOwner(type);
     if (!owner) return undefined;
     try {
-      return { plugin: owner, source: await plugins.sourceOf(experienceId, owner) };
+      const files = await plugins.filesOf(experienceId, owner);
+      ownerSiblings = files.filter(f => f.name !== PLUGIN_ENTRY);
+      return { plugin: owner, source: files.find(f => f.name === PLUGIN_ENTRY)?.text ?? "" };
     } catch (e) {
       throw new MakeCodeError(`Make it code copies the whole plugin ${owner}, and its source could not be read – ${errorText(e)}`);
     }
@@ -201,10 +209,11 @@
       if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
       const taken = { plugins: [...plugins.stored.map(p => p.id), ...plugins.declared().map(p => p.id)] };
       const made: MadeCode = kind === "node" ? nodeTypeCode(n, taken, await ownerSource(n.type)) : materialCode(n, taken);
-      await plugins.save(experienceId, made.plugin, made.source);
+      const madeFiles = [{ name: PLUGIN_ENTRY, text: made.source }, ...(kind === "node" ? ownerSiblings : [])];
+      await plugins.save(experienceId, made.plugin, madeFiles);
       // The Run switches the node once the made code builds it on the stage; until then it shows as it was
       plugins.pending = { plugin: made.plugin, type: made.type, targetId: t.id, path: [...node], from: n.type, node: made.node };
-      if (!(await plugins.run(made.plugin, made.source, stage))) {
+      if (!(await plugins.run(made.plugin, madeFiles, stage))) {
         error = `${made.plugin}: ${plugins.runError?.message ?? "the code did not run"}`;
         codeError = true;
         // The Code tab opens the made plugin with its error

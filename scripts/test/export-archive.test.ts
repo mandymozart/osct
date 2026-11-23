@@ -117,7 +117,7 @@ const published = (build: string, files: ExperienceExport['files'], exportedAt =
   files,
   unknown: 0,
   layout: null,
-  plugins: [{ id: 'tint', source: 'export const register = () => {};\n', size: 33, updatedAt: '', updatedBy: 'someone@example.com' }],
+  plugins: [{ id: 'tint', files: [{ name: 'index.ts', text: 'export const register = () => {};\n' }], size: 33, updatedAt: '', updatedBy: 'someone@example.com', origin: null }],
   credits: {},
 });
 

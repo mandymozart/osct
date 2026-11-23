@@ -355,10 +355,15 @@ final class ExportArchive
             $reserve($contentPath !== null ? substr($contentPath, strlen(self::CONTENT_PREFIX)) : 'layout/' . self::fileNameOf((string) $url), (string) $url);
         }
 
-        // plugins/<id>/index.ts – the Code tab's sources
+        // plugins/<id>/<file> – the Code tab's plugins, every file (#352)
         $plugins = array_map(static fn($plugin) => (array) $plugin, $data['plugins'] ?? []);
         usort($plugins, static fn(array $a, array $b): int => strcmp((string) $a['id'], (string) $b['id']));
-        foreach ($plugins as $plugin) $texts["plugins/{$plugin['id']}/index.ts"] = str_replace("\r\n", "\n", (string) $plugin['source']);
+        foreach ($plugins as $plugin) {
+            foreach ($plugin['files'] ?? [] as $file) {
+                $file = (array) $file;
+                $texts["plugins/{$plugin['id']}/{$file['name']}"] = str_replace("\r\n", "\n", (string) $file['text']);
+            }
+        }
         $sourceIds = array_column($plugins, 'id');
         foreach ($config->plugins ?? [] as $plugin) {
             if (!in_array($plugin->id, $sourceIds, true)) $problems[] = "plugins/{$plugin->id}: the configuration declares it, but the database has no source of it – left out";

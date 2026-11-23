@@ -9,8 +9,17 @@ export const PLUGIN_API_MODULE = "osct-plugin-api";
 /** Where `plugin-api.d.ts` lies for the TypeScript worker: node resolution finds `osct-plugin-api` there */
 export const PLUGIN_API_PATH = `file:///node_modules/${PLUGIN_API_MODULE}/index.d.ts`;
 
-/** The model of the open plugin (one at a time; a path the worker resolves `osct-plugin-api` from) */
-export const pluginModelPath = (id: string): string => `file:///plugins/${id || "draft"}/index.ts`;
+/**
+ * The model of a file of the open plugin (#352: one per file, so `./fluid` resolves to `fluid.ts` in the TypeScript worker;
+ * a path the worker resolves `osct-plugin-api` from)
+ */
+export const pluginModelPath = (id: string, name = "index.ts"): string => `file:///plugins/${id || "draft"}/${name}`;
+
+/** Shader files a plugin imports are strings to TypeScript (esbuild's text loader in the bundle, #352) */
+export const SHADER_MODULES = ["frag", "vert", "glsl", "wgsl"]
+  .map(extension => `declare module "*.${extension}" {\n  const text: string;\n  export default text;\n}\n`)
+  .join("");
+export const SHADER_MODULES_PATH = "file:///node_modules/@types/osct-shader-files/index.d.ts";
 
 /** A glob key of a declaration file below some `node_modules/` → its path in the worker's file system */
 export const libPath = (key: string): string => {
@@ -152,14 +161,21 @@ export const DOWNLOAD_TSCONFIG = `{
     "isolatedModules": true,
     "paths": { "${PLUGIN_API_MODULE}": ["./plugin-api.d.ts"] }
   },
-  "files": ["index.ts"]
+  "include": ["*.ts"]
 }
 `;
 
-/** The files of a plugin's download: its source, the API's types and a tsconfig that joins them, in its folder */
-export const downloadFiles = (id: string, source: string, pluginApi: string): Array<{ name: string; text: string }> => [
-  { name: `${id}/index.ts`, text: source },
+/** The download's own files (types and config), never a plugin's: an upload of the zip leaves them out */
+export const DOWNLOAD_EXTRAS = ["plugin-api.d.ts", "shader-files.d.ts", "tsconfig.json"];
+
+/**
+ * The files of a plugin's download (#352): every file of the plugin, the API's types, the shader imports' types and a
+ * tsconfig that joins them, in its folder – a folder `osct plugin push` sends back, and a zip the Code tab takes back
+ */
+export const downloadFiles = (id: string, files: ReadonlyArray<{ name: string; text: string }>, pluginApi: string): Array<{ name: string; text: string }> => [
+  ...files.map(file => ({ name: `${id}/${file.name}`, text: file.text })),
   { name: `${id}/plugin-api.d.ts`, text: pluginApi },
+  { name: `${id}/shader-files.d.ts`, text: SHADER_MODULES },
   { name: `${id}/tsconfig.json`, text: DOWNLOAD_TSCONFIG },
 ];
 
@@ -235,6 +251,47 @@ export const zipFiles = (files: Array<{ name: string; text: string }>, date = ne
   for (const part of [...locals, ...centrals, end]) {
     out.set(part, at);
     at += part.length;
+  }
+  return out;
+};
+
+/**
+ * The text files of a zip (#352: a plugin's download dropped on the Code tab): stored or deflated entries (deflate through
+ * the browser's `DecompressionStream`), by their name in the zip; folders and other files are left to the caller
+ */
+export const unzipTexts = async (bytes: Uint8Array): Promise<Array<{ name: string; text: string }>> => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { end = i; break; }
+  }
+  if (end < 0) throw new Error("not a zip file");
+  const count = view.getUint16(end + 10, true);
+  let at = view.getUint32(end + 16, true);
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  const out: Array<{ name: string; text: string }> = [];
+  for (let n = 0; n < count; n++) {
+    if (view.getUint32(at, true) !== 0x02014b50) throw new Error("a broken zip file");
+    const method = view.getUint16(at + 10, true);
+    const size = view.getUint32(at + 20, true);
+    const nameLength = view.getUint16(at + 28, true);
+    const extra = view.getUint16(at + 30, true);
+    const comment = view.getUint16(at + 32, true);
+    const local = view.getUint32(at + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(at + 46, at + 46 + nameLength));
+    at += 46 + nameLength + extra + comment;
+    if (name.endsWith("/")) continue;
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    const data = bytes.subarray(start, start + size);
+    let raw: Uint8Array;
+    if (method === 0) raw = data;
+    else if (method === 8) raw = new Uint8Array(await new Response(new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+    else throw new Error(`${name}: a zip entry packed in a way the editor cannot read`);
+    try {
+      out.push({ name, text: decoder.decode(raw) });
+    } catch {
+      // not text: not a plugin's file
+    }
   }
   return out;
 };

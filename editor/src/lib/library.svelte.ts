@@ -15,8 +15,8 @@ export interface Conversion {
   size: number;
 }
 
-/** The files the library accepts: the API's `Assets::KINDS` and scripts (they become plugin sources – #186) */
-export const ACCEPT = [acceptOf(ASSET_KINDS), ...CODE_EXTENSIONS.script].join(",");
+/** The files the library accepts: the API's `Assets::KINDS`, scripts (they become plugin sources – #186) and a plugin's zip (#352) */
+export const ACCEPT = [acceptOf(ASSET_KINDS), ...CODE_EXTENSIONS.script, ".zip"].join(",");
 
 /**
  * The experience's library: the files uploaded in the editor (the API's assets – docs/server.md "Assets"), loaded per experience,

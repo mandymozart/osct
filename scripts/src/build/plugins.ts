@@ -7,7 +7,10 @@ import ts from 'typescript';
 import * as THREE from 'three';
 import { componentSpecProblems, registerComponentSpec, type ComponentSpec } from '../../../shared/types/components';
 import { PARAM_BUILDERS } from '../../../shared/types/spec-builders';
-import { PLUGIN_API_VERSION, PLUGIN_ID_PATTERN, type PluginData, type PluginRegistrations } from '../../../shared/types/plugins';
+import {
+  PLUGIN_API_VERSION, PLUGIN_BUNDLE_WARN_BYTES, PLUGIN_FILE_PATTERN, PLUGIN_ID_PATTERN, pluginFilesProblems, sortPluginFiles,
+  type PluginData, type PluginFile, type PluginRegistrations,
+} from '../../../shared/types/plugins';
 import { nodeTypeSpecProblems, registerNodeTypeSpec, type NodeTypeSpec } from '../../../shared/types/node-types';
 import {
   materialSpecProblems, registerMaterialSpec, registerTextureSpec, textureSpecProblems, type MaterialSpec, type TextureSpec,
@@ -22,7 +25,9 @@ import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragmen
 
 /**
  * The experience's own code (content schema 2.4, docs/plugins.md "Shipping it: the content build"): every folder
- * `content/plugins/<id>/` with an `index.ts` is a plugin. The build
+ * `content/plugins/<id>/` with an `index.ts` is a plugin – a folder of files (#352): `index.ts`, the TypeScript it
+ * imports by `./name` and shader files it imports as strings (`.frag`, `.vert`, `.glsl`, `.wgsl` – esbuild's text
+ * loader, the same rules as the editor's bundle in the browser; `shared/types/plugins.ts` the names and limits). The build
  *   1. type-checks it against the plugin API (`engine/src/scene/plugins.ts`, imported as `osct-plugin-api`) –
  *      every error with its file and line, like any other content error;
  *   2. bundles it with esbuild into one ES module (`plugin.js`, next to the source in the build output – the
@@ -43,7 +48,11 @@ import { type Feedback, feedbackProblems, type FeedbackOptions, shadertoyFragmen
 const PLUGINS_DIR = 'plugins';
 const ENTRY = 'index.ts';
 /** A bundle above this is reported (the reader downloads it with the AR chunk) */
-const WARN_BYTES = 256 * 1024;
+const WARN_BYTES = PLUGIN_BUNDLE_WARN_BYTES;
+/** The shader imports' declarations, in every type check of plugins */
+const SHADER_FILES_DTS = path.join(projectRoot, 'shared', 'types', 'plugin-shader-files.d.ts');
+/** A plugin's shader files come in as strings */
+const SHADER_LOADERS = { '.frag': 'text', '.vert': 'text', '.glsl': 'text', '.wgsl': 'text' } as const;
 /** A node with more layers than this is reported (every layer runs on every pixel of its plane) */
 export const MAX_LAYERS_UNWARNED = 3;
 
@@ -54,6 +63,8 @@ export interface PluginBuild {
   data: PluginData;
   /** The bundled module */
   code: string;
+  /** The plugin's file names, the entry first (#352) */
+  files?: string[];
 }
 
 /** The compiler options of the plugin type check: the engine's own types, three's types from scripts/ */
@@ -95,6 +106,9 @@ export function pluginFolders(): Array<{ id: string; entry: string }> {
         buildErrors.push(`plugins/${id}: missing ${ENTRY}`);
         return [];
       }
+      // Its files as the editor takes them (#352): names, sizes; anything else in the folder is no part of the plugin
+      const files = pluginFilesOf(path.join(dir, id));
+      for (const problem of pluginFilesProblems(files)) buildErrors.push(`plugins/${id}: ${problem}`);
       return [{ id, entry }];
     });
 }
@@ -102,7 +116,7 @@ export function pluginFolders(): Array<{ id: string; entry: string }> {
 /** Type-check every plugin against the plugin API; the diagnostics become content errors */
 export function typeCheckPlugins(entries: string[]): void {
   if (!entries.length) return;
-  const program = ts.createProgram(entries, compilerOptions());
+  const program = ts.createProgram([...entries, SHADER_FILES_DTS], compilerOptions());
   for (const diagnostic of ts.getPreEmitDiagnostics(program)) {
     const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
     if (diagnostic.file && diagnostic.start !== undefined) {
@@ -121,6 +135,7 @@ export async function bundlePlugin(id: string, entry: string): Promise<string | 
     const result = await esbuild.build({
       entryPoints: [entry],
       bundle: true,
+      loader: SHADER_LOADERS,
       format: 'esm',
       target: 'es2020',
       write: false,
@@ -367,16 +382,27 @@ export async function buildPlugins(): Promise<PluginBuild[]> {
       ...kinds, ...(Object.keys(materials).length ? { materials } : {}), ...(Object.keys(textures).length ? { textures } : {}),
       ...(Object.keys(appearances).length ? { appearances } : {}),
     };
-    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered: recorded }, code });
+    builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered: recorded }, code, files: pluginFilesOf(path.dirname(entry)).map(f => f.name) });
   }
   return builds;
 }
 
-/** The bundles into the build output, next to their sources (after the content was copied) */
+/**
+ * The bundles into the build output, next to their sources (after the content was copied), and `files.json` – the
+ * plugin's file names, the entry first (#352): the editor's Code tab opens a compiled plugin with all its files
+ */
 export function writePluginBundles(builds: PluginBuild[]): void {
-  for (const { data, code } of builds) {
+  for (const { data, code, files } of builds) {
     const file = path.join(CLIENT_PUBLIC_ASSETS_DIR, PLUGINS_DIR, data.id, 'plugin.js');
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, code);
+    fs.writeFileSync(path.join(path.dirname(file), 'files.json'), JSON.stringify(files ?? [ENTRY]));
   }
+}
+
+/** A plugin folder's files (#352): the names a plugin's file may have, the entry first – others in the folder are not its */
+export function pluginFilesOf(folder: string): PluginFile[] {
+  return sortPluginFiles(fs.readdirSync(folder, { withFileTypes: true })
+    .filter(dirent => dirent.isFile() && PLUGIN_FILE_PATTERN.test(dirent.name))
+    .map(dirent => ({ name: dirent.name, text: fs.readFileSync(path.join(folder, dirent.name), 'utf8') })));
 }

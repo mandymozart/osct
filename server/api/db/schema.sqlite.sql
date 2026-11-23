@@ -248,6 +248,10 @@ CREATE TABLE IF NOT EXISTS plugins (
   PRIMARY KEY (experience_id, id)
 );
 ALTER TABLE experiences ADD COLUMN plugins_json TEXT NOT NULL DEFAULT '[]';
+-- A plugin is a folder of files (#352): `source` is its index.ts, files_json the other files [{ name, text }], origin_json
+-- the folder `osct plugin push` linked it from ({ folder, by, at }; null: not linked)
+ALTER TABLE plugins ADD COLUMN files_json TEXT NULL DEFAULT NULL;
+ALTER TABLE plugins ADD COLUMN origin_json TEXT NULL DEFAULT NULL;
 
 -- A video's duration (schema.mysql.sql has the notes)
 ALTER TABLE assets ADD COLUMN duration_ms INTEGER NULL DEFAULT NULL;

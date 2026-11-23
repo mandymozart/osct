@@ -291,9 +291,9 @@ final class AssetNames
             }
         }
         // Plugin sources name a file by its URL as text: experience-wide, no name of their own
-        foreach (Db::run('SELECT id, source FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
+        foreach (Plugins::texts($experienceId) as $pluginId => $text) {
             foreach ($keys as $value => $url) {
-                if (str_contains((string) $row['source'], (string) $value)) $add((string) $value, 'plugin', (string) $row['id'], null, self::EXPERIENCE_WIDE, null);
+                if (str_contains($text, (string) $value)) $add((string) $value, 'plugin', (string) $pluginId, null, self::EXPERIENCE_WIDE, null);
             }
         }
         // The print layout's files: read by the stage through layout.json – experience-wide, no name of their own

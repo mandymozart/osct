@@ -9,6 +9,8 @@ export interface CompileError {
   message: string;
   /** 1-based, when the error names a line */
   line: number | null;
+  /** The plugin's file the line is in (#352) – null or absent: its index.ts */
+  file?: string | null;
 }
 
 export type CompileResult = { code: string } | { error: CompileError };

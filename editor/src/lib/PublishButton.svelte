@@ -9,8 +9,8 @@
   import { liveLabels, liveShort } from "#lib/live.js";
   import { readerAddress } from "#lib/new-experience.js";
   import { plugins } from "#lib/plugins.svelte.js";
-  import { transpilePlugin } from "#lib/plugins/compile.js";
-  import { carriedPlugins, type CarriedPlugins } from "#lib/publish-plugins.js";
+  import { buildPlugin } from "#lib/plugins/bundle.js";
+  import { carriedPlugins, type CarriedPlugins, type SavedSource } from "#lib/publish-plugins.js";
   import { targetLabel, targetOf } from "#lib/publish-target.js";
   import { logicContent } from "#lib/logic-content.svelte.js";
   import { experienceProblems } from "#lib/logic/project.js";
@@ -196,12 +196,16 @@
     void focus("button.primary");
   };
 
-  /** The Code tab's saved sources (not its unsaved edits), transpiled with the specs of their stage runs */
+  /**
+   * The Code tab's saved plugins (not its unsaved edits): type-checked in Monaco's TypeScript worker (#352 – it loads with
+   * the first publish that carries plugins), then bundled, with the specs of their stage runs
+   */
   const check = async () => {
     if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
     sourceCount = plugins.stored.length;
-    const sources = await Promise.all(plugins.stored.map(async p => ({ id: p.id, source: await plugins.source(experienceId, p.id) })));
-    carried = await carriedPlugins(sources, transpilePlugin, pluginRegistrySnapshot());
+    const sources = await Promise.all(plugins.stored.map(async p => ({ id: p.id, files: await plugins.files(experienceId, p.id) })));
+    const typeCheck = async (saved: readonly SavedSource[]) => (await import("#lib/plugins/monaco.js")).typeCheckPlugins(saved);
+    carried = await carriedPlugins(sources, buildPlugin, pluginRegistrySnapshot(), typeCheck);
   };
 
   /** Opens the overlay: a publish of the experience that still runs is followed, else the confirm */
@@ -281,6 +285,7 @@
           </div>
         {/if}
         {#if asking.problem}<p class="danger" role="alert">{asking.problem}</p>{/if}
+        {#if carried && "warnings" in carried}{#each carried.warnings as warning (warning)}<p class="small muted">{warning}</p>{/each}{/if}
         <p class="actions">
           <button type="button" class="pill primary" onclick={publish} disabled={!!asking.problem}>{logicProblems?.severity === "error" ? "Publish anyway" : "Publish"}</button>
           <button type="button" class="text-link" onclick={close}>Cancel</button>

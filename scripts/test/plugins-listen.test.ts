@@ -46,10 +46,10 @@ describe('osct plugins listen (#341, plugin API 4.0)', () => {
     const api: PluginSourcesApi = {
       experiences: async () => Object.keys(stored),
       plugins: async experience => Object.keys(stored[experience]),
-      source: async (experience, plugin) => stored[experience][plugin],
-      put: async (experience, plugin, source) => {
+      get: async (experience, plugin) => ({ files: [{ name: 'index.ts', text: stored[experience][plugin] }], origin: null }),
+      put: async (experience, plugin, files) => {
         puts.push(`${experience}/${plugin}`);
-        stored[experience][plugin] = source;
+        stored[experience][plugin] = files[0].text;
       },
     };
     const dry = await listenStored(api, ['demo', 'osct'], true);

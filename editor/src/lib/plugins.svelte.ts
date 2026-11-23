@@ -4,7 +4,10 @@ import { getPlugins } from "@engine/content/game-config";
 import type { EntityData } from "@engine/types";
 import { deletePlugin, errorText, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
 import { library } from "./library.svelte";
-import { transpilePlugin, type CompileError } from "#lib/plugins/compile.js";
+import type { CompileError } from "#lib/plugins/compile.js";
+import { buildPlugin } from "#lib/plugins/bundle.js";
+import { PLUGIN_ENTRY, pluginText, sortPluginFiles, type PluginFile } from "@shared/types/plugins";
+import type { PluginOrigin } from "@shared/api/editor";
 import type { Stage } from "#lib/stage/stage.svelte.js";
 import { NO_ANSWER, type StageLog } from "#lib/stage/stage-types.js";
 import { trackUnsaved } from "#lib/unsaved.js";
@@ -61,23 +64,60 @@ const writeHung = (experienceId: string, id: string | null): void => {
 /** What a Run needs of the stage: its runner, a refresh and the overrides (a node made code switches through them) */
 export type RunStage = Pick<Stage, "runPlugin" | "refresh" | "treeOf" | "overrideOf" | "override">;
 
+/** A plugin's files as one comparable string: the same files in any order are the same (#352) */
+export const filesKey = (files: readonly PluginFile[]): string => JSON.stringify(sortPluginFiles(files).map(f => [f.name, f.text]));
+
+/** The error text of a build, with the file and line it names */
+export const buildErrorText = (error: CompileError): string =>
+  `${error.file && error.file !== PLUGIN_ENTRY ? `${error.file} ` : ""}${error.line !== null ? `line ${error.line}: ` : ""}${error.message}`;
+
 /**
- * The Code tab's open source: the plugin open (or a new one being added), its text and the text as stored. It lives
- * here, not in the tab, so a tab switch loses no edit and the Library marks the script with unsaved edits (#232).
+ * The Code tab's open plugin: the plugin open (or a new one being added), its files – one a tab (#352), `active` the one
+ * in the editor – and the files as stored. It lives here, not in the tab, so a tab switch loses no edit and the Library
+ * marks the script with unsaved edits (#232). Closing a file's tab deletes the file – an unsaved edit like any other.
  */
 export class CodeBuffer {
   open = $state<string | null>(null);
   adding = $state(false);
   /** The new plugin's id while it is being added */
   newId = $state("");
-  source = $state("");
-  /** The source as stored – "" for a plugin only the content declares, so Save stores a copy of it */
+  /** The plugin's files, the entry first */
+  files = $state<PluginFile[]>([]);
+  /** The file in the editor */
+  active = $state(PLUGIN_ENTRY);
+  /** The files as stored (`filesKey`) – "" for a plugin only the content declares, so Save stores a copy of it */
   saved = $state("");
-  /** The source as loaded or last saved: the edits are unsaved while the text differs */
-  loaded = $state("");
+  /** The files as loaded or last saved: the edits are unsaved while they differ */
+  loaded = $state(filesKey([]));
+  /** Where a linked plugin comes from (`osct plugin push`), null when it is not linked */
+  origin = $state<PluginOrigin | null>(null);
+
+  /** The files as one comparable string */
+  get key(): string {
+    return filesKey(this.files);
+  }
+
+  /** The active file's text */
+  get source(): string {
+    return this.files.find(f => f.name === this.active)?.text ?? "";
+  }
+
+  /** The active file's new text (the editor's change) */
+  set source(text: string) {
+    this.files = this.files.map(f => (f.name === this.active ? { name: f.name, text } : f));
+  }
 
   get unsaved(): boolean {
-    return this.source !== this.loaded;
+    return this.key !== this.loaded;
+  }
+
+  /** New files, all as loaded or saved (`saved` = whether they are stored) */
+  load(files: readonly PluginFile[], stored: boolean, origin: PluginOrigin | null = null): void {
+    this.files = sortPluginFiles(files);
+    this.loaded = this.key;
+    this.saved = stored ? this.key : "";
+    this.origin = origin;
+    if (!this.files.some(f => f.name === this.active)) this.active = PLUGIN_ENTRY;
   }
 
   /** The plugin with unsaved edits, null for none (a new plugin has no id yet) */
@@ -89,9 +129,11 @@ export class CodeBuffer {
     this.open = null;
     this.adding = false;
     this.newId = "";
-    this.source = "";
+    this.files = [];
+    this.active = PLUGIN_ENTRY;
     this.saved = "";
-    this.loaded = "";
+    this.loaded = filesKey([]);
+    this.origin = null;
   }
 }
 
@@ -140,14 +182,16 @@ class Plugins {
    * id, with why – the auto-load skips them and the Code tab says so; a Run in the Code tab still runs one
    */
   readonly declined = new SvelteMap<string, string>();
-  /** The sources run here, by plugin id: what is installed, saved or not */
-  private ran = new Map<string, string>();
+  /** The files run here, by plugin id: what is installed, saved or not */
+  private ran = new Map<string, PluginFile[]>();
   /** Each stored source on the stage (#269): loaded by itself, run, failed – the Code tab and the pickers say it */
   readonly status = new SvelteMap<string, SourceStatus>();
   /** The saved sources are being loaded onto a new stage */
   autoLoading = $state(false);
-  /** The stored text of each source as last read or saved: a run of the same text runs the saved version */
+  /** The stored files of each plugin as last read or saved (`filesKey`): a run of the same files runs the saved version */
   private storedText = new Map<string, string>();
+  /** The size of each plugin's last bundle (#352: the 256 KB warning), by id */
+  readonly bundleSize = new SvelteMap<string, number>();
 
   /**
    * The same lines for the Log tab's timeline, newest last (at most `JOURNAL_LINES`): not emptied by a Run, only by the
@@ -193,34 +237,50 @@ class Plugins {
     return getPlugins().map(plugin => ({ id: plugin.id, src: plugin.src }));
   }
 
-  /** The saved texts being read or read, by experience, plugin and saved version (`savedSource`) */
-  private reading = new Map<string, Promise<string>>();
+  /** The saved files being read or read, by experience, plugin and saved version (`savedFiles`) */
+  private reading = new Map<string, Promise<PluginFile[]>>();
 
   /**
-   * A stored source's saved text, read once per saved version (#340): the auto-load, the Logic view and the Log tab ask
-   * for the same sources – one request each, again only after a new save
+   * A stored plugin's saved files, read once per saved version (#340): the auto-load, the Logic view and the Log tab ask
+   * for the same plugins – one request each, again only after a new save
    */
-  savedSource(experienceId: string, id: string): Promise<string> {
+  savedFiles(experienceId: string, id: string): Promise<PluginFile[]> {
     const row = this.stored.find(p => p.id === id);
     const key = `${experienceId}|${id}|${row?.updatedAt ?? ""}|${row?.size ?? ""}`;
     let reading = this.reading.get(key);
     if (!reading) {
-      reading = this.source(experienceId, id);
+      reading = this.files(experienceId, id);
       reading.catch(() => this.reading.delete(key));
       this.reading.set(key, reading);
     }
     return reading;
   }
 
-  async source(experienceId: string, id: string): Promise<string> {
-    const text = (await getPlugin(experienceId, id)).plugin.source;
-    this.storedText.set(id, text);
-    return text;
+  /** A stored plugin's saved text – its files one after the other (what registers and uses are read from) */
+  async savedSource(experienceId: string, id: string): Promise<string> {
+    return pluginText(await this.savedFiles(experienceId, id));
   }
 
-  /** Whether a source's text is the saved one (a run of it runs the saved version) */
-  private stateOf(id: string, source: string): SourceStatus {
-    return this.storedText.get(id) === source ? { state: "saved" } : { state: "edits" };
+  /** A stored plugin's files (and its link), read now */
+  async files(experienceId: string, id: string): Promise<PluginFile[]> {
+    return (await this.readStored(experienceId, id)).files;
+  }
+
+  /** A stored plugin as the API answers it: its files and its link */
+  async readStored(experienceId: string, id: string): Promise<{ files: PluginFile[]; origin: PluginOrigin | null }> {
+    const { plugin } = await getPlugin(experienceId, id);
+    this.storedText.set(id, filesKey(plugin.files));
+    return { files: plugin.files, origin: plugin.origin ?? null };
+  }
+
+  /** A stored plugin's text, read now – its files one after the other */
+  async source(experienceId: string, id: string): Promise<string> {
+    return pluginText(await this.files(experienceId, id));
+  }
+
+  /** Whether a plugin's files are the saved ones (a run of them runs the saved version) */
+  private stateOf(id: string, files: readonly PluginFile[]): SourceStatus {
+    return this.storedText.get(id) === filesKey(files) ? { state: "saved" } : { state: "edits" };
   }
 
   /**
@@ -275,12 +335,13 @@ class Plugins {
         }
         this.status.set(id, { state: "loading" });
         try {
-          const source = this.ran.get(id) ?? (await this.savedSource(experienceId, id));
-          const result = await transpilePlugin(source, id);
+          const files = this.ran.get(id) ?? (await this.savedFiles(experienceId, id));
+          const result = await buildPlugin(files, id);
           if ("error" in result) {
-            this.status.set(id, { state: "failed", error: `${result.error.line !== null ? `line ${result.error.line}: ` : ""}${result.error.message}` });
+            this.status.set(id, { state: "failed", error: buildErrorText(result.error) });
             continue;
           }
+          this.bundleSize.set(id, new TextEncoder().encode(result.code).length);
           writeHung(experienceId, id);
           const ran = await stage.runPlugin(id, result.code, AUTO_LOAD_TIMEOUT_MS);
           // A stage that did not answer may still be stuck in it: the mark stays, the next open skips it
@@ -290,8 +351,8 @@ class Plugins {
             this.status.set(id, { state: "failed", error: ran.error });
             continue;
           }
-          this.ran.set(id, source);
-          this.status.set(id, this.stateOf(id, source));
+          this.ran.set(id, files);
+          this.status.set(id, this.stateOf(id, files));
           loaded += 1;
         } catch (e) {
           this.status.set(id, { state: "failed", error: errorText(e) });
@@ -314,30 +375,45 @@ class Plugins {
     }
   }
 
-  /** The source of a declared plugin: the content build copies `index.ts` next to the compiled module */
-  async declaredSource(src: string): Promise<string> {
-    const url = src.replace(/plugin\.js(\?.*)?$/, "index.ts");
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText} (${url})`);
-    return response.text();
+  /**
+   * The files of a declared plugin: the content build writes `files.json` (the names) next to the compiled module and
+   * copies the files there (#352); a build without it has its `index.ts` only
+   */
+  async declaredFiles(src: string): Promise<PluginFile[]> {
+    const base = src.replace(/plugin\.js(\?.*)?$/, "");
+    const text = async (name: string): Promise<string> => {
+      const response = await fetch(`${base}${name}`);
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText} (${base}${name})`);
+      return response.text();
+    };
+    let names: string[] = [PLUGIN_ENTRY];
+    try {
+      const response = await fetch(`${base}files.json`);
+      const listed = response.ok ? ((await response.json()) as unknown) : null;
+      if (Array.isArray(listed) && listed.every(n => typeof n === "string") && listed.includes(PLUGIN_ENTRY)) names = listed;
+    } catch {
+      // no list: the entry alone
+    }
+    return sortPluginFiles(await Promise.all(names.map(async name => ({ name, text: await text(name) }))));
   }
 
-  /** The source of a plugin as it runs on the stage: the source last run here, else the stored one, else the declared one's */
-  async sourceOf(experienceId: string, id: string): Promise<string> {
+  /** The files of a plugin as it runs on the stage: the files last run here, else the stored ones, else the declared one's */
+  async filesOf(experienceId: string, id: string): Promise<PluginFile[]> {
     const ran = this.ran.get(id);
     if (ran !== undefined) return ran;
     if (this.experienceId !== experienceId) await this.load(experienceId);
-    if (this.stored.some(p => p.id === id)) return this.source(experienceId, id);
+    if (this.stored.some(p => p.id === id)) return this.files(experienceId, id);
     const declared = this.declared().find(p => p.id === id);
-    if (declared) return this.declaredSource(declared.src);
+    if (declared) return this.declaredFiles(declared.src);
     throw new Error(`the plugin ${id} has no source in this experience`);
   }
 
-  async save(experienceId: string, id: string, source: string): Promise<PluginSummary> {
+  /** Store a plugin's files (all of them: one left out is gone) */
+  async save(experienceId: string, id: string, files: readonly PluginFile[], origin?: { folder: string } | null): Promise<PluginSummary> {
     this.error = null;
     try {
-      const { plugin } = await putPlugin(experienceId, id, source);
-      this.storedText.set(id, source);
+      const { plugin } = await putPlugin(experienceId, id, files, origin);
+      this.storedText.set(id, filesKey(plugin.files));
       return this.keep(plugin);
     } catch (e) {
       this.error = errorText(e, { code: true });
@@ -362,6 +438,7 @@ class Plugins {
     this.stored = this.stored.filter(p => p.id !== id);
     this.status.delete(id);
     this.storedText.delete(id);
+    this.bundleSize.delete(id);
     void library.refresh();
   }
 
@@ -369,28 +446,32 @@ class Plugins {
    * Library's shaders count the sources that load them, so their uses are read again */
   private keep(plugin: PluginSource): PluginSummary {
     const usages = this.stored.find(p => p.id === plugin.id)?.usages ?? 0;
-    const summary: PluginSummary = { id: plugin.id, size: plugin.size, usages, updatedAt: plugin.updatedAt, updatedBy: plugin.updatedBy };
+    const summary: PluginSummary = {
+      id: plugin.id, size: plugin.size, fileCount: plugin.files.length, origin: plugin.origin ?? null, usages,
+      updatedAt: plugin.updatedAt, updatedBy: plugin.updatedBy,
+    };
     this.stored = [...this.stored.filter(p => p.id !== plugin.id), summary].sort((a, b) => a.id.localeCompare(b.id));
     void library.refresh();
     return summary;
   }
 
   /**
-   * Run a plugin's source on the stage: transpile, then import and install it in the stage's registry (replacing the
-   * plugin's previous registrations), build the scene again so its effect shows. Returns true when it ran; the error
-   * is in `runError` otherwise. The log starts anew with every Run.
+   * Run a plugin's files on the stage: bundle (one file: transpile), then import and install it in the stage's registry
+   * (replacing the plugin's previous registrations), build the scene again so its effect shows. Returns true when it ran;
+   * the error is in `runError` otherwise (its file and line). The log starts anew with every Run.
    */
-  async run(id: string, source: string, stage: RunStage | null): Promise<boolean> {
+  async run(id: string, files: readonly PluginFile[], stage: RunStage | null): Promise<boolean> {
     this.running = true;
     this.runError = null;
     this.logs = [];
     try {
-      const result = await transpilePlugin(source, id);
+      const result = await buildPlugin(files, id);
       if ("error" in result) {
         this.runError = { ...result.error, plugin: id };
-        this.runFailed(id, `${result.error.line !== null ? `line ${result.error.line}: ` : ""}${result.error.message}`);
+        this.runFailed(id, buildErrorText(result.error));
         return false;
       }
+      this.bundleSize.set(id, new TextEncoder().encode(result.code).length);
       if (!stage) {
         this.runError = { plugin: id, message: "The stage is not running – open a scene to run the code", line: null };
         return false;
@@ -401,8 +482,8 @@ class Plugins {
         this.runFailed(id, ran.error);
         return false;
       }
-      this.ran.set(id, source);
-      if (this.stored.some(p => p.id === id)) this.status.set(id, this.stateOf(id, source));
+      this.ran.set(id, [...files]);
+      if (this.stored.some(p => p.id === id)) this.status.set(id, this.stateOf(id, files));
       this.lastRun = { plugin: id, types: ran.types };
       this.version += 1;
       // The scene is built again from the new registrations: a node whose type failed before builds anew

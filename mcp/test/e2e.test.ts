@@ -270,7 +270,7 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     expect(saved.data.registers).toEqual({ components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] });
     expect(saved.data.plugin.updatedBy).toBe("editor@example.test");
     const read = await call("get_plugin", { experience: "osct", plugin: "glow" });
-    expect(read.data.plugin.source).toBe(source);
+    expect(read.data.plugin.files).toEqual([{ name: "index.ts", text: source }]);
     const model = await call("describe_content_model", { experience: "osct" });
     expect(model.data.components.declaredPlugins[0].id).toBe("tint");
     expect(model.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] }]);

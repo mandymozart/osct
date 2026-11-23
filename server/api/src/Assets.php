@@ -638,16 +638,8 @@ final class Assets
             Experiences::recordChange($experienceId, $user, 'entry', $row['id'], $row['data_json'], $json);
             $count++;
         }
-        // Plugin sources name the URL as plain text (no JSON escaping): a shader's new version reaches the code that loads it
-        $now = Editor::nowMs();
-        foreach (Db::run('SELECT id, source FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) {
-            $source = str_replace($from, $to, (string) $row['source']);
-            if ($source === $row['source']) continue;
-            Db::run('UPDATE plugins SET source = :source, updated_by = :by, updated_at = :now WHERE experience_id = :experience AND id = :id',
-                ['source' => $source, 'by' => $user['id'], 'now' => $now, 'experience' => $experienceId, 'id' => $row['id']]);
-            Experiences::recordChange($experienceId, $user, 'plugin', $row['id'], Editor::encode($row['source']), Editor::encode($source));
-            $count++;
-        }
+        // Plugins name the URL as plain text (no JSON escaping) in any of their files: a shader's new version reaches the code that loads it
+        $count += Plugins::replaceText($experienceId, $from, $to, $user);
         if ($count) Experiences::touchExperience($experienceId);
         // Surface reference images (#314) follow with a change each (revertable)
         return $count + SurfaceReferences::relink($experienceId, $from, $to, $user);

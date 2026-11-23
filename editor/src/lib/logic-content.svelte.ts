@@ -1,6 +1,7 @@
 import { getPlugins } from "@engine/content/game-config";
 import { declaredUses, type PluginData } from "@engine/types";
 import { getPlugin } from "./api";
+import { pluginText } from "@shared/types/plugins";
 import { content } from "./content.svelte";
 import { logicEdit } from "./logic-edit.svelte";
 import { pluginCodeUses, type PluginUses } from "./logic/plugin-code";
@@ -34,7 +35,7 @@ export const logicContent = (props: () => { experienceId: string; sceneId: strin
     try {
       // A stored source: the one read the auto-load made (one request per saved version); else the declared module's
       if (plugins.stored.some(p => p.id === plugin.id)) return await plugins.savedSource(experienceId, plugin.id);
-      return (await getPlugin(experienceId, plugin.id)).plugin.source;
+      return pluginText((await getPlugin(experienceId, plugin.id)).plugin.files);
     } catch {
       try {
         const response = await fetch(plugin.src);

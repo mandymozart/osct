@@ -18,6 +18,7 @@ import { slugProblem } from "../../shared/api/experience-paths";
 import type { PluginData } from "../../shared/types/game-config";
 import { APPEARANCE_TYPES, MOMENTS, PASS_TYPES, RECOGNITION_MODES } from "../../shared/types/game-config";
 import { MEDIA_LEVELS } from "../../shared/types/media-levels";
+import { pluginText } from "../../shared/types/plugins";
 import { logicProblems } from "../../shared/types/logic";
 import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
@@ -226,7 +227,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     const sources = await Promise.all(
       plugins.map(async p => {
         const { plugin } = await api.call<{ plugin: PluginSource }>("GET", `/editor/experiences/${encodeURIComponent(experience)}/plugins/${encodeURIComponent(p.id)}`);
-        return { id: plugin.id, ...pluginTypes(plugin.source) };
+        return { id: plugin.id, ...pluginTypes(pluginText(plugin.files)) };
       }),
     );
     return { declared: configuration.plugins ?? [], sources };

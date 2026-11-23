@@ -9,7 +9,7 @@ import { hasUnsaved } from "../unsaved";
  * published or not –, one with unsaved edits its name and an asterisk.
  */
 
-const summary = (id: string): PluginSummary => ({ id, size: 100, usages: 0, updatedAt: "2026-10-31T08:00:00.000Z", updatedBy: "author@example.com" });
+const summary = (id: string): PluginSummary => ({ id, size: 100, fileCount: 1, origin: null, usages: 0, updatedAt: "2026-10-31T08:00:00.000Z", updatedBy: "author@example.com" });
 
 describe("a plugin's label", () => {
   it("is the name alone, an asterisk after it with unsaved edits", () => {
@@ -44,14 +44,23 @@ describe("the Code tab's open source (plugins.code)", () => {
     expect(code.unsaved).toBe(false);
     // A plugin only the content declares: nothing stored (Save would store a copy), but nothing edited either
     code.open = "aquarium";
-    code.source = "export const register = () => {};";
-    code.loaded = code.source;
-    code.saved = "";
+    code.load([{ name: "index.ts", text: "export const register = () => {};" }, { name: "fluid.ts", text: "export {};" }], false);
+    expect(code.saved).toBe("");
     expect(code.unsaved).toBe(false);
     expect(code.unsavedId).toBeNull();
     code.source += "\n// tuned";
     expect(code.unsaved).toBe(true);
     expect(code.unsavedId).toBe("aquarium");
+    // #352: another file's edit, a file closed (deleted) – unsaved too
+    code.load(code.files, true);
+    code.active = "fluid.ts";
+    code.source = "export const speed = 2;";
+    expect(code.files.find(f => f.name === "index.ts")?.text).toContain("// tuned");
+    expect(code.unsaved).toBe(true);
+    code.load(code.files, true);
+    expect(code.unsaved).toBe(false);
+    code.files = code.files.filter(f => f.name !== "fluid.ts");
+    expect(code.unsaved).toBe(true);
     code.reset();
     expect([code.open, code.source, code.unsaved]).toEqual([null, "", false]);
   });
@@ -60,6 +69,7 @@ describe("the Code tab's open source (plugins.code)", () => {
     const { plugins } = await import("../plugins.svelte");
     expect(hasUnsaved()).toBe(false);
     plugins.code.open = "grain";
+    plugins.code.load([{ name: "index.ts", text: "saved" }], true);
     plugins.code.source = "edited";
     expect(hasUnsaved()).toBe(true);
     plugins.code.reset();

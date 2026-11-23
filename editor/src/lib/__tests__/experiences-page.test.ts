@@ -98,18 +98,24 @@ describe("the cards' arrow keys", () => {
 describe("a file the Import reads", () => {
   it("an export file is the import body it carries", () => {
     const file = readImportFile("osct.osct.json", JSON.stringify({
-      format: "osct-export", formatVersion: 1, experience: "osct", title: "Onion", build: "abcabcabcabc", exportedAt: "2026-11-22T10:00:00Z",
-      configuration: { experience: { id: "osct", title: "Onion" } }, files: { a: 1 }, assetsBase: "https://cdn/osct/abc", sources: [{ id: "tint", source: "x" }, { id: 3 }],
+      format: "osct-export", formatVersion: 2, experience: "osct", title: "Onion", build: "abcabcabcabc", exportedAt: "2026-11-22T10:00:00Z",
+      configuration: { experience: { id: "osct", title: "Onion" } }, files: { a: 1 }, assetsBase: "https://cdn/osct/abc",
+      sources: [{ id: "tint", files: [{ name: "index.ts", text: "x" }, { name: "a.frag", text: "y" }, { name: 3 }] }, { id: 3 }],
     }));
     expect(file).toEqual({ kind: "export", configuration: { experience: { id: "osct", title: "Onion" } }, files: { a: 1 }, assetsBase: "https://cdn/osct/abc",
-      sources: [{ id: "tint", source: "x" }], of: { experience: "osct", title: "Onion", build: "abcabcabcabc", exportedAt: "2026-11-22T10:00:00Z" } });
+      sources: [{ id: "tint", files: [{ name: "index.ts", text: "x" }, { name: "a.frag", text: "y" }] }], of: { experience: "osct", title: "Onion", build: "abcabcabcabc", exportedAt: "2026-11-22T10:00:00Z" } });
+  });
+
+  it("an export file of format 1 (one source per plugin) brings it as its index.ts (#352)", () => {
+    const file = readImportFile("old.osct.json", JSON.stringify({ format: "osct-export", formatVersion: 1, configuration: { experience: { id: "osct" } }, sources: [{ id: "tint", source: "x" }] }));
+    expect(file.kind === "export" && file.sources).toEqual([{ id: "tint", files: [{ name: "index.ts", text: "x" }] }]);
   });
 
   it("a game configuration stays one; anything else says why", () => {
     expect(readImportFile("game.config.json", '{"experience":{"id":"demo"}}')).toEqual({ kind: "configuration", configuration: { experience: { id: "demo" } } });
     expect(() => readImportFile("x.json", "nope")).toThrow("x.json is not JSON.");
     expect(() => readImportFile("x.json", "[1]")).toThrow(/no export/);
-    expect(() => readImportFile("x.json", '{"format":"osct-export","formatVersion":2,"configuration":{}}')).toThrow(/newer format/);
+    expect(() => readImportFile("x.json", '{"format":"osct-export","formatVersion":3,"configuration":{}}')).toThrow(/newer format/);
   });
 });
 

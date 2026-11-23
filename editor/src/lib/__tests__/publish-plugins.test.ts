@@ -1,3 +1,4 @@
+import type { PluginFile } from "@shared/types/plugins";
 import { describe, expect, it, vi } from "vitest";
 import { PLUGIN_API_VERSION } from "@engine/types";
 import type { PluginRegistrySnapshot } from "@engine/scene/plugins";
@@ -21,9 +22,12 @@ const snapshot: PluginRegistrySnapshot = {
   failures: {},
 };
 
+/** The browser's build of one file (sucrase) – what a publish uses for a plugin of one file */
+const build = (files: readonly PluginFile[], name: string) => transpilePlugin(files[0].text, name);
+
 describe("the plugins a publish carries", () => {
   it("transpiles every saved source in order: plain JavaScript, its type imports gone, the API version it was written against", async () => {
-    const result = await carriedPlugins([{ id: "tint", source: TINT }, { id: "spin", source: SPIN }], transpilePlugin, null);
+    const result = await carriedPlugins([{ id: "tint", files: [{ name: "index.ts", text: TINT }] }, { id: "spin", files: [{ name: "index.ts", text: SPIN }] }], build, null);
     if ("error" in result) throw new Error(result.error);
     expect(result.plugins.map(p => p.id)).toEqual(["tint", "spin"]);
     expect(result.plugins[0].code).toContain("export const register = (api) =>");
@@ -34,7 +38,7 @@ describe("the plugins a publish carries", () => {
   });
 
   it("adds the specs of a source that ran on the stage – its layers among the components, as the content declares them", async () => {
-    const result = await carriedPlugins([{ id: "tint", source: TINT }, { id: "spin", source: SPIN }], transpilePlugin, snapshot);
+    const result = await carriedPlugins([{ id: "tint", files: [{ name: "index.ts", text: TINT }] }, { id: "spin", files: [{ name: "index.ts", text: SPIN }] }], build, snapshot);
     if ("error" in result) throw new Error(result.error);
     expect(result.plugins[0].registered).toEqual({ components: { tint: { description: "Tints.", params: {} } }, nodeTypes: {}, passes: {}, materials: {}, textures: {} });
     // spin did not run here; a compiled plugin's specs are no saved source's
@@ -43,12 +47,12 @@ describe("the plugins a publish carries", () => {
   });
 
   it("stops at the first source that does not compile, naming it and its line", async () => {
-    const transpile = vi.fn(transpilePlugin);
-    const result = await carriedPlugins([{ id: "broken", source: "export const register = () => {};\nconst c = ;\n" }, { id: "spin", source: SPIN }], transpile, null);
-    expect(result).toEqual({ error: "The plugin broken does not compile (line 2): Unexpected token – fix it in the Code tab." });
+    const transpile = vi.fn(build);
+    const result = await carriedPlugins([{ id: "broken", files: [{ name: "index.ts", text: "export const register = () => {};\nconst c = ;\n" }] },{ id: "spin", files: [{ name: "index.ts", text: SPIN }] }], transpile, null);
+    expect(result).toEqual({ error: "The plugin broken does not build (line 2): Unexpected token – fix it in the Code tab." });
     expect(transpile).toHaveBeenCalledTimes(1);
-    const importing = await carriedPlugins([{ id: "threes", source: 'import { Group } from "three";\nexport const register = () => new Group();\n' }], transpilePlugin, null);
-    expect(importing).toEqual({ error: expect.stringContaining("The plugin threes does not compile (line 1): A plugin imports nothing") });
+    const importing = await carriedPlugins([{ id: "threes", files: [{ name: "index.ts", text: 'import { Group } from "three";\nexport const register = () => new Group();\n' }] }], build, null);
+    expect(importing).toEqual({ error: expect.stringContaining("The plugin threes does not build (line 1): A plugin imports nothing") });
   });
 
   it("declares a run's registrations without sharing its objects, its looks only when it has some", () => {
@@ -57,5 +61,29 @@ describe("the plugins a publish carries", () => {
     expect(Object.keys(declared)).toEqual(["components", "nodeTypes", "passes", "materials", "textures"]);
     const look = { description: "Glows in.", params: {} } as unknown as NonNullable<typeof snapshot.plugins.tint.appearances>[string];
     expect(declaredRegistrations({ ...snapshot.plugins.tint, appearances: { glowIn: look } }).appearances).toEqual({ glowIn: look });
+  });
+});
+
+describe("a publish's type check and sizes (#352)", () => {
+  it("a type error stops the publish with its plugin, file and line – nothing is built", async () => {
+    const built = vi.fn(build);
+    const result = await carriedPlugins([{ id: "tint", files: [{ name: "index.ts", text: TINT }] }], built, null,
+      async () => [{ plugin: "tint", file: "fluid.ts", line: 4, message: "Type 'string' is not assignable to type 'number'." }, { plugin: "tint", file: "index.ts", line: 1, message: "x" }]);
+    expect(result).toEqual({ error: "The plugin tint has a type error in fluid.ts line 4: Type 'string' is not assignable to type 'number'. (and 1 more) – fix it in the Code tab." });
+    expect(built).not.toHaveBeenCalled();
+  });
+
+  it("a bundle above 256 KB is a warning, not a stop", async () => {
+    const big = `export const register = () => {};\nexport const data = "${"x".repeat(300 * 1024)}";\n`;
+    const result = await carriedPlugins([{ id: "big", files: [{ name: "index.ts", text: big }] }], build, null, async () => []);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.plugins).toHaveLength(1);
+    expect(result.warnings).toEqual([expect.stringMatching(/^big is 30\d KB bundled – readers download it with the AR scene$/)]);
+  });
+
+  it("a build error in a sibling names the file", async () => {
+    const result = await carriedPlugins([{ id: "sea", files: [{ name: "index.ts", text: "x" }, { name: "fluid.ts", text: "y" }] }],
+      async () => ({ error: { message: "Expected \";\"", line: 3, file: "fluid.ts" } }), null);
+    expect(result).toEqual({ error: 'The plugin sea does not build in fluid.ts (line 3): Expected ";" – fix it in the Code tab.' });
   });
 });

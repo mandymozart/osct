@@ -1149,9 +1149,9 @@ try {
     $disposition = implode("\n", array_filter($http_response_header, static fn(string $h): bool => stripos($h, 'content-disposition:') === 0));
     $file = json_decode($raw, true);
     [, $m] = call($api, 'GET', '/editor/experiences/osct-copy/draft/latest.json', null, $editor);
-    check(($file['format'] ?? null) === 'osct-export' && $file['formatVersion'] === 1 && $file['experience'] === 'osct-copy' && $file['build'] === $m['build']
+    check(($file['format'] ?? null) === 'osct-export' && $file['formatVersion'] === 2 && $file['experience'] === 'osct-copy' && $file['build'] === $m['build']
         && $file['source'] === ['kind' => 'draft'] && is_array($file['configuration']['entries'] ?? null) && is_array($file['files']) && !isset($file['assetsBase'])
-        && in_array(['id' => 'tint', 'source' => $tintSource], $file['sources'], true)
+        && in_array(['id' => 'tint', 'files' => [['name' => 'index.ts', 'text' => $tintSource]]], $file['sources'], true)
         && str_contains($disposition, "attachment; filename=\"osct-copy-{$m['build']}.osct.json\""),
         'export file of the draft: format, experience, build, the configuration, files.json, the Code tab sources – as a download');
     $back = $file;
@@ -1273,7 +1273,8 @@ try {
     check($status === 200 && $data['plugins'] === [], 'no plugin sources yet');
     $source = "export const register = (api) => { api.log('hi'); };\n";
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['source' => $source], $editor);
-    check($status === 200 && $data['plugin']['id'] === 'glow' && $data['plugin']['source'] === $source && $data['plugin']['size'] === strlen($source) && $data['plugin']['updatedBy'] === 'author@example.com', 'PUT a plugin source → saved with size and author');
+    check($status === 200 && $data['plugin']['id'] === 'glow' && $data['plugin']['files'] === [['name' => 'index.ts', 'text' => $source]] && $data['plugin']['size'] === strlen($source)
+        && $data['plugin']['updatedBy'] === 'author@example.com' && $data['plugin']['origin'] === null, 'PUT a plugin source → saved as its index.ts, with size and author, not linked');
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/Glow', ['source' => $source], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-plugin', 'an upper-case id → 400 invalid-plugin');
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['source' => 3], $editor);
@@ -1282,13 +1283,42 @@ try {
     check($status === 413, 'a source above 256 KB → 413');
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['source' => "$source// v2\n"], $editor);
     [$status, $data] = call($api, 'GET', '/editor/experiences/osct/plugins/glow', null, $editor);
-    check($status === 200 && str_ends_with($data['plugin']['source'], "// v2\n"), 'GET the plugin → the new source');
+    check($status === 200 && str_ends_with($data['plugin']['files'][0]['text'], "// v2\n"), 'GET the plugin → the new source');
+    [, $data] = call($api, 'GET', '/editor/experiences/osct/changes?limit=2', null, $editor);
+    check($data['changes'][0]['kind'] === 'plugin' && $data['changes'][0]['ref'] === 'glow' && str_ends_with($data['changes'][0]['after'][0]['text'] ?? '', "// v2\n") && $data['changes'][1]['before'] === null,
+        'every save is a change with the files before and after');
+
+    echo "editor: a plugin of several files (#352)\n";
+    $entry = "import { spin } from './spin';\nimport WATER from './water.frag';\nexport const register = (api) => { api.registerComponent('wobble', spin(WATER)); };\n";
+    $glowFiles = [['name' => 'water.frag', 'text' => "void main() { gl_FragColor = vec4(1.0); } // " . "/assets/x.frag\n"], ['name' => 'index.ts', 'text' => $entry], ['name' => 'spin.ts', 'text' => "export const spin = (w: string) => ({ description: w, params: {} });\n"]];
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['files' => $glowFiles, 'origin' => ['folder' => 'C:\\dev\\glow']], $editor);
+    check($status === 200 && array_column($data['plugin']['files'], 'name') === ['index.ts', 'spin.ts', 'water.frag'] && $data['plugin']['size'] === array_sum(array_map(static fn($f) => strlen($f['text']), $glowFiles))
+        && $data['plugin']['origin']['folder'] === 'glow' && $data['plugin']['origin']['by'] === 'author@example.com', 'PUT files → the entry first, then by name; origin keeps the folder\'s name only, who pushed');
+    [, $list] = call($api, 'GET', '/editor/experiences/osct/plugins', null, $editor);
+    check($list['plugins'][0]['fileCount'] === 3 && $list['plugins'][0]['origin']['folder'] === 'glow' && !isset($list['plugins'][0]['files']), 'the list counts the files and names the link, without the texts');
+    [, $usages] = call($api, 'GET', '/editor/experiences/osct/plugins/glow/usages', null, $editor);
+    check($usages['registers']['components'] === ['wobble'], 'what it registers is read from its files');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['files' => [['name' => 'index.ts', 'text' => "$source// v3\n"], ['name' => 'spin.ts', 'text' => 'export {}']]], $editor);
+    check($status === 200 && count($data['plugin']['files']) === 2 && $data['plugin']['origin']['folder'] === 'glow', 'a save without origin keeps the link; a file left out is gone');
+    foreach ([
+        [['files' => [['name' => 'spin.ts', 'text' => 'x']]], 400, 'no index.ts'],
+        [['files' => [['name' => 'index.ts', 'text' => 'x'], ['name' => 'lib/a.ts', 'text' => 'x']]], 400, 'a folder in a name'],
+        [['files' => [['name' => 'index.ts', 'text' => 'x'], ['name' => 'a.js', 'text' => 'x']]], 400, 'a .js file beside the entry'],
+        [['files' => [['name' => 'index.ts', 'text' => 'x'], ['name' => 'A.ts', 'text' => 'x'], ['name' => 'a.ts', 'text' => 'x']]], 400, 'a name twice (case aside)'],
+        [['files' => [['name' => 'index.ts', 'text' => 3]]], 400, 'a text that is no string'],
+        [['files' => array_merge([['name' => 'index.ts', 'text' => 'x']], array_map(static fn($i) => ['name' => "f$i.ts", 'text' => str_repeat('y', 200000)], range(1, 6)))], 413, 'files together above 1 MB'],
+        [['files' => [['name' => 'index.ts', 'text' => 'x']], 'origin' => ['folder' => '']], 400, 'an empty origin folder'],
+    ] as [$body, $want, $what]) {
+        [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', $body, $editor);
+        check($status === $want, "files: $what → $want");
+    }
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['files' => $glowFiles, 'origin' => null], $editor);
+    check($status === 200 && $data['plugin']['origin'] === null, 'origin: null unlinks');
     [$status, $export] = call($api, 'GET', '/editor/experiences/osct/export', null, $editor);
-    check($status === 200 && array_column($export['plugins'], 'id') === ['glow'] && $export['plugins'][0]['source'] === $data['plugin']['source'], '#322: the export carries the Code tab\'s sources with their text');
+    check($status === 200 && array_column($export['plugins'], 'id') === ['glow'] && array_column($export['plugins'][0]['files'], 'name') === ['index.ts', 'spin.ts', 'water.frag'],
+        '#322: the export carries the Code tab\'s plugins with every file');
     [$status, $data] = call($api, 'GET', '/editor/experiences/osct/plugins', null, $editor);
     check($status === 200 && count($data['plugins']) === 1 && $data['plugins'][0]['id'] === 'glow' && !isset($data['plugins'][0]['source']), 'the list names the plugin without its source');
-    [, $data] = call($api, 'GET', '/editor/experiences/osct/changes?limit=2', null, $editor);
-    check($data['changes'][0]['kind'] === 'plugin' && $data['changes'][0]['ref'] === 'glow' && str_ends_with($data['changes'][0]['after'], "// v2\n") && $data['changes'][1]['before'] === null, 'every save is a change with the source before and after');
     [, $m] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
     $rawDraft = (string) file_get_contents("$api/editor/experiences/osct/draft/{$m['build']}/game.config.json", false, $withToken);
     check(!str_contains($rawDraft, 'glow') && str_contains($rawDraft, '"plugins":[{"id":"tint","src":"' . $base . '/assets/content/plugins/tint/plugin.js","api":"1.0","registered":{"components":{"tint":'), 'the draft declares the imported compiled plugins (below the assets base) with what they recorded, never an editor source');
@@ -1744,13 +1774,13 @@ try {
     [$status, $data] = upload($api, 'PUT', "/editor/experiences/osct/assets/{$glsl['id']}/file", "$shader// v2\n", 'pulse.frag', $editor, 'text/plain');
     check($status === 200 && $data['asset']['version'] === 2 && $data['relinked'] === 1, 'replace → version 2, the source relinked');
     [, $data] = call($api, 'GET', '/editor/experiences/osct/plugins/pulse', null, $editor);
-    check(str_contains($data['plugin']['source'], str_replace('/v1.frag', '/v2.frag', $glsl['url'])) && !str_contains($data['plugin']['source'], '/v1.frag'), 'the source names the new version');
+    check(str_contains($data['plugin']['files'][0]['text'], str_replace('/v1.frag', '/v2.frag', $glsl['url'])) && !str_contains($data['plugin']['files'][0]['text'], '/v1.frag'), 'the source names the new version');
     [$status, $data] = upload($api, 'PUT', "/editor/experiences/osct/assets/{$glsl['id']}/file", $png, 'dot.png', $editor, 'image/png');
     check($status === 400, 'a shader replaced by a picture → 400');
     // Scripts: a file becomes a plugin source, named after the file
     $script = "\xEF\xBB\xBFexport const register = (api) => api.registerComponent('wobble', { description: 'x', params: {} }, () => ({}));\n";
     [$status, $data] = upload($api, 'POST', '/editor/experiences/osct/plugins', $script, 'Wobble Effect.ts', $editor, 'video/mp2t');
-    check($status === 201 && $data['plugin']['id'] === 'wobble-effect' && str_starts_with($data['plugin']['source'], 'export const') && $data['plugin']['updatedBy'] === 'author@example.com',
+    check($status === 201 && $data['plugin']['id'] === 'wobble-effect' && str_starts_with($data['plugin']['files'][0]['text'], 'export const') && $data['plugin']['updatedBy'] === 'author@example.com',
         'a script → 201 plugin source, its id from the name, the byte order mark dropped (Windows sends .ts as video/mp2t)');
     [$status, $data] = upload($api, 'POST', '/editor/experiences/osct/plugins?id=wobble3', $script, 'wobble.ts', $editor, 'video/vnd.dlna.mpeg-tts');
     check($status === 201, 'a .ts sent as the other MPEG stream type of Windows passes too');
@@ -1768,7 +1798,7 @@ try {
     [$status] = upload($api, 'POST', '/editor/experiences/osct/plugins', str_repeat('/', 262145), 'big.ts', $editor);
     check($status === 413, 'a script above 256 KB → 413');
     [$status, $data] = upload($api, 'PUT', '/editor/experiences/osct/plugins/wobble2/file', "// v2\n$script", 'anything.ts', $editor, 'text/plain');
-    check($status === 200 && str_starts_with($data['plugin']['source'], '// v2'), 'replace a source with a file → 200');
+    check($status === 200 && str_starts_with($data['plugin']['files'][0]['text'], '// v2'), 'replace a source with a file → 200');
     [$status] = upload($api, 'PUT', '/editor/experiences/osct/plugins/nothere/file', $script, 'x.ts', $editor, 'text/plain');
     check($status === 404, 'replace an unknown plugin → 404');
     [$status] = call($api, 'DELETE', '/editor/experiences/osct/plugins/wobble2', null, $editor);

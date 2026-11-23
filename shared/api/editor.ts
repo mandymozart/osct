@@ -9,6 +9,7 @@ import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
 import type { ExperienceData, EntityData, EntryData, GameConfiguration, GroupData, LogicData, PassData, VariableDeclaration, RecognitionMode, SceneData, SurfaceData, TargetData } from "../types/game-config";
 import type { AssetKind, SourceTypes } from "./rules";
+import type { PluginFile } from "../types/plugins";
 
 // ── Experiences ──────────────────────────────────────────────────────────────────────────────────────────
 
@@ -196,7 +197,14 @@ export interface ExportDownload {
   configuration: Record<string, unknown>;
   files: Record<string, unknown>;
   assetsBase?: string;
-  sources: { id: string; source: string }[];
+  /** The Code tab's plugins with their files (formatVersion 2, #352) */
+  sources: PluginFiles[];
+}
+
+/** A plugin as an export file and an import body carry it: its id and its files (#352) */
+export interface PluginFiles {
+  id: string;
+  files: PluginFile[];
 }
 
 /** A row of the publish log (`GET /editor/experiences/{id}/versions`, newest first) */
@@ -829,7 +837,12 @@ export interface AssetUsages {
 /** A plugin source in the list (`GET /editor/experiences/{id}/plugins`) */
 export interface PluginSummary {
   id: string;
+  /** Its files' bytes together */
   size: number;
+  /** How many files it has (#352) */
+  fileCount: number;
+  /** Pushed from someone's folder with `osct plugin push` (#352), null when not linked */
+  origin: PluginOrigin | null;
   /** The draft's rows that use a type it registers */
   usages: number;
   updatedAt: string;
@@ -839,10 +852,25 @@ export interface PluginSummary {
 /** One plugin source (`GET`, `PUT`, `POST …/plugins`, `PUT …/file` – `{ plugin }`): its text, without the list's `usages` */
 export interface PluginSource {
   id: string;
-  source: string;
+  /** Its files, the entry (`index.ts`) first (#352) */
+  files: PluginFile[];
   size: number;
   updatedAt: string;
   updatedBy: string | null;
+  origin: PluginOrigin | null;
+}
+
+/**
+ * Where a linked plugin comes from (#352): the folder `osct plugin push` sends it from – a label, nothing the API reads.
+ * `PUT …/plugins/{pid}` with `origin` sets it, `origin: null` unlinks, without `origin` it stays (a save in the Code tab).
+ */
+export interface PluginOrigin {
+  /** The folder's name (`aquarium`), never a whole path */
+  folder: string;
+  /** Who pushed last */
+  by: string | null;
+  /** When it was pushed last (ISO) */
+  at: string;
 }
 
 /** `GET /editor/experiences/{id}/plugins/{pluginId}/usages`: where the draft uses what it registers, and what that is */

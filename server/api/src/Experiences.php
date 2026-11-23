@@ -235,7 +235,7 @@ final class Experiences
         Db::transaction(function () use ($experienceId, $parts, $files, $assetsBase, $imported, $create, $sources, $user) {
             if ($create) self::requireUnused($experienceId, true);
             self::store($experienceId, $parts, $files, $assetsBase, $imported);
-            foreach ($sources as $pluginId => $code) Plugins::save($experienceId, $pluginId, $code, $user);
+            foreach ($sources as $pluginId => $files) Plugins::save($experienceId, (string) $pluginId, $files, $user);
         });
 
         $draft = ContentVersion::assemble($experienceId);
@@ -259,20 +259,18 @@ final class Experiences
     }
 
     /**
-     * An import's `sources` (#348): the Code tab sources an export file carries, [{ id, source }] → { id: source }; 400
-     * invalid-plugin for a broken one (the Code tab's own rule, `Plugins::check`)
-     * @return array<string, string>
+     * An import's `sources` (#348, #352): the Code tab's plugins an export file carries, [{ id, files }] → { id: files }; 400
+     * invalid-plugin for a broken one (the Code tab's own rule, `Plugins::checkSource`)
+     * @return array<string, list<array{name: string, text: string}>>
      */
     private static function sourcesOf(mixed $value): array
     {
         if ($value === null) return [];
-        if (!is_array($value)) throw new ApiError(400, 'invalid-plugin', 'sources must be a list of { id, source }.');
+        if (!is_array($value)) throw new ApiError(400, 'invalid-plugin', 'sources must be a list of { id, files }.');
         $sources = [];
         foreach ($value as $i => $item) {
-            $id = $item instanceof stdClass ? ($item->id ?? null) : null;
-            $code = $item instanceof stdClass ? ($item->source ?? null) : null;
-            Plugins::check($id, $code, "sources[$i]");
-            $sources[$id] = $code;
+            [$id, $files] = Plugins::checkSource($item, "sources[$i]");
+            $sources[$id] = $files;
         }
         return $sources;
     }
@@ -513,7 +511,7 @@ final class Experiences
         $params = ['experience' => $experienceId];
         $count = static fn(string $table): int => (int) Db::value("SELECT COUNT(*) FROM $table WHERE experience_id = :experience", $params);
         $saved = Plugins::sourceTexts($experienceId);
-        $replaced = array_values(array_filter(array_keys($sources), static fn(string $id): bool => isset($saved[$id]) && $saved[$id] !== $sources[$id]));
+        $replaced = array_values(array_filter(array_map('strval', array_keys($sources)), static fn(string $id): bool => isset($saved[$id]) && $saved[$id] !== Plugins::filesKey($sources[$id])));
         sort($replaced);
         // The import keeps the draft's own sources and adds or replaces those it carries
         $after = count(array_unique([...array_map('strval', array_keys($saved)), ...array_map('strval', array_keys($sources))]));
@@ -1327,8 +1325,7 @@ final class Experiences
     {
         if ($raw === null) return [];
         if (!is_array($raw)) throw new ApiError(400, 'invalid-plugins', 'plugins must be a list of { id, code, api, registered? }.');
-        $sources = [];
-        foreach (Db::run('SELECT id, source FROM plugins WHERE experience_id = :experience', ['experience' => $experienceId])->fetchAll() as $row) $sources[$row['id']] = (string) $row['source'];
+        $sources = Plugins::texts($experienceId);
         $injected = [];
         foreach ($raw as $i => $plugin) {
             $at = "plugins[$i]";
@@ -1339,7 +1336,7 @@ final class Experiences
             if (!isset($sources[$id])) throw new ApiError(400, 'invalid-plugins', "$at.id: the experience has no saved source \"$id\" – save it in the Code tab first.");
             $code = $plugin->code ?? null;
             if (!is_string($code) || trim($code) === '') throw new ApiError(400, 'invalid-plugins', "$at.code must be the transpiled module.");
-            if (strlen($code) > 2 * Plugins::MAX_SOURCE_BYTES) throw new ApiError(413, 'plugin-too-large', "$at.code is larger than " . (2 * Plugins::MAX_SOURCE_BYTES / 1024) . ' KB.');
+            if (strlen($code) > 2 * Plugins::MAX_PLUGIN_BYTES) throw new ApiError(413, 'plugin-too-large', "$at.code is larger than " . (2 * Plugins::MAX_PLUGIN_BYTES / 1024) . ' KB.');
             $api = $plugin->api ?? null;
             if (!is_string($api) || !preg_match('/^\d+\.\d+$/', $api)) throw new ApiError(400, 'invalid-plugins', "$at.api must be the plugin API version \"MAJOR.MINOR\".");
             $declaration = (object) ['id' => $id, 'src' => '/assets/content/plugins/' . $id . '/plugin-' . substr(hash('sha256', $code), 0, 12) . '.js', 'api' => $api];

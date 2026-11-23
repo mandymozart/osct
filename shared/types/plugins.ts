@@ -198,3 +198,61 @@ export const declaredUses = (registered: PluginRegistrations | undefined): Decla
 
 /** Can this engine run a plugin built against `api`? The same MAJOR (RULES #10's rule, for the API) */
 export const pluginApiCompatible = (api: string): boolean => api.split(".")[0] === PLUGIN_API_VERSION.split(".")[0];
+
+// ── A plugin's files (#352) ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * A plugin is a folder of files (#352, agents/research/2026-11-23-plugin-files.md): `index.ts` – the entry, it exports
+ * `register(api)` – and any TypeScript and shader files next to it. TypeScript imports its siblings (`./fluid`), a shader
+ * file comes in as a string (`import WATER from "./water.frag"`). The content build, the editor's Run and Publish
+ * bundle the same folder; the editor's Code tab shows each file as a tab.
+ */
+export interface PluginFile {
+  /** `index.ts`, `fluid.ts`, `water.frag` – a name, never a path */
+  name: string;
+  text: string;
+}
+
+/** The entry of every plugin */
+export const PLUGIN_ENTRY = "index.ts";
+/** A file's kinds by extension: TypeScript (bundled) or a shader (imported as a string) */
+export const PLUGIN_FILE_KINDS = { ts: "typescript", frag: "shader", vert: "shader", glsl: "shader", wgsl: "shader" } as const;
+/** A file's name: letters, digits, `.`, `_`, `-`, one of the kinds' extensions – no folders */
+export const PLUGIN_FILE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,59}\.(ts|frag|vert|glsl|wgsl)$/;
+/** One file of a plugin at most (as one source was before) */
+export const PLUGIN_FILE_MAX_BYTES = 256 * 1024;
+/** A plugin's files together at most */
+export const PLUGIN_MAX_BYTES = 1024 * 1024;
+/** Files a plugin has at most */
+export const PLUGIN_MAX_FILES = 32;
+/** Above this a bundle is reported (readers download it with the AR scene) – the content build's and the editor's warning */
+export const PLUGIN_BUNDLE_WARN_BYTES = 256 * 1024;
+
+/** What is wrong with a plugin's files (none: an empty list) – the API answers the same in PHP (Plugins::checkFiles) */
+export const pluginFilesProblems = (files: readonly PluginFile[]): string[] => {
+  const problems: string[] = [];
+  if (!files.some(file => file.name === PLUGIN_ENTRY)) problems.push(`a plugin needs ${PLUGIN_ENTRY}`);
+  if (files.length > PLUGIN_MAX_FILES) problems.push(`at most ${PLUGIN_MAX_FILES} files`);
+  const seen = new Set<string>();
+  let total = 0;
+  for (const file of files) {
+    if (!PLUGIN_FILE_PATTERN.test(file.name)) problems.push(`"${file.name}": a file name is letters, digits, . _ - and .ts, .frag, .vert, .glsl or .wgsl`);
+    if (seen.has(file.name.toLowerCase())) problems.push(`"${file.name}" twice`);
+    seen.add(file.name.toLowerCase());
+    const bytes = new TextEncoder().encode(file.text).length;
+    total += bytes;
+    if (bytes > PLUGIN_FILE_MAX_BYTES) problems.push(`"${file.name}" is larger than ${PLUGIN_FILE_MAX_BYTES / 1024} KB`);
+  }
+  if (total > PLUGIN_MAX_BYTES) problems.push(`the files together are larger than ${PLUGIN_MAX_BYTES / 1024} KB`);
+  return problems;
+};
+
+/** The files in their order: the entry first, then by name */
+export const sortPluginFiles = <T extends { name: string }>(files: readonly T[]): T[] =>
+  [...files].sort((a, b) => (a.name === PLUGIN_ENTRY ? -1 : b.name === PLUGIN_ENTRY ? 1 : a.name.localeCompare(b.name)));
+
+/** The plugin's text as one string – what registers and loads read: the files one after the other, the entry first */
+export const pluginText = (files: readonly PluginFile[]): string => sortPluginFiles(files).map(file => file.text).join("\n");
+
+/** Whether a file is a shader (imported as a string) */
+export const isShaderFile = (name: string): boolean => PLUGIN_FILE_KINDS[name.slice(name.lastIndexOf(".") + 1) as keyof typeof PLUGIN_FILE_KINDS] === "shader";

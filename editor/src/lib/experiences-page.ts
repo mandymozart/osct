@@ -1,5 +1,6 @@
 import type { GameConfiguration } from "@engine/types";
 import type { ExperienceDeletionImpact, ExportDownload, LiveIn, PublishedVersion, RecentChange } from "./api";
+import type { PluginFiles } from "@shared/api/editor";
 import { kindWord } from "./history";
 import { ago } from "./mcp-setup";
 import { whenText } from "./publish-overlay";
@@ -143,7 +144,7 @@ export const moveSelection = (index: number | null, key: string, count: number, 
 
 /** What a chosen file is to the import: an export file (#348) with its body, or a bare game.config.json */
 export type ReadFile =
-  | { kind: "export"; configuration: GameConfiguration; files: unknown; assetsBase?: string; sources: { id: string; source: string }[]; of: { experience: string; title: string; build: string; exportedAt: string } }
+  | { kind: "export"; configuration: GameConfiguration; files: unknown; assetsBase?: string; sources: PluginFiles[]; of: { experience: string; title: string; build: string; exportedAt: string } }
   | { kind: "configuration"; configuration: GameConfiguration };
 
 /**
@@ -161,8 +162,14 @@ export const readImportFile = (name: string, text: string): ReadFile => {
   const record = value as Partial<ExportDownload> & Record<string, unknown>;
   if (record.format === "osct-export") {
     if (!record.configuration || typeof record.configuration !== "object") throw new Error(`${name} is an export without its configuration.`);
-    if (typeof record.formatVersion === "number" && record.formatVersion > 1) throw new Error(`${name} is an export of a newer format (${record.formatVersion}) – update the editor.`);
-    const sources = Array.isArray(record.sources) ? record.sources.filter(s => s && typeof s.id === "string" && typeof s.source === "string") : [];
+    if (typeof record.formatVersion === "number" && record.formatVersion > 2) throw new Error(`${name} is an export of a newer format (${record.formatVersion}) – update the editor.`);
+    // formatVersion 2 (#352): every plugin with its files; a file of format 1 carried one source each – its index.ts
+    const sources: PluginFiles[] = (Array.isArray(record.sources) ? (record.sources as unknown[]) : []).flatMap(item => {
+      const s = item as { id?: unknown; files?: unknown; source?: unknown } | null;
+      if (!s || typeof s.id !== "string") return [];
+      if (Array.isArray(s.files)) return [{ id: s.id, files: (s.files as PluginFiles["files"]).filter(f => f && typeof f.name === "string" && typeof f.text === "string") }];
+      return typeof s.source === "string" ? [{ id: s.id, files: [{ name: "index.ts", text: s.source }] }] : [];
+    });
     return {
       kind: "export",
       configuration: record.configuration as unknown as GameConfiguration,

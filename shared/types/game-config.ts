@@ -121,10 +121,15 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * reads 6.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 6) and a 5.x app refuses 6.0 – a content source's plugin sources are
  * rewritten (`osct plugins listen --dir`), the server's rows by `Migration6.php`, the stored plugin sources by
  * `osct plugins listen`; every published experience is published again.
+ *
+ * **6.1** (#352): a plugin is a folder of files – `index.ts` and the TypeScript and shader files next to it
+ * (`./plugins.ts` PluginFile, the names and limits, `./plugin-shader-files.d.ts` the shader imports' types). The content
+ * build and the editor bundle the folder; the configuration's `plugins` list is unchanged – an app of 6.0 reads 6.1 as
+ * it is, nothing to skip.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "6.0";
+export const CONTENT_SCHEMA_VERSION = "6.1";
 /** The oldest content schema MAJOR this contract reads – 6: no 5.x content is read (6.0 renamed a spec's `uses.hears` to `uses.listens`) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 6;
 

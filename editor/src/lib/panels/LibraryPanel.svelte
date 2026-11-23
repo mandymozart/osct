@@ -350,9 +350,28 @@
     }
   };
 
+  /** A plugin's zip (the Code tab's Download, #352) becomes a plugin with all its files, its id from its folder */
+  const uploadPluginZip = async (file: File) => {
+    try {
+      const [{ unzipTexts, DOWNLOAD_EXTRAS }, { pluginFromZip }] = await Promise.all([import("#lib/plugins/code-editor.js"), import("#lib/plugins/plugin-files.js")]);
+      const made = pluginFromZip(await unzipTexts(new Uint8Array(await file.arrayBuffer())), file.name, DOWNLOAD_EXTRAS);
+      if (!/^[a-z][a-z0-9-]{0,39}$/.test(made.id)) throw new Error(`"${made.id}" is no plugin id – rename the zip's folder`);
+      if (plugins.stored.some(p => p.id === made.id)) throw new Error(`the plugin ${made.id} exists – drop the zip on its tabs in the Code tab instead`);
+      await plugins.save(experienceId, made.id, made.files);
+      notice = `${file.name} is the plugin ${made.id} (${made.files.length} ${made.files.length === 1 ? "file" : "files"}) – open it in the Code tab from the code list`;
+      void plugins.load(experienceId);
+    } catch (e) {
+      library.error = `${file.name}: ${errorText(e)}`;
+    }
+  };
+
   const uploadFiles = async (files: FileList | File[]) => {
     notice = null;
     for (const file of Array.from(files)) {
+      if (!pick && file.name.toLowerCase().endsWith(".zip")) {
+        await uploadPluginZip(file);
+        continue;
+      }
       const problem = codeUploadProblem(file);
       if (problem) {
         library.error = problem;

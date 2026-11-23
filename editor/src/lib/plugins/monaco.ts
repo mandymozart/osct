@@ -2,7 +2,10 @@ import * as monaco from "monaco-editor";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 import TypeScriptWorker from "monaco-editor/language/typescript/ts.worker?worker";
 import pluginApi from "./plugin-api.d.ts?raw";
-import { codeKeys, codeTheme, type CodeAction, EDITOR_OPTIONS, libPath, PLUGIN_API_PATH, pluginModelPath, runMarker } from "./code-editor";
+import { codeKeys, codeTheme, type CodeAction, EDITOR_OPTIONS, libPath, PLUGIN_API_PATH, pluginModelPath, runMarker, SHADER_MODULES, SHADER_MODULES_PATH } from "./code-editor";
+import { codeLanguage } from "#lib/library-code.js";
+import type { PluginFile } from "@shared/types/plugins";
+import type { SavedSource, TypeProblem } from "#lib/publish-plugins.js";
 
 /**
  * Monaco for the Code tab, loaded with the tab only (`CodePanel` imports this module dynamically – the reader and
@@ -52,6 +55,7 @@ ts.typescriptDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyn
 ts.typescriptDefaults.setEagerModelSync(true);
 ts.typescriptDefaults.setExtraLibs([
   { content: pluginApi, filePath: PLUGIN_API_PATH },
+  { content: SHADER_MODULES, filePath: SHADER_MODULES_PATH },
   ...Object.entries(threeTypes).map(([key, content]) => ({ content, filePath: libPath(key) })),
 ]);
 
@@ -64,16 +68,18 @@ const applyTheme = () => {
 };
 
 export interface CodeEditorOptions {
-  value: string;
-  modelId: string;
   readOnly: boolean;
-  onChange(value: string): void;
+  /** A file's text changed in the editor */
+  onChange(name: string, value: string): void;
   onAction(action: CodeAction): void;
 }
 
 export interface CodeEditor {
-  /** Show another plugin's source (a new model: its own undo history) */
-  open(modelId: string, value: string): void;
+  /**
+   * The plugin's files as models (#352): one per file, kept while the plugin is open (each its own undo history), the ones
+   * no longer there disposed, the active one in the editor. Idempotent – a model's text is set only when it differs.
+   */
+  sync(plugin: string, files: readonly PluginFile[], active: string): void;
   setReadOnly(readOnly: boolean): void;
   /** The last Run's error as a marker on its line; null clears it */
   setRunError(error: { message: string; line: number | null } | null): void;
@@ -89,22 +95,52 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
   const schemeObserver = new MutationObserver(applyTheme);
   schemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-scheme"] });
 
-  let model = makeModel(options.modelId, options.value);
-  const editor = monaco.editor.create(container, { ...EDITOR_OPTIONS, model, theme: THEME, readOnly: options.readOnly, ariaLabel: "Plugin source (TypeScript)" });
-  let changes = model.onDidChangeContent(() => options.onChange(model.getValue()));
+  /** The open plugin's models by file name, each with its change listener */
+  const models = new Map<string, { model: monaco.editor.ITextModel; changes: monaco.IDisposable }>();
+  let plugin = "";
+  let shown = "";
+  const editor = monaco.editor.create(container, { ...EDITOR_OPTIONS, model: null, theme: THEME, readOnly: options.readOnly, ariaLabel: "Plugin source" });
   for (const { keybinding, action } of codeKeys(monaco)) editor.addCommand(keybinding, () => options.onAction(action));
   let runError: { message: string; line: number | null } | null = null;
-  const markRun = () => monaco.editor.setModelMarkers(model, "run", runMarker(runError, model.getLineCount(), line => model.getLineMaxColumn(line)).map(marker => ({ ...marker, severity: monaco.MarkerSeverity.Error, source: "Run" })));
+  const markRun = () => {
+    const model = editor.getModel();
+    if (!model) return;
+    monaco.editor.setModelMarkers(model, "run", runMarker(runError, model.getLineCount(), line => model.getLineMaxColumn(line)).map(marker => ({ ...marker, severity: monaco.MarkerSeverity.Error, source: "Run" })));
+  };
+  const drop = (name: string) => {
+    const held = models.get(name);
+    if (!held) return;
+    held.changes.dispose();
+    if (!held.model.isDisposed()) held.model.dispose();
+    models.delete(name);
+  };
 
   return {
-    open(modelId, value) {
-      const previous = model;
-      changes.dispose();
-      model = makeModel(modelId, value);
-      changes = model.onDidChangeContent(() => options.onChange(model.getValue()));
-      editor.setModel(model);
-      if (!previous.isDisposed()) previous.dispose();
-      runError = null;
+    sync(nextPlugin, files, active) {
+      if (nextPlugin !== plugin) {
+        for (const name of [...models.keys()]) drop(name);
+        plugin = nextPlugin;
+        runError = null;
+      }
+      for (const name of [...models.keys()]) if (!files.some(f => f.name === name)) drop(name);
+      for (const file of files) {
+        const held = models.get(file.name);
+        if (held) {
+          if (held.model.getValue() !== file.text) held.model.setValue(file.text);
+          continue;
+        }
+        const model = makeModel(plugin, file.name, file.text);
+        models.set(file.name, { model, changes: model.onDidChangeContent(() => options.onChange(file.name, model.getValue())) });
+      }
+      const target = models.get(active) ?? models.values().next().value;
+      if (target && editor.getModel() !== target.model) {
+        editor.setModel(target.model);
+        shown = active;
+        markRun();
+      } else if (!target) {
+        editor.setModel(null);
+        shown = "";
+      }
     },
     setReadOnly(readOnly) {
       editor.updateOptions({ readOnly });
@@ -119,11 +155,50 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
     dispose() {
       media.removeEventListener("change", applyTheme);
       schemeObserver.disconnect();
-      changes.dispose();
       editor.dispose();
-      model.dispose();
+      for (const name of [...models.keys()]) drop(name);
+      void shown;
     },
   };
+};
+
+/** TypeScript's message, a chain flattened */
+const messageOf = (text: string | { messageText: string; next?: unknown[] }): string =>
+  typeof text === "string" ? text : [text.messageText, ...((text.next ?? []) as Array<{ messageText: string }>).map(n => n.messageText)].join(" ");
+
+/**
+ * Type-check plugins' files (#352, Publish): every TypeScript file as a model of its own below `file:///check/<plugin>/`
+ * (apart from the Code tab's open models), asked of the TypeScript worker for its syntax and type errors – the same
+ * compiler options and declarations the Code tab underlines with. The models go again afterwards.
+ */
+export const typeCheckPlugins = async (sources: readonly SavedSource[]): Promise<TypeProblem[]> => {
+  const made: monaco.editor.ITextModel[] = [];
+  const checked: Array<{ plugin: string; file: string; model: monaco.editor.ITextModel }> = [];
+  try {
+    for (const { id, files } of sources) {
+      for (const file of files) {
+        const uri = monaco.Uri.parse(`file:///check/${id}/${file.name}`);
+        monaco.editor.getModel(uri)?.dispose();
+        const model = monaco.editor.createModel(file.text, codeLanguage(file.name), uri);
+        made.push(model);
+        if (file.name.endsWith(".ts")) checked.push({ plugin: id, file: file.name, model });
+      }
+    }
+    if (!checked.length) return [];
+    const worker = await (await ts.getTypeScriptWorker())(...checked.map(c => c.model.uri));
+    const problems: TypeProblem[] = [];
+    for (const { plugin, file, model } of checked) {
+      const name = model.uri.toString();
+      const diagnostics = [...(await worker.getSyntacticDiagnostics(name)), ...(await worker.getSemanticDiagnostics(name))];
+      for (const d of diagnostics) {
+        if (d.category !== 1) continue;
+        problems.push({ plugin, file, line: model.getPositionAt(d.start ?? 0).lineNumber, message: messageOf(d.messageText as never) });
+      }
+    }
+    return problems;
+  } finally {
+    for (const model of made) if (!model.isDisposed()) model.dispose();
+  }
 };
 
 export interface CodePreview {
@@ -164,9 +239,9 @@ export const createCodePreview = (container: HTMLElement, value: string, languag
   };
 };
 
-/** The model at a plugin's path (an earlier one there is replaced) */
-const makeModel = (modelId: string, value: string): monaco.editor.ITextModel => {
-  const uri = monaco.Uri.parse(pluginModelPath(modelId));
+/** The model of a plugin's file (an earlier one there is replaced): TypeScript, or a shader's language */
+const makeModel = (plugin: string, name: string, value: string): monaco.editor.ITextModel => {
+  const uri = monaco.Uri.parse(pluginModelPath(plugin, name));
   monaco.editor.getModel(uri)?.dispose();
-  return monaco.editor.createModel(value, "typescript", uri);
+  return monaco.editor.createModel(value, codeLanguage(name), uri);
 };

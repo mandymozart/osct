@@ -1,3 +1,4 @@
+import type { PluginFilesApi } from './plugin-files-api';
 /**
  * Plugin API 4.0 / content schema 6.0 (#341, Tilman 2026-11-21: "you use the word hear for events. i think it is
  * listen"): a plugin source's spec names what its code listens to `uses.listens` (was `uses.hears`). `osct plugins listen`
@@ -104,45 +105,29 @@ export interface ListenChange {
   after: string;
 }
 
-/** What the editor API offers the command (a fake in the tests) */
-export interface PluginSourcesApi {
-  experiences(): Promise<string[]>;
-  plugins(experience: string): Promise<string[]>;
-  source(experience: string, plugin: string): Promise<string>;
-  put(experience: string, plugin: string, source: string): Promise<void>;
-}
+export { pluginFilesApi as pluginSourcesApi, type PluginFilesApi as PluginSourcesApi } from './plugin-files-api';
 
-/** The editor API's plugin routes with a person's token */
-export function pluginSourcesApi(api: string, token: string, fetcher: typeof fetch = fetch): PluginSourcesApi {
-  const call = async (path: string, init: RequestInit = {}): Promise<unknown> => {
-    const response = await fetcher(`${api}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers } });
-    if (!response.ok) throw new Error(`${init.method ?? 'GET'} ${path} → ${response.status} ${(await response.text().catch(() => '')).slice(0, 300)}`);
-    return response.json();
-  };
-  const at = (experience: string, plugin?: string) =>
-    `/editor/experiences/${encodeURIComponent(experience)}/plugins${plugin ? `/${encodeURIComponent(plugin)}` : ''}`;
-  return {
-    experiences: async () => ((await call('/editor/experiences')) as { experiences: { id: string }[] }).experiences.map(e => e.id),
-    plugins: async experience => ((await call(at(experience))) as { plugins: { id: string }[] }).plugins.map(p => p.id),
-    source: async (experience, plugin) => ((await call(at(experience, plugin))) as { plugin: { source: string } }).plugin.source,
-    put: async (experience, plugin, source) => {
-      await call(at(experience, plugin), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source }) });
-    },
-  };
-}
-
-/** Reads every plugin source of the experiences, rewrites it, and – unless `dryRun` – stores the changed ones back */
-export async function listenStored(api: PluginSourcesApi, experiences: string[], dryRun: boolean): Promise<{ changes: ListenChange[]; checked: number }> {
+/**
+ * Reads every plugin of the experiences, rewrites its TypeScript files, and – unless `dryRun` – stores a changed plugin
+ * back with all its files (#352: a change names `<plugin>/<file>` for a file other than index.ts)
+ */
+export async function listenStored(api: PluginFilesApi, experiences: string[], dryRun: boolean): Promise<{ changes: ListenChange[]; checked: number }> {
   const changes: ListenChange[] = [];
   let checked = 0;
   for (const experience of experiences) {
     for (const plugin of await api.plugins(experience)) {
-      const before = await api.source(experience, plugin);
+      const { files } = await api.get(experience, plugin);
       checked++;
-      const after = listenSource(before);
-      if (after === before) continue;
-      changes.push({ experience, plugin, before, after });
-      if (!dryRun) await api.put(experience, plugin, after);
+      let changed = false;
+      const after = files.map(file => {
+        if (!file.name.endsWith('.ts')) return file;
+        const text = listenSource(file.text);
+        if (text === file.text) return file;
+        changed = true;
+        changes.push({ experience, plugin: file.name === 'index.ts' ? plugin : `${plugin}/${file.name}`, before: file.text, after: text });
+        return { name: file.name, text };
+      });
+      if (changed && !dryRun) await api.put(experience, plugin, after);
     }
   }
   return { changes, checked };

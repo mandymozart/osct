@@ -81,9 +81,10 @@ describe("paths in the TypeScript worker", () => {
 
 describe("the download", () => {
   it("holds index.ts, plugin-api.d.ts and a tsconfig that maps osct-plugin-api to it", () => {
-    const files = downloadFiles("tint", "export const register = () => {};\n", "export interface PluginApi {}\n");
-    expect(files.map(f => f.name)).toEqual(["tint/index.ts", "tint/plugin-api.d.ts", "tint/tsconfig.json"]);
-    expect(files[2].text).toContain('"osct-plugin-api": ["./plugin-api.d.ts"]');
+    const files = downloadFiles("tint", [{ name: "index.ts", text: "export const register = () => {};\n" }], "export interface PluginApi {}\n");
+    expect(files.map(f => f.name)).toEqual(["tint/index.ts", "tint/plugin-api.d.ts", "tint/shader-files.d.ts", "tint/tsconfig.json"]);
+    expect(files[3].text).toContain('"osct-plugin-api": ["./plugin-api.d.ts"]');
+    expect(files[2].text).toContain('declare module "*.frag"');
   });
 
   it("computes the standard CRC-32", () => {

@@ -38,11 +38,11 @@ final class Export
 
     /** The export file's format (#348): its `format` and `formatVersion` – an import body ({ configuration, files, assetsBase, sources }) with what it is of */
     public const FILE_FORMAT = 'osct-export';
-    public const FILE_FORMAT_VERSION = 1;
+    public const FILE_FORMAT_VERSION = 2;
 
     /**
      * GET /editor/experiences/{id}/export/file[?build=] (#348) → the experience as one JSON file to download
-     * (`Content-Disposition: attachment; filename="<id>-<build>.osct.json"`): `{ format: "osct-export", formatVersion: 1,
+     * (`Content-Disposition: attachment; filename="<id>-<build>.osct.json"`): `{ format: "osct-export", formatVersion: 2,
      * experience, title, build, exportedAt, source, configuration, files, assetsBase?, sources }` – the draft (or a published
      * build, `data`) with its files.json and the Code tab's sources. It is an import body as it is: the editor's Import
      * (file) and `POST …/import` take it back (`configuration`, `files`, `assetsBase`, `sources`). The media are not in it –
@@ -83,7 +83,7 @@ final class Export
             'files' => $files,
         ];
         if ($assetsBase !== null) $answer['assetsBase'] = $assetsBase;
-        $answer['sources'] = array_map(static fn(array $plugin): array => ['id' => $plugin['id'], 'source' => $plugin['source']], Plugins::sources($experienceId));
+        $answer['sources'] = array_map(static fn(array $plugin): array => ['id' => $plugin['id'], 'files' => $plugin['files']], Plugins::sources($experienceId));
         header('Content-Disposition: attachment; filename="' . $experienceId . '-' . $build . '.osct.json"');
         Http::json(200, $answer);
     }

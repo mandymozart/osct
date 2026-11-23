@@ -102,7 +102,7 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (path === "/editor/experiences/osct/draft/abcdef012345/game.config.json") return { json: { version: { schema: "2.14" }, plugins: [{ id: "tint", src: "/p.js", api: "1.2", registered: REGISTERED }], entities: ENTITIES.entities } };
   if (path === "/editor/experiences/osct/draft/abcdef012345/files.json") return { json: { "/m.glb": { size: 1 } } };
   if (path === "/editor/experiences/osct/plugins") return { json: { plugins: sources ? [{ id: "glow", size: 10 }] : [] } };
-  if (path === "/editor/experiences/osct/plugins/glow") return { json: { plugin: { id: "glow", source: 'api.registerLayer("glow", {}, { glsl: "" }); api.registerNodeType("beam", {}, build); api.registerAppearance("popIn", {}, look);' } } };
+  if (path === "/editor/experiences/osct/plugins/glow") return { json: { plugin: { id: "glow", files: [{ name: "index.ts", text: 'api.registerLayer("glow", {}, { glsl: "" }); api.registerNodeType("beam", {}, build); api.registerAppearance("popIn", {}, look);' }] } } };
   if (method === "GET" && path === "/editor/experiences/osct/scenes") {
     return { json: { scenes: TREE.scenes.map(({ entries, ...s }, position) => ({ ...s, position, surfaces: s.surfaces.map(f => ({ ...f, reference: null })), entries: entries.length, targets: entries.filter(e => e.target).length })), groups: [] } };
   }
@@ -506,7 +506,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("6.0");
+    expect(model.contentSchema).toBe("6.1");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");

@@ -8,7 +8,7 @@ const shader = (over: Partial<Asset> = {}): Asset => ({
   id: "a1", name: "pulse.frag", kind: "shader", mime: "text/x-glsl; charset=utf-8", size: 120, width: null, height: null, durationMs: null,
   version: 2, url: "https://cdn.example/assets/book/a1/v2.frag", usages: 1, imported: false, credits: null, createdAt: "2026-10-30T08:00:00.000Z", updatedAt: "2026-10-30T09:00:00.000Z", ...over,
 });
-const script: PluginSummary = { id: "tint", size: 900, usages: 3, updatedAt: "2026-10-30T07:00:00.000Z", updatedBy: "author@example.com" };
+const script: PluginSummary = { id: "tint", size: 900, fileCount: 1, origin: null, usages: 3, updatedAt: "2026-10-30T07:00:00.000Z", updatedBy: "author@example.com" };
 
 describe("code kinds", () => {
   it("knows scripts and shaders by their extension, nothing else", () => {

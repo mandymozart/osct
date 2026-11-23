@@ -23,6 +23,7 @@ import type { MediaLevelData } from '../../../shared/types/media-levels';
 import type { TextureSetData } from '../../../shared/types/textures';
 import { subtitleNameOf } from '../../../shared/types/subtitles';
 import { rowPlaces } from '../build/scenes';
+import { pluginFilesOf } from '../build/plugins';
 import { listFiles } from './files';
 
 /** The marker of an export: who wrote it, from what – "do not edit, re-export" */
@@ -299,8 +300,10 @@ export function planExport(data: ExperienceExport): ExportPlan {
     reserve(contentPath ? contentPath.slice(CONTENT_PREFIX.length) : `layout/${fileNameOf(url)}`, url);
   }
 
-  // plugins/<id>/index.ts – the Code tab's sources; the compiled plugin.js is the build's product
-  for (const plugin of [...data.plugins].sort((a, b) => a.id.localeCompare(b.id))) texts.set(`plugins/${plugin.id}/index.ts`, plugin.source.replace(/\r\n/g, '\n'));
+  // plugins/<id>/<file> – the Code tab's plugins, every file (#352); the compiled plugin.js is the build's product
+  for (const plugin of [...data.plugins].sort((a, b) => a.id.localeCompare(b.id))) {
+    for (const file of plugin.files) texts.set(`plugins/${plugin.id}/${file.name}`, file.text.replace(/\r\n/g, '\n'));
+  }
   for (const plugin of config.plugins ?? []) {
     if (!data.plugins.some(source => source.id === plugin.id)) problems.push(`plugins/${plugin.id}: the configuration declares it, but the database has no source of it – left out`);
   }
@@ -510,11 +513,13 @@ export function exportOfBuild(configuration: GameConfiguration, contentDir: stri
   walk(configuration, true);
   const layoutFiles = listFiles(path.join(assetsDir, 'layout')).map(file => `${CONTENT_PREFIX}layout/${file}`);
   layoutFiles.forEach(add);
+  // A built folder's plugins (#352): every file of a plugin's folder the editor would take
   const plugins = listFiles(path.join(contentDir, 'plugins'))
     .filter(file => /^[^/]+\/index\.ts$/.test(file))
     .map(file => {
-      const source = fs.readFileSync(path.join(contentDir, 'plugins', file), 'utf8');
-      return { id: file.split('/')[0], source, size: Buffer.byteLength(source), updatedAt: '', updatedBy: null };
+      const id = file.split('/')[0];
+      const files = pluginFilesOf(path.join(contentDir, 'plugins', id));
+      return { id, files, size: files.reduce((sum, f) => sum + Buffer.byteLength(f.text), 0), updatedAt: '', updatedBy: null, origin: null };
     });
   const hash = configuration.version?.hash ?? '';
   return {

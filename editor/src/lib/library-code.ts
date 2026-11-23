@@ -84,7 +84,8 @@ export const pluginOptions = (ids: readonly string[], code: OpenCode): Array<{ v
 /** Scripts and shaders in one list, by name; `unsaved` = the plugin the Code tab holds unsaved edits of */
 export const codeFiles = (scripts: readonly PluginSummary[], assets: readonly Asset[], unsaved: string | null = null): CodeFile[] =>
   [
-    ...scripts.map((p): CodeFile => ({ key: `script:${p.id}`, kind: "script", name: `${p.id}.ts`, label: pluginLabel(`${p.id}.ts`, p.id === unsaved), size: p.size, usages: p.usages ?? 0, updatedAt: p.updatedAt, version: null, plugin: p.id })),
+    // A plugin of several files (#352) is listed as its folder
+    ...scripts.map((p): CodeFile => ({ key: `script:${p.id}`, kind: "script", name: (p.fileCount ?? 1) > 1 ? `${p.id}/` : `${p.id}.ts`, label: pluginLabel((p.fileCount ?? 1) > 1 ? `${p.id}/ · ${p.fileCount} files` : `${p.id}.ts`, p.id === unsaved), size: p.size, usages: p.usages ?? 0, updatedAt: p.updatedAt, version: null, plugin: p.id })),
     ...assets.filter(a => a.kind === "shader").map((a): CodeFile => ({ key: `shader:${a.id}`, kind: "shader", name: a.name, label: a.name, size: a.size, usages: a.usages, updatedAt: a.updatedAt, version: a.version, asset: a })),
   ].sort((a, b) => a.name.localeCompare(b.name) || a.kind.localeCompare(b.kind));
 

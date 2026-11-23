@@ -22,6 +22,9 @@
  *                        [--apply] [--overwrite] [--all] [--cache <dir>]   (a publisher's delivery into the draft, #322)
  *   osct plugins listen (--experience <id> | --all | --dir <folder>) [--dry-run]
  *                                                          (plugin API 4.0, #341: the stored plugin sources' uses.hears → uses.listens)
+ *   osct plugin link <experience> [<folder>] [--id <plugin>]   (#352: a plugin developed in your own folder)
+ *   osct plugin push [<folder>] [--watch] [--force]
+ *   osct plugin pull [<folder>]
  *
  * Environment (or a scripts/.env file, never committed):
  *   OSCT_CONTENT_DIR             the content source (absolute or relative to the repository; fixtures/content for
@@ -63,16 +66,19 @@ import {
   versionProblems,
 } from './lib/content-sync';
 import { type CliArgs, parseArgs } from './lib/cli-args';
-import { messageOf } from './lib/errors';
+import { buildErrors, messageOf } from './lib/errors';
 import { describePlan, editorApi, planTargets, prepareTargets } from './lib/targets-prepare';
 import { StorageClient } from './lib/storage';
 import { deleteMoved, describeMove, experienceOf, moveProblems, planMove, runMove } from './lib/content-move';
-import { APP_VERSION, CONTENT_DIR, DEMO_REFUSED_ENV } from './config';
+import { APP_VERSION, CONTENT_DIR, DEMO_REFUSED_ENV, projectRoot } from './config';
 import { planExport, runExport } from './lib/content-export';
 import { archivedBuilds, newestArchives, runArchive } from './lib/export-archive';
 import { parseMapping, type LayoutLike } from './lib/delivery-plan';
 import { DeliveryProblems, deliveryApi, runDeliveryImport } from './lib/delivery-import';
 import { listenSource, listenStored, pluginSourcesApi, shortDiff } from './lib/plugins-listen';
+import { pluginFilesApi } from './lib/plugin-files-api';
+import { idFromFolder, pullFolder, pushFolder, readLink, writeFolderTypes, writeLink, type PluginLink } from './lib/plugin-link';
+import { typeCheckPlugins } from './build/plugins';
 import type { ExperienceExport } from '../../shared/api/editor';
 import { ENV_NAME } from '../../shared/api/rules';
 import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAME } from '../../shared/api/content-store';
@@ -81,8 +87,8 @@ import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAM
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const OPTIONS = {
-  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite', 'archive'],
-  values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base', 'files', 'layout', 'name', 'cache', 'dir'],
+  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite', 'archive', 'watch'],
+  values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base', 'files', 'layout', 'name', 'cache', 'dir', 'id'],
 };
 /** The local dev API (as the MCP server's default) */
 const LOCAL_API = 'http://127.0.0.1:8080/api';
@@ -141,6 +147,19 @@ const USAGE = `osct – content command line
                                                written back through the editor API (OSCT_API_URL, OSCT_EDITOR_TOKEN);
                                                --dir: a content source folder's plugins/<id>/index.ts. --dry-run prints
                                                per experience and plugin the lines that would change, nothing written
+  osct plugin link <experience> [<folder>] [--id <plugin>]
+                                               #352: a plugin developed in your own folder and tools. Writes
+                                               .osct-plugin.json (OSCT_API_URL, the experience, the plugin – --id, else
+                                               the folder's name), pulls the plugin's files when it exists, and the
+                                               folder's type-check files (plugin-api.d.ts, shader-files.d.ts,
+                                               tsconfig.json). <folder> defaults to the current one
+  osct plugin push [<folder>] [--watch] [--force]
+                                               type-checks the folder's plugin as the content build does (--force pushes
+                                               anyway), then sends its files (.ts, .frag, .vert, .glsl, .wgsl) to the
+                                               linked plugin – the editor's stage runs them, the Code tab shows it linked.
+                                               --watch pushes again on every change. OSCT_EDITOR_TOKEN
+  osct plugin pull [<folder>]                  the linked plugin's files from the editor into the folder (edits made
+                                               there; a file deleted there goes here too). OSCT_EDITOR_TOKEN
   osct content move --from <old folder> --env <env> [--experience <id>] [--dry-run] [--delete-old]
                                                one-off: copy an environment folder of the layout before #87
                                                (<env>/latest.json, <env>/<build>/) into <title>/<env>/<experience>/;
@@ -464,6 +483,80 @@ async function pluginsListen(cli: CliArgs): Promise<void> {
     (changes.length && !dryRun ? ' – each a change in History; publish each experience again for its readers' : ''));
 }
 
+/** The editor API the plugin commands talk to: the link's, else OSCT_API_URL (the local dev API by default) */
+const apiOf = (link?: PluginLink | null): string => (link?.api ?? (process.env.OSCT_API_URL?.trim() || LOCAL_API)).replace(/\/+$/, '');
+
+/** A folder's link, or why there is none */
+const linkOf = (folder: string): PluginLink => {
+  const link = readLink(folder);
+  if (!link) throw new Error(`${folder} is not linked – osct plugin link <experience> ${folder === process.cwd() ? '' : folder}`.trim());
+  return link;
+};
+
+/**
+ * `osct plugin link / push / pull` (#352): a plugin in someone's own folder, linked to a plugin of an experience
+ * (`lib/plugin-link.ts`). Push type-checks first, as the content build does.
+ */
+async function pluginCommand(cli: CliArgs, command: string): Promise<void> {
+  const typesOf = () => [
+    fs.readFileSync(path.join(projectRoot, 'editor', 'src', 'lib', 'plugins', 'plugin-api.d.ts'), 'utf8'),
+    fs.readFileSync(path.join(projectRoot, 'shared', 'types', 'plugin-shader-files.d.ts'), 'utf8'),
+  ] as const;
+  if (command === 'link') {
+    const experience = cli.positional[2];
+    if (!experience) throw new Error('Name the experience: osct plugin link <experience> [<folder>] [--id <plugin>]');
+    const folder = path.resolve(cli.positional[3] ?? '.');
+    const plugin = cli.option('id') ?? idFromFolder(folder);
+    const link: PluginLink = { api: apiOf(), experience, plugin };
+    writeLink(folder, link);
+    const api = pluginFilesApi(link.api, required('OSCT_EDITOR_TOKEN'));
+    try {
+      const pulled = await pullFolder(api, folder, link);
+      console.log(`🔗 ${folder} → ${experience} · ${plugin} on ${link.api}; pulled ${pulled.written.join(', ') || 'nothing new'}`);
+    } catch (e) {
+      if (!/→ 404/.test(messageOf(e))) throw e;
+      console.log(`🔗 ${folder} → ${experience} · ${plugin} on ${link.api} – a new plugin: osct plugin push makes it`);
+    }
+    const made = writeFolderTypes(folder, ...typesOf());
+    if (made.length) console.log(`   for your editor's type check: ${made.join(', ')}`);
+    return;
+  }
+  const folder = path.resolve(cli.positional[2] ?? '.');
+  const link = linkOf(folder);
+  const api = pluginFilesApi(link.api, required('OSCT_EDITOR_TOKEN'));
+  if (command === 'pull') {
+    const { written, deleted } = await pullFolder(api, folder, link);
+    console.log(`⬇️  ${link.experience} · ${link.plugin}: ${written.length ? `wrote ${written.join(', ')}` : 'nothing new'}${deleted.length ? `; deleted ${deleted.join(', ')} (gone in the editor)` : ''}`);
+    return;
+  }
+  if (command !== 'push') throw new Error(`osct plugin ${command}: link, push or pull`);
+  const push = async (): Promise<void> => {
+    if (!cli.flag('force')) {
+      const before = buildErrors.length;
+      typeCheckPlugins([path.join(folder, 'index.ts')]);
+      const errors = buildErrors.splice(before);
+      if (errors.length) {
+        console.error(`❌ ${link.plugin}: ${errors.length} type ${errors.length === 1 ? 'error' : 'errors'} – not pushed (--force pushes anyway)\n   ${errors.slice(0, 10).join('\n   ')}`);
+        process.exitCode = 1;
+        return;
+      }
+    }
+    const files = await pushFolder(api, folder, link);
+    process.exitCode = 0;
+    console.log(`⬆️  ${link.experience} · ${link.plugin} on ${link.api}: ${files.map(f => f.name).join(', ')} – the editor's stage runs it`);
+  };
+  await push();
+  if (!cli.flag('watch')) return;
+  console.log(`👀 watching ${folder} – Ctrl+C stops`);
+  let timer: NodeJS.Timeout | null = null;
+  fs.watch(folder, (_event, name) => {
+    if (!name || name.startsWith('.') || !/\.(ts|frag|vert|glsl|wgsl)$/.test(String(name))) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void push().catch(e => console.error(`❌ ${messageOf(e)}`)), 300);
+  });
+  await new Promise(() => undefined);
+}
+
 async function main(): Promise<void> {
   const cli = parseArgs(process.argv.slice(2), OPTIONS);
   const { flag } = cli;
@@ -471,6 +564,7 @@ async function main(): Promise<void> {
   if (group === 'targets' && command === 'prepare' && !flag('help')) return targetsPrepare(cli);
   if (group === 'delivery' && command === 'import' && !flag('help')) return deliveryImport(cli);
   if (group === 'plugins' && command === 'listen' && !flag('help')) return pluginsListen(cli);
+  if (group === 'plugin' && command && !flag('help')) return pluginCommand(cli, command);
   if (group !== 'content' || !command || flag('help')) {
     console.log(USAGE);
     if (group && group !== 'help') process.exitCode = 1;

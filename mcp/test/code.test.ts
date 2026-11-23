@@ -11,10 +11,10 @@ const SOURCE = `import type { PluginApi } from "osct-plugin-api";\nexport const 
 function pluginsApi(seen: Seen) {
   const { method, path } = seen;
   if (method === "GET" && path === "/editor/experiences/osct/plugins") return { json: { plugins: [{ id: "tint", size: SOURCE.length, updatedAt: "t", updatedBy: "a@b" }] } };
-  if (method === "GET" && path === "/editor/experiences/osct/plugins/tint") return { json: { plugin: { id: "tint", source: SOURCE, size: SOURCE.length, updatedAt: "t", updatedBy: "a@b" } } };
+  if (method === "GET" && path === "/editor/experiences/osct/plugins/tint") return { json: { plugin: { id: "tint", files: [{ name: "index.ts", text: SOURCE }], size: SOURCE.length, updatedAt: "t", updatedBy: "a@b", origin: null } } };
   if (method === "PUT" && path.startsWith("/editor/experiences/osct/plugins/") && !path.endsWith("/file")) {
-    const source = (seen.body as any).source as string;
-    return { json: { plugin: { id: path.split("/").pop(), size: source.length, updatedAt: "t", updatedBy: "a@b" } } };
+    const files = (seen.body as any).files as Array<{ name: string; text: string }>;
+    return { json: { plugin: { id: path.split("/").pop(), files, size: files.reduce((n, f) => n + f.text.length, 0), updatedAt: "t", updatedBy: "a@b", origin: null } } };
   }
   if (method === "DELETE" && path === "/editor/experiences/osct/plugins/tint") return { status: 204 };
   if (method === "DELETE" && path === "/editor/experiences/osct/plugins/used") return { status: 409, json: { error: { code: "plugin-in-use", message: "in use", usages: [{ kind: "entity", ref: "castle" }] } } };
@@ -22,7 +22,7 @@ function pluginsApi(seen: Seen) {
   if (method === "GET" && path === "/editor/experiences/osct/plugins/tint/usages") return { json: { usages: [{ kind: "entity", ref: "castle" }], registers: { layers: ["tint"] } } };
   if ((method === "POST" && path.startsWith("/editor/experiences/osct/plugins")) || (method === "PUT" && path.endsWith("/file"))) {
     const id = path.includes("?id=") ? path.split("?id=")[1] : method === "PUT" ? path.split("/")[5] : "wobble-effect";
-    return { status: method === "POST" ? 201 : 200, json: { plugin: { id, source: SOURCE, size: SOURCE.length, updatedAt: "t", updatedBy: "a@b" } } };
+    return { status: method === "POST" ? 201 : 200, json: { plugin: { id, files: [{ name: "index.ts", text: SOURCE }], size: SOURCE.length, updatedAt: "t", updatedBy: "a@b", origin: null } } };
   }
   return undefined;
 }
@@ -39,7 +39,7 @@ describe("the Code tab's plugin tools", () => {
     const { rec } = setup();
     expect((await rec.call("list_plugins", { experience: "osct" })).data.plugins[0].id).toBe("tint");
     const one = await rec.call("get_plugin", { experience: "osct", plugin: "tint" });
-    expect(one.data.plugin.source).toBe(SOURCE);
+    expect(one.data.plugin.files).toEqual([{ name: "index.ts", text: SOURCE }]);
     expect(one.data.registers).toEqual({ components: [], layers: ["tint"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] });
   });
 
@@ -47,7 +47,7 @@ describe("the Code tab's plugin tools", () => {
     const { rec, seen } = setup();
     const saved = await rec.call("put_plugin", { experience: "osct", plugin: "tint", source: SOURCE });
     expect(saved.ok).toBe(true);
-    expect(seen[0]).toMatchObject({ method: "PUT", path: "/editor/experiences/osct/plugins/tint", body: { source: SOURCE } });
+    expect(seen[0]).toMatchObject({ method: "PUT", path: "/editor/experiences/osct/plugins/tint", body: { files: [{ name: "index.ts", text: SOURCE }] } });
     expect(saved.data.registers.layers).toEqual(["tint"]);
     expect(saved.data.warnings).toBeUndefined();
     expect(saved.data.open).toBe("http://localhost:5175/editor/osct/");
@@ -63,6 +63,21 @@ describe("the Code tab's plugin tools", () => {
     expect((await rec.call("delete_plugin", { experience: "osct", plugin: "tint" })).data).toEqual({ deleted: "tint" });
   });
 
+  it("saves a plugin of several files (#352)", async () => {
+    const { rec, seen } = setup();
+    // #352: a plugin of several files – all of them sent; a bare import warned, its own files not; files or source, not both
+    const several = await rec.call("put_plugin", { experience: "osct", plugin: "sea", files: [
+      { name: "index.ts", text: 'import { wave } from "./wave";\nimport WATER from "./water.frag";\nexport const register = (api: any) => api.registerComponent("sea", wave(WATER), () => ({}));\n' },
+      { name: "wave.ts", text: 'import * as THREE from "three";\nexport const wave = (w: string) => ({ description: w, params: {} });\n' },
+      { name: "water.frag", text: "void main() {}\n" },
+    ] });
+    expect((seen[0].body as any).files.map((f: { name: string }) => f.name)).toEqual(["index.ts", "wave.ts", "water.frag"]);
+    expect(several.data.plugin.files).toEqual(["index.ts", "wave.ts", "water.frag"]);
+    expect(several.data.registers.components).toEqual(["sea"]);
+    expect(several.data.warnings).toEqual([expect.stringContaining("wave.ts imports a module")]);
+    expect((await rec.call("put_plugin", { experience: "osct", plugin: "sea" })).ok).toBe(false);
+  });
+
   it("uploads a script file as a new source or a replacement (#186)", async () => {
     const { rec, seen } = setup();
     const file = join(mkdtempSync(join(tmpdir(), "osct-mcp-")), "Wobble Effect.ts");
@@ -71,7 +86,7 @@ describe("the Code tab's plugin tools", () => {
     expect(made.ok).toBe(true);
     expect(seen[0]).toMatchObject({ method: "POST", path: "/editor/experiences/osct/plugins", headers: { "X-File-Name": "Wobble Effect.ts" } });
     expect(made.data.plugin).toMatchObject({ id: "wobble-effect" });
-    expect(made.data.plugin.source).toBeUndefined();
+    expect(made.data.plugin.files).toEqual(["index.ts"]);
     expect(made.data.registers.layers).toEqual(["tint"]);
     await rec.call("upload_plugin", { experience: "osct", file, plugin: "tint" });
     expect(seen[1]).toMatchObject({ method: "POST", path: "/editor/experiences/osct/plugins?id=tint" });

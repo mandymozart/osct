@@ -7,6 +7,9 @@ import type { RunResult } from "../stage/stage-types";
  * next time; the pickers name why a type is missing.
  */
 
+/** A plugin of one file (#352) */
+const one = (text: string) => [{ name: "index.ts", text }];
+
 const SOURCES: Record<string, string> = {
   lifts: "export const register = api => { api.log('lifts'); };",
   reveal: "export const register = api => { api.log('reveal'); };",
@@ -15,9 +18,9 @@ const SOURCES: Record<string, string> = {
 
 vi.mock("../api", async original => ({
   ...(await original<typeof import("../api")>()),
-  listPlugins: async () => ({ plugins: Object.keys(SOURCES).sort().map(id => ({ id, size: 1, usages: 0, updatedAt: "", updatedBy: null })) }),
-  getPlugin: async (_experience: string, id: string) => ({ plugin: { id, source: SOURCES[id], size: 1, updatedAt: "", updatedBy: null } }),
-  putPlugin: async (_experience: string, id: string, source: string) => ({ plugin: { id, source, size: 1, updatedAt: "", updatedBy: null } }),
+  listPlugins: async () => ({ plugins: Object.keys(SOURCES).sort().map(id => ({ id, size: 1, fileCount: 1, origin: null, usages: 0, updatedAt: "", updatedBy: null })) }),
+  getPlugin: async (_experience: string, id: string) => ({ plugin: { id, files: [{ name: "index.ts", text: SOURCES[id] }], size: 1, updatedAt: "", updatedBy: null, origin: null } }),
+  putPlugin: async (_experience: string, id: string, files: Array<{ name: string; text: string }>) => ({ plugin: { id, files, size: 1, updatedAt: "", updatedBy: null, origin: null } }),
 }));
 
 const { plugins, AUTO_LOAD_TIMEOUT_MS } = await import("../plugins.svelte");
@@ -120,7 +123,7 @@ describe("a Run and a Save keep the status", () => {
     const stage = new FakeStage();
     await plugins.autoLoad(id, stage);
     const edited = SOURCES.reveal.replace("'reveal'", "'reveal, edited'");
-    expect(await plugins.run("reveal", edited, stage)).toBe(true);
+    expect(await plugins.run("reveal", one(edited), stage)).toBe(true);
     expect(plugins.status.get("reveal")).toEqual({ state: "edits" });
     // A new stage (the workspace again): the edits run there again, not the stored text
     const frame = new FakeStage();
@@ -134,8 +137,8 @@ describe("a Run and a Save keep the status", () => {
     expect(sources[0]).toContain("reveal, edited");
     expect(plugins.status.get("reveal")).toEqual({ state: "edits" });
     // Saved, the same text is the saved version
-    await plugins.save(id, "reveal", edited);
-    expect(await plugins.run("reveal", edited, stage)).toBe(true);
+    await plugins.save(id, "reveal", one(edited));
+    expect(await plugins.run("reveal", one(edited), stage)).toBe(true);
     expect(plugins.status.get("reveal")).toEqual({ state: "saved" });
   });
 
@@ -143,7 +146,7 @@ describe("a Run and a Save keep the status", () => {
     const id = nextExperience();
     const stage = new FakeStage();
     await plugins.autoLoad(id, stage);
-    expect(await plugins.run("lifts", "export const register = api => {", stage)).toBe(false);
+    expect(await plugins.run("lifts", one("export const register = api => {"), stage)).toBe(false);
     expect(plugins.status.get("lifts")).toMatchObject({ state: "failed" });
     expect(plugins.runError?.plugin).toBe("lifts");
     plugins.runError = null;

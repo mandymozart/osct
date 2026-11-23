@@ -1,18 +1,22 @@
 import { PLUGIN_API_VERSION, type PluginRegistrations } from "@engine/types";
 import type { PluginRegistrySnapshot } from "@engine/scene/plugins";
+import { PLUGIN_BUNDLE_WARN_BYTES, PLUGIN_ENTRY, type PluginFile } from "@shared/types/plugins";
 import type { CompileResult } from "#lib/plugins/compile.js";
 
 /**
- * What a publish carries of the Code tab (#78): every saved source of the experience as the browser's transpile makes it – the
- * one **Run** uses, no type check (#266) – with the plugin API it was written against and, where the source ran on the
- * stage in this session, the specs that run registered. The API puts each into the published version and declares it;
- * readers load it from the CDN like a compiled plugin.
+ * What a publish carries of the Code tab (#78): every saved plugin of the experience, its files bundled as **Run** bundles
+ * them (#352: one file transpiled, several bundled by esbuild-wasm), with the plugin API it was written against and, where
+ * it ran on the stage in this session, the specs that run registered. The API puts each into the published version and
+ * declares it; readers load it from the CDN like a compiled plugin.
+ *
+ * Before that, every file is **type-checked** (#352, the type-check half of #266): a type error stops the publish with its
+ * plugin, file and line, as the content build stops. A bundle above 256 KB is a warning, never a stop.
  */
 
 /** One carried plugin (`POST /editor/experiences/{id}/publish` → `plugins[]`) */
 export interface PublishedPlugin {
   id: string;
-  /** The module: the transpiled source, `export const register` */
+  /** The module: the bundled files, `export const register` */
   code: string;
   /** `PLUGIN_API_VERSION` */
   api: string;
@@ -20,13 +24,21 @@ export interface PublishedPlugin {
   registered?: PluginRegistrations;
 }
 
-/** A saved source: its id and text */
+/** A saved plugin: its id and files */
 export interface SavedSource {
   id: string;
-  source: string;
+  files: PluginFile[];
 }
 
-export type CarriedPlugins = { plugins: PublishedPlugin[] } | { error: string };
+/** A type error in a plugin's file */
+export interface TypeProblem {
+  plugin: string;
+  file: string;
+  line: number;
+  message: string;
+}
+
+export type CarriedPlugins = { plugins: PublishedPlugin[]; warnings: string[] } | { error: string };
 
 type SnapshotEntry = PluginRegistrySnapshot["plugins"][string];
 
@@ -43,23 +55,41 @@ export const declaredRegistrations = (entry: SnapshotEntry): PluginRegistrations
   ...(Object.keys(entry.appearances ?? {}).length ? { appearances: { ...entry.appearances } } : {}),
 });
 
+/** Type problems as the publish says them: the first, and how many more */
+export const typeProblemText = (problems: readonly TypeProblem[]): string => {
+  const [first] = problems;
+  const more = problems.length > 1 ? ` (and ${problems.length - 1} more)` : "";
+  return `The plugin ${first.plugin} has a type error in ${first.file} line ${first.line}: ${first.message}${more} – fix it in the Code tab.`;
+};
+
 /**
- * The plugins a publish carries: every saved source transpiled, in the order given. The first source that does not
- * transpile stops it – its id, line and message, so the publish step can say what to fix in the Code tab.
+ * The plugins a publish carries: every saved plugin type-checked (`typeCheck`, when given), then bundled, in the order
+ * given. The first type error or build error stops it – its plugin, file, line and message, so the publish step can say
+ * what to fix in the Code tab.
  */
 export const carriedPlugins = async (
   sources: readonly SavedSource[],
-  transpile: (source: string, name: string) => Promise<CompileResult>,
+  build: (files: readonly PluginFile[], name: string) => Promise<CompileResult>,
   registry: PluginRegistrySnapshot | null,
+  typeCheck?: (sources: readonly SavedSource[]) => Promise<TypeProblem[]>,
 ): Promise<CarriedPlugins> => {
+  if (typeCheck && sources.length) {
+    const problems = await typeCheck(sources);
+    if (problems.length) return { error: typeProblemText(problems) };
+  }
   const plugins: PublishedPlugin[] = [];
-  for (const { id, source } of sources) {
-    const result = await transpile(source, id);
+  const warnings: string[] = [];
+  for (const { id, files } of sources) {
+    const result = await build(files, id);
     if ("error" in result) {
-      return { error: `The plugin ${id} does not compile${result.error.line ? ` (line ${result.error.line})` : ""}: ${result.error.message} – fix it in the Code tab.` };
+      const { file, line, message } = result.error;
+      const where = `${file && file !== PLUGIN_ENTRY ? ` in ${file}` : ""}${line ? ` (line ${line})` : ""}`;
+      return { error: `The plugin ${id} does not build${where}: ${message} – fix it in the Code tab.` };
     }
+    const bytes = new TextEncoder().encode(result.code).length;
+    if (bytes > PLUGIN_BUNDLE_WARN_BYTES) warnings.push(`${id} is ${Math.round(bytes / 1024)} KB bundled – readers download it with the AR scene`);
     const ran = registry?.plugins[id];
     plugins.push({ id, code: result.code, api: PLUGIN_API_VERSION, ...(ran ? { registered: declaredRegistrations(ran) } : {}) });
   }
-  return { plugins };
+  return { plugins, warnings };
 };
