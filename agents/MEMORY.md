@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – One workspace shell for the editor, after SCUTOONS (#356)
+- Tilman: *"maybe it is time to rethink the dashboard and make it merely a stage without the 3d scene in the background.
+  this way we can also load the landing page. look at how scutoon is using the panels and the stage now. lets adopt the
+  basic concept"*; concept `agents/design/workspace-shell.html`, *"Yes, as recommended"*: the stage is the whole window,
+  the address decides what it shows, panels float over it; three workspaces – Experiences (`/editor/`, a page of
+  books), scene (3D engine), landing (`/editor/<experience>/landing/`, the reader's landing live; hero scene/surface,
+  shop items, publisher in the Inspector, stored in the experience). The Experiences page is a workspace, not an overlay.
+- Order: (a) lift the shell out of the scene page (`editor/src/lib/components/Workspace.svelte`, 6.7.1, nothing visible
+  changes) · (b) the landing workspace + content fields (#355) · (c) the Experiences page into the shell.
+- Tilman: *"try here offline so we can see if this works nicely. and only then push, because they are editing atm"* –
+  the work is on `feature/356-workspace-shell` (worktree `../osct-356`), checked locally (editor on 5186, API on 8086)
+  before it goes to develop.
+
 ## 2026-11-23 – A plugin is a folder of files: file tabs in the Code tab (#352, decided, not built)
 - Tilman: *"folders in the tab … allow us to see what a plugin is made of … download would make them distributable"* ·
   *"no file tree. just file tabs. like shader toy"* · shaders: *"Keep both"* (the plugin's own tabs and the Library's shared
