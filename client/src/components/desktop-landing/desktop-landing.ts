@@ -6,7 +6,7 @@ import { bookCoverUrl } from "@/utils/book-cover";
 import { getExperience, getScenes } from "@/utils/game-config";
 import { ONBOARDING_ICON_SRC } from "@/utils/static-splash-html";
 import "@/components/settings";
-import { isDesktopVisitor, landingSkipped, readDeviceSignals, skipLanding } from "./desktop-visitor";
+import { isDesktopVisitor, isLandingFreePath, landingSkipped, readDeviceSignals, skipLanding } from "./desktop-visitor";
 import { LANDING_CONFIG, type LandingConfig } from "./landing-config";
 import { LANDING_ATTRIBUTE, renderLanding, STATIC_LANDING_ID, type LandingTexts } from "./landing-html";
 
@@ -51,7 +51,7 @@ export class DesktopLanding extends HTMLElement {
   }
 
   connectedCallback() {
-    this.shown = isDesktopVisitor(readDeviceSignals()) && !landingSkipped();
+    this.shown = isDesktopVisitor(readDeviceSignals()) && !landingSkipped() && !isLandingFreePath(location.pathname);
     this.toggleAttribute("hidden", !this.shown);
     if (!this.shown) {
       removeStaticLanding();
@@ -161,7 +161,7 @@ export class DesktopLanding extends HTMLElement {
       shop: t("landing:shop"), shopBook: t("landing:shopBook"), shopShirt: t("landing:shopShirt"), toShop: t("landing:toShop"),
       previewAlt: t("landing:previewAlt"), kicker: t("landing:kicker"), scan: t("landing:scan"), qrAlt: t("landing:qrAlt"),
       step1Title: t("landing:step1Title"), step1: t("landing:step1"), step2Title: t("landing:step2Title"), step2: t("landing:step2"),
-      step3Title: t("landing:step3Title"), step3: t("landing:step3"),
+      step3Title: t("landing:step3Title"), step3: t("landing:step3"), privacy: t("landing:privacy"),
     };
     this.shadowRoot.innerHTML = renderLanding({
       ...this.config,
@@ -171,6 +171,7 @@ export class DesktopLanding extends HTMLElement {
       publisher: experience.book?.publisher ?? "",
       images: getScenes().flatMap(scene => scene.targets.map(target => target.imageSrc)),
       markSrc: ONBOARDING_ICON_SRC,
+      privacyHref: `${experiencePrefix()}/privacy`,
     });
     const address = this.shadowRoot.querySelector(".address");
     if (address) address.textContent = location.host;

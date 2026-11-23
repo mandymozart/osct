@@ -222,6 +222,7 @@ function staticLanding(experience, config, contentBase) {
           publisher: fields.publisher,
           images: landingImages(config, url),
           markSrc: ONBOARDING_ICON_SRC,
+          privacyHref: experience ? `/${experience}/privacy` : '/privacy',
         }));
     },
   };

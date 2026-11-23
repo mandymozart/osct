@@ -98,6 +98,7 @@ export class ReaderApp extends HTMLElement {
     <pages-router>
       <about-page></about-page>
       <credits-page></credits-page>
+      <privacy-page></privacy-page>
       <scene-page></scene-page>
       <splash-page></splash-page>
       <entries-page></entries-page>

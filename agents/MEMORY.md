@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – Privacy & terms: one page in the reader, under Dutch law (#353, 6.6.0)
+- Tilman: *"terms and conditions, privacy and applicable to european law. building fictions is based in Amsterdam"*;
+  concept `agents/design/privacy-terms.html`, *"build as sketched"*. Details from buildingfictions.com/About and /Terms:
+  Building Fictions, Lauriergracht 116W, 1016 RR Amsterdam, KvK 58614796, info@buildingfictions.com (`PUBLISHER` in
+  `client/src/pages/privacy-page.ts`). The text is the app's (`privacy` translations), not the book content's.
+- The desktop landing stays away from `/privacy` (`LANDING_FREE_PAGES`, in the inline decision too) – its footer links there.
+- [ ] Building Fictions (or a lawyer) checks the wording before release; change `PRIVACY_CHANGED` with every change of meaning.
+- [ ] Not named on the page because not known: the server's hosting provider and how long server logs are kept – add
+      them once decided (production server, #9). The page says "a hosting provider" and "only as long as needed".
+- [ ] White-label instances need their own publisher and text (STRATEGY) – not now.
+
 ## 2026-11-23 – Other sites' videos and pages wait for the reader's yes (#351, 6.5.0)
 - Tilman: *"a player that embeds the youtube but asks to confirm since this is third party embed which does tracking a
   cookies. like big newspapers do this with a disclaimer that has to be confirmed before loading the iframe"*. Concept
@@ -12,8 +23,8 @@ outcome in the line (or move it into a dated decision block).
   `image` as the card's poster (never the provider's thumbnail).
 - Consent is per device (`osct-embed-consent` in localStorage), not on the account – RULES #33's consent is the account's
   newsletter options; this one is the browser's own, like the other reader settings.
-- [ ] The card's wording is a placeholder – the final text with whoever writes the app's privacy page (and that page
-      should name YouTube / Vimeo as third parties loaded on request).
+- [x] The app's privacy page names YouTube / Vimeo as loaded on request and the card links to it (#353, 6.6.0); the card's
+      wording is checked together with that page.
 
 ## 2026-11-22 – Which PDF is the book: the final preview spreads, not the litho print (#349)
 - Tilman's *very final* version is `OSCT_FULL_preview_spreads_HIGHRES.pdf` (Virginie's Dropbox "Higher Res Exports for

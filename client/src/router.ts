@@ -35,6 +35,11 @@ export const router: PageRouterConfiguration = {
       mode: GameMode.CONSULTATION,
     },
     {
+      page: Pages.PRIVACY,
+      slug: "/privacy",
+      mode: GameMode.CONSULTATION,
+    },
+    {
       page: Pages.TUTORIAL,
       slug: "/tutorial",
       mode: GameMode.IDLE,

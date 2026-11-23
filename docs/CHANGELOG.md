@@ -8,6 +8,18 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.6.0 – 2026-11-23
+
+### Added
+- **Privacy & terms** (Tilman, 2026-11-23, #353: *"its a super simple page and needs to be accessible from the info page
+  and landing page. terms and conditions, privacy and applicable to european law. building fictions is based in
+  Amsterdam"*): one page at `/privacy` – who is responsible (Building Fictions, Lauriergracht 116W, Amsterdam, KvK
+  58614796), what the app does with data (no tracking, the device's storage, the account, who processes data for us,
+  other sites' videos only after a tap, the reader's rights under the GDPR) and the terms of use under Dutch law, in
+  English, German, French and Dutch. Linked from the Info page (under the credits and after the © line), the desktop
+  landing's footer and the consent card of another site's video (#351). A computer opening `/privacy` gets the page,
+  not the landing in front of it. The text is a draft for Building Fictions to check before release.
+
 ## 6.5.0 – 2026-11-23
 
 ### Added

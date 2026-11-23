@@ -15,5 +15,6 @@
   "embedPolicy": "Datenschutzerklärung von {{provider}}",
   "embedPlay": "Video abspielen",
   "embedShow": "Seite anzeigen",
-  "embedAlways": "Immer für {{provider}}"
+  "embedAlways": "Immer für {{provider}}",
+  "embedOurPolicy": "Unsere Datenschutzhinweise"
 }

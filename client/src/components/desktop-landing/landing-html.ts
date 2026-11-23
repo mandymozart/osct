@@ -49,7 +49,8 @@ export const pick = <T>(items: readonly T[], count: number, seed = 324): T[] => 
 /** The texts of the `landing` i18n namespace, translated; `intro` with the title and the author filled in (escaped) */
 export type LandingTexts = Record<
   | "label" | "intro" | "getApp" | "openOnPhone" | "openHere" | "openHereNote" | "shop" | "shopBook" | "shopShirt" | "toShop"
-  | "previewAlt" | "kicker" | "scan" | "qrAlt" | "step1Title" | "step1" | "step2Title" | "step2" | "step3Title" | "step3",
+  | "previewAlt" | "kicker" | "scan" | "qrAlt" | "step1Title" | "step1" | "step2Title" | "step2" | "step3Title" | "step3"
+  | "privacy",
   string
 >;
 
@@ -63,6 +64,8 @@ export interface LandingSource extends LandingConfig {
   images: readonly string[];
   /** The Mark over the title (`ONBOARDING_ICON_SRC`) */
   markSrc: string;
+  /** The footer's "Privacy & terms" (#353): the app's `/privacy` below the experience's path – the landing stays away there */
+  privacyHref?: string;
 }
 
 /** The book's images of a game configuration as `getScenes()` lists its targets: scene order, switched-off targets left out */
@@ -247,7 +250,7 @@ export const LANDING_CSS = /* css */ `
  * page's host), the QR code (`.qr-code`), the install button (`<settings-install>`), the book's cover.
  */
 export const renderLanding = (source: LandingSource): string => {
-  const { texts, title, author, publisher, previewImage, previewVideo, shop } = source;
+  const { texts, title, author, publisher, previewImage, previewVideo, shop, privacyHref = "/privacy" } = source;
   const preview = previewVideo
     ? `<video src="${escapeHtml(previewVideo)}" poster="${escapeHtml(previewImage)}" autoplay muted loop playsinline aria-label="${texts.previewAlt}"></video>`
     : `<img src="${escapeHtml(previewImage)}" alt="${texts.previewAlt}" />`;
@@ -313,7 +316,7 @@ export const renderLanding = (source: LandingSource): string => {
         <footer>
           <div class="wrap muted small">
             <span>${escapeHtml(title)}${author ? ` · ${escapeHtml(author)}` : ""}</span>
-            ${publisher ? `<span>${escapeHtml(publisher)}</span>` : ""}
+            <span>${publisher ? `${escapeHtml(publisher)} · ` : ""}<a href="${escapeHtml(privacyHref)}">${texts.privacy}</a></span>
           </div>
         </footer>
       </main>

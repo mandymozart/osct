@@ -36,6 +36,15 @@ export const readDeviceSignals = (win: Window = window): DeviceSignals => {
   };
 };
 
+/** The pages a computer opens directly, without the landing in front (#353): `privacy`, linked from the landing's footer */
+export const LANDING_FREE_PAGES: readonly string[] = ["privacy"];
+
+/** Whether the path's last segment is one of `LANDING_FREE_PAGES` (`/osct/privacy`, `/privacy/`) */
+export const isLandingFreePath = (pathname: string): boolean => {
+  const last = pathname.split("/").filter(Boolean).pop()?.toLowerCase();
+  return last !== undefined && LANDING_FREE_PAGES.includes(last);
+};
+
 /** The visitor chose "open here" in this tab (sessionStorage: a new visit shows the landing page again) */
 export const landingSkipped = (): boolean => {
   try {

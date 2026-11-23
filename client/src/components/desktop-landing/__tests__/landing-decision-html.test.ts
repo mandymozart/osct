@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { activeExperience } from "@/utils/experience-path";
-import { isDesktopVisitor, LANDING_SKIPPED_KEY, landingSkipped, readDeviceSignals } from "../desktop-visitor";
+import { isDesktopVisitor, isLandingFreePath, LANDING_SKIPPED_KEY, landingSkipped, readDeviceSignals } from "../desktop-visitor";
 import { landingDecisionData, landingDecisionSource, renderLandingDecision } from "../landing-decision-html";
 import { LANDING_ATTRIBUTE } from "../landing-html";
 
@@ -75,6 +75,16 @@ describe("the inline landing decision", () => {
   it.each(PATHS)("on %s (default %s): only the default experience's path shows it", (path, fallback) => {
     const expected = activeExperience(path, fallback || null) === (fallback || null);
     expect(decide({ queries: [WIDE] }, false, path, fallback).shown).toBe(expected);
+  });
+
+  it.each(["/osct/privacy", "/privacy", "/osct/Privacy/", "/demo/privacy"])("stays away from %s, the page the footer links to (#353)", path => {
+    expect(decide({ queries: [WIDE] }, false, path).shown).toBe(false);
+    expect(isLandingFreePath(path)).toBe(true);
+  });
+
+  it("still shows on other pages that only contain the word", () => {
+    expect(decide({ queries: [WIDE] }, false, "/osct/privacy/x").shown).toBe(true);
+    expect(isLandingFreePath("/osct/privacy/x")).toBe(false);
   });
 
   it("repeats desktop-visitor's constants", () => {

@@ -34,6 +34,11 @@ describe("the landing page's markup (#343)", () => {
     expect(texts.getApp).toBe(en.getApp);
   });
 
+  it("links Privacy & terms in the footer, below the experience's path (#353)", () => {
+    expect(renderLanding(source())).toContain(`<a href="/privacy">${en.privacy}</a>`);
+    expect(renderLanding(source({ privacyHref: "/osct/privacy" }))).toContain('<a href="/osct/privacy">');
+  });
+
   it("scatters a stable pick of the images, at most one per spot", () => {
     const html = renderLanding(source());
     const floats = html.match(/class="float"/g) ?? [];
@@ -50,7 +55,7 @@ describe("the landing page's markup (#343)", () => {
     expect(html.match(/class="step"/g)).toHaveLength(3);
     expect(html).toContain(goldButton({ label: en.openHere, shape: "button", primary: true, attrs: { "data-action": "continue" } }));
     LANDING_CONFIG.shop.forEach(item => expect(html).toContain(`href="${item.url}"`));
-    expect(html).toContain("<span>Onion Skin &amp; Crocodile Tears · Kévin &lt;Bray&gt;</span><span>Building Fictions</span>".replace("</span><span>", "</span>\n            <span>"));
+    expect(html).toContain(`<span>Onion Skin &amp; Crocodile Tears · Kévin &lt;Bray&gt;</span>\n            <span>Building Fictions · <a href="/privacy">${en.privacy}</a></span>`);
     expect(html).toContain('<span class="address gold"></span>');
   });
 });

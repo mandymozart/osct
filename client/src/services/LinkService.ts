@@ -16,6 +16,7 @@ import { parseAddress } from "@shared/types/address";
  *   /tutorial/<step>           onboarding step
  *   /about                     info
  *   /credits                   image credits (#292)
+ *   /privacy                   privacy & terms (#353)
  *   …?osct=<version>           the app version the link was made with
  *   (`/osct/scene/s1`, `/demo/entry/<id>` – an address without an experience is moved to one before
  *   the app starts: utils/experience-path.ts `redirectLegacyAddress`)
@@ -115,6 +116,7 @@ export const resolveLink = (game: IGame, link: Link): boolean => {
     case "/":
     case "/about":
     case "/credits":
+    case "/privacy":
       if (value !== undefined) return notFound();
       game.router.navigate(slug);
       return true;
