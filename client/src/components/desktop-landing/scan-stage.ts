@@ -96,7 +96,7 @@ const FEED_WIDTH = 640;
  */
 const PHONE_REST = { position: new Vector3(0, -0.58, -0.012), quaternion: new Quaternion().setFromEuler(new Euler(0, 0, -Math.PI / 2)) };
 const PHONE_ARRIVAL = { at: INTRO.hold, slide: 2.8, from: new Vector3(0, -0.9, 0) };
-const PHONE_RISE = 1.6;
+const PHONE_RISE = 2;
 /**
  * The app's scanning indicator on the screen (agents/DESIGN.md §6, `.gold-scanning`): a thin circle, 62 % of the
  * screen's width, whose gold fades in from transparent and sweeps around once in `turn` seconds
@@ -417,6 +417,7 @@ export class ScanStage {
   private pageText: Mesh | null = null;
   /** How much the phone's camera keeps to the target's middle: 0 held over the book, 1 pulled all the way to the eye */
   private stick = 0;
+  private risen = false;
   /** The middle of what stands on the target (the model's box), in the stage's space */
   private readonly centre = new Vector3(0, 0, LOOK_HEIGHT);
   private textDirty = true;
@@ -999,11 +1000,16 @@ export class ScanStage {
     if (scanning) {
       if (this.steering && seconds - this.mouseAt > IDLE_S) this.steer(false);
       const following = this.steering && this.mouse !== null;
-      const wanted = following ? this.mouse! : this.autopilot(seconds - this.introEnd);
+      const wanted = following ? this.mouse! : this.autopilot(seconds - this.introEnd + LOOP_S * 0.15);
+      if (!this.risen) {
+        // It rises from where it lay, straight onto the book – not by way of the side
+        this.risen = true;
+        this.aim.set(PHONE_REST.position.x, PHONE_REST.position.y + 0.25);
+      }
       if (this.still) this.aim.copy(wanted);
       else this.aim.lerp(wanted, 1 - Math.exp(-(following ? 7 : 3) * delta));
       this.near = MathUtils.damp(this.near, this.steering ? 1 : 0, 5, delta);
-      onPage = this.placePhone(seconds);
+      onPage = this.placePhone(seconds, delta);
       this.scan();
     }
     if (this.celebration && !this.celebration.update(delta)) {
@@ -1017,7 +1023,7 @@ export class ScanStage {
   }
 
   /** The phone between the eye and the page point it looks at, held over the book rather than flat to the viewer */
-  private placePhone(seconds: number): Vector3 {
+  private placePhone(seconds: number, delta: number): Vector3 {
     const onPage = new Vector3(this.aim.x, this.aim.y, 0);
     const sight = this.camera.position.clone().sub(onPage).normalize();
     // Steered, it is held nearer – and dragged down, towards the visitor, it comes up to the eye ("its more a pulling
@@ -1029,12 +1035,13 @@ export class ScanStage {
     // Held over the book its top leans away; pulled to the eye, its top comes towards the visitor
     const toEye = smooth(Math.min(1, (pull / PHONE.pull) * 1.6)) * smooth(this.near);
     // Held far off the book – beyond its top or its sides – the camera turns back to what stands on it as well
-    const off = Math.max((this.aim.y - 0.12) / 0.45, (Math.abs(this.aim.x) - 0.3) / 0.45);
-    this.stick = Math.max(toEye, smooth(off) * smooth(this.near));
-    // Its back keeps towards what its camera looks at: dragged to a side, it turns towards the focus
-    // – gently: a hand's turn, not a swivel
-    const aside = (MathUtils.lerp(this.aim.x, this.centre.x, this.stick) - this.aim.x) * 0.4;
-    this.phone.rotateY(-MathUtils.clamp(aside, -0.32, 0.32));
+    // – over a long way and eased once more, so the picture drifts there instead of snapping
+    const off = Math.max((this.aim.y - 0.05) / 0.6, (Math.abs(this.aim.x) - 0.15) / 0.75);
+    this.stick = MathUtils.damp(this.stick, Math.max(toEye, smooth(off) * smooth(this.near)), 5, delta);
+    // Steered, its back keeps towards what stands on the book: it turns with every bit it is moved aside – from the
+    // first, evenly, levelling off (a hand's turn, not a swivel)
+    const aside = Math.tanh((this.centre.x - this.aim.x) / 0.7) * 0.3 * smooth(this.near);
+    this.phone.rotateY(-aside);
     this.phone.rotateX(-0.4 + 0.6 * toEye);
     this.phone.rotateZ(Math.sin(seconds * 0.5) * 0.035);
     // It comes up from where it lay beside the book
