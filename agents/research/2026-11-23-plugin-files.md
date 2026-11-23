@@ -1,5 +1,6 @@
-Status 2026-11-23: **decided** (Tilman, #352), not built. Design only, no code changed. Draft:
-`agents/design/plugin-files.html` (frames `#tabs #add #linked`, `?shot` hides the notes).
+Status 2026-11-23: **decided** (Tilman, #352) and **built in 6.9.0** on `feature/352-plugin-files` (worktree
+`osct-352`) for Tilman's review offline – not merged, not pushed. Draft: `agents/design/plugin-files.html` (frames `#tabs
+#add #linked`, `?shot` hides the notes). How it was built: "Built (6.9.0)" at the end.
 
 # Plugins with more than one file – file tabs in the Code tab
 
@@ -63,8 +64,10 @@ download. The files are the truth; a bundle is only ever made from them.
 2. **Shaders: both.** A shader in the plugin's tabs is its own, imported as a string (`import WATER from "./water.frag"`
    – esbuild's text loader; works for a layer's GLSL too). The Library keeps shaders several plugins share
    (`api.loadText`, its uses count, Replace… as today).
-3. **Export and import carry the sources**: each plugin `{ id, files: [{ name, text }] }` in place of `{ id, source }` –
-   a schema cut (MAJOR, no backward compatibility before Tokyo, migrate stored sources to one `index.ts` file each).
+3. **Export and import carry the sources**: each plugin `{ id, files: [{ name, text }] }` in place of `{ id, source }`.
+   (Built: the export file's `formatVersion` 2 – no content schema MAJOR was needed, the configuration's `plugins` list
+   is unchanged; content schema 6.1 only for the file rules in `shared/`. Stored sources need no migration: `source`
+   stays the `index.ts`.)
    The bundle doesn't travel: a published version holds its `plugin-<hash>.js`, an import rebuilds from the files.
 4. **The Code tab's files are the truth.** The CLI links an IDE folder: `osct plugin link <experience> <id>`, then
    `push` / `pull` – just another way to save them; every push runs on the stage. The content build bundles the same
@@ -105,3 +108,31 @@ download. The files are the truth; a bundle is only ever made from them.
 - Whether a GLSL include (`.glsl`) can `#include` another tab, or only be imported as a string into TypeScript and
   joined there – decide when building (esbuild only does the latter).
 - Whether sucrase stays for one-file plugins (no wasm at all for small plugins) or esbuild-wasm does every Run.
+
+## Built (6.9.0, 2026-11-23)
+
+Tilman: *"built this locally and let me review it offline"*. On `feature/352-plugin-files` (develop merged in, 6.8.0 →
+6.9.0), every suite green; checked in the running editor against the worktree's own API and database.
+
+- **Server** (`Plugins.php`): `source` stays the `index.ts`, `files_json` the other files, `origin_json` the link
+  (`ALTER TABLE … ADD COLUMN`, `Db::migrate`); the API answers `files`, `PUT` takes `files` or `source` and `origin`;
+  `Plugins::texts` for registers and the Library's uses, `Plugins::replaceText` for Replace…; the export file format 2,
+  the archive writes every file; the import takes `{ id, files }` (and `{ id, source }`).
+- **Editor**: `CodePanel.svelte` – tabs, + menu, rename (double-click, F2), × deletes, drops, a zip → a new plugin, the
+  linked strip, the bundle size; `plugins/bundle.ts` – one file through sucrase, several through esbuild-wasm 0.25.2
+  (the content build's esbuild pinned to the same); `monaco.ts` – a model per file, the shader imports' types,
+  `typeCheckPlugins` for Publish; `publish-plugins.ts` – type check, then bundle, the 256 KB warning; the Library takes a
+  plugin's zip and lists a plugin of several files as its folder; make it code copies a plugin's other files along.
+- **Content build**: shader files through esbuild's `text` loader, `shared/types/plugin-shader-files.d.ts` in the type
+  check, the files' rules as errors, `files.json` next to `plugin.js` (the Code tab opens a compiled plugin with all its
+  files – the trap is gone).
+- **CLI**: `osct plugin link / push [--watch] [--force] / pull` (`scripts/src/lib/plugin-link.ts`); push type-checks
+  first; `osct plugins listen` rewrites every `.ts` of a plugin.
+- **MCP**: `get_plugin` / `put_plugin` with files (or `source`), `list_plugins` with `fileCount` and `origin`.
+
+Decided while building (*mine*, to review):
+- A one-file plugin keeps sucrase (no wasm for small plugins) – the second open point above.
+- `.glsl` is a file imported as a string like the others; no `#include` between tabs.
+- Unlink sends the *stored* files back with `origin: null`, so unsaved edits stay edits.
+- The editor still reads an export file of format 1 (one line) – an export on someone's disk keeps working.
+- The demo's aquarium is **not** split yet: `fixtures/demo` is staging's export, splitting it is content work on staging.

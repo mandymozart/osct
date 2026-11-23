@@ -17,15 +17,20 @@ outcome in the line (or move it into a dated decision block).
   the work is on `feature/356-workspace-shell` (worktree `../osct-356`), checked locally (editor on 5186, API on 8086)
   before it goes to develop.
 
-## 2026-11-23 – A plugin is a folder of files: file tabs in the Code tab (#352, decided, not built)
+## 2026-11-23 – A plugin is a folder of files: file tabs in the Code tab (#352, built in 6.9.0, in review)
+- Built on `feature/352-plugin-files` (worktree `osct-352`) for Tilman's offline review – not merged into develop, not
+  pushed. Content schema 6.1 (the file rules in `shared/`), export file format 2; no MAJOR was needed (correcting the
+  line below). What was decided while building: `agents/research/2026-11-23-plugin-files.md` "Built".
 - Tilman: *"folders in the tab … allow us to see what a plugin is made of … download would make them distributable"* ·
   *"no file tree. just file tabs. like shader toy"* · shaders: *"Keep both"* (the plugin's own tabs and the Library's shared
   ones). Option A over B (opaque uploaded bundles): the files are the truth everywhere; esbuild-wasm bundles in the
   browser, Monaco's TS worker type-checks at Publish (half of #266); `osct plugin link/push/pull` from an IDE; no versions
   of our own; 256 KB per file hard, bundle warning at 256 KB, 1 MB per plugin. Export carries `{ id, files }` (schema MAJOR).
   Note: `agents/research/2026-11-23-plugin-files.md`; draft `agents/design/plugin-files.html`.
-- [ ] Today's trap until it's built: a multi-file plugin from the content build opens as its `index.ts` alone; Save
-  makes a stored copy whose sibling import fails at Run and Publish.
+- [x] Today's trap until it's built: a multi-file plugin from the content build opens as its `index.ts` alone; Save
+  makes a stored copy whose sibling import fails at Run and Publish – gone in 6.9.0 (`files.json` next to `plugin.js`).
+- [ ] The demo's aquarium as the example of several files (its fluid, its shaders) – content work on staging after the
+  merge.
 
 ## 2026-11-23 – The desktop landing: a computer never enters; a 3D scan stage in the hero (#354, 6.7.0)
 - Tilman: *"the desktop does not allow to enter the experience. you need to switch to phone or tablet. and you cant

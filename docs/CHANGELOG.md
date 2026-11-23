@@ -8,6 +8,33 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.9.0 – 2026-11-23
+
+### Added
+- **A plugin can have more than one file** (#352, Tilman: *"for a plugin do we have an option to have more than one file
+  belong to one plugin?"*). A plugin is a folder: `index.ts` and the TypeScript and shader files next to it. TypeScript
+  imports its siblings by `./name`; a shader file (`.frag`, `.vert`, `.glsl`, `.wgsl`) comes in as a string, so a
+  layer's GLSL can live in a file of its own too. Shaders several plugins share stay in the Library.
+- **File tabs in the Code tab**, like Shadertoy's (*"no file tree. just file tabs"*): `index.ts` first, then the
+  plugin's other files. **+** adds a file or uploads some, a double-click renames one, **×** deletes it (Save makes it
+  stick). Dropping files on the tabs adds them, and a plugin's zip makes a new plugin, so a Download can be passed on.
+  The status line names the files and the bundle's size.
+- **Run and Publish bundle a plugin in the browser** (esbuild-wasm, the same version as the content build). Publish
+  now **type-checks** every file first and stops on a type error, naming the plugin, file and line. A bundle above
+  256 KB is a warning.
+- **`osct plugin link`, `push` and `pull`**: a plugin developed in your own folder and tools. A push type-checks and
+  sends the files, the stage runs them, and the Code tab shows the plugin as *linked* to that folder. Editing it in the
+  editor is still allowed, and `pull` takes those edits back.
+
+### Changed
+- The API answers a plugin with its `files`; `PUT …/plugins/{pid}` takes `files` (or `source` for one file) and an
+  optional `origin`. The export file is format 2 (`sources: [{ id, files }]`); the editor still reads format 1.
+- Content schema 6.1: the plugin file rules in `shared/`. The configuration's `plugins` list is unchanged, so content
+  of 6.0 apps needs nothing.
+- The MCP tools `get_plugin` and `put_plugin` work with files; `osct plugins listen` rewrites every TypeScript file of
+  a plugin.
+
+
 ## 6.8.0 – 2026-11-23
 
 ### Added

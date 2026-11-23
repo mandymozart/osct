@@ -24,6 +24,13 @@ $mysql = getenv('OSCT_TEST_DB') === 'mysql' ? [
     'prefix' => 'osct_test_' . bin2hex(random_bytes(3)) . '_', 'created' => [],
 ] : null;
 
+/** The content schema the API writes now (Editor::CONTENT_SCHEMA), read from its source – the migrations' target */
+function current_schema(): string
+{
+    preg_match("/CONTENT_SCHEMA = '([0-9.]+)'/", (string) file_get_contents(dirname(__DIR__) . '/api/src/Editor.php'), $match);
+    return $match[1] ?? '';
+}
+
 function check(bool $ok, string $what): void
 {
     global $failures;
@@ -3329,8 +3336,8 @@ try {
     $experience = json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'osct'")->fetchColumn(), true);
     check($experience === ['id' => 'osct', 'title' => 'Onion Skin', 'book' => ['author' => 'Kévin Bray', 'publisher' => 'Building Fictions'], 'passes' => []],
         'the experience: author and publisher in book (after the title), no sourceOfTruth');
-    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '6.0'
-        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (6.0) now, an older one stays refused');
+    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === current_schema()
+        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema now, an older one stays refused');
     check(json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'wall'")->fetchColumn(), true) === ['id' => 'wall', 'title' => 'A wall', 'book' => ['author' => 'Nobody']],
         'an experience without a publisher: book { author }');
     $sign = json_decode($v3Db->query("SELECT data_json FROM entities WHERE ref = 'sign'")->fetchColumn(), true);
@@ -3363,7 +3370,7 @@ try {
     check($status === 200 && $data['experience']['experience']['book']['author'] === 'Kévin Bray' && count($data['scenes']) === 1 && $data['scenes'][0]['entries'][0]['id'] === 'e1',
         'the migrated experience opens in the editor');
     [$status, $manifest] = call($v3Api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $v3Session);
-    check($status === 200 && $manifest['schema'] === '6.0', 'its draft is of the current content schema (6.0)');
+    check($status === 200 && $manifest['schema'] === current_schema(), 'its draft is of the current content schema');
     [$status] = call($v3Api, 'GET', '/editor/experiences/wall', null, $v3Session);
     check($status === 409, 'the 2.x experience stays refused (409 old-schema)');
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);
@@ -3442,10 +3449,10 @@ try {
     check($door['children'][0]['components'][0] === $expected, 'every condition in a node tree an expression: == / != / && / ||, texts quoted, not set → a truth test, no tests → none, a text kept, an unwritable one kept');
     check($first5['entities'][1]['data_json'] === $before5['entities'][1]['data_json'], 'a row without a rule is not touched');
     $byId5 = array_column($first5['experiences'], null, 'id');
-    check($byId5['four']['content_schema'] === '6.0', 'a 4.x experience is of the current schema (6.0) now');
+    check($byId5['four']['content_schema'] === current_schema(), 'a 4.x experience is of the current schema now');
     $five = $byId5['five'];
-    check($five['content_schema'] === '6.0' && json_decode((string) $five['plugins_json'], true)[0]['registered']['components']['hum']['uses'] === ['listens' => ['doorOpened'], 'sets' => ['hummed']],
-        'a 5.x experience is 6.0, the recorded uses.hears of its declared plugin is uses.listens (#341)');
+    check($five['content_schema'] === current_schema() && json_decode((string) $five['plugins_json'], true)[0]['registered']['components']['hum']['uses'] === ['listens' => ['doorOpened'], 'sets' => ['hummed']],
+        'a 5.x experience is of the current schema, the recorded uses.hears of its declared plugin is uses.listens (#341)');
     check(json_decode((string) $byId5['four']['experience_json'], true)['variables'] === ['mood' => ['type' => 'string', 'scope' => 'stage'], 'tries' => ['type' => 'number']],
         'its variables declared from their sets: a type, the scope when every set names the same one; a conflict not declared');
     $changes5 = array_column($first5['changes'], null, 'id');

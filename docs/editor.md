@@ -1736,7 +1736,15 @@ target or node closes it.
 
 The experience's own code ([the decision](../agents/research/2026-10-29-code-in-the-editor.md), `panels/CodePanel.svelte`;
 writing a plugin: [plugins](plugins.md)): the plugins stored for the experience and the ones the content declares (compiled by
-the content build – opening one reads its `index.ts` next to the compiled module; Save keeps a copy). The picker names
+the content build – opening one reads its files next to the compiled module, `files.json` naming them; Save keeps a copy).
+A plugin is a folder of files (#352, 6.9.0): **one tab per file** under the picker, like Shadertoy's – `index.ts` first
+(the entry: no ×, no rename), the others after it; a double-click (or F2) renames one, **×** deletes it (unsaved until
+Save), **+** at the right edge adds a TypeScript file, a fragment or vertex shader, a GLSL include or WGSL, or uploads
+files; a drop on the tabs adds files, a plugin's zip makes a new plugin (its id from the zip's folder). A Run's error
+brings its file's tab forward and marks its line there. A plugin pushed from someone's folder (`osct plugin push`,
+[plugins](plugins.md) "Your own folder") shows a strip *linked · ben's folder `aquarium`, pushed 2 min ago* with
+**Unlink**; editing it here is allowed. The status line adds the files' count and the last bundle's size – above 256 KB
+in red (`plugins.bundleSize`). The picker names
 each by its name alone, the one with unsaved edits with an asterisk (*aquarium\**, #232: unchanged needs no mark, and
 whether readers have the stored sources is the top bar's *draft only* / *live on …*); the open source is kept while
 another tab shows (`plugins.code`), so a tab switch loses no edit.
@@ -1744,8 +1752,11 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
 - **The editor** is **Monaco** (loaded with the tab only – the reader and the other tabs carry nothing of it):
   TypeScript with the content build's compiler options against `plugin-api.d.ts` (the module `osct-plugin-api`) and
   three's own types, so completion, hover documentation and type errors inline are the build's; Tab indents,
-  Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day / night tokens. **Download** gives the plugin's
-  folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`).
+  Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day / night tokens. Every file of the open plugin is
+  a model of its own (`file:///plugins/<id>/<name>`), so `./fluid` resolves and type-checks across the tabs and a
+  shader import is a string. **Download** gives the plugin's folder as a zip (its files, `plugin-api.d.ts`,
+  `shader-files.d.ts`, a `tsconfig.json`). **Run** bundles the files (`plugins/bundle.ts`: one file through sucrase,
+  several through esbuild-wasm – its wasm loads with the first Run of a plugin with more than one file).
 - **The saved sources are part of the live stage** (#269): every stage that starts – the workspace opens – gets each
   stored source the guard did not keep off by itself (#340, [The plugin guard](#the-plugin-guard), `plugins.autoLoad`):
   the text last run in this page if there is one, else the saved one, transpiled and installed one after the other –

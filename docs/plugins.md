@@ -1,7 +1,8 @@
 # Writing a plugin: the experience's own code
 
 A plugin adds something to the engine that the content alone cannot say: a shader on a video, code that moves a
-node, a reaction to a tap. It is a small TypeScript file in the experience's content folder, and the editor's **Code**
+node, a reaction to a tap. It is a folder of files – `index.ts` and, when it grows, more TypeScript and shader files next
+to it ("A plugin of several files" below) – in the experience's content folder or the editor, and the editor's **Code**
 tab is where you try it. This is the guide and the reference of the plugin API; how the content names what a plugin
 registers is in [content](content.md), the editor's tab in [editor](editor.md) "Code", the decision in
 `agents/research/2026-10-29-code-in-the-editor.md`.
@@ -461,9 +462,59 @@ and the whole stage 1.9 ms, as with the heightfield; the GPU takes 1–1.3 ms pe
 tested through the real plugin (`aquarium-fluid.test.ts`: the built tank's `object.userData.splash`); unit tests have
 no WebGPU, so they run the fallback.
 
+## A plugin of several files (6.9.0, #352)
+
+A plugin is a **folder of files**: `index.ts` – the entry, it exports `register` – and any TypeScript and shader files
+next to it. TypeScript imports its siblings by `./name`, a shader file (`.frag`, `.vert`, `.glsl`, `.wgsl`) comes in as
+a string:
+
+```ts
+// index.ts
+import type { PluginApi } from "osct-plugin-api";
+import { stepFluid } from "./fluid";        // fluid.ts, next to it
+import WATER from "./water.frag";            // the file's text
+
+export const register = (api: PluginApi): void => {
+  api.registerMaterial("water", spec, ({ three }) => new three.ShaderMaterial({ fragmentShader: WATER, … }));
+};
+```
+
+A shader file of the plugin works where a Library shader can't: a **layer's** `glsl` too (`{ glsl: TINT }`), since it is
+there when `register` runs. Every build bundles the folder into one module the reader loads: the content build (esbuild),
+the editor's **Run** and **Publish** (esbuild-wasm in the browser, the same version – one file alone is transpiled
+without it). Nothing else may be imported – no package, no folder below the plugin's (`./lib/x` is refused).
+
+- **Names**: letters, digits, `.`, `_`, `-`, one of `.ts`, `.frag`, `.vert`, `.glsl`, `.wgsl` – no folders.
+- **Sizes**: 256 KB a file, 1 MB the files together, 32 files (the API refuses more); the bundle above 256 KB is a
+  warning (the Code tab's status line, Publish, the content build) – readers download it with the AR scene.
+- **In the Code tab** every file is a tab, `index.ts` first ("Trying it" below).
+- **In your own folder and tools** – `osct plugin link`, `push`, `pull` ("Your own folder" below).
+- **Shared shaders stay in the Library** ("A shader file" below): one file several plugins load by its URL.
+
+## Your own folder: osct plugin link, push, pull (6.9.0, #352)
+
+A plugin can be developed where you develop everything else – your editor, your repository, your tests – and still be
+seen on the editor's stage at once. In `scripts/` (the osct CLI, `OSCT_API_URL` the instance's API, `OSCT_EDITOR_TOKEN`
+a token from the editor's experiences page):
+
+```sh
+osct plugin link demo ./aquarium            # .osct-plugin.json: the API, the experience, the plugin (--id, else the folder's name);
+                                             # pulls the plugin's files if it exists, and plugin-api.d.ts, shader-files.d.ts, tsconfig.json
+osct plugin push ./aquarium --watch          # type-checks as the content build does, then sends the files – again on every change
+osct plugin pull ./aquarium                  # the editor's files back (edits made there; a file deleted there goes here too)
+```
+
+A push saves the plugin like the Code tab's Save (a change in History, who pushed); the editor's stage runs it when it
+starts, and the Code tab shows a strip *linked · ben's folder `aquarium`, pushed 2 min ago* with *Unlink*. The link
+locks nothing: anyone who may edit the experience may still change the files in the Code tab – the later save wins, as
+with every save, and `pull` takes theirs back. The folder's own files (`plugin-api.d.ts`, `shader-files.d.ts`,
+`tsconfig.json`, a README) are not the plugin's and stay at home. No version numbers of our own: History is the
+history, the published module carries its hash; semver, if you want one, lives in your repository.
+
 ## A shader file (API 1.5)
 
-GLSL that grows past a few lines reads better as a file of its own. Upload it to the editor's **Library** – the
+GLSL that grows past a few lines reads better as a file of its own – a file of the plugin (above), or, when several
+plugins share it, a file of the editor's **Library**. Upload it there – the
 **Upload** button or a drop: `.glsl`, `.frag`, `.vert` or `.wgsl`, at most 256 KB – and it is listed under *code* as a
 **shader** with a read-only preview. **Copy URL** gives the address a plugin loads it from:
 
@@ -866,8 +917,12 @@ marks every rule that ran with a `behaviour` line – it is the log's own (your 
 
 ## Trying it: the Code tab
 
-Open a scene in the editor, **Code**, **+** for a new plugin (it starts with the two examples above) or pick one
-of the experience's. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
+Open a scene in the editor, **Code**, **new** for a new plugin (it starts with the two examples above) or pick one
+of the experience's. Its files are **tabs** under the picker, like Shadertoy's (#352): `index.ts` first – the entry, it
+keeps its name –, then the others; a double-click renames one, its **×** deletes it (an unsaved edit like any other:
+Save makes it stick, History keeps what was saved). **+** at the tabs' right edge adds a file – a TypeScript file, a
+fragment or vertex shader, a GLSL include, WGSL – or uploads some; files dropped on the tabs join the plugin, and a
+plugin's zip (its Download) dropped there becomes a new plugin. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
 `api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover
 shows a member's documentation. **Run** (Ctrl+Enter) shows it on the stage at once – a layer tints the video, a
 component appears under *add component* in the Inspector, a pass under *add pass* in the scene's post-processing. A Run's errors show under the editor and on their line.
@@ -878,8 +933,9 @@ name alone; one with unsaved edits has an asterisk after it (*aquarium\**), here
 the edits stay while you look at another tab. Whether readers have the saved sources, the top bar says (*draft only*,
 *live on …*).
 
-**Download** gives a zip with the plugin's folder: `index.ts`, `plugin-api.d.ts` (the module `osct-plugin-api`) and a
-`tsconfig.json` that joins them – open the folder in any TypeScript editor and it type-checks the same way
+**Download** gives a zip with the plugin's folder: its files, `plugin-api.d.ts` (the module `osct-plugin-api`),
+`shader-files.d.ts` (a shader import is a string) and a `tsconfig.json` that joins them – drop it on the Code tab or the
+Library of another experience and it is a plugin there – open the folder in any TypeScript editor and it type-checks the same way
 (`npm install --save-dev @types/three typescript` there for three's types and `npx tsc`). `plugin-api.d.ts` is
 generated from the engine (`editor/src/lib/plugins/plugin-api.d.ts`, `npm run plugin-api` in `editor/`).
 
@@ -948,17 +1004,16 @@ The reader runs the published plugins in its own page – the same API, the same
 
 A plugin reaches readers one of two ways.
 
-**From the Code tab, with the editor's Publish** (#78): the publish carries every saved source of the experience, transpiled
-in the browser exactly as **Run** transpiles it. The API writes each into the published version as
+**From the Code tab, with the editor's Publish** (#78): the publish carries every saved plugin of the experience, its
+files **type-checked** (#352: Monaco's TypeScript worker, the Code tab's options and types – a type error stops the publish
+with its plugin, file and line) and **bundled** in the browser exactly as **Run** bundles them. The API writes each into the published version as
 `/assets/content/plugins/<id>/plugin-<hash of its code>.js` – so other code is another version – and declares it in the
 configuration (a compiled plugin of the same id gives way); the reader loads it from the CDN with the AR scene like a
 compiled one. What the publish checks against the nodes (a component, node type, material or pass no plugin provides →
 409) it reads from the saved source's `api.register…("type", …)` calls. A source that ran on the stage in that session
 is declared with the specs that run registered (`registered`, below); one that did not, or whose run named other types
-than the saved source, is declared without them – its types are known when it loads. **What it does not do**: no type
-check (a type error the transpile lets through reaches readers – the Code tab underlines them, fix them first), no
-bundling (one file per plugin, as the Code tab has it), and a source that does not transpile stops the publish with its
-line. Only saved sources go – the Code tab's unsaved edits do not. Whether the server compiles them instead once a server
+than the saved source, is declared without them – its types are known when it loads. A bundle above 256 KB is a warning in the
+publish's confirm, never a stop; a plugin that does not build stops the publish with its file and line. Only saved sources go – the Code tab's unsaved edits do not. Whether the server compiles them instead once a server
 of ours can run Node is #266.
 
 **From the content source, with the content build**: the content build – the same one
@@ -981,10 +1036,10 @@ the build with the file and line, like a missing image. Those are the plugins in
 (`content/plugins/<id>/index.ts`, built with `npm run build:content` in `scripts/`) – an import brings them into the
 editor declared and compiled.
 
-Rules of the road: one `index.ts` per plugin (more files next to it are bundled in), no imports but
-`import type`, `camelCase` type names (`tint`, `spin`, `sparkle`, `water`, `caustics` – a node type at most 32
+Rules of the road: one `index.ts` per plugin (TypeScript and shader files next to it are bundled in – "A plugin of
+several files"), no imports but its own files (`./name`) and `import type`, `camelCase` type names (`tint`, `spin`, `sparkle`, `water`, `caustics` – a node type at most 32
 characters), keep it small
-– the build warns above 256 KB, and everything a plugin registers runs on the reader's phone. A listener you subscribe in a component: unsubscribe it in
+– every build warns above 256 KB bundled, and everything a plugin registers runs on the reader's phone. A listener you subscribe in a component: unsubscribe it in
 `dispose` (a listener subscribed in `register` lives as long as the plugin). Never emit a core event – the engine does.
 
 ## The demo: everything at once
