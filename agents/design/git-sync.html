@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git sync – design drafts</title>
+<style>
+  /*
+   * Design drafts for #350, the fundamental version (Tilman, 2026-11-23: "way too complex … rethink for a fundamental
+   * integration first"). An experience connected to one folder of one repository: the editor commits its export, a push
+   * to the branch comes back in through the existing import and is published to staging. No merging, no previews.
+   * Static page, the editor's tokens (editor/src/app.css). Frames: #connect #commit #behind #workflow. ?shot hides notes.
+   */
+  :root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, Consolas, monospace;
+    --text-size: .75rem; --text-small: .6875rem; --control-height: 1.75rem;
+    --text: #1e1e1e; --muted: #6b6b6b; --line: #e6e6e6; --surface: #ffffff; --surface-head: #f5f5f5;
+    --control-background: #f5f5f5; --hover-background: #ebebeb; --within-background: #efefef; --danger: #c0392b;
+    --stage-background: #0c0c0c; --accent: #1e1e1e; --primary-text: #ffffff; --ok: #2e7d32;
+    color-scheme: light;
+  }
+  html[data-scheme="dark"] {
+    --text: #ffffff; --muted: #a3a3a3; --line: #444444; --surface: #2c2c2c; --surface-head: #1e1e1e;
+    --control-background: #383838; --hover-background: #3f3f3f; --within-background: #363636; --danger: #ff6b5b;
+    --accent: #ffffff; --primary-text: #1e1e1e; --ok: #6fcf73;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: var(--text-size)/1.45 var(--font); color: var(--text); background: var(--surface-head); }
+  h1, h2 { margin: 0; font-weight: 600; } h1 { font-size: 1rem; } h2 { font-size: .8125rem; }
+  p { margin: 0; }
+  code { font-family: var(--mono); font-size: var(--text-small); }
+  .muted { color: var(--muted); } .small { font-size: var(--text-small); } .ok { color: var(--ok); } .danger { color: var(--danger); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; height: var(--control-height);
+         padding: 0 .75rem; background: var(--control-background); border: 0; font: inherit; color: var(--text); white-space: nowrap; }
+  .btn.primary { background: var(--accent); color: var(--primary-text); }
+  .btn.quiet { background: transparent; }
+  input[type=text], select, textarea { font: inherit; color: var(--text); height: var(--control-height); padding: 0 .5rem;
+         background: var(--control-background); border: 1px solid transparent; width: 100%; }
+  textarea { height: auto; padding: .375rem .5rem; resize: none; }
+  .label { color: var(--muted); font-size: var(--text-small); text-transform: uppercase; letter-spacing: .06em; }
+  .icon { width: 1rem; height: 1rem; flex: none; stroke: currentColor; fill: none; stroke-width: 1.5; }
+  .avatar { width: 1.5rem; height: 1.5rem; background: var(--control-background); display: grid; place-items: center; font-size: var(--text-small); flex: none; }
+
+  .draftbar { position: sticky; top: 0; z-index: 50; display: flex; gap: .25rem; align-items: center; padding: .375rem .75rem;
+              background: #ffe9a8; color: #1e1e1e; font-size: var(--text-small); border-bottom: 1px solid #e6cf85; }
+  .draftbar a { color: inherit; padding: .125rem .5rem; text-decoration: none; }
+  .draftbar a.on { background: #1e1e1e; color: #ffe9a8; }
+  .draftbar .grow { flex: 1; }
+  .draftbar button { font: inherit; background: #1e1e1e; color: #ffe9a8; border: 0; padding: .125rem .5rem; }
+  body.shot .draftbar, body.shot .notes { display: none; }
+  .notes { background: #fff7da; color: #1e1e1e; border-top: 1px solid #e6cf85; padding: .625rem 1rem; font-size: var(--text-small); }
+  .notes ul { margin: .25rem 0 0; padding-left: 1.1rem; }
+  .frame { display: none; } .frame.on { display: block; }
+
+  .app { display: grid; grid-template-rows: 2.5rem 1fr; height: calc(100vh - 1.75rem); min-height: 36rem; }
+  body.shot .app { height: 100vh; }
+  .top { display: flex; align-items: center; gap: .75rem; padding: 0 .75rem; border-bottom: 1px solid var(--line); background: var(--surface-head); }
+  .top .brand { font-weight: 600; } .top .crumb { color: var(--muted); } .top .grow { flex: 1; }
+  .split { display: grid; grid-template-columns: 1fr 24rem; min-height: 0; }
+  .main { overflow: auto; padding: 1.25rem 1.5rem; background: var(--surface); }
+  .side { border-left: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+  .side-head { display: flex; align-items: center; gap: .5rem; padding: .625rem .75rem; border-bottom: 1px solid var(--line); background: var(--surface-head); }
+  .side-head h2 { flex: 1; }
+  .side-body { padding: .75rem; display: grid; gap: 1rem; align-content: start; flex: 1; }
+  .side-foot { padding: .75rem; border-top: 1px solid var(--line); display: grid; gap: .5rem; background: var(--surface-head); }
+  .field { display: grid; gap: .25rem; }
+  .row { display: flex; align-items: center; gap: .5rem; } .row .grow { flex: 1; }
+  .box { border: 1px solid var(--line); padding: .75rem; display: grid; gap: .5rem; }
+
+  /* The sync status in the top bar: one word, one colour-free mark */
+  .sync { display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .625rem; border: 1px solid var(--line); background: var(--surface); }
+  .sync.hot { background: var(--accent); color: var(--primary-text); border-color: var(--accent); }
+
+  .stage { background: var(--stage-background); display: grid; place-items: center; position: relative; min-height: 0; }
+  .spread { display: flex; gap: 2px; }
+  .spread i { width: 14rem; height: 19.5rem; background: #e9e4da; display: block; position: relative; }
+  .spread i b { position: absolute; border: 1.5px solid #f3cc94; }
+  .menu { position: absolute; top: .25rem; right: 3.25rem; z-index: 5; width: 17rem; background: var(--surface); border: 1px solid var(--line);
+          box-shadow: 0 6px 18px rgba(0,0,0,.25); padding: .25rem 0; }
+  .menu div { padding: .375rem .75rem; display: grid; }
+  .menu div.hover { background: var(--hover-background); }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; }
+
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: .4375rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { color: var(--muted); width: 9rem; }
+  .term { font-family: var(--mono); font-size: var(--text-small); line-height: 1.6; white-space: pre; background: #0c0c0c; color: #e6e6e6; padding: .875rem 1rem; overflow: auto; }
+  .term .p { color: #8f8f8f; } .term .ok { color: #6fcf73; } .term .y { color: #f3cc94; } .term .r { color: #ff6b5b; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 16 16"><path d="M8 14V3M3.5 7.5 8 3l4.5 4.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 16 16"><path d="M8 2v11M3.5 8.5 8 13l4.5-4.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2 15 14H1z"/><path d="M8 6.5v3.5M8 11.5v1"/></symbol>
+</svg>
+
+<nav class="draftbar">
+  <b>#350 Git – fundamental</b>
+  <a href="#connect">1 Connect</a><a href="#commit">2 Commit</a><a href="#behind">3 Both changed</a><a href="#workflow">4 The repository's side</a>
+  <span class="grow"></span><button id="scheme">Night</button>
+</nav>
+
+<!-- 1 CONNECT -->
+<section class="frame" id="f-connect">
+  <div class="app">
+    <header class="top"><span class="brand">OSCT</span><span class="crumb">Onion Skin &amp; Crocodile Tears / Settings</span><span class="grow"></span><span class="avatar">TP</span></header>
+    <div class="split">
+      <main class="main">
+        <h1>Settings</h1>
+        <p class="muted" style="margin:.25rem 0 1rem">Title, format, environments … (as now)</p>
+        <div class="box" style="max-width:34rem">
+          <h2>Repository</h2>
+          <p class="muted">Keep this experience as files in a GitHub repository. The editor commits them; a push to the branch comes back here and goes to staging.</p>
+          <div class="field"><span class="label">Repository</span><input type="text" value="https://github.com/buildingfictions/osct-content"></div>
+          <div class="grid2">
+            <div class="field"><span class="label">Branch</span><input type="text" value="develop"></div>
+            <div class="field"><span class="label">Folder</span><input type="text" value="osct/"></div>
+          </div>
+          <div class="field"><span class="label">Access token</span><input type="text" value="github_pat_••••••••••••••••3fQa"><span class="muted small">A fine-grained token with <i>Contents: read and write</i> on this repository only. Stored on the server, never shown again.</span></div>
+          <div class="row"><span class="grow muted small">The folder is empty – the first commit writes the experience into it.</span><button class="btn primary">Connect</button></div>
+        </div>
+      </main>
+      <aside class="side">
+        <div class="side-head"><h2>What goes into the repository</h2></div>
+        <div class="side-body">
+          <p>The experience's <b>export</b>, as <code>osct content export</code> writes it today:</p>
+          <p><code>experience.yaml</code>, <code>scenes/</code>, <code>entries/</code>, <code>entities/</code>, <code>plugins/&lt;id&gt;/index.ts</code>, <code>credits.yaml</code>, <code>export.json</code></p>
+          <p class="muted">Pictures, videos and models stay in the Library; <code>export.json</code> names each by its address and checksum.</p>
+          <p class="muted"><code>game.config.json</code> is not committed – it is built from these files.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="notes"><b>Notes.</b><ul>
+    <li>Four fields, one box in the experience's settings. GitHub first; the same fields fit Forgejo/Gitea later.</li>
+    <li>No new file format, no manifest: the repository holds the export that exists already (the same as the export archive of #322).</li>
+  </ul></div>
+</section>
+
+<!-- 2 COMMIT -->
+<section class="frame" id="f-commit">
+  <div class="app">
+    <header class="top"><span class="brand">OSCT</span><span class="crumb">Onion Skin &amp; Crocodile Tears / Scene 12–13</span><span class="grow"></span>
+      <span class="sync"><svg class="icon"><use href="#i-up"/></svg>Not committed · 6 saves</span>
+      <button class="btn primary">Publish ▾</button><span class="avatar">TP</span></header>
+    <div class="split">
+      <div class="stage">
+        <div class="spread"><i><b style="left:12%;top:18%;width:42%;height:30%"></b></i><i><b style="left:30%;top:52%;width:50%;height:28%"></b></i></div>
+        <div class="menu">
+          <div class="hover"><b>Commit to the repository…</b><span class="muted small">osct-content · develop · 6 saves</span></div>
+          <hr>
+          <div><b>Publish to staging</b><span class="muted small">as now</span></div>
+          <div><b>Publish to production</b><span class="muted small">as now</span></div>
+        </div>
+      </div>
+      <aside class="side">
+        <div class="side-head"><h2>Commit to the repository</h2></div>
+        <div class="side-body">
+          <p class="muted">6 saves since the last commit – scenes 12–13 and 30–31, the entry <i>The key</i>, the plugin <i>fluid</i>.</p>
+          <div class="field"><span class="label">Message</span><textarea rows="3">Scene 12–13: the key entry, its target moved</textarea></div>
+          <div class="row"><span class="avatar">TP</span><span class="muted">Committed as Tilman Porschütz</span></div>
+        </div>
+        <div class="side-foot">
+          <button class="btn primary">Commit</button>
+          <span class="muted small">The push to <code>develop</code> then publishes to staging by itself (frame 4).</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="notes"><b>Notes.</b><ul>
+    <li>One more line in the Publish menu, one dialog with a message. The whole export is written as one commit – git works out which files changed.</li>
+    <li>The top bar says one of three things: <b>In sync</b> · <b>Not committed · n saves</b> · <b>Repository is ahead</b>.</li>
+    <li>Saves, drafts, revert and Publish stay exactly as they are. Without a connected repository nothing changes.</li>
+  </ul></div>
+</section>
+
+<!-- 3 BOTH CHANGED -->
+<section class="frame" id="f-behind">
+  <div class="app">
+    <header class="top"><span class="brand">OSCT</span><span class="crumb">Onion Skin &amp; Crocodile Tears / Scene 12–13</span><span class="grow"></span>
+      <span class="sync hot"><svg class="icon"><use href="#i-warn"/></svg>Repository is ahead</span>
+      <button class="btn primary">Publish ▾</button><span class="avatar">TP</span></header>
+    <div class="split">
+      <div class="stage">
+        <div class="spread"><i><b style="left:12%;top:18%;width:42%;height:30%"></b></i><i><b style="left:30%;top:52%;width:50%;height:28%"></b></i></div>
+      </div>
+      <aside class="side">
+        <div class="side-head"><h2>The repository changed too</h2></div>
+        <div class="side-body">
+          <p><b>marie</b> pushed 2 commits to <code>develop</code> since your last commit, and you have 6 saves that are not committed.</p>
+          <p class="muted">They were not brought in, so nothing of yours is lost. Choose one:</p>
+          <div class="box">
+            <b>Take the repository's version</b>
+            <span class="muted">Shows the comparison of the import you know – what comes in, scene by scene. Your 6 saves stay in the history and can be reverted to.</span>
+            <button class="btn primary">Compare…</button>
+          </div>
+          <div class="box">
+            <b>Commit mine over it</b>
+            <span class="muted">Your version becomes the repository's. marie's commits stay in git's history.</span>
+            <button class="btn">Commit mine…</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="notes"><b>Notes.</b><ul>
+    <li>No merging in the editor. When both sides changed, a person picks one side; git keeps the other in its history.</li>
+    <li>"Take the repository's version" is the existing import with its version comparison (<code>confirm-import</code>), nothing new.</li>
+    <li>Without saves of its own the editor never asks: a push comes in by itself (frame 4).</li>
+  </ul></div>
+</section>
+
+<!-- 4 THE REPOSITORY'S SIDE -->
+<section class="frame" id="f-workflow">
+  <div class="app">
+    <header class="top"><span class="brand muted">The repository</span><span class="crumb"><code>.github/workflows/osct.yml</code></span><span class="grow"></span></header>
+    <main class="main">
+      <div class="grid2">
+        <div style="display:grid;gap:.75rem;align-content:start">
+          <h2>One file in the repository</h2>
+          <div class="term"><span class="p"># written by the editor's first commit</span>
+on:
+  push:
+    branches: [develop]
+jobs:
+  osct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx osct content build --dir osct
+      - run: npx osct push --dir osct --publish staging
+        env:
+          OSCT_URL: https://osct.porschuetz.de
+          OSCT_TOKEN: ${{ secrets.OSCT_TOKEN }}</div>
+          <table>
+            <tr><td>Push from a person</td><td>build → into the editor's draft → published to staging</td></tr>
+            <tr><td>Push from the editor</td><td>nothing to bring in (already the draft) → published to staging</td></tr>
+            <tr><td>Draft has saves not committed</td><td>refused – the run fails with the reason, the editor shows frame 3</td></tr>
+            <tr><td>Production</td><td>never from here – the editor's Publish, a person</td></tr>
+          </table>
+        </div>
+        <div style="display:grid;gap:.75rem;align-content:start">
+          <h2>A run</h2>
+          <div class="term"><span class="p">push</span> 77be0d4 marie: Scene 4–5: second target for the fold-out
+<span class="p">build</span> osct  92 scenes · 210 entries · 14 plugins  <span class="ok">✓</span>
+<span class="p">push</span>  draft of osct is in sync with c08e5f1 – bringing in 77be0d4
+       1 scene changed  <span class="ok">✓</span>
+<span class="p">publish</span> staging  build 53099b9d32d8  <span class="ok">✓</span>
+       https://osct.porschuetz.de/osct/</div>
+          <h2>When the editor has saves of its own</h2>
+          <div class="term"><span class="p">push</span>  draft of osct has 6 saves since c08e5f1 that are not committed
+<span class="r">✗ not brought in.</span> Commit them in the editor, or take this
+  version there: Settings → Repository → Compare.</div>
+          <p class="muted"><code>OSCT_TOKEN</code>: a token from the editor for this experience – may bring in and publish to staging, nothing else.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="notes"><b>Notes.</b><ul>
+    <li>Auto-deploy like a connected repository: every push to the branch reaches staging in about a minute.</li>
+    <li>The build runs on the repository's side (the existing CLI) – the server needs no Node and no git.</li>
+    <li>New on the server: the repository settings, the commit (GitHub's API), "in sync with which commit", the token kind, and <code>osct push</code> (the import without the comparison when the draft is unchanged).</li>
+  </ul></div>
+</section>
+
+<script>
+  const frames = ["connect", "commit", "behind", "workflow"];
+  const show = () => {
+    const name = frames.includes(location.hash.slice(1)) ? location.hash.slice(1) : "connect";
+    for (const f of frames) document.getElementById(`f-${f}`).classList.toggle("on", f === name);
+    for (const a of document.querySelectorAll(".draftbar a")) a.classList.toggle("on", a.getAttribute("href") === `#${name}`);
+  };
+  addEventListener("hashchange", show);
+  show();
+  const params = new URLSearchParams(location.search);
+  if (params.has("shot")) document.body.classList.add("shot");
+  const button = document.getElementById("scheme");
+  const setScheme = (dark) => { document.documentElement.dataset.scheme = dark ? "dark" : "light"; button.textContent = dark ? "Day" : "Night"; };
+  setScheme(params.get("scheme") === "dark");
+  button.addEventListener("click", () => setScheme(document.documentElement.dataset.scheme !== "dark"));
+</script>
+</body>
+</html>
