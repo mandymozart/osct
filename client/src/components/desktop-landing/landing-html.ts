@@ -120,6 +120,7 @@ export const LANDING_CSS = /* css */ `
           display: grid;
           align-items: center;
           isolation: isolate;
+          overflow: hidden;               /* the scan stage's canvas fills the hero and ends at its line (#354) */
           --px: 0;
           --py: 0;
         }
@@ -180,8 +181,6 @@ export const LANDING_CSS = /* css */ `
           background: radial-gradient(closest-side, rgba(127, 96, 50, .22), transparent);
           cursor: pointer;                /* a click takes the phone (scan-stage.ts) */
         }
-        .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .7s ease; }
-        .stage.ready canvas { opacity: 1; }
 
         /* Get the app: the QR code on a champagne card, the address – a computer neither enters nor installs the app (#354) */
         .get {

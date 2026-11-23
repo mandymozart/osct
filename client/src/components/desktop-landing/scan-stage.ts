@@ -43,8 +43,15 @@ export interface ScanStageExtras {
   pageImages: readonly string[];
 }
 
-/** The book's intro (s): closed for a moment, the cover opens, the pages turn one after the other */
-const INTRO = { hold: 1.6, cover: 1.6, page: 0.85, stagger: 0.38, settle: 0.6 };
+/**
+ * The book's intro (s): it lies there like a picture on the page – its cover seen straight from above – for a moment,
+ * the view moves to the stage, the cover opens (already while the view arrives), the pages turn one after the other
+ */
+const INTRO = { hold: 1.8, move: 1.7, cover: 1.6, page: 0.85, stagger: 0.38, settle: 0.6 };
+/** The cover starts to open when the view has come this far */
+const COVER_AT = INTRO.hold + INTRO.move * 0.55;
+/** A leaf counts as lifted off its block within this share of its turn, and as landed on the other within the same */
+const LANDING = 0.15;
 const PAGES = 3;
 /** The autopilot's loop (s): in from the side, a while on the target, off to the other side, back */
 const LOOP_S = 15;
@@ -54,11 +61,14 @@ const IDLE_S = 3.5;
  * The phone (surface widths): its size, its distance from the page point it looks at along the line of sight – and
  * while the visitor steers it, nearer the eye, bigger ("when clicking the phone it comes closer to the cameara")
  */
-const PHONE = { width: 0.27, height: 0.56, depth: 0.018, radius: 0.046, bezel: 0.008, distance: 0.6, steered: 1.0 };
+const PHONE = { width: 0.27, height: 0.56, depth: 0.018, radius: 0.046, bezel: 0.008, distance: 0.6, steered: 1.0, pull: 0.5 };
 /** The autopilot aims this much above the target's centre: more of a standing model's upper part is in the screen */
 const AIM_UP = 0.07;
-/** The target counts as in the screen while the aimed point lies within this share of its half size */
-const FIND_SHARE = 0.72;
+/**
+ * The target counts as found while the aimed point lies within this share of its half size – more than the target
+ * itself: tolerant, a visitor steering the phone keeps the model while most of the print has left the screen
+ */
+const FIND_SHARE = 1.15;
 const STENCIL_REF = 1;
 const LIGHT = { ambient: 2.2, sun: 1.5 };
 const PAPER = "#f6f3ec";
@@ -72,11 +82,6 @@ const GUTTER = { dip: 0.006, reach: 0.045, shade: 0.14, shadeReach: 0.018 };
 const dipAt = (distance: number): number => -GUTTER.dip * Math.exp(-((distance / GUTTER.reach) ** 2));
 /** The leaves lie this far above one another (no flicker, no visible step) */
 const LIFT = 0.00025;
-/**
- * The canvas is larger than the stage's box by this share on every side, so the book's lower edge and a phone held
- * near the eye are never cut off; the camera's angle widens with it and the picture in the box stays the same
- */
-const OVERSCAN = 0.3;
 const FOV = 30;
 const GOLD = "#b8914a";
 /** The spread's picture, this many px across */
@@ -361,7 +366,13 @@ const edgeTexture = (): CanvasTexture => {
 export class ScanStage {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
-  private readonly camera = new PerspectiveCamera(MathUtils.radToDeg(2 * Math.atan(Math.tan(MathUtils.degToRad(FOV / 2)) * (1 + 2 * OVERSCAN))), 1, 0.1, 20);
+  private readonly camera = new PerspectiveCamera(FOV, 1, 0.1, 20);
+  /**
+   * The section the canvas fills (the landing's hero; else the stage's own box): the picture ends at the section's
+   * line and nowhere before ("the 3d scene should end at the section bar, so we wont run into cut of 3d wehn draggin
+   * the phone"). The camera frames the stage's box as before – the canvas shows the same view, wider (`fit`).
+   */
+  private readonly section: HTMLElement;
   private readonly clock = new Clock(false);
   private readonly phone = new Group();
   private readonly anchor = new Group();
@@ -371,8 +382,10 @@ export class ScanStage {
   /** Reflections for the metal, the gilt edges and the cover's lacquer only – the model is lit as in the reader */
   private readonly environment: Texture;
   private readonly cameraHome = new Vector3(0, -1.55, 1.85);
-  private readonly cameraStart = new Vector3(0.12, -1.25, 2.05);
   private readonly look = new Vector3(0.02, 0.02, 0);
+  /** The picture view: straight down onto the closed book's cover (it lies on the right half), upright */
+  private readonly pictureView = { position: new Vector3(0.25, 0, 2.15), look: new Vector3(0.25, 0, 0), up: new Vector3(0, 1, 0) };
+  private readonly stageUp = new Vector3(0, 0, 1);
   private readonly raycaster = new Raycaster();
   private readonly page = new Plane(new Vector3(0, 0, 1), 0);
   private readonly resize: ResizeObserver;
@@ -403,10 +416,9 @@ export class ScanStage {
     this.renderer.setClearColor(0x000000, 0);
     const canvas = this.renderer.domElement;
     canvas.setAttribute("aria-hidden", "true");
-    canvas.style.inset = `${-OVERSCAN * 100}%`;
-    canvas.style.width = canvas.style.height = `${(1 + 2 * OVERSCAN) * 100}%`;
-    canvas.style.pointerEvents = "none";               // over the text beside the stage: the stage's box takes the mouse
-    container.appendChild(canvas);
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;opacity:0;transition:opacity .7s ease";
+    this.section = container.closest<HTMLElement>(".hero") ?? container;
+    this.section.appendChild(canvas);
 
     const pmrem = new PMREMGenerator(this.renderer);
     this.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -417,9 +429,7 @@ export class ScanStage {
     sun.position.set(-0.4, -0.5, 1.6);
     this.scene.add(sun);
 
-    this.camera.up.set(0, 0, 1);
-    this.camera.position.copy(this.still ? this.cameraHome : this.cameraStart);
-    this.camera.lookAt(this.look);
+    this.view(this.still ? 1 : 0);
     this.placed.visible = false;
     this.anchor.add(this.placed);
     this.scene.add(this.anchor);
@@ -427,14 +437,15 @@ export class ScanStage {
 
     this.resize = new ResizeObserver(() => this.fit());
     this.resize.observe(container);
+    this.resize.observe(this.section);
     this.visibility = new IntersectionObserver(entries => {
       this.visible = entries.some(entry => entry.isIntersecting);
       if (this.visible) this.start();
     });
     this.visibility.observe(container);
-    container.addEventListener("pointerdown", this.handleClick);
-    container.addEventListener("pointermove", this.handlePointer);
-    container.addEventListener("pointerleave", this.handleLeave);
+    this.section.addEventListener("pointerdown", this.handleClick);
+    this.section.addEventListener("pointermove", this.handlePointer);
+    this.section.addEventListener("pointerleave", this.handleLeave);
     this.fit();
   }
 
@@ -464,6 +475,7 @@ export class ScanStage {
     }
     this.clock.start();
     this.start();
+    this.renderer.domElement.style.opacity = "1";
   }
 
   stop(): void {
@@ -472,9 +484,10 @@ export class ScanStage {
     this.celebration?.finish();
     this.resize.disconnect();
     this.visibility.disconnect();
-    this.container.removeEventListener("pointerdown", this.handleClick);
-    this.container.removeEventListener("pointermove", this.handlePointer);
-    this.container.removeEventListener("pointerleave", this.handleLeave);
+    this.section.removeEventListener("pointerdown", this.handleClick);
+    this.section.removeEventListener("pointermove", this.handlePointer);
+    this.section.removeEventListener("pointerleave", this.handleLeave);
+    this.section.style.cursor = "";
     disposeObject(this.scene);
     this.environment.dispose();
     this.renderer.dispose();
@@ -557,11 +570,14 @@ export class ScanStage {
   /** The blocks' thickness from the leaves turned so far: the cover and the pages move from the right block to the left */
   private thicken() {
     if (!this.blocks) return;
-    const [cover = 0, ...pages] = this.leaves.map(leaf => leaf.progress);
-    const turned = pages.reduce((sum, progress) => sum + progress, 0) / Math.max(1, pages.length);
+    // A leaf in the air belongs to neither block: nothing appears on the left before it lands there
+    const share = (pick: (progress: number) => number): number => {
+      const pages = this.leaves.slice(1).map(leaf => pick(leaf.progress));
+      return pages.reduce((sum, value) => sum + value, 0) / Math.max(1, pages.length);
+    };
     const all = BOOK.thickness - 2 * BOOK.cover;
-    const left = BOOK.cover * cover + all * BOOK.opened * turned;
-    const right = BOOK.cover + all * (1 - BOOK.opened * turned);
+    const left = all * BOOK.opened * share(progress => smooth((progress - 1 + LANDING) / LANDING));
+    const right = BOOK.cover + all * (1 - BOOK.opened * share(progress => smooth(progress / LANDING)));
     const top = -GUTTER.dip - 0.0006;
     const set = (mesh: Mesh, thickness: number) => {
       mesh.visible = thickness > 0.0003;
@@ -693,17 +709,21 @@ export class ScanStage {
   // ── Running ──────────────────────────────────────────────────────────────────────────────────────
 
   private fit() {
-    const { clientWidth: w, clientHeight: h } = this.renderer.domElement;
-    if (!w || !h) return;
-    this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
+    const all = this.section.getBoundingClientRect();
+    const box = this.container.getBoundingClientRect();
+    if (!all.width || !all.height || !box.width || !box.height) return;
+    this.renderer.setSize(all.width, all.height, false);
+    // The camera's own picture is the stage's box; the canvas shows the section around it
+    this.camera.aspect = box.width / box.height;
+    this.camera.setViewOffset(box.width, box.height, all.left - box.left, all.top - box.top, all.width, all.height);
     if (!this.clock.running) this.renderer.render(this.scene, this.camera);
   }
 
   /** A click takes the phone (it goes to the page point under the mouse) – or, while steering, gives it back */
   private handleClick = (event: PointerEvent) => {
     if (!this.phone.visible) return;
+    // Taken by a click on the stage, followed over the whole section, given back by a click anywhere in it
+    if (!this.steering && !event.composedPath().includes(this.container)) return;
     this.steer(!this.steering);
     if (this.steering) this.handlePointer(event);
   };
@@ -711,7 +731,7 @@ export class ScanStage {
   private steer(on: boolean) {
     this.steering = on;
     if (!on) this.mouse = null;
-    this.container.style.cursor = on ? "none" : "";
+    this.section.style.cursor = on ? "none" : "";
   }
 
   /** While steering: the page point under the mouse is where the phone looks */
@@ -722,7 +742,7 @@ export class ScanStage {
     this.raycaster.setFromCamera(ndc, this.camera);
     const hit = this.raycaster.ray.intersectPlane(this.page, new Vector3());
     if (!hit) return;
-    this.mouse = new Vector2(MathUtils.clamp(hit.x, -0.9, 0.9), MathUtils.clamp(hit.y, -0.7, 0.7));
+    this.mouse = new Vector2(MathUtils.clamp(hit.x, -1.6, 1.6), MathUtils.clamp(hit.y, -1.1, 1.1));
     this.mouseAt = this.clock.elapsedTime;
   };
 
@@ -745,17 +765,25 @@ export class ScanStage {
 
   /** When the intro is over (s) */
   private get introEnd(): number {
-    return INTRO.hold + INTRO.cover + INTRO.stagger * (PAGES - 1) + INTRO.page + INTRO.settle;
+    return COVER_AT + INTRO.cover + INTRO.stagger * (PAGES - 1) + INTRO.page + INTRO.settle;
+  }
+
+  /** The camera between the picture view (0) and the stage's (1) */
+  private view(t: number) {
+    const k = smooth(t);
+    this.camera.position.lerpVectors(this.pictureView.position, this.cameraHome, k);
+    this.camera.up.lerpVectors(this.pictureView.up, this.stageUp, k).normalize();
+    this.camera.lookAt(new Vector3().lerpVectors(this.pictureView.look, this.look, k));
   }
 
   /** The book opens: the cover, then the pages one after the other; the camera comes down meanwhile */
   private playIntro(seconds: number) {
     this.leaves.forEach((leaf, i) => {
-      const start = i === 0 ? INTRO.hold : INTRO.hold + INTRO.cover * 0.7 + (i - 1) * INTRO.stagger;
+      const start = i === 0 ? COVER_AT : COVER_AT + INTRO.cover * 0.7 + (i - 1) * INTRO.stagger;
       leaf.turn((seconds - start) / (i === 0 ? INTRO.cover : INTRO.page));
     });
     this.thicken();
-    this.camera.position.lerpVectors(this.cameraStart, this.cameraHome, smooth((seconds - INTRO.hold) / (this.introEnd - INTRO.hold)));
+    this.view((seconds - INTRO.hold) / INTRO.move);
   }
 
   /** The autopilot's page point over one loop: in from the side onto the target, a while there, off, back */
@@ -773,8 +801,6 @@ export class ScanStage {
   private render(delta: number) {
     const seconds = this.still ? this.introEnd + LOOP_S * 0.4 : this.clock.elapsedTime;
     if (!this.still) this.playIntro(seconds);
-    this.camera.lookAt(this.look);
-
     const scanning = seconds >= this.introEnd;
     this.phone.visible = scanning;
     if (scanning) {
@@ -802,7 +828,10 @@ export class ScanStage {
   private placePhone(seconds: number) {
     const onPage = new Vector3(this.aim.x, this.aim.y, 0);
     const sight = this.camera.position.clone().sub(onPage).normalize();
-    this.phone.position.copy(onPage).addScaledVector(sight, MathUtils.lerp(PHONE.distance, PHONE.steered, smooth(this.near)));
+    // Steered, it is held nearer – and dragged down, towards the visitor, it comes up to the eye ("its more a pulling
+    // it closer to our eyes")
+    const pull = MathUtils.clamp((0.1 - this.aim.y) / 0.9, 0, 1) * PHONE.pull;
+    this.phone.position.copy(onPage).addScaledVector(sight, MathUtils.lerp(PHONE.distance, PHONE.steered + pull, smooth(this.near)));
     this.phone.up.set(0, 0, 1);
     this.phone.lookAt(this.camera.position);
     this.phone.rotateX(-0.4);
