@@ -17,6 +17,7 @@
   import type { Point } from "#lib/context-menu.js";
   import { openFloats } from "#lib/components/floats.svelte.js";
   import { experiencesMenu } from "#lib/experiences-menu.svelte.js";
+  import UndoRedo from "#lib/UndoRedo.svelte";
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Experiences › experience › scene` at the left, the
@@ -29,7 +30,8 @@
    * experience's draft has features this editor's engine does not know (a newer content build – RULES #10), a small warning
    * opens their list: the stage shows the experience without them. With an experience open, **Scenes · Landing** switches
    * between its two workspaces (#356): Scenes opens the scene last open (the experience's address), Landing the landing
-   * workspace – whose crumb is `Experiences › experience › Landing`.
+   * workspace – whose crumb is `Experiences › experience › Landing`. In a scene's workspace **undo · redo · history**
+   * (#312) follow the crumbs (#364: out of the stage toolbar) – their keys work while it is shown.
    */
   const experienceId = $derived(page.params.experience ?? null);
   const sceneId = $derived(page.params.scene ?? null);
@@ -134,6 +136,9 @@
       <ul class="small" aria-label="Skipped on the stage">{#each skipped as feature (`${feature.path} ${feature.kind}`)}<li>{describeSkipped(feature)}</li>{/each}</ul>
     </details>
   {/if}
+  {#if sceneId && openFloats.current}
+    <span class="history"><UndoRedo onhistory={() => openFloats.current?.showTab("history", true)} /></span>
+  {/if}
   {#if experienceId}
     {#key experienceId}<ExperienceSearch {experienceId} /><SaveStatus /><PublishButton {experienceId} />{/key}
   {/if}
@@ -151,7 +156,8 @@
   .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: .75rem; height: var(--top-height); padding: 0 .75rem; background: var(--surface-head); border-bottom: 1px solid var(--line); }
   .top a { text-decoration: none; }
   /* The search gives way before the crumbs: experience and scene stay readable */
-  .crumbs { flex: 1; display: flex; align-items: center; gap: .375rem; min-width: 14rem; white-space: nowrap; }
+  /* Short of room they end at their own edge, never under what follows (#364: undo · redo · history) */
+  .crumbs { flex: 1; display: flex; align-items: center; gap: .375rem; min-width: 14rem; white-space: nowrap; overflow: hidden; }
   .crumb { overflow: hidden; text-overflow: ellipsis; }
   a.crumb { color: var(--muted); }
   a.crumb[aria-current="page"], .crumb.current { color: var(--text); }
@@ -162,7 +168,7 @@
   /* Short of room, Experiences gives way first: the experience's crumb is the way back to the scenes */
   .crumbs > .crumb:first-child { flex-shrink: 4; }
   .crumbs > .crumb:nth-child(3) { min-width: 3rem; }
-  .experience-settings, .account, .panels { flex: none; }
+  .experience-settings, .account, .panels, .history { flex: none; }
   /* Scenes · Landing: the experience's two workspaces, the open one pressed */
   .workspaces { flex: none; display: flex; gap: .125rem; margin-left: .5rem; }
   .workspace { display: inline-flex; align-items: center; height: var(--control-height); padding: 0 .5rem; border-radius: var(--control-radius); color: var(--muted); }

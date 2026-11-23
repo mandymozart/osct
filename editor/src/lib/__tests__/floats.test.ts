@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  at, clampInto, crowd, defaultPlace, evade, isPlace, layout, moved, nearestFree, placeOf, raise, readPlaces, resized, settle, settleSize, withPlaces,
+  at, clampInto, crowd, defaultPlace, evade, isPlace, layout, moved, nearestFree, placeOf, raise, readPlaces, resized, settleSize, withPlaces, clearCorner,
   type Edge, type Metrics, type Neighbour, type PanelSpec, type Rect,
 } from "../components/floats";
 
@@ -112,23 +112,47 @@ describe("the floating panels: places", () => {
   });
 });
 
-describe("the floating panels: move, resize, snap", () => {
+describe("the floating panels: move, resize", () => {
   it("a moved panel stays inside the walls", () => {
     expect(moved({ x: 100, y: 100, w: 200, h: 100 }, -500, 20, AREA)).toEqual({ x: 8, y: 120, w: 200, h: 100 });
     expect(clampInto({ x: 1400, y: 790, w: 200, h: 100 }, AREA)).toEqual({ x: 1232, y: 708, w: 200, h: 100 });
   });
 
-  it("snaps to a wall and to the gap beside another panel when it comes near", () => {
-    const other = { x: 400, y: 8, w: 200, h: 300 };
-    expect(settle({ x: 15, y: 400, w: 100, h: 100 }, [other], AREA, 8)).toMatchObject({ x: 8 });
-    expect(settle({ x: 612, y: 18, w: 100, h: 100 }, [other], AREA, 8)).toMatchObject({ x: 608, y: 8 });
+  it("a panel moved by hand lies where it was dropped – over another one too – and moves none (#364)", () => {
+    const specs = [
+      { ...SPECS[0], place: at("top-left", 0, 0), size: { w: 20, h: "fill" as const } },
+      { ...SPECS[1], place: at("top-right", 0, 0), size: { w: 20, h: 20 } },
+    ];
+    const area = { x: 0, y: 0, w: 1000, h: 800 };
+    const m = { ...M, gap: 0 };
+    // The second one dropped on the first: it stays there, and the first keeps its place and size
+    const places = { [specs[1].id]: { corner: "top-left" as const, dx: 100, dy: 50, size: { w: 200, h: 150 }, free: true } };
+    const views = layout({ specs, places, shown: new Set(specs.map(s => s.id)), area, m });
+    expect(views[specs[1].id].rect).toEqual({ x: 100, y: 50, w: 200, h: 150 });
+    expect(views[specs[0].id].rect).toMatchObject({ x: 0, y: 0, h: 800 });
+    // Only kept inside the stage
+    const out = { [specs[1].id]: { corner: "top-left" as const, dx: 950, dy: 0, size: { w: 200, h: 150 }, free: true } };
+    expect(layout({ specs, places: out, shown: new Set(specs.map(s => s.id)), area, m })[specs[1].id].rect).toMatchObject({ x: 800 });
+    expect(nearestFree({ x: 0, y: 0, w: 2000, h: 10 }, [], AREA, 8)).toBeNull();
   });
 
-  it("let go on another panel, it goes to the nearest free place", () => {
-    const other = { x: 400, y: 100, w: 200, h: 300 };
-    const r = settle({ x: 450, y: 150, w: 100, h: 100 }, [other], AREA, 8);
-    expect(crowd(r, other, 8)).toBe(false);
-    expect(nearestFree({ x: 0, y: 0, w: 2000, h: 10 }, [], AREA, 8)).toBeNull();
+  it("the stage's corner controls find the nearest free place, bottom right first (#364)", () => {
+    const area = { w: 1000, h: 800 };
+    expect(clearCorner({ w: 40, h: 100 }, [], area, 8)).toEqual({ right: 8, bottom: 8 });
+    // The Inspector along the right wall: just left of it
+    const inspector = { x: 600, y: 0, w: 400, h: 800 };
+    expect(clearCorner({ w: 40, h: 100 }, [inspector], area, 8)).toEqual({ right: 408, bottom: 8 });
+    // A panel above the corner's height is not in the way
+    expect(clearCorner({ w: 40, h: 100 }, [{ x: 900, y: 0, w: 100, h: 200 }], area, 8)).toEqual({ right: 8, bottom: 8 });
+    // Two in a row along the bottom: past both
+    expect(clearCorner({ w: 40, h: 100 }, [inspector, { x: 300, y: 600, w: 300, h: 200 }], area, 8)).toEqual({ right: 708, bottom: 8 });
+    // The whole bottom taken (the Tree, the Scenes): just above the Scenes, at the right
+    const tree = { x: 0, y: 0, w: 260, h: 800 };
+    const scenes = { x: 270, y: 330, w: 730, h: 470 };
+    const top = { x: 540, y: 0, w: 460, h: 160 };
+    expect(clearCorner({ w: 40, h: 100 }, [tree, scenes, top], area, 8)).toEqual({ right: 8, bottom: 478 });
+    // Nowhere free: the corner itself
+    expect(clearCorner({ w: 40, h: 100 }, [{ x: 0, y: 0, w: 1000, h: 800 }], area, 8)).toEqual({ right: 8, bottom: 8 });
   });
 
   it("resizes by an edge or a corner, never below the least size or past a wall", () => {

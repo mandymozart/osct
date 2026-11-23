@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – A leaner stage toolbar, free panels (6.19.0, #364)
+- Tilman (2026-11-23, on a screenshot of the vertical toolbar): *"we are running into a massive amount of options in the
+  toolbar. perhapse its time to move some into the menu. and rethink our toolbar"*. Three drafts (A: Edit · View ·
+  Camera menus in the top bar · B: each control where it acts · C: one fixed ⋯ Stage menu); he picked parts of B:
+  *"putting history into the top bar makes sense"* · *"if we want the camera tools on stage we should also remove the
+  snapping of windows. only limit them to not go out of the stage area. we can get rid of the 1 rem padding. the rest can
+  stay there"* · asked whether panels may overlap: **overlap allowed**.
+- Built: undo · redo · history in the top bar (`TopBar.svelte`, scene workspace only); the camera's Home · Focus ·
+  fixed/free a column on the stage, placed by `clearCorner` (`floats.ts`: bottom right, else left past the panels in the
+  way, else above the lowest panel); a panel moved or torn out by hand is `Place.free` – lies where dropped, keeps its
+  size, takes no part in the layout of the others; the layout's gap is 0 (walls and between panels). `settle` and the
+  12 px edge magnet are gone; a resize of a laid-out panel still makes room (#329).
+- Open: the rest stays in the toolbar for now (tool, filters, render quality, grid & snap, view, live · restart) – the
+  drafts' stage header for render quality / grid / view (B) and a play bar for live · restart were not taken; ask before
+  moving more. A free panel can sit over the camera's only free spot on a crowded stage – then the camera takes the corner.
 ## 2026-11-23 – One type check for plugins: on save, in CI, before publish with Repair, osct plugins check (6.18.0, #366)
 - After the 6.17.1 fix (Make it code's wrapper refused by the publish's type check) Tilman asked: *"So what do we need to
   prevent this in the future? And with older plugins as well."* Proposal (one check in more places, CI against API type

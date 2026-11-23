@@ -3,8 +3,10 @@
  * is, after the SCUTOONS deck editor's floats. Each panel is declared once (`PanelSpec`: id, name, icon, what it is for,
  * its default place by a corner and an offset, its size, folded or closed by default, essential, inline). Its **place**
  * is kept by the nearest corner (the distances to that corner's walls), so it comes back where it was after the window
- * changes size and can be remembered (`storage.ts`, per workspace). Nothing overlaps: every panel keeps a gap to every
- * other one and to the walls.
+ * changes size and can be remembered (`storage.ts`, per workspace). The layout overlaps nothing: every panel it places
+ * keeps a gap to every other one (none since #364: they sit flush against each other and the stage's walls). A panel
+ * **moved by hand** is `free` (#364): it lies where it was dropped – over the others if it lands there –, only kept
+ * inside the stage; no snapping.
  *
  * **The order of the specs is the order of growth**: each panel first gets its least size where its place is (one
  * crowding another moves to the nearest free place), then grows from its corner towards the size it asks for – an
@@ -16,9 +18,9 @@
  * from the list of the closable ones (the top bar's panels menu). An **inline** panel is a toolbar: its grip and icon
  * lead its one row – or, **vertical** (its place says so, #315), its one column – and it never folds (Tilman,
  * 2026-11-18: folding a toolbar makes little sense; a fold stored by an older editor is ignored). A move holds the panel at the pointer over the others; let
- * go, it **snaps** to a wall or another panel's edge near it and, if it lands on another one, goes to the nearest free
- * place. A **resize makes room** (`evade`, #329): the panels in its way move on and, at the wall, shrink to their least
- * size; the resized panel stops where they can give no more.
+ * go, it stays there, free (#364 – before it snapped to walls and edges and fled from the others). A **resize** of a
+ * panel the layout places **makes room** (`evade`, #329): the panels in its way move on and, at the wall, shrink to their
+ * least size; the resized panel stops where they can give no more. A free panel's resize moves no other.
  */
 
 export type Corner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -47,6 +49,11 @@ export interface Place {
   size?: Size;
   /** An inline panel (a toolbar) as one column instead of one row (#315) */
   vertical?: boolean;
+  /**
+   * Moved by hand (#364): it lies where it was dropped, over the others or under them – only kept inside the stage. It
+   * takes no part in the layout of the others (they neither push it nor make room for it); Reset layout lays it out again.
+   */
+  free?: boolean;
 }
 
 /** A dimension a spec asks for: rem, all the room there is, or what the content measured */
@@ -102,8 +109,6 @@ export interface Edge {
 }
 
 const EPS = 0.01;
-/** How near (px) an edge must come to a wall or another panel's edge to snap to it */
-export const SNAP_PX = 12;
 
 const right = (r: Rect) => r.x + r.w;
 const bottom = (r: Rect) => r.y + r.h;
@@ -247,7 +252,7 @@ export interface LayoutInput {
 export const layout = ({ specs, places, shown, area, m, measured = {}, asks = {}, held = null }: LayoutInput): Record<string, View> => {
   const { gap } = m;
   const views: Record<string, View> = {};
-  const panels = specs
+  const all = specs
     .filter(s => shown.has(s.id) && !places[s.id]?.closed && s.id !== held?.id)
     .map(spec => {
       const place = places[spec.id] ?? defaultPlace(spec, m);
@@ -256,8 +261,14 @@ export const layout = ({ specs, places, shown, area, m, measured = {}, asks = {}
       want = { w: Math.min(want.w, area.w), h: Math.min(want.h, area.h) };
       min = { w: Math.min(min.w, want.w), h: Math.min(min.h, want.h) };
       const anchor: [number, number] = [isRight(place.corner) ? right(area) - place.dx : area.x + place.dx, isBottom(place.corner) ? bottom(area) - place.dy : area.y + place.dy];
-      return { spec, corner: place.corner, collapsed, want, min, anchor };
+      return { spec, corner: place.corner, collapsed, want, min, anchor, free: !!place.free };
     });
+  // A panel moved by hand (#364) lies where it was dropped, at the size it had – no other panel moves it, it moves none
+  for (const p of all.filter(p => p.free)) {
+    const size = { w: Number.isFinite(p.want.w) ? p.want.w : p.min.w, h: Number.isFinite(p.want.h) ? p.want.h : p.min.h };
+    views[p.spec.id] = { rect: clampInto(fromCorner(p.anchor, p.corner, size), area), collapsed: p.collapsed };
+  }
+  const panels = all.filter(p => !p.free);
   // What a panel claims from the others: its want, but a `fill` dimension only its least (it takes what is left)
   const claim = (p: (typeof panels)[number]) => intersect(fromCorner(p.anchor, p.corner, {
     w: Number.isFinite(p.want.w) && p.want.w < area.w ? p.want.w : p.min.w,
@@ -311,39 +322,6 @@ export const resized = (start: Rect, edge: Edge, dx: number, dy: number, min: Si
     y = top;
   }
   return { x, y, w, h };
-};
-
-/** The nearest of `candidates` to `value` within `px`, else `value` */
-const nearest = (value: number, candidates: readonly number[], px: number): number => {
-  let best = value;
-  let d = px + EPS;
-  for (const c of candidates) {
-    if (Math.abs(c - value) < d) {
-      d = Math.abs(c - value);
-      best = c;
-    }
-  }
-  return best;
-};
-
-/**
- * A moved panel let go: its edges snap to a wall, to the gap beside another panel or in line with another panel's edge
- * when one comes within `px`; a rectangle that then lies on another panel goes to the nearest free place
- */
-export const settle = (r: Rect, others: readonly Rect[], area: Rect, gap: number, px = SNAP_PX): Rect => {
-  const lefts = [area.x, ...others.flatMap(o => [right(o) + gap, o.x])];
-  const rights = [right(area), ...others.flatMap(o => [o.x - gap, right(o)])];
-  const tops = [area.y, ...others.flatMap(o => [bottom(o) + gap, o.y])];
-  const bottoms = [bottom(area), ...others.flatMap(o => [o.y - gap, bottom(o)])];
-  const left = nearest(r.x, lefts, px);
-  const toRight = nearest(right(r), rights, px) - r.w;
-  const x = Math.abs(left - r.x) <= Math.abs(toRight - r.x) && left !== r.x ? left : toRight !== r.x ? toRight : left;
-  const top = nearest(r.y, tops, px);
-  const toBottom = nearest(bottom(r), bottoms, px) - r.h;
-  const y = Math.abs(top - r.y) <= Math.abs(toBottom - r.y) && top !== r.y ? top : toBottom !== r.y ? toBottom : top;
-  const snapped = clampInto({ ...r, x, y }, area);
-  if (!others.some(o => crowd(snapped, o, gap))) return snapped;
-  return nearestFree(snapped, others, area, gap) ?? snapped;
 };
 
 /**
@@ -479,4 +457,26 @@ export const withPlaces = (stored: unknown, workspace: string, places: Readonly<
   if (places === null || !Object.keys(places).length) delete all[workspace];
   else all[workspace] = places;
   return all;
+};
+
+/**
+ * Where the stage's own corner controls go (#364: the camera's Home · Focus · fixed/free): the stage's bottom right
+ * corner, `margin` from its walls, as long as no panel lies there – else the nearest free place: along the bottom wall
+ * leftwards past the panels in the way, then the same just above each panel's top edge, lowest first. Nowhere free (a
+ * stage full of panels): the corner itself. `box`: their size; `panels`: the shown panels' rectangles (in the stage's
+ * px, as `area`). The answer is the distances from the stage's right and bottom walls.
+ */
+export const clearCorner = (box: Size, panels: readonly Rect[], area: Size, margin: number): { right: number; bottom: number } => {
+  const hits = (x: number, y: number) => panels.find(p => p.x < x + box.w + margin && x < right(p) + margin && p.y < y + box.h + margin && y < bottom(p) + margin);
+  const rows = [area.h - margin - box.h, ...panels.map(p => p.y - margin - box.h).sort((a, b) => b - a)].filter(y => y >= margin);
+  for (const y of rows) {
+    let x = area.w - margin - box.w;
+    // Each step moves past one panel to the left: at most as many steps as there are panels
+    for (let i = 0; i <= panels.length && x >= margin; i++) {
+      const hit = hits(x, y);
+      if (!hit) return { right: area.w - x - box.w, bottom: area.h - y - box.h };
+      x = hit.x - margin - box.w;
+    }
+  }
+  return { right: margin, bottom: margin };
 };
