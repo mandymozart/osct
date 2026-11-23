@@ -259,11 +259,20 @@ export const extractExperienceLanding = (source: LandingSource, pick: LandingPic
   return { scene: pick.scene, target: pick.target, hero, ...(cover ? { cover } : {}) };
 };
 
-/** JSON with the keys of every object sorted: two values that differ only in key order compare equal */
+/** A content file's address as a content path: `<any base>/assets/content/…` → `/assets/content/…` */
+const CONTENT_ADDRESS = /^[a-z][a-z0-9+.-]*:\/\/[^?#]*?(\/assets\/content\/.*)$/i;
+
+/**
+ * JSON with the keys of every object sorted and every content file's address as its content path: two values that
+ * differ only in key order, or in where their files are read from, compare equal – the draft endpoint hands the stored
+ * pick out with its paths resolved below the assets base (RULES #36), a fresh extraction stores content paths
+ */
 const canonical = (value: unknown): string =>
-  JSON.stringify(value, (_key, item: unknown) => (item && typeof item === "object" && !Array.isArray(item)
-    ? Object.fromEntries(Object.entries(item as Record<string, unknown>).filter(([, v]) => v !== undefined).sort(([a], [b]) => a.localeCompare(b)))
-    : item));
+  JSON.stringify(value, (_key, item: unknown) => typeof item === "string"
+    ? item.replace(CONTENT_ADDRESS, "$1")
+    : item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(Object.entries(item as Record<string, unknown>).filter(([, v]) => v !== undefined).sort(([a], [b]) => a.localeCompare(b)))
+      : item);
 
 /**
  * The stored landing is out of date: what the experience holds now (`fresh`, extracted again from the draft) differs

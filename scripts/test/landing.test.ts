@@ -98,6 +98,10 @@ describe('the landing hero extractor (#355)', () => {
     const stored = extractExperienceLanding(source, { scene: 'p10', target: 'face' }, LAYOUT)!;
     const reordered = JSON.parse(JSON.stringify({ cover: stored.cover, hero: stored.hero, target: stored.target, scene: stored.scene }));
     expect(landingHeroStale(stored, reordered)).toBe(false);
+    // The draft hands the stored pick out with its paths resolved below the assets base (RULES #36): still up to date
+    const resolved = JSON.parse(JSON.stringify(stored).replaceAll('"/assets/content/', '"https://cdn.example/book/abc123/assets/content/'));
+    expect(resolved).not.toEqual(stored);
+    expect(landingHeroStale(resolved, stored)).toBe(false);
     const moved = config();
     moved.entries[0].target!.place!.x = 10;
     expect(landingHeroStale(stored, extractExperienceLanding(landingSourceOf(moved), { scene: 'p10', target: 'face' }, LAYOUT))).toBe(true);
