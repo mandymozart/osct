@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { extractExperienceLanding, landingSourceOf } from "@shared/api/landing-extract";
 import { isReservedSceneId, RESERVED_SCENE_IDS } from "@shared/api/names";
-import { draftLandingData } from "../landing-draft";
+import { draftLandingData, landingDataOf } from "../landing-draft";
 import { landingPickScenes } from "../landing-pick";
 import { CDN, draftConfiguration } from "./landing-workspace-fixture";
 
@@ -29,6 +29,35 @@ describe("the landing workspace's stage data (#356)", () => {
     const data = await draftLandingData({ configuration: draftConfiguration({ landing: stored }), files, assetsBase: CDN, fetch: noFetch });
     expect(data.hero?.entity).toMatchObject({ type: "video", assets: [{ src: `${CDN}/b0/assets/content/videos/film.mp4` }] });
     expect(data.hero?.target.src).toBe(`${CDN}/assets/content/targets/film.webp`);
+  });
+});
+
+describe("the landing workspace's own texts and shop (#365)", () => {
+  const draft = { configuration: draftConfiguration(), files: {}, assetsBase: CDN };
+
+  it("shows the workspace's landing over the draft's: its texts, its shop – a content path where the draft keeps the file", () => {
+    const data = landingDataOf(draft, {
+      texts: { de: { intro: "Hallo" } },
+      shop: [{ label: "A print", url: "https://shop/print", image: "/assets/content/landing/print.jpg" }, { label: "The book", url: "https://shop/book", cover: true }],
+    });
+    expect(data.texts).toEqual({ de: { intro: "Hallo" } });
+    expect(data.shop).toEqual([
+      { label: "A print", url: "https://shop/print", image: `${CDN}/assets/content/landing/print.jpg` },
+      { label: "The book", url: "https://shop/book", image: "/assets/ui/landing/book.svg", cover: true },
+    ]);
+    // No pick: the default hero, as publish leaves it to the reader
+    expect(data.hero?.entity).toMatchObject({ type: "model" });
+  });
+
+  it("[] is no shop; none is the app's items", () => {
+    expect(landingDataOf(draft, { shop: [] }).shop).toEqual([]);
+    expect(landingDataOf(draft, null).shop.map(item => item.id)).toEqual(["book", "shirt"]);
+  });
+
+  it("extracts the hero of a new pick at once, before its save – the texts stay", () => {
+    const data = landingDataOf(draft, { scene: "s1", target: "film", texts: { en: { shop: "Buy" } } });
+    expect(data.hero?.entity).toMatchObject({ type: "video" });
+    expect(data.texts).toEqual({ en: { shop: "Buy" } });
   });
 });
 

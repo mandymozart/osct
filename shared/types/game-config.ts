@@ -138,10 +138,15 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * **6.3** (#361): the experience's `appearance.card` – the card look the marginalia card is picked up with
  * (`./card-look.ts`): the built-in `cardFlight` with its values, or a plugin's (`registered.cardLooks`, plugin API 4.1
  * `registerCardLook`). An app of 6.2 drops the field (forward compatibility) and flies its own card.
+ *
+ * **6.4** (#365): the landing's own texts and shop – `experience.landing.texts` (by language: `intro`, `getApp`,
+ * `openOnPhone`, `shop`) and `experience.landing.shop` (up to 4 items: `label`, `url`, `image?`, `cover?`), and a landing
+ * may hold them without a pick (`./landing.ts`). An app of 6.3 ignores both fields; it would refuse a landing without a
+ * pick, which publish therefore leaves out of the readers' configuration (`landing.json` carries the texts and shop).
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "6.3";
+export const CONTENT_SCHEMA_VERSION = "6.4";
 /** The oldest content schema MAJOR this contract reads – 6: no 5.x content is read (6.0 renamed a spec's `uses.hears` to `uses.listens`) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 6;
 
@@ -202,7 +207,8 @@ export interface ExperienceData {
   variables?: Record<string, VariableDeclaration>;
   /**
    * Optional (schema 6.1, #355): the target with AR content the desktop landing's hero shows – `{ scene, target }` by id
-   * (the target's surface is the hero's), with the hero and the layout's cover extracted when it was picked (`./landing.ts`)
+   * (the target's surface is the hero's), with the hero and the layout's cover extracted when it was picked (`./landing.ts`);
+   * since 6.4 (#365) also the landing's own `texts` and `shop`, with or without a pick
    */
   landing?: ExperienceLanding;
 }

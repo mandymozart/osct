@@ -140,14 +140,15 @@ final class ExperienceTexts
 
     /**
      * PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null, recognition?: "original" | "prepared" | null,
-     *   landing?: { scene, target, hero?, cover? } | null }
+     *   landing?: { scene?, target?, hero?, cover?, texts?, shop? } | null }
      * → 200 { experience }: the experience's
      * title – the splash, the home page and the onboarding show it – and the printed book it accompanies (#320): `book`
      * changes the fields sent (`publisher: null` or "" removes it), `book: null` removes the printed book, a new one needs
      * its `author`. `recognition` (#306, schema 4.2): how the reader gets its targets' recognition data – only "prepared"
      * is stored, "original" or null is the default (none). `landing` (#355, schema 6.1): the desktop landing's hero – a
-     * target with a 3D model on a scene and what the editor extracted from it (`Landing::check`, 400 `invalid-landing`);
-     * null removes it. 400 `invalid-experience`.
+     * target with a 3D model on a scene and what the editor extracted from it, and (#365, schema 6.4) the page's own texts
+     * by language and its shop – with or without a pick (`Landing::check`, 400 `invalid-landing`; files below the assets
+     * base become content paths); null, or a landing that holds nothing, removes it. 400 `invalid-experience`.
      */
     public static function putExperience(string $experienceId): never
     {
@@ -166,7 +167,7 @@ final class ExperienceTexts
             $unknown = array_diff(array_keys(get_object_vars($bookBody)), ['author', 'publisher']);
             if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field book.' . implode(', book.', $unknown) . ' – send book.author or book.publisher.');
         }
-        // The landing's pick (#355, schema 6.1): checked against the rows before the write – null removes it
+        // The landing (#355, schema 6.1; #365, 6.4): checked against the rows before the write – null removes it
         $landing = property_exists($body, 'landing') && $body->landing !== null ? Landing::check($body->landing, $experienceId) : null;
         $experience = Db::transaction(static function () use ($experienceId, $body, $bookBody, $user, $landing) {
             $row = Experiences::experienceRow($experienceId, true);

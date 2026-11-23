@@ -8,6 +8,28 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.17.0 – 2026-11-23
+
+### Added
+- **The landing page's own texts and shop** (#365, content schema 6.4): the landing workspace's Inspector has two new
+  sections under the hero. **Texts** – the intro, *Get the app*, the line beside the QR code and the shop's heading, per
+  language (EN, DE, FR, NL above the fields; the stage shows the page in that language and marks the field you type in).
+  An empty field shows the app's text for that language, greyed, and the page uses it – a visitor reads your text only
+  in the language you wrote it in. `{title}` and `{author}` fill in. The QR code's description, *Scan with your phone*
+  and *Privacy & terms* stay the app's. **Shop** – up to four items, each a picture (from the Library, or the book's
+  cover), a label and a link. Until you change it the page shows the app's two items (*Edit* makes them yours); remove
+  every item and the page has no shop. Every edit shows on the stage at once and saves itself; History lists it.
+- Stored in the experience (`experience.landing.texts`, `experience.landing.shop` – also without a hero's pick) and
+  published in the version's `landing.json`. The content build reads them from `experience.yaml`, the export writes them,
+  the API checks them (lengths, http(s) links, at most four items), and the MCP has `put_experience_landing_texts`. The
+  page a computer gets first (the static landing in `index.html`) already shows the default experience's own English
+  texts and shop.
+
+### Changed
+- Choosing or removing the landing's hero keeps the page's texts and shop.
+- A publish leaves a landing without a hero's pick out of the readers' game configuration (an app of content schema 6.3
+  would refuse it); its texts and shop reach the landing in `landing.json`, whose hero the reader then derives.
+
 ## 6.16.1 – 2026-11-23
 
 ### Added

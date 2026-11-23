@@ -12,6 +12,7 @@ import { checkTargetsPerScene } from './targets';
 import { buildSubtitles } from './subtitles';
 import { buildCredits, buildGroups } from './exported';
 import { landingPickProblem, landingSourceOf } from '../../../shared/api/landing-extract';
+import { landingPickOf } from '../../../shared/types/landing';
 
 /**
  * Build the final config object; `plugins` = the compiled plugins (build/plugins.ts), declared when there are any
@@ -65,8 +66,9 @@ export function buildConfig(versionStr: string, inputHash: string, plugins: Plug
     ...(groups.length ? { groups } : {}),
   };
   // The landing's pick (schema 6.1, #355): a target with AR content on a scene of the experience
-  if (experience.landing) {
-    const problem = landingPickProblem(landingSourceOf(config), experience.landing);
+  const pick = landingPickOf(experience.landing);
+  if (pick) {
+    const problem = landingPickProblem(landingSourceOf(config), pick);
     if (problem) buildErrors.push(`experience.yaml: landing – ${problem}`);
   }
   const credits = buildCredits(config);

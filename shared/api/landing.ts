@@ -13,7 +13,7 @@
  * schema lock (RULES #10) – the file is the instance's, made from the content.
  */
 import { isObject } from "../guards/primitives";
-import type { LandingHeroData, LandingPrintData } from "../types/landing";
+import { landingShopProblems, landingTextsProblems, type LandingHeroData, type LandingPrintData, type LandingShopItemData, type LandingTexts } from "../types/landing";
 
 // The hero's shape is the content's (`experience.landing.hero`, schema 6.1): defined with the contract
 export type { LandingHeroData, LandingPrintData } from "../types/landing";
@@ -22,7 +22,8 @@ export type { LandingHeroData, LandingPrintData } from "../types/landing";
 export const LANDING_FILE = "landing.json";
 /**
  * The shape's own version: a change a reader cannot read is a new number (and the reader derives the data instead). 2
- * (#355): the hero carries the target's entity only (any AR content) – format 1's model file `asset` is gone
+ * (#355): the hero carries the target's entity only (any AR content) – format 1's model file `asset` is gone. Fields a
+ * reader of format 2 does not know it ignores: the experience's `texts` and `shopItems` (#365) came so
  */
 export const LANDING_FORMAT = 2;
 
@@ -48,16 +49,6 @@ export const seededPick = <T>(items: readonly T[], count: number, seed = 324): T
   return out.slice(0, count);
 };
 
-/** A shop item: its name is the app's text (`landing:shopBook`, `landing:shopShirt`) */
-export interface LandingShopData {
-  id: "book" | "shirt";
-  url: string;
-  /** A picture; none = the app's placeholder drawing */
-  image?: string;
-  /** The book's cover (`cover`) instead of the picture */
-  cover?: boolean;
-}
-
 export interface LandingFile {
   format: typeof LANDING_FORMAT;
   /** The content schema `MAJOR.MINOR` of the version it was made from */
@@ -72,10 +63,16 @@ export interface LandingFile {
   images: string[];
   /** The print layout's front cover, null without one */
   cover: string | null;
-  /** null: the content has no model to show */
-  hero: LandingHeroData | null;
-  /** None: the app's shop items */
-  shop?: LandingShopData[];
+  /**
+   * null: the content has no AR content to show. None (#365): the experience has no pick – the reader derives the hero
+   * from the game configuration as without a file and keeps the file's texts and shop (a publish without a pick cannot
+   * extract the default hero)
+   */
+  hero?: LandingHeroData | null;
+  /** The experience's own texts by language (`experience.landing.texts`, #365); none: the app's */
+  texts?: LandingTexts;
+  /** The experience's shop (`experience.landing.shop`, #365); none: the app's items, `[]`: no shop */
+  shopItems?: LandingShopItemData[];
 }
 
 const isString = (value: unknown): value is string => typeof value === "string";
@@ -95,14 +92,11 @@ const isHero = (value: unknown): value is LandingHeroData =>
   Array.isArray(value.plugins) && value.plugins.every(plugin => isObject(plugin) && isString(plugin.id) && isString(plugin.src)) &&
   (value.appearance === undefined || isObject(value.appearance));
 
-const isShop = (value: unknown): value is LandingShopData[] =>
-  Array.isArray(value) && value.every(item =>
-    isObject(item) && (item.id === "book" || item.id === "shirt") && isString(item.url) &&
-    (item.image === undefined || isString(item.image)) && (item.cover === undefined || typeof item.cover === "boolean"));
-
 /** A `landing.json` of this format: every field the landing reads, of the right type */
 export const isLandingFile = (value: unknown): value is LandingFile =>
   isObject(value) && value.format === LANDING_FORMAT && isString(value.schema) && /^\d+\.\d+$/.test(value.schema) &&
   isString(value.experience) && isString(value.title) && isString(value.author) && isString(value.publisher) &&
   isStrings(value.images) && (value.cover === null || isString(value.cover)) &&
-  (value.hero === null || isHero(value.hero)) && (value.shop === undefined || isShop(value.shop));
+  (value.hero === undefined || value.hero === null || isHero(value.hero)) &&
+  (value.texts === undefined || !landingTextsProblems(value.texts).length) &&
+  (value.shopItems === undefined || !landingShopProblems(value.shopItems).length);

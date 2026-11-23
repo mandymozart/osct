@@ -4,6 +4,41 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – The landing's texts and shop, edited per experience (6.17.0, content schema 6.4, #365)
+- Concept `agents/design/landing-texts.html`; decided (Tilman, 2026-11-23: *"Yes, as recommended"*): (1) texts per
+  language, an EN / DE / FR / NL switch, an empty field is the app's text for that language; (2) editable: intro, Get the
+  app, the QR line, the shop heading – the QR alt text, *Scan with your phone*, *Privacy & terms* stay the app's;
+  (3) shop: up to 4 items (label, link, picture from the Library or the book's cover), one label for all languages,
+  untouched = the app's placeholder items, emptied = no shop section; (4) stored in the experience, published in
+  `landing.json`.
+- Built: `experience.landing.texts` / `.shop` (`shared/types/landing.ts`: `LANDING_TEXT_KEYS`, limits intro 600, getApp
+  120, openOnPhone 300 – the German default is ~150 –, shop 120; ≤ 4 items, label ≤ 120, http(s) url, `image` or
+  `cover: true`), **the pick is optional now** (both or neither; hero / cover only with it – `landingPickOf`,
+  `landingExtrasOf`). `landing.json` stays format 2, additive: `texts`, `shopItems` (format 2's never-written `shop` of
+  item ids is gone), and `hero` may be **absent** = no pick → the reader derives the hero and keeps the file's texts and
+  shop (a 6.16 reader rejects such a file and derives everything). Reader: `landingTexts(language, values, own)` →
+  `withOwnTexts` (escaped, `{title}`/`{author}` and `{{…}}`, intro line breaks → `<br />`), `shopItemsOf` (none → app's,
+  `[]` → no section, cover item → `data-cover`), the static landing in index.html from the content's landing.json (else
+  its configuration). Editor: Texts + Shop sections (`LandingTexts.svelte`, `LandingShop.svelte`, pure edits in
+  `landing-edit.ts`), the workspace holds the whole landing and saves it as one autosave subject (`saveLanding`: what
+  it holds when the save runs, a new pick's hero extracted first; invalid → `autosave.hold`), the stage computes its data
+  from draft + local landing (`landingDataOf`) and only `update`s the mounted page for texts/shop/language
+  (`LandingView.update` keeps the hero's stage and the QR code), the focused field is outlined on the stage. The Library
+  opens in the Inspector as the picker (`{ for: "shop-image" }`). API: `Landing::check` (texts/shop, blank texts dropped,
+  assets base → content paths, empty landing → removed), `Landing::file` writes texts / shopItems (no hero without a
+  pick), **`Landing::forReaders` drops a pick-less landing from the published game.config.json** (a 6.3 app's guard
+  requires scene/target – that keeps the MINOR honest for published content). MCP: `put_experience_landing_texts`;
+  `put_experience_landing` keeps texts/shop on pick and remove. Build/export carry them (a shop picture is a file of the
+  folder, like the environment's). Fixture: a German intro and one shop item.
+- My calls: landing.json's new shop field is `shopItems` (additive for format 2 – a new-shape `shop` would have made a
+  6.16 reader refuse the file); a **content build** keeps a pick-less landing in its game.config.json (it is also the
+  import's source), so a 6.3 app refuses such a build – documented in the schema table; the editor's stage shows the
+  Texts section's language (it was English only).
+- [x] The landing workspace's shop items (the open item of Step 3 below) – now editable per experience; the publisher
+  stays the experience's book.
+- [ ] Clicking a part of the stage to open its section (concept frame 2 of #356) – not built; the focus highlight goes
+  the other way (field → page).
+
 ## 2026-11-23 – Plugin development with an agent: a tutorial, not a kit (#363)
 - Tilman wants artists to develop and fine-tune plugins locally with Claude Code (or another agent), as he tunes looks in
   `sandbox/`. Decided (Tilman, 2026-11-23): no maintained sandbox or starter repository – *"claude or other agents can pick
@@ -81,8 +116,8 @@ outcome in the line (or move it into a dated decision block).
   passed by mount to the hero (no tiny extra chunk); `landing` is a reserved scene id (`RESERVED_SCENE_IDS`,
   `Scenes::RESERVED_IDS`, 400 `reserved-id`, MCP `add_scene` – the new-scene form makes `scene-<n>` ids).
 - [x] (c) the Experiences page into the shell (#356) – 6.14.0, the entry above.
-- [ ] The landing workspace: shop items and publisher editable (concept frame 2), a click on a part of the page opening
-  its section, Privacy & terms as a second view.
+- [ ] The landing workspace: ~~shop items~~ (done, #365) and publisher editable (concept frame 2), a click on a part of
+  the page opening its section, Privacy & terms as a second view.
 - [ ] The guard lists every plugin of the experience for the hero (the hero carries them all); a hero that needs none
   could skip them (extractor, #357 or later).
 
@@ -1398,8 +1433,9 @@ pointer not coarse, no phone/tablet user agent (iPadOS-as-Mac counts as tablet),
 is not probed (needs the permission). "Open the app here" = desktop visitors may still enter (*my reading*), remembered
 in sessionStorage (`osct-desktop-landing-skipped`), so every new visit shows the page again. "Get the app" = the
 address as text plus `<settings-install>` – no QR code (the only QR generator is in the dev tools).
-- [ ] Shop URLs for the book and the T-shirt (Tilman): both are `SHOP_URL_PLACEHOLDER` (https://buildingfictions.com)
-  in `landing-config.ts`.
+- [x] Shop URLs for the book and the T-shirt (Tilman): both are `SHOP_URL_PLACEHOLDER` (https://buildingfictions.com)
+  in `landing-config.ts` – now editable per experience in the landing workspace (#365, 2026-11-23); the app's items stay
+  the placeholders until an experience has its own.
 - [ ] Product pictures (book, T-shirt) and the phone preview (Rudy's video loop or a better still): placeholder line
   drawings and a screenshot of the onboarding in `public/assets/ui/landing/`; `previewVideo` takes a loop.
 - [ ] Landing copy: placeholder texts in the `landing` i18n namespace, until the final copy.

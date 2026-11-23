@@ -26,7 +26,10 @@ vi.mock("../api", async original => ({
   listScenes: vi.fn(async () => ({ scenes: [], groups: [] })),
   listPlugins: vi.fn(async () => ({ plugins: [] })),
   putExperience,
+  listAssets: vi.fn(async () => ({ assets: [{ id: "a1", name: "print.jpg", kind: "image", mime: "image/jpeg", size: 100, width: 800, height: 600, durationMs: null,
+    version: 1, url: `${CDN}/uploads/print.jpg`, usages: 0, imported: false }] })),
 }));
+import { autosave } from "../autosave.svelte";
 
 const settle = async () => {
   for (let i = 0; i < 12; i++) {
@@ -89,5 +92,81 @@ describe("the landing workspace (#356)", () => {
     const target = document.querySelector<HTMLSelectElement>('select[aria-label="The hero\'s target"]')!;
     expect([...target.options].map(option => option.value)).toEqual(["dragon", "film"]);
     expect(target.value).toBe("dragon");
+  });
+
+  it("switches the texts' language – the stage follows; a typed text shows at once, is marked on the stage and saves the landing (#365)", async () => {
+    putExperience.mockClear();
+    await render();
+    const root = document.querySelector<HTMLElement>("[data-landing-stage]")!.shadowRoot!;
+    expect(root.querySelector(".scroll-hint")?.textContent).toContain("Get the app");
+    [...document.querySelectorAll<HTMLButtonElement>(`[aria-label="The texts' language"] button`)].find(b => b.textContent?.trim() === "DE")!.click();
+    await settle();
+    expect(root.querySelector(".scroll-hint")?.textContent).toContain("Hol dir die App");
+    const intro = document.querySelector<HTMLTextAreaElement>('textarea[data-landing-text="intro"]')!;
+    // Empty: the app's text of that language, greyed
+    expect(intro.placeholder).toContain("Die Begleit-App zu Demo Book von A. Author");
+    const stage = root.querySelector(".stage");
+    intro.focus();
+    intro.dispatchEvent(new FocusEvent("focus"));
+    intro.value = "Unser Buch {title}";
+    intro.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle();
+    expect(root.querySelector(".intro")?.textContent).toBe("Unser Buch Demo Book");
+    expect(root.querySelector(".intro")?.hasAttribute("data-editing")).toBe(true);
+    // The hero kept running: the page was updated, not mounted again
+    expect(root.querySelector(".stage")).toBe(stage);
+    await autosave.flush();
+    expect(putExperience).toHaveBeenLastCalledWith("demo", { landing: { texts: { de: { intro: "Unser Buch {title}" } } } });
+  });
+
+  it("shop: Edit copies the app's items, + item adds one (held until it has a label and a link), ✕ removes, a picture comes from the Library (#365)", async () => {
+    putExperience.mockClear();
+    await render();
+    const root = document.querySelector<HTMLElement>("[data-landing-stage]")!.shadowRoot!;
+    const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")].find(b => b.textContent?.trim() === text)!;
+    button("Edit").click();
+    await settle();
+    expect(document.querySelectorAll("[data-shop-item]").length).toBe(2);
+    expect([...root.querySelectorAll(".shop .name")].map(name => name.textContent)).toEqual(["The book", "The T-shirt"]);
+    button("+ item").click();
+    await settle();
+    expect(document.querySelectorAll("[data-shop-item]").length).toBe(3);
+    expect(autosave.status).toMatchObject({ state: "held" });
+    const label = document.querySelector<HTMLInputElement>('input[aria-label="The label of shop item 3"]')!;
+    label.value = "A print";
+    label.dispatchEvent(new Event("input", { bubbles: true }));
+    const link = document.querySelector<HTMLInputElement>('input[aria-label="The link of shop item 3"]')!;
+    link.value = "https://shop.example/print";
+    link.dispatchEvent(new Event("input", { bubbles: true }));
+    await settle();
+    expect([...root.querySelectorAll(".shop .name")].map(name => name.textContent)).toEqual(["The book", "The T-shirt", "A print"]);
+    // Its picture from the Library: the Library opens in the Inspector as the picker
+    document.querySelector<HTMLButtonElement>('button[aria-label="The picture of A print"]')!.click();
+    await settle();
+    [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find(b => b.textContent?.includes("Library"))!.click();
+    await settle();
+    document.querySelector<HTMLButtonElement>(".group-head[aria-expanded='false']")?.click();
+    await settle();
+    const tile = document.querySelector<HTMLElement>(`[role="option"]`)!;
+    expect(tile).not.toBeNull();
+    tile.click();
+    await settle();
+    expect(document.querySelectorAll("[data-shop-item]").length).toBe(3);
+    expect(root.querySelector<HTMLImageElement>('[data-item="2"] img')?.getAttribute("src")).toBe(`${CDN}/uploads/print.jpg`);
+    document.querySelector<HTMLButtonElement>('button[aria-label="Remove shop item 1"]')!.click();
+    await settle();
+    await autosave.flush();
+    expect(putExperience).toHaveBeenLastCalledWith("demo", { landing: { shop: [
+      { label: "The T-shirt", url: "https://buildingfictions.com", image: "/assets/ui/landing/t-shirt.svg" },
+      { label: "A print", url: "https://shop.example/print", image: `${CDN}/uploads/print.jpg` },
+    ] } });
+    // Emptied: no shop section on the page
+    document.querySelector<HTMLButtonElement>('button[aria-label="Remove shop item 1"]')!.click();
+    await settle();
+    document.querySelector<HTMLButtonElement>('button[aria-label="Remove shop item 1"]')!.click();
+    await settle();
+    expect(root.querySelector(".shop-section")).toBeNull();
+    await autosave.flush();
+    expect(putExperience).toHaveBeenLastCalledWith("demo", { landing: { shop: [] } });
   });
 });

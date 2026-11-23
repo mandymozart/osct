@@ -40,9 +40,17 @@ describe("landing.json (#355)", () => {
     expect(isLandingFile({ ...FILE, schema: "six" })).toBe(false);
     expect(isLandingFile({ ...FILE, images: [1] })).toBe(false);
     expect(isLandingFile({ ...FILE, hero: { ...FILE.hero, target: { src: 1 } } })).toBe(false);
-    expect(isLandingFile({ ...FILE, shop: [{ id: "mug", url: "x" }] })).toBe(false);
-    expect(isLandingFile({ ...FILE, shop: [{ id: "book", url: "https://shop", cover: true }] })).toBe(true);
     expect(isLandingFile(null)).toBe(false);
+  });
+
+  it("carries the experience's own texts and shop (#365) – a reader of format 2 ignores the fields; a file without a hero is no pick", () => {
+    expect(isLandingFile({ ...FILE, texts: { de: { intro: "Hallo" } }, shopItems: [{ label: "Mug", url: "https://shop/mug" }] })).toBe(true);
+    expect(isLandingFile({ ...FILE, shopItems: [] })).toBe(true);
+    const { hero: _hero, ...withoutHero } = FILE;
+    expect(isLandingFile({ ...withoutHero, texts: { en: { shop: "Buy" } } })).toBe(true);
+    expect(isLandingFile({ ...FILE, shopItems: [{ label: "Mug", url: "ftp://shop" }] })).toBe(false);
+    expect(isLandingFile({ ...FILE, shopItems: [{ id: "book", url: "https://shop" }] })).toBe(false);
+    expect(isLandingFile({ ...FILE, texts: { de: { qrAlt: "QR" } } })).toBe(false);
   });
 
   it("resolves its content paths below the version's folder; other URLs stay", () => {
@@ -53,8 +61,23 @@ describe("landing.json (#355)", () => {
     expect(data.hero!.plugins[0].src).toBe("https://cdn/osct/abc/assets/content/plugins/glow/plugin.js");
     expect(data.hero!.spread).toBe("https://cdn/osct/abc/assets/content/layout/p10-11.webp");
     expect(data.shop).toEqual(LANDING_CONFIG.shop);
-    const own = landingDataFromFile({ ...FILE, shop: [{ id: "book", url: "https://shop/book", cover: true }] }, path => path);
-    expect(own.shop).toEqual([{ id: "book", url: "https://shop/book", cover: true, image: LANDING_CONFIG.shop[0].image }]);
+    expect(data.texts).toBeUndefined();
+  });
+
+  it("takes the experience's shop and texts (#365): its items in place of the app's, [] = no shop, a cover item with the placeholder until the cover fills in", () => {
+    const shopItems = [
+      { label: "The book", url: "https://shop/book", cover: true as const },
+      { label: "A print", url: "https://shop/print", image: "/assets/content/landing/print.jpg" },
+      { label: "A mug", url: "https://shop/mug" },
+    ];
+    const own = landingDataFromFile({ ...FILE, shopItems, texts: { de: { intro: "Hallo" } } }, path => `https://cdn/v${path}`);
+    expect(own.shop).toEqual([
+      { label: "The book", url: "https://shop/book", cover: true, image: LANDING_CONFIG.shop[0].image },
+      { label: "A print", url: "https://shop/print", image: "https://cdn/v/assets/content/landing/print.jpg" },
+      { label: "A mug", url: "https://shop/mug", image: "" },
+    ]);
+    expect(own.texts).toEqual({ de: { intro: "Hallo" } });
+    expect(landingDataFromFile({ ...FILE, shopItems: [] }, path => path).shop).toEqual([]);
   });
 
   it("is read when this app reads its content schema's MAJOR", () => {
@@ -108,6 +131,22 @@ describe("loadLandingData", () => {
     const data = await loadLandingData({ baseUrl: "", bundled: async () => file, derive });
     expect(derive).not.toHaveBeenCalled();
     expect(data.hero!.pages).toEqual([28, 29]);
+    // The fixture's own texts and shop (#365): a German intro, one item with a picture of the content
+    expect(data.texts).toEqual(raw.experience.landing.texts);
+    expect(data.texts?.de?.intro).toContain("{title}");
+    expect(data.shop).toEqual([{ label: "The tree print", url: "https://buildingfictions.com/shop/tree", image: raw.experience.landing.shop[0].image }]);
+  });
+
+  it("derives the hero for a file without one (texts or a shop without a pick, #365) and keeps the file's texts and shop", async () => {
+    const { hero: _hero, ...withoutHero } = FILE;
+    const file = { ...withoutHero, texts: { de: { intro: "Hallo" } }, shopItems: [] };
+    const fetch = vi.fn((url: string) => (url.startsWith(`${BASE}/latest.json`) ? json(latest) : url === `${BASE}/abcdef012345/landing.json` ? json(file) : json({}, 404)));
+    const derive = vi.fn(async () => ({ ...DERIVED, shop: LANDING_CONFIG.shop }));
+    const data = await loadLandingData({ baseUrl: BASE, derive, fetch: fetch as unknown as typeof globalThis.fetch });
+    expect(derive).toHaveBeenCalledTimes(1);
+    expect(data).toMatchObject({ title: "derived", shop: [], texts: { de: { intro: "Hallo" } } });
+    const bundled = await loadLandingData({ baseUrl: "", bundled: async () => file, derive });
+    expect(bundled).toMatchObject({ title: "derived", shop: [], texts: { de: { intro: "Hallo" } } });
   });
 
   it("derives the data for a file it cannot read, and for bundled content (no base URL)", async () => {
@@ -128,7 +167,10 @@ describe("deriveLandingData (the fallback)", () => {
     const raw = config();
     const data = await deriveLandingData({ baseUrl: "", bundled: () => Promise.resolve(raw) });
     const experience = getExperience();
-    expect(data).toMatchObject({ experience: experience.id, title: experience.title, author: experience.book?.author ?? "", shop: LANDING_CONFIG.shop });
+    expect(data).toMatchObject({ experience: experience.id, title: experience.title, author: experience.book?.author ?? "" });
+    // The landing's own texts and shop from the configuration (#365)
+    expect(data.shop.map(item => item.label)).toEqual(["The tree print"]);
+    expect(data.texts).toEqual(raw.experience.landing.texts);
     expect(data.images).toEqual(getScenes().flatMap(scene => scene.targets.map(target => target.imageSrc)));
     expect(experience.landing).toMatchObject({ scene: "studio-a", target: "studio-dragon" });
     // The same hero the content build stored with the pick (paths and all – the bundled content's are the app's own)
@@ -144,10 +186,22 @@ describe("deriveLandingData (the fallback)", () => {
     const raw = config();
     delete raw.experience.landing;
     const data = await deriveLandingData({ baseUrl: "", bundled: () => Promise.resolve(raw) });
+    expect(data.shop).toEqual(LANDING_CONFIG.shop);
     const pick = scanStagePick({ scenes: getScenes() }, LANDING_CONFIG.scanEntries);
     expect(pick).not.toBeNull();
     expect(pick!.scene).not.toBe("studio-a");
     expect(data.hero).toMatchObject({ spread: null, earlier: [] });
     expect(data.hero).toEqual(extractLandingHero(landingSourceOf(raw), pick!));
+  });
+});
+
+describe("deriveLandingData without a pick but with texts and a shop (#365)", () => {
+  it("takes the default hero and the landing's texts and shop", async () => {
+    const raw = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../game.config.json"), "utf8"));
+    raw.experience.landing = { texts: { fr: { getApp: "L'app" } }, shop: [] };
+    const data = await deriveLandingData({ baseUrl: "", bundled: () => Promise.resolve(raw) });
+    expect(data.hero).toEqual(extractLandingHero(landingSourceOf(raw), scanStagePick({ scenes: getScenes() }, LANDING_CONFIG.scanEntries)!));
+    expect(data.shop).toEqual([]);
+    expect(data.texts).toEqual({ fr: { getApp: "L'app" } });
   });
 });

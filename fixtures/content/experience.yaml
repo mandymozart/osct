@@ -21,3 +21,12 @@ logic:
 landing:
   scene: studio-a
   target: studio-dragon
+  # The landing's own texts (content schema 6.4, #365): by language, field by field – what is left out is the app's text
+  texts:
+    de:
+      intro: "Die Begleit-App zu {title} von {author} – richte dein Handy auf die Seiten."
+  # Its shop (schema 6.4): up to 4 items – label, link, picture (a file of this folder) or cover: true
+  shop:
+    - label: The tree print
+      url: https://buildingfictions.com/shop/tree
+      image: entries/ancient-tree/images-102.jpg

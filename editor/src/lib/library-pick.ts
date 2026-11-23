@@ -59,7 +59,7 @@ export const matchesFilter = (asset: AssetRef, filter: LibraryFilter, targetImag
   return FILTER_KINDS[filter].includes(asset.kind);
 };
 
-/** What the Library picks a file for: a target's printed image, an entry's picture, a node's file, the environment's sky */
+/** What the Library picks a file for: a target's printed image, an entry's picture, a node's file, the environment's sky, a shop item's picture */
 export type PickSubject =
   | { for: "target-image" }
   | { for: "entry-image" }
@@ -67,6 +67,8 @@ export type PickSubject =
   | { for: "model-texture" }
   /** A surface's reference image (#314): a picture laid on a scene's surface on the stage, never in the content */
   | { for: "surface-reference" }
+  /** The picture of an item of the landing's shop (#365) */
+  | { for: "shop-image" }
   | { for: "node"; nodeType: string }
   | { for: "environment"; slot: EnvironmentSlot };
 
@@ -85,7 +87,7 @@ export interface LibraryPick {
 
 /** The kinds that fit the subject */
 export const pickKinds = (subject: PickSubject): readonly AssetKind[] =>
-  subject.for === "target-image" || subject.for === "entry-image" || subject.for === "model-texture" || subject.for === "surface-reference" ? ["image"]
+  subject.for === "target-image" || subject.for === "entry-image" || subject.for === "model-texture" || subject.for === "surface-reference" || subject.for === "shop-image" ? ["image"]
     : subject.for === "node" ? nodeAssetKinds(subject.nodeType) ?? []
       : ["image"];
 
@@ -93,7 +95,7 @@ export const pickKinds = (subject: PickSubject): readonly AssetKind[] =>
 export const pickFilter = (subject: PickSubject): LibraryFilter => {
   if (subject.for === "target-image") return "target";
   if (subject.for === "surface-reference") return "all";
-  if (subject.for === "entry-image" || subject.for === "model-texture") return "image";
+  if (subject.for === "entry-image" || subject.for === "model-texture" || subject.for === "shop-image") return "image";
   if (subject.for === "environment") return "image";
   const kinds = nodeAssetKinds(subject.nodeType) ?? [];
   return kinds.includes("glb") ? "model" : kinds.includes("video") ? "video" : kinds.includes("image") ? "image" : "all";
@@ -105,7 +107,7 @@ export const pickFits = (subject: PickSubject, asset: Pick<Asset, "kind" | "url"
 
 /** The use a picture uploaded while picking is for (#298): a target's printed image is cut to 1200 px, a model's map keeps up to 4096 (#331), the rest 2048 */
 export const pickFit = (subject: PickSubject): ImageFit | undefined =>
-  subject.for === "target-image" ? "target" : subject.for === "entry-image" ? "entryImage" : subject.for === "model-texture" ? "texture" : undefined;
+  subject.for === "target-image" ? "target" : subject.for === "entry-image" || subject.for === "shop-image" ? "entryImage" : subject.for === "model-texture" ? "texture" : undefined;
 
 /** The upload's `accept` while picking for the subject */
 export const pickAccept = (subject: PickSubject): string => acceptOf(pickKinds(subject));

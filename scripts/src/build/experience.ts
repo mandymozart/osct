@@ -74,17 +74,35 @@ export function checkedLogic(logic: unknown, label: string, home: LogicHome): Lo
 }
 
 /**
- * The landing's pick (schema 6.1, #355): `{ scene, target }` – an author writes the ids only, the build extracts the hero
- * (`withLandingHero`, after the media got their final names); whether the pick exists is checked with the scenes
- * (`buildConfig`)
+ * The landing (schema 6.1, #355; 6.4, #365): its pick `{ scene, target }` – an author writes the ids only, the build
+ * extracts the hero (`withLandingHero`, after the media got their final names); whether the pick exists is checked with
+ * the scenes (`buildConfig`) – and / or its own `texts` and `shop`. A shop item's picture is a path below the content
+ * folder (`landing/book.jpg`, it must exist – the content path it becomes) or a URL, as the environment's files.
  */
-export function checkedLanding(landing: unknown, label: string): ExperienceLanding {
+export function checkedLanding(landing: unknown, label: string, contentDir = CONTENT_DIR): ExperienceLanding {
   const problems = experienceLandingProblems(landing, 'landing');
   const value = (typeof landing === 'object' && landing !== null ? landing : {}) as Record<string, unknown>;
-  const extra = Object.keys(value).filter(key => key !== 'scene' && key !== 'target');
-  if (!problems.length && extra.length) problems.push(`landing: write scene and target only – ${extra.join(', ')} ${extra.length > 1 ? 'are' : 'is'} extracted by the build`);
+  const extracted = Object.keys(value).filter(key => key === 'hero' || key === 'cover');
+  if (!problems.length && extracted.length) problems.push(`landing: write scene, target, texts and shop only – ${extracted.join(', ')} ${extracted.length > 1 ? 'are' : 'is'} extracted by the build`);
+  const unknown = Object.keys(value).filter(key => !['scene', 'target', 'hero', 'cover', 'texts', 'shop'].includes(key));
+  if (unknown.length) problems.push(`landing: unknown ${unknown.join(', ')} – scene, target, texts, shop`);
+  const shop = Array.isArray(value.shop) ? value.shop.map((item: unknown, i) => {
+    if (typeof item !== 'object' || item === null || typeof (item as { image?: unknown }).image !== 'string') return item;
+    const image = (item as { image: string }).image;
+    if (/^https?:\/\//.test(image)) return item;
+    const relative = image.replace(/^\/assets\/content\//, '').replace(/^\.?\//, '');
+    if (relative.split('/').includes('..') || !fs.existsSync(path.join(contentDir, relative))) {
+      problems.push(`landing.shop[${i}].image: file "${image}" not found in the content folder`);
+      return item;
+    }
+    return { ...item, image: `/assets/content/${relative}` };
+  }) : value.shop;
   contractPart<ExperienceLanding>(landing, problems, label);
-  return { scene: String(value.scene ?? ''), target: String(value.target ?? '') };
+  return {
+    ...(value.scene !== undefined || value.target !== undefined ? { scene: String(value.scene ?? ''), target: String(value.target ?? '') } : {}),
+    ...(value.texts !== undefined ? { texts: value.texts as ExperienceLanding['texts'] } : {}),
+    ...(shop !== undefined ? { shop: shop as ExperienceLanding['shop'] } : {}),
+  };
 }
 
 /** The print data that lives in `book:` – on the top level of experience.yaml it is an error */

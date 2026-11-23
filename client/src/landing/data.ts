@@ -36,14 +36,20 @@ export interface LoadLandingOptions {
 /**
  * The landing's data: the current content version's `landing.json` (`<base>/latest.json` names the version) – or the
  * bundled content's (`bundled`) – when it is there and readable, else `derive`. A missing or broken file is no error –
- * every version published before publish wrote one has none.
+ * every version published before publish wrote one has none. A file without a hero (the experience has texts or a shop
+ * but no pick, #365) gives its texts and shop; the rest is derived.
  */
 export const loadLandingData = async ({ baseUrl, bundled, derive, fetch: fetchFn = globalThis.fetch.bind(globalThis) }: LoadLandingOptions): Promise<LandingData> => {
   const base = baseUrl.replace(/\/+$/, "");
   let latest: unknown = null;
+  /** A readable file without a hero (no pick, #365): its texts and shop over the derived data */
+  let own: LandingData | null = null;
   if (!base && bundled) {
     const file = await bundled().catch(() => null);
-    if (isLandingFile(file) && await readableHere(file.schema)) return landingDataFromFile(file, path => path);
+    if (isLandingFile(file) && await readableHere(file.schema)) {
+      if (file.hero !== undefined) return landingDataFromFile(file, path => path);
+      own = landingDataFromFile(file, path => path);
+    }
   }
   if (base) {
     try {
@@ -52,8 +58,10 @@ export const loadLandingData = async ({ baseUrl, bundled, derive, fetch: fetchFn
       if (isContentManifest(latest)) {
         const versionUrl = `${base}/${latest.build}`;
         const file = await fetchFn(`${versionUrl}/${LANDING_FILE}`).then(r => (r.ok ? r.json() : null)).catch(() => null);
-        if (isLandingFile(file) && await readableHere(file.schema)) return landingDataFromFile(file, path => `${versionUrl}${path}`);
-        if (file !== null) console.warn(`[landing] ${versionUrl}/${LANDING_FILE} is not readable here – derived from the game configuration`);
+        if (isLandingFile(file) && await readableHere(file.schema)) {
+          if (file.hero !== undefined) return landingDataFromFile(file, path => `${versionUrl}${path}`);
+          own = landingDataFromFile(file, path => `${versionUrl}${path}`);
+        } else if (file !== null) console.warn(`[landing] ${versionUrl}/${LANDING_FILE} is not readable here – derived from the game configuration`);
       }
     } catch (error) {
       console.warn("[landing] landing.json not loaded:", error);
@@ -67,5 +75,6 @@ export const loadLandingData = async ({ baseUrl, bundled, derive, fetch: fetchFn
       ? Promise.resolve(new Response(known, { status: 200, headers: { "Content-Type": "application/json" } }))
       : fetchFn(input, init);
   };
-  return derive(reuse);
+  const derived = await derive(reuse);
+  return own ? { ...derived, shop: own.shop, ...(own.texts ? { texts: own.texts } : {}) } : derived;
 };

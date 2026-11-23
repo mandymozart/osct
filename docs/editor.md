@@ -1428,8 +1428,9 @@ change.
 The experience's Inspector (⚙) has a **landing page** section (`panels/LandingSection.svelte`, closed at first; its
 summary *scene › target* or *none*): the **scene** (a link – it opens the scene with the target selected), the
 **target**, the **hero** – *up to date*, *out of date* with **Refresh** (the hero extracted again and saved), or the
-problem when the pick cannot be the hero any more – and **Remove** (`{ landing: null }`; the landing shows the
-experience's first model again after the next publish). Publish writes the version's `landing.json` from it. Its
+problem when the pick cannot be the hero any more – and **Remove** (the pick goes, the landing's texts and shop stay –
+`{ landing: null }` when it holds nothing else; the landing shows the experience's first model again after the next
+publish). A pick keeps the landing's texts and shop too (#365). Publish writes the version's `landing.json` from it. Its
 **Landing page** link opens the landing workspace ([below](#the-landing-workspace-356)).
 
 ### The landing workspace (#356)
@@ -1445,23 +1446,40 @@ experience's address does); the crumb reads *Experiences › experience › Land
   makes the `landing.json` publish would write (`landingFileOf` – the stored hero of `experience.landing`, else the hero
   extracted from the default, the first model) and resolves its content paths where the draft keeps the files
   (`draftFileUrl`). It renders what a computer gets – the title, the hero, the QR card (the experience's reader address,
-  `?s=lp1`), the shop, the footer with Privacy & terms – in English, and scrolls inside the stage (`contained`). The
+  `?s=lp1`), the shop, the footer with Privacy & terms – in the Texts section's language, and scrolls inside the stage
+  (`contained`). The
   brand's tokens (`ui/brand/tokens.css`) sit on the piece's shadow host, the font's faces on the document: the editor's
   own UI stays monochrome (#38). The hero runs the experience's plugins in this page, so it goes through the plugin guard
   like the scene's stage (#35): the page shows at once, the hero once the prompt is answered (plugins kept off are left
-  out). Every landing save and every revert reads the draft again, and the stage mounts the page again.
+  out). The page's data is made from the draft with the workspace's landing (`landingDataOf`), so every edit shows at
+  once – before its save; a revert reads the draft again. A new hero mounts the page again; new texts, a new shop or
+  another language only update it (`LandingView.update` keeps the hero's stage and the QR code running). The text field in
+  focus is marked on the page (a dashed outline, `data-editing`) and scrolled into view.
 - **Inspector**: the landing's settings (`panels/LandingSection.svelte` with `choices`) – the hero's **scene** and
   **target** as two selects that list only scenes with a target that has AR content and only those targets
   (`landingPickScenes` in `lib/landing-pick.ts`: a model, a video, an image, a text, a plugin's node type or a component –
   never marginalia or links; switched-off targets are left out); a scene takes its first such target. A choice saves
-  itself through the autosaver like the stage's *Use for the landing page* (`saveLandingPick`, History lists it); the
-  **hero** row says *saving…*, *up to date*, *out of date* with **Refresh**, or the problem; **Remove**.
+  itself through the autosaver (`saveLanding`, History lists it); the **hero** row says *saving…*, *up to date*, *out of
+  date* with **Refresh**, or the problem; **Remove** takes the pick only (the texts and the shop stay).
+  Under it (#365, content schema 6.4 – [content](content.md) "The landing's texts and shop"):
+  - **texts** (`panels/LandingTexts.svelte`): a segmented **EN / DE / FR / NL** (the reader's languages – the stage
+    follows), then the **intro** (multi-line), **get the app**, the **QR line** (`openOnPhone`) and the **shop heading**
+    of that language. An empty field shows the app's text of that language greyed (`appTextOf` – `{{title}}` and
+    `{{author}}` filled in, the markup left out) and the page uses it; blank removes the key, then an empty language
+    (`withLandingText`). The QR code's alt text, *Scan with your phone* and *Privacy & terms* are not offered.
+  - **shop** (`panels/LandingShop.svelte`): nothing stored – the app's two items greyed and **Edit** (copies them,
+    `appShopItems`); stored – one row per item: the picture (a click opens a menu: **Library…** – the Library opens in the
+    Inspector as the picker, `{ for: "shop-image" }`, images only –, **The book's cover**, **No picture**), the label, the
+    link, ✕; **+ item** up to four; *Use the app's items* removes the list (`[]` – every item removed – is no shop).
+  The workspace holds the whole landing and saves it as **one autosave subject** (`landingSaveKey`; `saveLanding` writes
+  what the workspace holds when the save runs and extracts a new pick's hero first), so a pick and a text never
+  overtake each other; a text too long, an item without a label or a link that is no http(s) address holds the save with
+  its reason (`landingEditProblem`, the top bar says it).
 - **Scenes**: the scene workspace's filmstrip (`ScenesPanel.svelte`, the same panel): the hero's scene is the current
   card, a click on another card picks that scene (its first target with AR content; a scene without one says so).
 - **History** and **Info** as in a scene; the layout is remembered per workspace (`Floats("landing", …)`).
 
-The shop's items and the publisher are not edited here yet (they stay the app's configuration and the experience's
-book). **`landing` is a reserved scene id** (`RESERVED_SCENE_IDS` in `shared/api/names.ts`, any case): the API refuses a
+The publisher is not edited here (it is the experience's book). **`landing` is a reserved scene id** (`RESERVED_SCENE_IDS` in `shared/api/names.ts`, any case): the API refuses a
 new scene so named (`POST …/scenes { id }` → 400 `reserved-id`, `Scenes::RESERVED_IDS`), as does the MCP's `add_scene` –
 SvelteKit's static `landing` segment wins over `[scene]`, so such a scene could never open.
 
@@ -1948,7 +1966,7 @@ design tokens):
 | The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` on the stage, rebuild), the plugins' log; `plugin-guard.ts`, `plugin-guard.svelte.ts`, `components/PluginGuardPrompt.svelte` – the prompt before others' code (#340) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
 | Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `[experience]/landing/` (#356), `admin/` |
-| The landing workspace | `editor/src/lib/LandingStage.svelte`, `landing-draft.ts`, `landing-pick.ts`, `panels/LandingSection.svelte`; `ui/landing/`, `ui/brand/` | [The landing workspace](#the-landing-workspace-356); the piece is the reader's (`@ui/…`, an alias like `@engine/…`); the dev server serves the reader's `public/assets/ui/` and `assets/deps/` so its pictures and QR library load as on an instance |
+| The landing workspace | `editor/src/lib/LandingStage.svelte`, `landing-draft.ts`, `landing-pick.ts`, `landing-edit.ts`, `panels/LandingSection.svelte`, `panels/LandingTexts.svelte`, `panels/LandingShop.svelte`; `ui/landing/`, `ui/brand/` | [The landing workspace](#the-landing-workspace-356); the piece is the reader's (`@ui/…`, an alias like `@engine/…`); the dev server serves the reader's `public/assets/ui/` and `assets/deps/` so its pictures and QR library load as on an instance |
 | The API | `server/api/src/Experiences.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php`, `ExperienceTexts.php` | [server](server.md) "Editor data", "Plugin sources", "Texts" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |
 

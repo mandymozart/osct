@@ -1,9 +1,10 @@
-import { getExperience, getPlugins, getScenes, loadGameConfiguration } from "@engine/content/game-config";
+import { contentUrl, getExperience, getPlugins, getScenes, loadGameConfiguration } from "@engine/content/game-config";
 import { layoutFileUrl } from "@engine/content/layout";
 import { extractLandingHero, landingCover, landingImages } from "@shared/api/landing-extract";
 import { layoutSheets } from "../utils/book-cover";
+import { landingPickOf } from "@shared/types/landing";
 import type { LandingData } from "@ui/landing/data";
-import { LANDING_CONFIG } from "@ui/landing/landing-config";
+import { LANDING_CONFIG, shopItemsOf } from "@ui/landing/landing-config";
 import { scanStagePick } from "@ui/landing/scan-stage-data";
 
 export interface DeriveOptions {
@@ -18,7 +19,8 @@ export interface DeriveOptions {
  * (a version published before publish wrote it). Loads the configuration with the engine's loader (not the app's) and
  * extracts the hero as publish would (`shared/api/landing-extract.ts`): the experience's pick (`experience.landing`),
  * else the scene and model of the first of `LANDING_CONFIG.scanEntries` that has a model, else the content's first
- * model; the print layout's sheets from the loaded content (`utils/book-cover.ts`). Loaded lazily: only the fallback
+ * model; the print layout's sheets from the loaded content (`utils/book-cover.ts`); the landing's own texts and shop
+ * when the configuration has them (#365). Loaded lazily: only the fallback
  * needs the configuration's guard.
  */
 export const deriveLandingData = async ({ baseUrl, bundled, fetch }: DeriveOptions): Promise<LandingData> => {
@@ -27,7 +29,7 @@ export const deriveLandingData = async ({ baseUrl, bundled, fetch }: DeriveOptio
   const experience = getExperience();
   const appearance = experience.appearance;
   const source = { scenes: getScenes(), plugins: getPlugins(), ...(appearance ? { appearance } : {}) };
-  const pick = scanStagePick(source, LANDING_CONFIG.scanEntries, experience.landing);
+  const pick = scanStagePick(source, LANDING_CONFIG.scanEntries, landingPickOf(experience.landing));
   const layout = { sheets: await layoutSheets(), url: layoutFileUrl };
   return {
     experience: experience.id,
@@ -37,6 +39,7 @@ export const deriveLandingData = async ({ baseUrl, bundled, fetch }: DeriveOptio
     images: landingImages(source),
     cover: landingCover(layout),
     hero: pick && extractLandingHero(source, pick, layout),
-    shop: LANDING_CONFIG.shop,
+    shop: shopItemsOf(experience.landing?.shop).map(item => ({ ...item, image: contentUrl(item.image) })),
+    ...(experience.landing?.texts ? { texts: experience.landing.texts } : {}),
   };
 };

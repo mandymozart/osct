@@ -195,7 +195,7 @@ describe("the content tools", () => {
     expect([...rec.tools.keys()].sort()).toEqual(
       [
         "add_entry", "create_experience", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
-        "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_landing", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
+        "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_landing", "put_experience_landing_texts", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "put_surface", "delete_scene", "group_scenes", "rename_group", "ungroup",
         "set_surface_reference",
@@ -516,7 +516,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("6.3");
+    expect(model.contentSchema).toBe("6.4");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");
@@ -713,7 +713,38 @@ describe("the content tools", () => {
     expect(seen.filter(s => s.method === "PUT")).toHaveLength(0);
     seen.length = 0;
     expect((await rec.call("put_experience_landing", { experience: "osct", remove: true })).ok).toBe(true);
-    expect(seen).toEqual([expect.objectContaining({ method: "PUT", path: "/editor/experiences/osct", body: { landing: null } })]);
+    expect(seen.filter(s => s.method === "PUT")).toEqual([expect.objectContaining({ method: "PUT", path: "/editor/experiences/osct", body: { landing: null } })]);
+  });
+
+  it("put_experience_landing_texts: the landing's own texts by language and its shop, checked before they are sent; the pick stays (#365)", async () => {
+    const ok = await rec.call("put_experience_landing_texts", { experience: "osct", texts: { de: { intro: "Zu {title}" } }, shop: [{ label: "A print", url: "https://shop.example/p", image: "/assets/content/p.jpg" }] });
+    expect(ok.ok).toBe(true);
+    expect(ok.data.open).toBe("http://localhost:5175/editor/osct/landing/");
+    expect(seen.find(s => s.method === "PUT")).toMatchObject({ path: "/editor/experiences/osct", body: { landing: {
+      texts: { de: { intro: "Zu {title}" } }, shop: [{ label: "A print", url: "https://shop.example/p", image: "/assets/content/p.jpg" }],
+    } } });
+    seen.length = 0;
+    const bad = await rec.call("put_experience_landing_texts", { experience: "osct", texts: { en: { intro: "x".repeat(601) } }, shop: [{ label: "", url: "ftp://x" }] });
+    expect(bad.ok).toBe(false);
+    expect(bad.data.error.code).toBe("invalid-landing");
+    expect(bad.data.error.problems).toEqual([expect.stringMatching(/^texts\.en\.intro: longer than 600/), expect.stringMatching(/^shop\[0\]\.label/), expect.stringMatching(/^shop\[0\]\.url/)]);
+    expect(seen.filter(s => s.method === "PUT")).toHaveLength(0);
+    expect((await rec.call("put_experience_landing_texts", { experience: "osct" })).ok).toBe(false);
+  });
+
+  it("put_experience_landing keeps the landing's texts and shop when it picks or removes the hero (#365)", async () => {
+    const landing = { texts: { en: { shop: "Buy" } }, shop: [] };
+    TREE.experience.experience = { ...TREE.experience.experience, landing } as typeof TREE.experience.experience;
+    try {
+      expect((await rec.call("put_experience_landing", { experience: "osct", scene: "s1", target: "racoon" })).ok).toBe(true);
+      expect((seen.find(s => s.method === "PUT")!.body as { landing: Record<string, unknown> }).landing).toMatchObject({ scene: "s1", target: "racoon", ...landing });
+      seen.length = 0;
+      expect((await rec.call("put_experience_landing", { experience: "osct", remove: true })).ok).toBe(true);
+      expect(seen.find(s => s.method === "PUT")!.body).toEqual({ landing });
+    } finally {
+      const { landing: _landing, ...experience } = TREE.experience.experience as Record<string, unknown>;
+      TREE.experience.experience = experience as typeof TREE.experience.experience;
+    }
   });
 
   it("put_experience_appearance: a look per moment, checked against the contract; null removes it (#265)", async () => {

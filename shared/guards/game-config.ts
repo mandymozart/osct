@@ -245,7 +245,8 @@ export function assertGameConfiguration(raw: unknown, options: GuardOptions = {}
     if (experience.environment !== undefined) environmentProblems(experience.environment, "experience.environment", false).forEach(problem => problems.push(problem));
     if (experience.appearance !== undefined) appearanceProblems(experience.appearance, "experience.appearance", appearanceOptions).forEach(problem => problems.push(problem));
     if (experience.variables !== undefined) variablesProblems(experience.variables, "experience.variables").forEach(problem => problems.push(problem));
-    // Schema 6.1 (#355): the landing's pick – its shape; whether the scene and target exist is the build's and the API's
+    // Schema 6.1 (#355): the landing's pick – its shape; whether the scene and target exist is the build's and the API's.
+    // Schema 6.4 (#365): its texts and shop, with or without a pick
     if (experience.landing !== undefined) experienceLandingProblems(experience.landing).forEach(problem => problems.push(problem));
     if (experience.logic !== undefined) {
       logicProblems(experience.logic, "experience.logic", "experience").forEach(problem => problems.push(problem));

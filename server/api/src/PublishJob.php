@@ -58,8 +58,11 @@ final class PublishJob
         $folder = [];
         // The plugins' modules first, game.config.json last: a version whose configuration is there is complete
         foreach ($injected as $plugin) $folder[] = [ltrim((string) $plugin['declaration']->src, '/'), $plugin['code'], 'text/javascript'];
-        // The desktop landing's data (#355): from the experience's pick – none without one (the reader derives it then)
-        $landing = Landing::file($version['configuration'], (string) (Db::value('SELECT assets_base FROM experiences WHERE id = :id', ['id' => $experienceId]) ?? ''));
+        // The desktop landing's data (#355): from the experience's landing as stored – its pick's hero, its texts and shop (#365);
+        // none without any of them (the reader derives it then). The readers' configuration leaves a pick-less landing out.
+        $row = Db::one('SELECT assets_base, experience_json FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        $stored = $row ? Editor::decode((string) $row['experience_json']) : null;
+        $landing = Landing::file($version['configuration'], (string) ($row['assets_base'] ?? ''), $stored instanceof stdClass ? ($stored->landing ?? null) : null);
         if ($landing !== null) $folder[] = [Landing::FILE, $landing, 'application/json'];
         $folder[] = ['files.json', Editor::encode($version['files']), 'application/json'];
         $folder[] = ['game.config.json', Editor::encode($version['configuration']), 'application/json'];

@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MCP tools reference – OSCT docs</title>
-  <meta name="description" content="Every tool of the OSCT MCP server (57) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
+  <meta name="description" content="Every tool of the OSCT MCP server (58) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/docs/docs.css">
@@ -16,7 +16,7 @@
 <main class="reference">
   <p class="kicker">API</p>
   <h1>MCP tools reference</h1>
-  <p class="lead">All 57 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
+  <p class="lead">All 58 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <div class="table"><table>
     <tr><th>Area</th><th>Tools</th></tr>
@@ -26,12 +26,12 @@
     <tr><td><a href="#content">Targets and AR content</a></td><td class="wrap"><a href="#add_entry"><code>add_entry</code></a> · <a href="#put_target"><code>put_target</code></a> · <a href="#put_entity"><code>put_entity</code></a></td></tr>
     <tr><td><a href="#texts">Texts</a></td><td class="wrap"><a href="#update_entry"><code>update_entry</code></a> · <a href="#delete_entry"><code>delete_entry</code></a> · <a href="#update_experience"><code>update_experience</code></a></td></tr>
     <tr><td><a href="#look">Look</a></td><td class="wrap"><a href="#put_experience_passes"><code>put_experience_passes</code></a> · <a href="#put_experience_appearance"><code>put_experience_appearance</code></a> · <a href="#put_environment"><code>put_environment</code></a></td></tr>
+    <tr><td><a href="#landing">The landing page</a></td><td class="wrap"><a href="#put_experience_landing"><code>put_experience_landing</code></a> · <a href="#put_experience_landing_texts"><code>put_experience_landing_texts</code></a></td></tr>
     <tr><td><a href="#files">Files</a></td><td class="wrap"><a href="#list_assets"><code>list_assets</code></a> · <a href="#upload_asset"><code>upload_asset</code></a> · <a href="#rename_asset"><code>rename_asset</code></a> · <a href="#delete_asset"><code>delete_asset</code></a> · <a href="#set_asset_credits"><code>set_asset_credits</code></a> · <a href="#plan_asset_names"><code>plan_asset_names</code></a> · <a href="#apply_asset_names"><code>apply_asset_names</code></a></td></tr>
     <tr><td><a href="#plugins">Plugins</a></td><td class="wrap"><a href="#list_plugins"><code>list_plugins</code></a> · <a href="#get_plugin"><code>get_plugin</code></a> · <a href="#put_plugin"><code>put_plugin</code></a> · <a href="#upload_plugin"><code>upload_plugin</code></a> · <a href="#plugin_usages"><code>plugin_usages</code></a> · <a href="#delete_plugin"><code>delete_plugin</code></a></td></tr>
     <tr><td><a href="#import">New experiences, import and deliveries</a></td><td class="wrap"><a href="#create_experience"><code>create_experience</code></a> · <a href="#preview_import"><code>preview_import</code></a> · <a href="#import_experience"><code>import_experience</code></a> · <a href="#preview_delivery"><code>preview_delivery</code></a> · <a href="#import_delivery"><code>import_delivery</code></a> · <a href="#list_deliveries"><code>list_deliveries</code></a></td></tr>
     <tr><td><a href="#history">History</a></td><td class="wrap"><a href="#list_changes"><code>list_changes</code></a> · <a href="#list_versions"><code>list_versions</code></a> · <a href="#revert_change"><code>revert_change</code></a> · <a href="#revert_to"><code>revert_to</code></a></td></tr>
     <tr><td><a href="#seeing">Seeing and publishing</a></td><td class="wrap"><a href="#render_scene"><code>render_scene</code></a> · <a href="#publish"><code>publish</code></a> · <a href="#publish_status"><code>publish_status</code></a> · <a href="#activate_version"><code>activate_version</code></a></td></tr>
-    <tr><td><a href="#other">Other</a></td><td class="wrap"><a href="#put_experience_landing"><code>put_experience_landing</code></a></td></tr>
   </table></div>
 
   <h2 id="start">Start</h2>
@@ -361,6 +361,29 @@
   </table></div>
   <details><summary>Details</summary><p>{ world, onionSky, worldSrc?, skySrc? } – worldSrc a glTF model (an uploaded asset's url: .glb / .gltf) in place of the built-in world's scenery, skySrc an equirectangular image (.jpg / .png / .webp) for the sky; null removes it (the default world, the onion sky on). Experience-level; the reader's Graphics switches still apply on top. Checked against the contract; a change is recorded.</p></details>
 
+  <h2 id="landing">The landing page</h2>
+  <h3 id="put_experience_landing"><code>put_experience_landing</code> <span class="who">writes</span></h3>
+  <p>Picks the desktop landing's hero (content schema 6.1, #355).</p>
+  <pre><code>put_experience_landing { experience, scene?, target?, remove? }</code></pre>
+  <div class="table"><table>
+    <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
+    <tr id="put_experience_landing-experience"><td><code>experience</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id (list_experiences)</td></tr>
+    <tr id="put_experience_landing-scene"><td><code>scene</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the scene's id</td></tr>
+    <tr id="put_experience_landing-target"><td><code>target</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the id of a target on that scene with AR content (a model, a video, a component)</td></tr>
+    <tr id="put_experience_landing-remove"><td><code>remove</code> <span class="muted">optional</span></td><td class="wrap"><code>boolean</code></td><td class="wrap">true removes the pick</td></tr>
+  </table></div>
+  <details><summary>Details</summary><p>one target with AR content (a model, a video, a plugin's node type or a node a component drives) on one scene – the landing's book opens on the scene's surface the target lies on and its content rises from its print. The tool extracts the hero from the draft as the editor does (the surface, its prints, the target's entity, the print layout's pictures, the experience's plugins and looks) and saves it with the pick in experience.landing; publish writes the version's landing.json from it. A target without AR content (marginalia, a link, a target without an entity) is refused. remove: true removes the pick – the landing shows the experience's first model again. The landing's own texts and shop (put_experience_landing_texts) stay as they are either way. Re-run it after the entity, the prints or the looks changed (the editor's Inspector says when the stored hero is out of date). The change is recorded.</p></details>
+  <h3 id="put_experience_landing_texts"><code>put_experience_landing_texts</code> <span class="who">writes</span></h3>
+  <p>The desktop landing page's own texts and shop (content schema 6.4, #365) – stored in experience.landing next to the hero's pick (put_experience_landing), published in landing.json.</p>
+  <pre><code>put_experience_landing_texts { experience, texts?, shop? }</code></pre>
+  <div class="table"><table>
+    <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
+    <tr id="put_experience_landing_texts-experience"><td><code>experience</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id (list_experiences)</td></tr>
+    <tr id="put_experience_landing_texts-texts"><td><code>texts</code> <span class="muted">optional</span></td><td class="wrap"><code>object | null</code></td><td class="wrap">by language: { intro?, getApp?, openOnPhone?, shop? } – null: the app's texts everywhere</td></tr>
+    <tr id="put_experience_landing_texts-shop"><td><code>shop</code> <span class="muted">optional</span></td><td class="wrap"><code>{ label, url, image, cover }[] | null</code></td><td class="wrap">the shop's items – [] = no shop, null = the app's items</td></tr>
+  </table></div>
+  <details><summary>Details</summary><p>texts: by language (en, de, fr, nl – the reader's), each { intro, getApp, openOnPhone, shop } (at most intro 600, getApp 120, openOnPhone 300, shop 120 characters): intro = the text under the title, getApp = the &quot;Get the app&quot; link and heading, openOnPhone = the line beside the QR code, shop = the shop's heading. A text left out (or blank) is the app's text in that language, so a visitor in another language never reads yours; the QR code's alt text, &quot;Scan with your phone&quot; and &quot;Privacy &amp; terms&quot; always stay the app's. shop: up to 4 items { label (one for every language), url (http/https), image? (a file of the experience: a content path /assets/content/… or the Library's URL – list_assets), cover? (true: the book's cover from the print layout) }; [] = no shop on the page; null = the app's own two items again. Each field sent replaces that field as a whole (texts: every language; null removes); a field left out stays. Checked against the contract before it is sent; the change is recorded.</p></details>
+
   <h2 id="files">Files</h2>
   <h3 id="list_assets"><code>list_assets</code> <span class="who">reads</span></h3>
   <p>The experience's files.</p>
@@ -637,19 +660,6 @@
     <tr id="activate_version-build"><td><code>build</code></td><td class="wrap"><code>string</code></td><td class="wrap">the version's build (list_versions)</td></tr>
   </table></div>
   <details><summary>Details</summary><p><code>build</code> (list_versions) becomes the version readers get on their next start – versions.json and latest.json switch back, a row in the publish log says who did it. Builds are kept in the store, the draft is not changed. Ask the person first, naming the version's time and the environment. Signed in with an AI connection's token (osct_…) the API refuses it (403 not-for-ai): then the person does it in the editor (experiences page → the book's Versions). 404 unknown-build (not in this environment's publish log), 409 already-live, publish-running, build-missing (purged from the store), unreadable-schema (a content schema today's reader cannot read).</p></details>
-
-  <h2 id="other">Other</h2>
-  <h3 id="put_experience_landing"><code>put_experience_landing</code> <span class="who">writes</span></h3>
-  <p>Picks the desktop landing's hero (content schema 6.1, #355).</p>
-  <pre><code>put_experience_landing { experience, scene?, target?, remove? }</code></pre>
-  <div class="table"><table>
-    <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
-    <tr id="put_experience_landing-experience"><td><code>experience</code></td><td class="wrap"><code>string</code></td><td class="wrap">the experience's id (list_experiences)</td></tr>
-    <tr id="put_experience_landing-scene"><td><code>scene</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the scene's id</td></tr>
-    <tr id="put_experience_landing-target"><td><code>target</code> <span class="muted">optional</span></td><td class="wrap"><code>string</code></td><td class="wrap">the id of a target on that scene with AR content (a model, a video, a component)</td></tr>
-    <tr id="put_experience_landing-remove"><td><code>remove</code> <span class="muted">optional</span></td><td class="wrap"><code>boolean</code></td><td class="wrap">true removes the pick</td></tr>
-  </table></div>
-  <details><summary>Details</summary><p>one target with AR content (a model, a video, a plugin's node type or a node a component drives) on one scene – the landing's book opens on the scene's surface the target lies on and its content rises from its print. The tool extracts the hero from the draft as the editor does (the surface, its prints, the target's entity, the print layout's pictures, the experience's plugins and looks) and saves it with the pick in experience.landing; publish writes the version's landing.json from it. A target without AR content (marginalia, a link, a target without an entity) is refused. remove: true removes the pick – the landing shows the experience's first model again. Re-run it after the entity, the prints or the looks changed (the editor's Inspector says when the stored hero is out of date). The change is recorded.</p></details>
   <footer id="pager"></footer>
 </main>
 </body>

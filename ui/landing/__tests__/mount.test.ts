@@ -92,4 +92,38 @@ describe("mountLanding", () => {
     mountLanding(element, input(), { contained: true });
     expect(element.hasAttribute(CONTAINED_ATTRIBUTE)).toBe(true);
   });
+
+  it("shows an experience's own shop (#365): its labels (escaped), its links, the book's cover on a cover item; [] = no shop section", () => {
+    const element = host();
+    const shop = [
+      { label: "The <book>", url: "https://shop/book", image: LANDING_CONFIG.shop[0].image, cover: true },
+      { label: "A print", url: "https://shop/print", image: "https://cdn/print.jpg" },
+      { label: "A mug", url: "https://shop/mug", image: "" },
+    ];
+    mountLanding(element, input({ ...DATA, shop }));
+    const root = element.shadowRoot!;
+    expect(Array.from(root.querySelectorAll(".shop .name")).map(name => name.textContent)).toEqual(["The <book>", "A print", "A mug"]);
+    expect(Array.from(root.querySelectorAll<HTMLAnchorElement>(".shop a")).map(link => link.getAttribute("href"))).toEqual(shop.map(item => item.url));
+    expect(root.querySelector<HTMLImageElement>("[data-cover] img")!.src).toBe(DATA.cover);
+    expect(root.querySelector('[data-item="2"] img')).toBeNull();
+    const empty = host();
+    mountLanding(empty, input({ ...DATA, shop: [] }));
+    expect(empty.shadowRoot!.querySelector(".shop-section")).toBeNull();
+    expect(empty.shadowRoot!.querySelector("footer")).not.toBeNull();
+  });
+
+  it("updates its texts and shop in place – the hero's stage and the QR code stay as they run (the editor while typing, #365)", () => {
+    const element = host();
+    const view = mountLanding(element, input());
+    const root = element.shadowRoot!;
+    const stage = root.querySelector(".stage");
+    const qr = root.querySelector(".qr-code");
+    view.update({ ...input(), texts: landingTexts("en", { title: DATA.title, author: DATA.author }, { en: { intro: "Our own words" } }), data: { ...DATA, shop: [] } });
+    expect(root.querySelector(".intro")!.textContent).toBe("Our own words");
+    expect(root.querySelector(".shop-section")).toBeNull();
+    expect(root.querySelector(".stage")).toBe(stage);
+    expect(root.querySelector(".qr-code")).toBe(qr);
+    expect(root.querySelector(".address")!.textContent).toBe("osct.example");
+    view.stop();
+  });
 });

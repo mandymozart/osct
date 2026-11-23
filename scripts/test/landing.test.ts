@@ -5,6 +5,7 @@ import {
 } from '../../shared/api/landing-extract';
 import { draftFileUrl, extractDraftLanding, withContentPaths } from '../../shared/api/landing-draft';
 import { assertGameConfiguration } from '../../shared/guards/game-config';
+import { experienceLandingProblems, landingExtrasOf, landingPickOf } from '../../shared/types/landing';
 import { CONTENT_SCHEMA_VERSION, type GameConfiguration } from '../../shared/types/game-config';
 import { EntryCategory } from '../../shared/types/entry';
 import { EXPERIENCE, entry, loadBuild, makeContent, scene } from './helpers';
@@ -160,9 +161,94 @@ describe('experience.yaml landing (content build)', () => {
     expect(build.errors).toEqual([]);
     const extra = await loadBuild(makeContent(content('landing:\n  scene: a\n  target: first\n  hero: {}\n')));
     extra.buildAll();
-    expect(extra.errors).toEqual(['experience.yaml: landing: write scene and target only – hero is extracted by the build']);
+    expect(extra.errors).toEqual(['experience.yaml: landing: write scene, target, texts and shop only – hero is extracted by the build']);
     const broken = await loadBuild(makeContent(content('landing: first\n')));
     broken.buildAll();
     expect(broken.errors).toEqual(["experience.yaml: Field 'landing' in experience must be an object"]);
+  });
+});
+
+describe('the landing\'s texts and shop (#365, schema 6.4)', () => {
+  const texts = { de: { intro: 'Zu {title}' }, en: { shop: 'Buy' } };
+  const shop = [{ label: 'A print', url: 'https://shop.example/print', image: '/assets/content/landing/print.jpg' }, { label: 'The book', url: 'https://shop.example/book', cover: true as const }];
+
+  it('checks their shape: texts by a two-letter language, the four keys, their lengths; up to four items with a label, an http(s) link, a picture or the cover', () => {
+    expect(experienceLandingProblems({ texts, shop })).toEqual([]);
+    expect(experienceLandingProblems({ scene: 'p10', target: 'face', texts, shop: [] })).toEqual([]);
+    expect(experienceLandingProblems({ hero: {} })).toEqual(['experience.landing: a hero or a cover needs its pick (scene, target)']);
+    expect(experienceLandingProblems({ scene: 'p10' })).toEqual(['experience.landing.target: expected an id']);
+    expect(experienceLandingProblems({ texts: { deu: { intro: 'x' }, en: { qrAlt: 'x', intro: ' ', getApp: 'x'.repeat(121) } } })).toEqual([
+      'experience.landing.texts.deu: expected a two-letter language code (en, de, fr, nl)',
+      'experience.landing.texts.en.qrAlt: unknown text – intro, getApp, openOnPhone, shop',
+      "experience.landing.texts.en.intro: expected a text (leave it out for the app's)",
+      'experience.landing.texts.en.getApp: longer than 120 characters',
+    ]);
+    expect(experienceLandingProblems({ texts: { en: { intro: 'x'.repeat(600), openOnPhone: 'x'.repeat(300) } } })).toEqual([]);
+    const item = { label: 'x', url: 'https://shop.example' };
+    expect(experienceLandingProblems({ shop: [item, item, item, item, item] })).toEqual(['experience.landing.shop: at most 4 items']);
+    expect(experienceLandingProblems({ shop: [{ label: '', url: 'javascript:alert(1)', image: '/a.jpg', cover: true }] })).toEqual([
+      'experience.landing.shop[0].label: expected a text',
+      'experience.landing.shop[0].url: expected an http(s) address',
+      "experience.landing.shop[0]: a picture (image) or the book's cover (cover), not both",
+    ]);
+    expect(experienceLandingProblems({ shop: [{ ...item, cover: false }] })).toEqual(["experience.landing.shop[0].cover: expected true (the book's cover) or none"]);
+  });
+
+  it('a landing of texts alone passes the guard and has no pick; the hero stays the default and never goes stale over them', () => {
+    const own: GameConfiguration = { ...config(), experience: { ...config().experience, landing: { texts, shop } } };
+    expect(() => assertGameConfiguration(own)).not.toThrow();
+    expect(landingPickOf(own.experience.landing)).toBeNull();
+    expect(withLandingHero(own, LAYOUT)).toBe(own);
+    expect(landingHeroStale(own.experience.landing, null)).toBe(false);
+    const file = landingFileOf(own, LAYOUT);
+    expect(isLandingFile(file)).toBe(true);
+    expect(file).toMatchObject({ texts, shopItems: shop, cover: '/assets/content/layout/sheets/cover.jpg' });
+    expect(file.hero?.entity.assets[0].src).toBe('/assets/content/entries/face/face.glb');
+  });
+
+  it('the pick\'s hero keeps them: the build fills the hero in beside them, landing.json carries them, the stale check ignores them', () => {
+    const picked: GameConfiguration = withLandingHero({ ...config(), experience: { ...config().experience, landing: { scene: 'p10', target: 'face', texts, shop: [] } } }, LAYOUT);
+    expect(picked.experience.landing).toMatchObject({ scene: 'p10', target: 'face', texts, shop: [] });
+    expect(picked.experience.landing?.hero?.pages).toEqual([10, 11]);
+    expect(landingExtrasOf(picked.experience.landing)).toEqual({ texts, shop: [] });
+    expect(landingFileOf(picked)).toMatchObject({ texts, shopItems: [] });
+    expect(landingFileOf(config(), LAYOUT)).not.toHaveProperty('texts');
+    const fresh = extractExperienceLanding(landingSourceOf(config()), { scene: 'p10', target: 'face' }, LAYOUT);
+    expect(landingHeroStale({ ...picked.experience.landing!, texts: { en: { intro: 'other' } } }, fresh)).toBe(false);
+  });
+});
+
+describe('experience.yaml landing texts and shop (content build, #365)', () => {
+  const content = (landing: string) => ({
+    'experience.yaml': `${EXPERIENCE}${landing}`,
+    'scenes/a/scene.yaml': scene('1–2'),
+    'entries/first/entry.yaml': entry('a', 'x.jpg'),
+    'entries/first/x.jpg': 'image x',
+    'landing/print.jpg': 'image p',
+  });
+
+  it('takes texts and a shop with or without a pick; a picture is a file of the folder (its content path) or a URL', async () => {
+    const yaml = 'landing:\n  texts:\n    de:\n      intro: Hallo\n  shop:\n    - label: A print\n      url: https://shop.example/p\n      image: landing/print.jpg\n'
+      + '    - label: Elsewhere\n      url: https://shop.example/e\n      image: https://img.example/e.jpg\n    - label: The book\n      url: https://shop.example/b\n      cover: true\n';
+    const build = await loadBuild(makeContent(content(yaml)));
+    expect(build.buildAll().experience.landing).toEqual({
+      texts: { de: { intro: 'Hallo' } },
+      shop: [
+        { label: 'A print', url: 'https://shop.example/p', image: '/assets/content/landing/print.jpg' },
+        { label: 'Elsewhere', url: 'https://shop.example/e', image: 'https://img.example/e.jpg' },
+        { label: 'The book', url: 'https://shop.example/b', cover: true },
+      ],
+    });
+    expect(build.errors).toEqual([]);
+  });
+
+  it('refuses a picture that is not in the folder, a link that is no address and an unknown field', async () => {
+    const broken = await loadBuild(makeContent(content('landing:\n  colour: red\n  shop:\n    - label: A\n      url: shop.example\n      image: landing/missing.jpg\n')));
+    broken.buildAll();
+    expect(broken.errors).toEqual(expect.arrayContaining([
+      'experience.yaml: landing.shop[0].url: expected an http(s) address',
+      'experience.yaml: landing: unknown colour – scene, target, texts, shop',
+      'experience.yaml: landing.shop[0].image: file "landing/missing.jpg" not found in the content folder',
+    ]));
   });
 });

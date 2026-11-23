@@ -247,8 +247,23 @@ final class ExportArchive
                 }
                 $experience->environment = $environment;
             } elseif ($key === 'landing' && $value instanceof stdClass) {
-                // The landing's pick (#355): its ids – the build extracts the hero again
-                $experience->landing = (object) ['scene' => $value->scene ?? null, 'target' => $value->target ?? null];
+                // The landing's pick (#355): its ids – the build extracts the hero again; its texts and shop as they are, a
+                // shop item's picture as a file of the folder (#365)
+                $landing = new stdClass();
+                if (property_exists($value, 'scene')) {
+                    $landing->scene = $value->scene;
+                    $landing->target = $value->target ?? null;
+                }
+                if (property_exists($value, 'texts')) $landing->texts = $value->texts;
+                if (is_array($value->shop ?? null)) {
+                    $landing->shop = array_map(static function (mixed $item) use ($address): mixed {
+                        if (!$item instanceof stdClass || !is_string($item->image ?? null) || $item->image === '') return $item;
+                        $out = clone $item;
+                        $out->image = substr($address($item->image, 'landing'), strlen(self::CONTENT_PREFIX));
+                        return $out;
+                    }, $value->shop);
+                }
+                if (get_object_vars($landing)) $experience->landing = $landing;
             } else {
                 $experience->{$key} = $value;
             }

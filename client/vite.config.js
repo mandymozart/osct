@@ -9,8 +9,8 @@ import { fontBaseUrl, renderFontFaces } from '../ui/brand/font-face.ts';
 import { legacyRedirectData, renderLegacyRedirect } from './src/utils/legacy-redirect-html.ts';
 import { manifestLinkData, renderManifestLink, withoutBuildManifestLink } from './src/utils/manifest-link-html.ts';
 import { landingDecisionData, renderEntryPreload, renderLandingDecision } from './src/landing/landing-decision-html.ts';
-import { fillTexts, LANDING_ATTRIBUTE, landingImages, renderStaticLanding } from '../ui/landing/landing-html.ts';
-import { LANDING_CONFIG } from '../ui/landing/landing-config.ts';
+import { fillTexts, LANDING_ATTRIBUTE, landingImages, renderStaticLanding, withOwnTexts } from '../ui/landing/landing-html.ts';
+import { LANDING_CONFIG, shopItemsOf } from '../ui/landing/landing-config.ts';
 import { renderPrivacyPage } from './src/privacy/privacy-html.ts';
 import { DEFAULT_LANGUAGE, LANGUAGES } from './src/i18n/languages.ts';
 
@@ -35,11 +35,14 @@ const readLocalGameConfig = () => (existsSync(GAME_CONFIG_FILE) ? JSON.parse(rea
  */
 /** Where the content the build read lives on the CDN (`<base>/<experience>/<build>`, '' for the local build): its file URLs (the static landing's images) */
 let shellContentBase = '';
+/** The landing.json of the content the build read (the CDN version's, else the local build's – #365: its own texts and shop), null without */
+let shellLanding = null;
 
 async function readShellConfig(contentBaseUrl) {
   if (!contentBaseUrl) {
     const local = readLocalGameConfig();
     if (!local) throw new Error(MISSING_CONTENT);
+    shellLanding = existsSync(LANDING_FILE) ? JSON.parse(readFileSync(LANDING_FILE, 'utf8')) : null;
     return local;
   }
   try {
@@ -51,6 +54,7 @@ async function readShellConfig(contentBaseUrl) {
     const { build } = await get(`${contentBaseUrl}/latest.json?t=${Date.now()}`);
     const config = await get(`${contentBaseUrl}/${build}/game.config.json`);
     shellContentBase = `${contentBaseUrl}/${build}`;
+    shellLanding = await get(`${contentBaseUrl}/${build}/landing.json`).catch(() => null);
     return config;
   } catch (error) {
     console.warn(`[osct] content on ${contentBaseUrl} not readable (${error.message}) – app shell from the local content build or without experience data`);
@@ -226,7 +230,8 @@ function manifestLink() {
  * The desktop landing in the skeleton (#343, #355 – src/landing/landing-decision-html.ts and ui/landing/landing-html.ts): an inline
  * script after the legacy redirect decides at once whether this is a computer (`<html data-osct-landing>`: `page` on the
  * default experience's path, `skeleton` on another's), and the landing page itself is written into the body from the
- * build's game configuration (English texts, the targets' images from the content the build read) – so a computer sees
+ * build's game configuration (English texts – the experience's own over the app's, #365 –, its shop, the targets' images
+ * from the content the build read) – so a computer sees
  * the landing, not the phone's splash, before any code has loaded. index.html's loader then imports the landing's entry
  * instead of the app (src/landing/entry.ts), which fills it in.
  */
@@ -237,11 +242,15 @@ function staticLanding(experience, config, contentBase) {
     transformIndexHtml(html) {
       const fields = splashFields(config.experience);
       const url = (path) => (contentBase && path.startsWith('/assets/content/') ? `${contentBase}${path}` : path);
+      // The experience's own texts and shop (#365): its landing.json's, else its configuration's – English, as the page's first paint
+      const own = shellLanding && typeof shellLanding === 'object' ? { texts: shellLanding.texts, shop: shellLanding.shopItems } : config.experience?.landing ?? {};
+      const values = { title: fields.title, author: fields.author };
       return html
         .replace('<!--osct:landing-decision-->', renderLandingDecision(landingDecisionData(experience)))
         .replace('<!--osct:static-landing-->', renderStaticLanding({
           ...LANDING_CONFIG,
-          texts: fillTexts(read('../ui/landing/locales/en/landing.json'), { title: fields.title, author: fields.author }),
+          shop: shopItemsOf(own.shop).map((item) => ({ ...item, image: url(item.image) })),
+          texts: withOwnTexts(fillTexts(read('../ui/landing/locales/en/landing.json'), values), own.texts?.en, values),
           title: fields.title,
           author: fields.author,
           publisher: fields.publisher,

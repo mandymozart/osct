@@ -95,6 +95,8 @@ final class ContentVersion
         if (is_array($plugins) && $plugins) $configuration->plugins = $plugins;
         if ($forReaders) {
             Logic::withoutCanvas($configuration->experience);
+            // A landing without a pick (texts or a shop only, #365): in landing.json, never in the readers' configuration
+            Landing::forReaders($configuration->experience);
             foreach ($configuration->scenes as $scene) Logic::withoutCanvas($scene);
         }
         $files = Editor::decode($experience['files_json']);

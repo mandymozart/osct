@@ -15,7 +15,7 @@
  */
 import type { ExperienceAppearance } from "../types/appearance";
 import type { AssetData, EntityData, EntityRefData, ExperienceData, GameConfiguration, SurfaceData, TargetPlace } from "../types/game-config";
-import type { ExperienceLanding, LandingHeroData, LandingPick, LandingPrintData } from "../types/landing";
+import { type ExperienceLanding, type LandingHeroData, type LandingPick, type LandingPrintData, landingExtrasOf, landingPickOf } from "../types/landing";
 import type { PluginData } from "../types/plugins";
 import { LANDING_FALLBACK_ENTRIES, LANDING_FORMAT, type LandingFile, seededPick } from "./landing";
 
@@ -280,36 +280,40 @@ const canonical = (value: unknown): string =>
  * pick that cannot be the hero any more (`fresh` null), is out of date too.
  */
 export const landingHeroStale = (stored: ExperienceLanding | null | undefined, fresh: ExperienceLanding | null): boolean => {
-  if (!stored) return false;
+  // Texts and a shop alone are no pick; and they never make a hero stale (#365)
+  if (!stored || !landingPickOf(stored)) return false;
   if (!fresh || !stored.hero) return true;
   return canonical({ hero: stored.hero, cover: stored.cover ?? null }) !== canonical({ hero: fresh.hero, cover: fresh.cover ?? null });
 };
 
 /**
- * The configuration with its pick's hero filled in (`experience.landing.hero` and `cover`) – the content build's step
- * after the media got their final names; a configuration without a pick, or whose pick cannot be the hero, is returned
- * as it is (the build reports the pick's problem before)
+ * The configuration with its pick's hero filled in (`experience.landing.hero` and `cover`, the landing's texts and shop
+ * kept) – the content build's step after the media got their final names; a configuration without a pick, or whose pick
+ * cannot be the hero, is returned as it is (the build reports the pick's problem before)
  */
 export const withLandingHero = <C extends Pick<GameConfiguration, "experience" | "scenes" | "entries" | "entities" | "plugins">>(config: C, layout?: LandingLayout): C => {
-  const pick = config.experience.landing;
+  const pick = landingPickOf(config.experience.landing);
   if (!pick) return config;
-  const landing = extractExperienceLanding(landingSourceOf(config), { scene: pick.scene, target: pick.target }, layout);
-  if (!landing) return config;
-  const experience: ExperienceData = { ...config.experience, landing };
+  const extracted = extractExperienceLanding(landingSourceOf(config), pick, layout);
+  if (!extracted) return config;
+  const experience: ExperienceData = { ...config.experience, landing: { ...extracted, ...landingExtrasOf(config.experience.landing) } };
   return { ...config, experience };
 };
 
 /**
- * The `landing.json` of a configuration (shared/api/landing.ts): its experience's texts, its target images, the
+ * The `landing.json` of a configuration (shared/api/landing.ts): its experience's title and book, its target images, the
  * layout's cover and the hero – the stored one (`experience.landing.hero`), else extracted from its pick, else from
- * the default the landing always took (`fallbackEntries`: `LANDING_CONFIG.scanEntries`); hero null without a model or video
+ * the default the landing always took (`fallbackEntries`: `LANDING_CONFIG.scanEntries`); hero null without a model or
+ * video – and the landing's own texts and shop when it has them (#365)
  */
 export const landingFileOf = (config: GameConfiguration, layout?: LandingLayout, fallbackEntries: readonly string[] = LANDING_FALLBACK_ENTRIES): LandingFile => {
   const source = landingSourceOf(config);
   const { experience } = config;
   const stored = experience.landing;
-  const pick = stored ? { scene: stored.scene, target: stored.target } : defaultLandingPick(source, fallbackEntries);
-  const hero = stored?.hero ?? (pick ? extractLandingHero(source, pick, layout) : null);
+  const picked = landingPickOf(stored);
+  const pick = picked ?? defaultLandingPick(source, fallbackEntries);
+  const hero = (picked && stored?.hero) || (pick ? extractLandingHero(source, pick, layout) : null);
+  const { texts, shop } = landingExtrasOf(stored);
   return {
     format: LANDING_FORMAT,
     schema: config.version.schema,
@@ -318,7 +322,9 @@ export const landingFileOf = (config: GameConfiguration, layout?: LandingLayout,
     author: experience.book?.author ?? "",
     publisher: experience.book?.publisher ?? "",
     images: landingImages(source),
-    cover: stored?.cover ?? landingCover(layout),
+    cover: (picked && stored?.cover) || landingCover(layout),
     hero,
+    ...(texts ? { texts } : {}),
+    ...(shop ? { shopItems: shop } : {}),
   };
 };

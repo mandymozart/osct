@@ -85,12 +85,13 @@ const scatter = (images: readonly string[]): string =>
     })
     .join("");
 
-const shopItem = (item: ShopItem, texts: LandingTexts): string => {
-  const name = item.id === "book" ? texts.shopBook : texts.shopShirt;
+/** A shop item: the app's (named by its text) or an experience's own (its label, escaped – #365) */
+const shopItem = (item: ShopItem, index: number, texts: LandingTexts): string => {
+  const name = item.label ?? (item.id === "book" ? texts.shopBook : texts.shopShirt);
   return /* html */ `
-      <li class="item" data-item="${item.id}">
-        <div class="picture${item.cover ? " slot" : ""}"><img src="${escapeHtml(item.image)}" alt="" /></div>
-        <span class="name">${name}</span>
+      <li class="item" data-item="${escapeHtml(item.id ?? String(index))}"${item.cover ? " data-cover" : ""}>
+        <div class="picture${item.cover ? " slot" : ""}">${item.image ? `<img src="${escapeHtml(item.image)}" alt="" />` : ""}</div>
+        <span class="name">${item.label !== undefined ? escapeHtml(name) : name}</span>
         ${goldButton({ label: texts.toShop, href: item.url, attrs: { "aria-label": `${name} – ${texts.toShop}` } })}
       </li>
     `;
@@ -305,12 +306,12 @@ const renderMarkup = (source: LandingSource): string => {
           </div>
         </section>
 
-        <section class="shop-section">
+        ${shop.length ? /* html */ `<section class="shop-section">
           <div class="wrap">
             <h2 class="gold">${texts.shop}</h2>
-            <ul class="shop">${shop.map(item => shopItem(item, texts)).join("")}</ul>
+            <ul class="shop">${shop.map((item, i) => shopItem(item, i, texts)).join("")}</ul>
           </div>
-        </section>
+        </section>` : ""}
 
         <footer>
           <div class="wrap muted small">
@@ -320,6 +321,26 @@ const renderMarkup = (source: LandingSource): string => {
         </footer>
       </main>
     `;
+};
+
+/** The texts an experience may write itself (`experience.landing.texts`, #365 – shared/types/landing.ts `LANDING_TEXT_KEYS`) */
+export const OWN_TEXT_KEYS = ["intro", "getApp", "openOnPhone", "shop"] as const satisfies readonly (keyof LandingTexts)[];
+
+/**
+ * The app's texts with an experience's own in their place, field by field (#365): plain text, escaped; `{title}` and
+ * `{author}` (or `{{title}}`, as the app's texts write them) filled in, escaped; a line break of the intro kept. A text
+ * left out, or blank, stays the app's.
+ */
+export const withOwnTexts = (texts: LandingTexts, own: Partial<Record<string, string>> | undefined, values: Record<string, string>): LandingTexts => {
+  if (!own) return texts;
+  const out = { ...texts };
+  for (const key of OWN_TEXT_KEYS) {
+    const text = own[key];
+    if (typeof text !== "string" || !text.trim()) continue;
+    const filled = escapeHtml(text.trim()).replace(/\{\{?\s*(title|author)\s*\}?\}/g, (_, name: string) => escapeHtml(values[name] ?? ""));
+    out[key] = key === "intro" ? filled.replace(/\r?\n/g, "<br />") : filled.replace(/\s*\r?\n\s*/g, " ");
+  }
+  return out;
 };
 
 /** i18next's interpolation for the build: `{{title}}`, `{{author}}`, the values escaped (as `t()` does) */

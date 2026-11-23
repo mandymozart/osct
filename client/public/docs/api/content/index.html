@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Content model reference – OSCT docs</title>
-  <meta name="description" content="The OSCT content model, schema 6.3: scenes, entries, targets, node types, placement, components and rules, filters, passes and looks with every parameter.">
+  <meta name="description" content="The OSCT content model, schema 6.4: scenes, entries, targets, node types, placement, components and rules, filters, passes and looks with every parameter.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/docs/docs.css">
@@ -16,7 +16,7 @@
 <main class="reference">
   <p class="kicker">API</p>
   <h1>Content model reference</h1>
-  <p class="lead">What an experience is made of, content schema 6.3: every built-in type with its parameters, their ranges and defaults. It is what the tool <code>describe_content_model</code> answers an agent, and what the editor's rows are built from.</p>
+  <p class="lead">What an experience is made of, content schema 6.4: every built-in type with its parameters, their ranges and defaults. It is what the tool <code>describe_content_model</code> answers an agent, and what the editor's rows are built from.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <h2 id="experience">The experience</h2>
   <p>ExperienceData: { id, title, passes?, environment?, appearance?, book?, recognition? } – the experience, the top level of the content (content schema 4.0). book = BookData { author, publisher? }: the printed book it accompanies, print data only; none = not a book (a wall, a room, an exhibition). update_experience changes the title (the reader's splash, home page and account show it) and the printed book – its author and publisher (the splash shows them), book: null removes it. recognition (content schema 4.2): &quot;original&quot; (none = the default: the reader makes every target's recognition data from its printed image) or &quot;prepared&quot; (a target's frame made ahead where it has one) – update_experience recognition. Every experience adds, moves and removes its scenes in the editor.</p>

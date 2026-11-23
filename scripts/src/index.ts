@@ -27,6 +27,7 @@ import { hashBuildInputs, readPreviousHash } from './lib/hash';
 import { imageFormat, optimizeMedia, renameContentPaths, textureSetFiles } from './lib/optimize-media';
 import { buildWarnings } from './lib/errors';
 import { landingFileOf, withLandingHero } from '../../shared/api/landing-extract';
+import { landingPickOf } from '../../shared/types/landing';
 import { readLayout } from './lib/layout';
 
 console.log('🚀 OSCT Content Build Tool 🚀');
@@ -87,7 +88,9 @@ async function generateConfigFile(): Promise<void> {
     console.log(`🎉 Successfully generated ${OUTPUT_FILE} (version: ${config.version.version})`);
     const landing = landingFileOf(config, layout);
     fs.writeFileSync(LANDING_OUTPUT_FILE, JSON.stringify(landing, null, 2));
-    console.log(`🖥️  ${path.relative(projectRoot, LANDING_OUTPUT_FILE)}: ${landing.hero ? `the hero ${config.experience.landing ? `picked (${config.experience.landing.scene} › ${config.experience.landing.target})` : 'by default (no landing in experience.yaml)'}` : 'no hero (no 3D model)'}`);
+    const pick = landingPickOf(config.experience.landing);
+    const own = [landing.texts ? `own texts (${Object.keys(landing.texts).join(', ')})` : '', landing.shopItems ? `${landing.shopItems.length} shop item(s)` : ''].filter(Boolean).join(', ');
+    console.log(`🖥️  ${path.relative(projectRoot, LANDING_OUTPUT_FILE)}: ${landing.hero ? `the hero ${pick ? `picked (${pick.scene} › ${pick.target})` : 'by default (no pick in experience.yaml)'}` : 'no hero (no 3D model)'}${own ? ` – ${own}` : ''}`);
   } catch (error) {
     console.error('❌ Error generating config file:', error);
     process.exit(1);

@@ -16,6 +16,7 @@ import { BEHAVIOUR_SCOPES } from "../../shared/types/behaviour";
 import { VARIABLE_TYPES } from "../../shared/types/variables";
 import { APPEARANCE_TYPES, MOMENTS } from "../../shared/types/appearance";
 import { CARD_LOOK_KEY, CARD_LOOK_TYPES } from "../../shared/types/card-look";
+import { LANDING_SHOP_LABEL_MAX, LANDING_SHOP_MAX, LANDING_SHOP_URL_MAX, LANDING_TEXT_KEYS, LANDING_TEXT_MAX } from "../../shared/types/landing";
 import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
@@ -121,6 +122,7 @@ function readPhp(): Record<string, unknown> {
       'CREDITS' => [Assets::CREDITS_BATCH_MAX, Assets::CREDITS_MAX],
       'MEDIA_LEVELS' => Editor::MEDIA_LEVELS,
       'IMAGE' => ['maxSide' => Assets::IMAGE_MAX_SIDE, 'quality' => Assets::IMAGE_WEBP_QUALITY, 'maxPixels' => Assets::IMAGE_MAX_PIXELS],
+      'LANDING' => ['texts' => Landing::TEXT_MAX, 'shop' => [Landing::SHOP_MAX, Landing::SHOP_LABEL_MAX, Landing::SHOP_URL_MAX]],
       'VARIABLES' => [Logic::VARIABLE_TYPES, Logic::SCOPES],
       'LOGIC' => ['actions' => Logic::ACTIONS, 'nodeActions' => Logic::NODE_ACTIONS, 'nodeEvents' => Logic::NODE_EVENTS, 'homes' => Logic::HOMES,
         'goto' => array_map(static fn(string $a): bool => (bool) preg_match('#' . Logic::GOTO_ADDRESS . '#', $a), $input['addresses']),
@@ -232,6 +234,13 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
 
   it("the media levels per kind (#331, Editor::MEDIA_LEVELS, content schema 4.3)", () => {
     expect(php.MEDIA_LEVELS).toEqual(MEDIA_LEVELS);
+  });
+
+  it("the landing's own texts and shop (#365, Landing::TEXT_MAX, SHOP_*, content schema 6.4)", () => {
+    const landing = php.LANDING as { texts: Record<string, number>; shop: number[] };
+    expect(Object.keys(landing.texts)).toEqual([...LANDING_TEXT_KEYS]);
+    expect(landing.texts).toEqual(LANDING_TEXT_MAX);
+    expect(landing.shop).toEqual([LANDING_SHOP_MAX, LANDING_SHOP_LABEL_MAX, LANDING_SHOP_URL_MAX]);
   });
 
   it("the image rule (#298, Assets::IMAGE_*): the longest side per use, the WebP quality, the pixel limit", () => {

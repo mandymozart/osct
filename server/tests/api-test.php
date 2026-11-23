@@ -833,6 +833,34 @@ try {
     [, $changes] = call($api, 'GET', '/editor/experiences/osct/changes?limit=1', null, $editor);
     check($changes['changes'][0]['kind'] === 'experience' && ($changes['changes'][0]['after']['landing']['target'] ?? null) === 'racoon', '… and recorded (History shows it)');
 
+    echo "editor: the landing's texts and shop (#365, schema 6.4)\n";
+    $picked = ['scene' => 's1', 'target' => 'racoon', 'hero' => $hero, 'cover' => '/assets/content/layout/sheets/cover.jpg'];
+    $shopItems = [['label' => 'A print', 'url' => 'https://shop.example/print', 'image' => '/assets/content/entries/castle/img.jpg'], ['label' => 'The book', 'url' => 'https://shop.example/book', 'cover' => true]];
+    $landingPut = static fn(array $landing): array => call($api, 'PUT', '/editor/experiences/osct', ['landing' => $landing], $editor);
+    foreach ([
+        [['texts' => ['de' => ['qrAlt' => 'QR']]], 'landing.texts.de.qrAlt: unknown text', 'a text that stays the app\'s (the QR code\'s alt text)'],
+        [['texts' => ['deu' => ['intro' => 'Hallo']]], 'two-letter code', 'a language that is no two-letter code'],
+        [['texts' => ['en' => ['intro' => str_repeat('x', 601)]]], 'longer than 600', 'an intro above 600 characters'],
+        [['texts' => ['en' => ['getApp' => str_repeat('x', 121)]]], 'longer than 120', 'Get the app above 120 characters'],
+        [['shop' => array_fill(0, 5, ['label' => 'x', 'url' => 'https://shop.example'])], 'at most 4 items', 'five shop items'],
+        [['shop' => [['label' => 'x', 'url' => 'ftp://shop.example']]], 'http(s) address', 'a link that is no http(s) address'],
+        [['shop' => [['label' => ' ', 'url' => 'https://shop.example']]], 'label must be a text', 'an item without a label'],
+        [['shop' => [['label' => 'x', 'url' => 'https://shop.example', 'image' => '/a.jpg', 'cover' => true]]], 'not both', 'a picture and the cover'],
+        [['shop' => [['label' => 'x', 'url' => 'https://shop.example', 'price' => 3]]], 'unknown price', 'an unknown field of an item'],
+        [['hero' => $hero], 'needs its pick', 'a hero without its pick'],
+    ] as [$landing, $message, $what]) {
+        [$status, $data] = $landingPut($landing);
+        check($status === 400 && $data['error']['code'] === 'invalid-landing' && str_contains($data['error']['message'], $message), "PUT experience landing: $what → 400 invalid-landing");
+    }
+    [$status, $data] = $landingPut(['texts' => ['en' => ['shop' => 'Buy it'], 'fr' => ['intro' => '  ']], 'shop' => []]);
+    check($status === 200 && $data['experience']['landing'] === ['texts' => ['en' => ['shop' => 'Buy it']], 'shop' => []],
+        'texts and an emptied shop without a pick are stored – a blank text and an empty language left out (the app\'s text)');
+    [$status, $data] = $landingPut(['texts' => ['fr' => ['intro' => ' ']]]);
+    check($status === 200 && !array_key_exists('landing', $data['experience']), 'a landing that holds nothing is removed');
+    [$status, $data] = $landingPut($picked + ['texts' => ['de' => ['intro' => "Zu {title}\nvon {author}", 'getApp' => '']], 'shop' => $shopItems]);
+    check($status === 200 && $data['experience']['landing']['texts'] === ['de' => ['intro' => "Zu {title}\nvon {author}"]] && $data['experience']['landing']['shop'] === $shopItems
+        && $data['experience']['landing']['hero']['pages'] === [1, 2], 'the pick with its texts and shop is stored, in the shared field order');
+
     echo "editor: publish (local store)\n";
     [$status, $data] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'No where!'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-env', 'an env that is no environment name → 400');
@@ -858,6 +886,11 @@ try {
         && $landing['images'] === ['/assets/content/entries/racoon/img.jpg', '/assets/content/entries/castle/img.jpg'] && $landing['hero']['pages'] === [1, 2]
         && $landing['hero']['plugins'] === [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0']] && !isset($landing['hero']['appearance']),
         '#355: publish writes landing.json beside game.config.json – the pick\'s hero, the version\'s texts, images and plugins');
+    check(($landing['texts'] ?? null) === ['de' => ['intro' => "Zu {title}\nvon {author}"]] && ($landing['shopItems'] ?? null) === $shopItems,
+        '#365: … and the landing\'s own texts and shop (shopItems)');
+    [, $published] = call($api, 'GET', "/content/local/osct/{$first['build']}/game.config.json");
+    check(($published['experience']['landing']['texts']['de']['intro'] ?? null) === "Zu {title}\nvon {author}" && ($published['experience']['landing']['scene'] ?? null) === 's1',
+        '#365: the readers\' configuration keeps a landing with its pick (texts and shop with it)');
     [$status, $data, $headers] = call($api, 'GET', '/content/local/osct/latest.json');
     check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '6.0' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
     check(in_array('Cache-Control: no-cache', $headers, true), 'latest.json is revalidated');
@@ -1071,9 +1104,9 @@ try {
     $basedOn = $comparison['draft']['basedOn'] ?? [];
     check(($basedOn['build'] ?? null) === 'abababababab' && $basedOn['date'] === '2026-01-01T00:00:00.000Z' && $basedOn['appVersion'] === '1.9.0' && $basedOn['importedBy'] === 'author@example.com' && is_string($basedOn['importedAt']),
         '… against what the draft is based on: build, date, app version, who imported it and when');
-    // The edits: the landing's pick (#355) and the entity among them
+    // The edits: the landing's pick (#355), its texts and shop (#365, three more) and the entity among them
     $castleEdit = array_values(array_filter($comparison['draft']['recentEdits'], static fn($e) => $e['kind'] === 'entity'))[0] ?? [];
-    check($comparison['draft']['edits'] === 5 && in_array('experience', array_column($comparison['draft']['recentEdits'], 'kind'), true) && ($castleEdit['ref'] ?? null) === 'castle' && ($castleEdit['user'] ?? null) === 'author@example.com'
+    check($comparison['draft']['edits'] === 8 && in_array('experience', array_column($comparison['draft']['recentEdits'], 'kind'), true) && ($castleEdit['ref'] ?? null) === 'castle' && ($castleEdit['user'] ?? null) === 'author@example.com'
         && preg_match('/^[0-9a-f]{12}$/', $comparison['draft']['build']) === 1 && $comparison['same'] === false && ($comparison['draft']['live'][0]['env'] ?? null) === 'local',
         "… and the draft's unpublished edits since the import (the change log), its build and where it is live");
     [, $after] = call($api, 'GET', '/editor/experiences/osct/entities', null, $editor);
@@ -1086,7 +1119,7 @@ try {
     $castleNow['params'] = ['scale' => 4];
     call($api, 'PUT', '/editor/experiences/osct/entities/castle', $castleNow, $editor);
     [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files, 'confirm' => $confirmation['id']]);
-    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $data['error']['comparison']['draft']['edits'] === 6, 'an edit after the comparison voids the id; the new comparison counts it');
+    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $data['error']['comparison']['draft']['edits'] === 9, 'an edit after the comparison voids the id; the new comparison counts it');
     $confirmation = $data['error']['confirmation'];
     call($api, 'POST', '/auth/request', ['email' => 'listed@example.com']);
     [, $other] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
@@ -1275,7 +1308,7 @@ try {
     check(array_keys($data) === ["$base/assets/content/entries/racoon/racoon.glb", "$base/assets/content/entries/racoon/img.jpg"], 'files.json keys rewritten, in order');
     [, $data] = call($api, 'GET', '/editor/experiences/osct/changes', null, $editor);
     [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
-    check(count($data['changes']) === 6 && $tree['scenes'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
+    check(count($data['changes']) === 9 && $tree['scenes'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
 
     echo "editor: node trees (content schema 2.0)
 ";
@@ -1857,6 +1890,24 @@ try {
     check($status === 204, 'an unused source is deleted at once');
     foreach (['pulse', 'wobble-effect'] as $plugin) call($api, 'DELETE', "/editor/experiences/osct/plugins/$plugin?force=1", null, $editor);
     foreach ([$glsl, $wgsl] as $made) call($api, 'DELETE', "/editor/experiences/osct/assets/{$made['id']}?force=1", null, $editor);
+
+    echo "editor: a landing without a pick in a publish (#365)\n";
+    require_once "$root/api/src/Editor.php";
+    require_once "$root/api/src/Landing.php";
+    $own = (object) ['texts' => (object) ['de' => (object) ['shop' => 'Laden']], 'shop' => [(object) ['label' => 'A print', 'url' => 'https://shop.example/p', 'image' => '/assets/content/landing/p.jpg']]];
+    $readers = (object) ['version' => (object) ['schema' => '6.4'], 'experience' => (object) ['id' => 'x', 'title' => 'X', 'landing' => clone $own], 'scenes' => [], 'entries' => []];
+    Landing::forReaders($readers->experience);
+    check(!property_exists($readers->experience, 'landing'), 'the readers\' configuration leaves a landing without a pick out (an app of 6.3 refuses one)');
+    $picked = (object) ['scene' => 's1', 'target' => 't'];
+    $kept = (object) ['experience' => (object) ['landing' => $picked]];
+    Landing::forReaders($kept->experience);
+    check(($kept->experience->landing ?? null) === $picked, '… and keeps one with a pick');
+    $file = json_decode((string) Landing::file($readers, 'https://cdn.example/x/', $own), true);
+    check(is_array($file) && !array_key_exists('hero', $file) && $file['cover'] === null && $file['texts'] === ['de' => ['shop' => 'Laden']]
+        && $file['shopItems'] === [['label' => 'A print', 'url' => 'https://shop.example/p', 'image' => 'https://cdn.example/x/assets/content/landing/p.jpg']],
+        'its landing.json has the texts and the shop (pictures below the assets base) and no hero – the reader derives it');
+    check(Landing::file($readers, '', null) === null && Landing::file($readers, '', (object) ['scene' => 's1', 'target' => 't']) === null,
+        'no landing.json without texts, a shop or a pick with its hero');
 
     echo "editor: a video's width, height and duration (#91)\n";
     require_once "$root/api/src/VideoInfo.php";

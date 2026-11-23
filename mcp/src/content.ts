@@ -24,6 +24,9 @@ import { EntryCategory } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, environmentProblems } from "../../shared/types/environment";
 import { exprMessage, renderEntryText } from "../../shared/text/entry-text";
 import { extractDraftLanding } from "../../shared/api/landing-draft";
+import {
+  type ExperienceLanding, LANDING_SHOP_MAX, LANDING_TEXT_KEYS, LANDING_TEXT_MAX, landingExtrasOf, landingShopProblems, landingTextsProblems,
+} from "../../shared/types/landing";
 import { isReservedSceneId, RESERVED_SCENE_IDS } from "../../shared/api/names";
 import type { GameConfiguration } from "../../shared/types/game-config";
 import type {
@@ -900,7 +903,7 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     "put_experience_landing",
     {
       description:
-        "Picks the desktop landing's hero (content schema 6.1, #355): one target with AR content (a model, a video, a plugin's node type or a node a component drives) on one scene – the landing's book opens on the scene's surface the target lies on and its content rises from its print. The tool extracts the hero from the draft as the editor does (the surface, its prints, the target's entity, the print layout's pictures, the experience's plugins and looks) and saves it with the pick in experience.landing; publish writes the version's landing.json from it. A target without AR content (marginalia, a link, a target without an entity) is refused. remove: true removes the pick – the landing shows the experience's first model again. Re-run it after the entity, the prints or the looks changed (the editor's Inspector says when the stored hero is out of date). The change is recorded.",
+        "Picks the desktop landing's hero (content schema 6.1, #355): one target with AR content (a model, a video, a plugin's node type or a node a component drives) on one scene – the landing's book opens on the scene's surface the target lies on and its content rises from its print. The tool extracts the hero from the draft as the editor does (the surface, its prints, the target's entity, the print layout's pictures, the experience's plugins and looks) and saves it with the pick in experience.landing; publish writes the version's landing.json from it. A target without AR content (marginalia, a link, a target without an entity) is refused. remove: true removes the pick – the landing shows the experience's first model again. The landing's own texts and shop (put_experience_landing_texts) stay as they are either way. Re-run it after the entity, the prints or the looks changed (the editor's Inspector says when the stored hero is out of date). The change is recorded.",
       inputSchema: z.object({
         experience: EXPERIENCE,
         scene: z.string().min(1).optional().describe("the scene's id"),
@@ -912,7 +915,9 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
     guard(async ({ experience, scene, target, remove }) => {
       const path = `/editor/experiences/${encodeURIComponent(experience)}`;
       if (remove) {
-        const result = await api.call<ExperienceSaved>("PUT", path, { landing: null });
+        // The texts and the shop stay (#365): only the pick goes
+        const extras = landingExtrasOf((await tree(experience)).experience.experience?.landing);
+        const result = await api.call<ExperienceSaved>("PUT", path, { landing: Object.keys(extras).length ? extras : null });
         return text({ ...result, open: editorHref(links, experience) });
       }
       if (!scene || !target) return fail({ error: { code: "mcp", message: "send scene and target (or remove: true)" } });
@@ -926,8 +931,44 @@ export function registerContentTools(server: McpServer, api: OsctApi, links: App
       if ("problem" in extracted) {
         return fail({ error: { code: "invalid-landing", message: `The pick cannot be the landing's hero: ${extracted.problem} (nothing was sent).` }, hint: "get_scene lists a scene's targets with their entities; the hero needs a target with AR content (a model, a video, a component)." });
       }
-      const result = await api.call<ExperienceSaved>("PUT", path, { landing: extracted.landing });
+      const result = await api.call<ExperienceSaved>("PUT", path, { landing: { ...extracted.landing, ...landingExtrasOf(summary.experience.landing) } });
       return text({ ...result, open: editorHref(links, experience) });
+    }),
+  );
+
+  const landingText = z.string().describe("plain text; {title} and {author} fill in");
+  server.registerTool(
+    "put_experience_landing_texts",
+    {
+      description:
+        `The desktop landing page's own texts and shop (content schema 6.4, #365) – stored in experience.landing next to the hero's pick (put_experience_landing), published in landing.json. ` +
+        `texts: by language (en, de, fr, nl – the reader's), each { ${LANDING_TEXT_KEYS.join(", ")} } (at most ${Object.entries(LANDING_TEXT_MAX).map(([key, max]) => `${key} ${max}`).join(", ")} characters): intro = the text under the title, getApp = the "Get the app" link and heading, openOnPhone = the line beside the QR code, shop = the shop's heading. ` +
+        `A text left out (or blank) is the app's text in that language, so a visitor in another language never reads yours; the QR code's alt text, "Scan with your phone" and "Privacy & terms" always stay the app's. ` +
+        `shop: up to ${LANDING_SHOP_MAX} items { label (one for every language), url (http/https), image? (a file of the experience: a content path /assets/content/… or the Library's URL – list_assets), cover? (true: the book's cover from the print layout) }; [] = no shop on the page; null = the app's own two items again. ` +
+        "Each field sent replaces that field as a whole (texts: every language; null removes); a field left out stays. Checked against the contract before it is sent; the change is recorded.",
+      inputSchema: z.object({
+        experience: EXPERIENCE,
+        texts: z.record(z.string(), z.object(Object.fromEntries(LANDING_TEXT_KEYS.map(key => [key, landingText.optional()])) as Record<(typeof LANDING_TEXT_KEYS)[number], z.ZodOptional<z.ZodString>>))
+          .nullable().optional().describe("by language: { intro?, getApp?, openOnPhone?, shop? } – null: the app's texts everywhere"),
+        shop: z.array(z.object({ label: z.string(), url: z.string(), image: z.string().optional(), cover: z.literal(true).optional() }))
+          .nullable().optional().describe("the shop's items – [] = no shop, null = the app's items"),
+      }),
+      annotations: write,
+    },
+    guard(async ({ experience, texts, shop }) => {
+      if (texts === undefined && shop === undefined) return fail({ error: { code: "mcp", message: "send texts and / or shop" } });
+      const problems = [...(texts ? landingTextsProblems(texts, "texts") : []), ...(shop ? landingShopProblems(shop, "shop") : [])];
+      if (problems.length) {
+        return fail({ error: { code: "invalid-landing", message: "The landing's texts or shop do not match the content contract (nothing was sent).", problems } });
+      }
+      const path = `/editor/experiences/${encodeURIComponent(experience)}`;
+      const stored: ExperienceLanding = { ...((await tree(experience)).experience.experience?.landing ?? {}) };
+      if (texts === null) delete stored.texts;
+      else if (texts !== undefined) stored.texts = texts;
+      if (shop === null) delete stored.shop;
+      else if (shop !== undefined) stored.shop = shop;
+      const result = await api.call<ExperienceSaved>("PUT", path, { landing: Object.keys(stored).length ? stored : null });
+      return text({ ...result, open: editorHref(links, experience, "landing") });
     }),
   );
 

@@ -1,5 +1,6 @@
 import type { LandingFile, LandingHeroData } from "@shared/api/landing";
-import { LANDING_CONFIG, type ShopItem } from "./landing-config";
+import type { LandingTexts } from "@shared/types/landing";
+import { type ShopItem, shopItemsOf } from "./landing-config";
 
 /**
  * What the landing shows of an experience (#355) – everything the page and its hero need, URLs ready to load: one plain
@@ -21,7 +22,10 @@ export interface LandingData {
   cover: string | null;
   /** The hero's scan stage – null: nothing to show (no model), the stage stays its quiet glow */
   hero: LandingHeroData | null;
+  /** The shop's items: the experience's own, else the app's; [] = no shop (#365) */
   shop: ShopItem[];
+  /** The experience's own texts by language (#365) – `landingTexts` puts the visitor's language's over the app's; none: the app's */
+  texts?: LandingTexts;
 }
 
 /** Content paths (`/assets/content/…`) anywhere in a JSON value, turned into URLs */
@@ -34,21 +38,18 @@ const resolvePaths = <T>(value: T, url: (path: string) => string): T => {
   return value;
 };
 
-/** The shop: the file's items, a picture-less one with the app's placeholder drawing; none – the app's items */
-const shopOf = (file: Pick<LandingFile, "shop">): ShopItem[] =>
-  file.shop?.map(item => ({
-    ...item,
-    image: item.image ?? LANDING_CONFIG.shop.find(own => own.id === item.id)?.image ?? "",
-  })) ?? LANDING_CONFIG.shop;
-
-/** A `landing.json` as the landing's data: its content paths resolved below the version's folder (`url`) */
+/**
+ * A `landing.json` as the landing's data: its content paths resolved below the version's folder (`url`). A file without
+ * a hero (no pick, #365) gives `hero: null` here – the reader derives it then (client/src/landing/data.ts)
+ */
 export const landingDataFromFile = (file: LandingFile, url: (path: string) => string): LandingData => {
   const { experience, title, author, publisher } = file;
   return {
     experience, title, author, publisher,
     images: resolvePaths(file.images, url),
     cover: resolvePaths(file.cover, url),
-    hero: resolvePaths(file.hero, url),
-    shop: resolvePaths(shopOf(file), url),
+    hero: resolvePaths(file.hero ?? null, url),
+    shop: resolvePaths(shopItemsOf(file.shopItems), url),
+    ...(file.texts ? { texts: file.texts } : {}),
   };
 };

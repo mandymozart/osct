@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>The landing page – OSCT docs</title>
-  <meta name="description" content="What a computer gets instead of the app, the landing workspace that shows the draft's landing page, and how to choose its hero.">
+  <meta name="description" content="What a computer gets instead of the app, the landing workspace that shows the draft's landing page, how to choose its hero, and its own texts and shop.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/docs/docs.css">
@@ -30,13 +30,13 @@
   <h2 id="workspace">The landing workspace</h2>
   <p>Open it with <b>Landing</b> in the top bar (next to <b>Scenes</b>, while an experience is open), with <i>Landing page</i> in the experience's <a href="/docs/guide/inspector/#experience">Inspector</a> (⚙ → <i>landing page</i>), or with <b>Landing page</b> in an experience's sheet on the <a href="/docs/guide/experiences/#sheet">Experiences page</a>. Its address is <code>/editor/&lt;experience&gt;/landing/</code>; the top bar reads <i>Experiences › experience › Landing</i>. <b>Scenes</b> takes you back to the scene you had open.</p>
   <ul>
-    <li><b>The stage</b> is the landing page a computer gets, with the draft – in English. Scroll it inside the stage. It is the reader's own page, so what you see is what is published next.</li>
-    <li><b>Inspector</b>: the hero's <b>scene</b> and <b>target</b>, whether the stored hero is up to date, <b>Refresh</b> and <b>Remove</b>.</li>
+    <li><b>The stage</b> is the landing page a computer gets, with the draft – in the language the Inspector's <i>texts</i> section shows. Scroll it inside the stage. It is the reader's own page, so what you see is what is published next.</li>
+    <li><b>Inspector</b>: the hero's <b>scene</b> and <b>target</b>, whether the stored hero is up to date, <b>Refresh</b> and <b>Remove</b>; the page's own <a href="#texts">texts</a> and its <a href="#shop">shop</a>.</li>
     <li><b>Scenes</b>: the same filmstrip as in a scene. The hero's scene is highlighted; a click on another card makes it the hero's scene.</li>
     <li><b>History</b> and <b>Info</b> work as in a scene. The panels can be moved, folded and closed; the layout is remembered for this workspace.</li>
   </ul>
   <p>If the experience has plugins, the hero runs them in the editor's page. As on the scene's stage, the editor asks first before it runs code someone else saved; the page shows at once, the hero after your answer.</p>
-  <p>The shop's items and the publisher are not edited here yet.</p>
+  <p>The publisher is not edited here yet; it comes from the experience's printed book.</p>
 
   <h2 id="hero">Choosing the hero</h2>
   <p>The hero is one <b>target with AR content</b> – a model, a video or a component – on one scene: the book opens on that scene's surface and the content rises from the target's print. Marginalia and links cannot be the hero.</p>
@@ -56,6 +56,27 @@
     <tr><td>a problem</td><td class="wrap">The target was removed or has no AR content any more. Choose another one.</td></tr>
   </table></div>
   <p><b>Remove</b> takes the choice away: after the next publish the landing shows the first model again.</p>
+
+  <h2 id="texts">The page's texts</h2>
+  <p>The Inspector's <b>texts</b> section holds four texts of the page, per language: the <b>intro</b> under the title, <b>get the app</b> (the link under the intro and the heading beside the QR code), the <b>QR line</b> beside the QR code and the <b>shop heading</b>.</p>
+  <ul>
+    <li>Switch the language with <b>EN</b>, <b>DE</b>, <b>FR</b> or <b>NL</b> above the fields – the reader's languages. The stage shows the page in that language.</li>
+    <li>An empty field shows the <b>app's text</b> for that language, greyed, and the page uses it. So a visitor only reads your text in the language you wrote it in; in the others they read the app's.</li>
+    <li><code>{title}</code> and <code>{author}</code> are replaced by the experience's title and its book's author. The intro keeps its line breaks. The texts are plain text.</li>
+    <li>The field you type in is marked on the stage.</li>
+    <li>The QR code's description, <i>Scan with your phone</i> and <i>Privacy &amp; terms</i> always stay the app's.</li>
+  </ul>
+  <p>The app's own texts are part of the reader app (<code>ui/landing/locales/</code> in the code). The intro is at most 600 characters, the QR line 300, the others 120.</p>
+
+  <h2 id="shop">The shop</h2>
+  <p>The Inspector's <b>shop</b> section holds up to <b>four items</b>. Each has a <b>picture</b>, a <b>label</b> (the same in every language) and a <b>link</b> (an <code>https://</code> address).</p>
+  <ul>
+    <li>Until you change it, the page shows the <b>app's two items</b> – the book and the T-shirt –, greyed in the section. <b>Edit</b> makes them this experience's own.</li>
+    <li><b>+ item</b> adds one at the end; ✕ removes one. An item without a label or with a link that is not an address is not saved yet – the top bar says why.</li>
+    <li>Click an item's picture: <b>Library…</b> opens the Library in the Inspector to choose one of the experience's images; <b>The book's cover</b> shows the print layout's front cover; <b>No picture</b> leaves it empty.</li>
+    <li>Remove every item and the page has <b>no shop</b>. <i>Use the app's items</i> brings the app's two items back.</li>
+  </ul>
+  <p>Every change saves itself and shows on the stage at once; History lists it. Readers get it with the next publish. Texts and the shop do not need a hero: without one, the landing shows the experience's first model.</p>
 
   <h2 id="reserved">A scene cannot be called <i>landing</i></h2>
   <p><code>landing</code> is the landing workspace's address, so no scene can have that id. New scenes get ids like <code>scene-3</code>; an AI agent or the API that asks for <code>landing</code> is refused.</p>

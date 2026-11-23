@@ -34,9 +34,30 @@ export interface LandingOptions {
 export interface LandingView {
   /** Resolves when the QR code is drawn and the hero runs (or has given up) */
   readonly ready: Promise<void>;
+  /**
+   * The page again with new texts, title, shop or images – the hero's stage and the QR code stay as they run (the editor's
+   * landing workspace while the person types, #365). A new hero needs a new mount.
+   */
+  update(input: LandingInput): void;
   /** Stops the hero and the listeners; the markup stays */
   stop(): void;
 }
+
+/** The parts of a rendered page that keep running across `update`: the hero's stage and the QR code */
+const KEPT = [".stage", ".qr-code"] as const;
+
+const renderInput = (input: LandingInput): string => renderLanding({
+  shop: input.data.shop, texts: input.texts, title: input.data.title, author: input.data.author, publisher: input.data.publisher,
+  images: input.data.images, privacyHref: input.privacyHref,
+});
+
+/** What needs the page's data after a render: the address, and the book's cover on the shop's cover items */
+const fillIn = (root: ShadowRoot, input: LandingInput): void => {
+  const address = root.querySelector(".address");
+  if (address) address.textContent = input.address;
+  const cover = input.data.cover;
+  if (cover) root.querySelectorAll<HTMLImageElement>("[data-cover] img").forEach(image => { image.src = cover; });
+};
 
 /**
  * The desktop landing page (#293, #324, #354; a piece of its own, #355): a function of the landing's data and a host
@@ -54,23 +75,12 @@ export interface LandingView {
 export const mountLanding = (host: HTMLElement, input: LandingInput, options: LandingOptions = {}): LandingView => {
   const { data, texts } = input;
   const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
-  const html = renderLanding({
-    shop: data.shop, texts, title: data.title, author: data.author, publisher: data.publisher, images: data.images,
-    privacyHref: input.privacyHref,
-  });
-  if (root.querySelector<HTMLElement>("main")?.dataset.render !== renderKeyOf(html)) {
-    root.innerHTML = `<style>${options.styles ?? ""}${DESIGN_PRIMITIVES_CSS}</style>${html}`;
-  }
+  const head = `<style>${options.styles ?? ""}${DESIGN_PRIMITIVES_CSS}</style>`;
+  const html = renderInput(input);
+  if (root.querySelector<HTMLElement>("main")?.dataset.render !== renderKeyOf(html)) root.innerHTML = `${head}${html}`;
   host.removeAttribute(SKELETON_ATTRIBUTE);
   host.toggleAttribute(CONTAINED_ATTRIBUTE, !!options.contained);
-  const address = root.querySelector(".address");
-  if (address) address.textContent = input.address;
-  if (data.cover) {
-    data.shop.filter(item => item.cover).forEach(item => {
-      const image = root.querySelector<HTMLImageElement>(`[data-item="${item.id}"] img`);
-      if (image) image.src = data.cover!;
-    });
-  }
+  fillIn(root, input);
 
   let frame = 0;
   let stopped = false;
@@ -103,6 +113,17 @@ export const mountLanding = (host: HTMLElement, input: LandingInput, options: La
 
   return {
     ready,
+    update(next: LandingInput) {
+      const fresh = renderInput(next);
+      if (root.querySelector<HTMLElement>("main")?.dataset.render === renderKeyOf(fresh)) return;
+      const kept = KEPT.map(selector => root.querySelector(selector));
+      root.innerHTML = `${head}${fresh}`;
+      KEPT.forEach((selector, i) => {
+        const old = kept[i];
+        if (old) root.querySelector(selector)?.replaceWith(old);
+      });
+      fillIn(root, next);
+    },
     stop() {
       stopped = true;
       host.removeEventListener("pointermove", drift);

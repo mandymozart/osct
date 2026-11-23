@@ -1,7 +1,7 @@
 import type { GameConfiguration } from "@engine/types";
 import { extractDraftLanding } from "@shared/api/landing-draft";
 import { landingContentProblem, landingSourceOf } from "@shared/api/landing-extract";
-import type { ExperienceLanding, LandingPick } from "@shared/types/landing";
+import { type ExperienceLanding, landingExtrasOf, landingPickOf, type LandingPick } from "@shared/types/landing";
 import { getDraftFile, getDraftManifest, getExperience, putExperience } from "./api";
 import { autosave } from "./autosave.svelte";
 
@@ -13,7 +13,10 @@ import { autosave } from "./autosave.svelte";
  * publish writes the version's `landing.json` from it.
  */
 
-/** The pick with its hero, extracted from the draft now – or why it cannot be the hero */
+/**
+ * The pick with its hero, extracted from the draft now – or why it cannot be the hero. The landing's texts and shop (#365)
+ * come along as the draft holds them now, so a new pick keeps them.
+ */
 export const extractLanding = async (experienceId: string, pick: LandingPick): Promise<{ landing: ExperienceLanding } | { problem: string }> => {
   const [{ experience }, manifest] = await Promise.all([getExperience(experienceId), getDraftManifest(experienceId)]);
   const [configuration, files] = await Promise.all([
@@ -21,7 +24,8 @@ export const extractLanding = async (experienceId: string, pick: LandingPick): P
     getDraftFile<Record<string, unknown>>(experienceId, manifest.build, "files.json"),
   ]);
   // The layout is a public file of the import (its assets base): read without the session
-  return extractDraftLanding({ configuration, files, assetsBase: experience.assetsBase, fetch: (input, init) => fetch(input, init) }, pick);
+  const result = await extractDraftLanding({ configuration, files, assetsBase: experience.assetsBase, fetch: (input, init) => fetch(input, init) }, pick);
+  return "landing" in result ? { landing: { ...result.landing, ...landingExtrasOf(configuration.experience.landing) } } : result;
 };
 
 /** The autosaver's key of an experience's landing: every save of the pick, a refresh and a removal queue under it */
@@ -39,6 +43,38 @@ export const saveLandingPick = (experienceId: string, pick: LandingPick, onsaved
     await putExperience(experienceId, { landing: result.landing });
     onsaved?.(result.landing);
   });
+
+/**
+ * The landing as the workspace holds it, saved like any edit (RULES #37) – its texts, its shop, its pick (#365): one
+ * subject, so the saves of the pick and of the texts never overtake each other. The save writes what `current()` holds
+ * when it runs; a pick without its hero yet (just chosen) has it extracted from the draft first. A landing that holds
+ * nothing is removed (`null`). `onsaved` gets what was stored.
+ */
+export const saveLanding = (experienceId: string, current: () => ExperienceLanding | null, onsaved?: (landing: ExperienceLanding | null) => void): void =>
+  autosave.queue(landingSaveKey(experienceId), async () => {
+    let landing = current();
+    const pick = landingPickOf(landing);
+    if (pick && !landing?.hero) {
+      const result = await extractLanding(experienceId, pick);
+      if ("problem" in result) throw new Error(`Landing page: ${result.problem}`);
+      landing = { ...heroOf(result.landing), ...landingExtrasOf(current()) };
+    }
+    const stored = landing && (landingPickOf(landing) || landing.texts !== undefined || landing.shop !== undefined) ? landing : null;
+    await putExperience(experienceId, { landing: stored });
+    onsaved?.(stored);
+  });
+
+/** The pick and what was extracted from it – the landing without its texts and shop */
+export const heroOf = (landing: ExperienceLanding): ExperienceLanding => {
+  const { texts: _texts, shop: _shop, ...hero } = landing;
+  return hero;
+};
+
+/** The landing without its pick (Remove): its texts and shop stay; nothing left – null */
+export const withoutLandingPick = (landing: ExperienceLanding | null): ExperienceLanding | null => {
+  const extras = landingExtrasOf(landing);
+  return Object.keys(extras).length ? extras : null;
+};
 
 /** What the Inspector names a pick by: its scene's label and its target's id – "scene › target" */
 export const landingPickLabel = (pick: LandingPick, sceneLabel?: string): string => `${sceneLabel || pick.scene} › ${pick.target}`;

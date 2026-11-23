@@ -217,8 +217,15 @@ export function planExport(data: ExperienceExport): ExportPlan {
       experience.environment = Object.fromEntries(Object.entries(value).map(([field, src]) =>
         [field, (field === 'worldSrc' || field === 'skySrc') && typeof src === 'string' && src ? address(src, 'environment').slice(CONTENT_PREFIX.length) : src]));
     } else if (key === 'landing' && isObject(value)) {
-      // The landing's pick (#355): its ids – the build extracts the hero again
-      experience.landing = { scene: value.scene, target: value.target };
+      // The landing's pick (#355): its ids – the build extracts the hero again; its texts and shop as they are, a shop
+      // item's picture as a file of the folder (#365)
+      const landing: Record<string, unknown> = value.scene !== undefined ? { scene: value.scene, target: value.target } : {};
+      if (value.texts !== undefined) landing.texts = value.texts;
+      if (Array.isArray(value.shop)) {
+        landing.shop = value.shop.map(item => isObject(item) && typeof item.image === 'string' && item.image
+          ? { ...item, image: address(item.image, 'landing').slice(CONTENT_PREFIX.length) } : item);
+      }
+      if (Object.keys(landing).length) experience.landing = landing;
     } else experience[key] = value;
   }
   texts.set('experience.yaml', toYaml(experience));

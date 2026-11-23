@@ -27,7 +27,7 @@ folders after release: reading progress is stored by id.
 
 ```
 content/
-├── experience.yaml               the experience (id, title; book: the printed book's author, publisher; landing: the hero's scene and target)
+├── experience.yaml               the experience (id, title; book: the printed book's author, publisher; landing: the hero's scene and target, the landing page's texts and shop)
 ├── scenes/
 │   └── s2-3/
 │       └── scene.yaml            label, order and surfaces of the scene
@@ -1152,6 +1152,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 6.1 | 6.10.0 | in develop | **the landing's hero** (#355, [editor](editor.md) "The landing's hero"): the experience's optional `landing` – `{ scene, target }` by id, a target with AR content (a model, a video, a component) on that scene (its surface is the hero's), and what the editor (or the content build, or the MCP's `put_experience_landing`) extracted from it: `hero` (the `LandingHeroData` of `landing.json`) and the print layout's `cover`. Publish writes the version's `landing.json` from it | ignored: the landing derives its hero from the configuration as before |
 | 6.2 | 6.11.0 | in develop | **a plugin is a folder of files** (#352, [plugins](plugins.md) "A plugin of several files"): `index.ts` and the TypeScript and shader files next to it (`shared/types/plugins.ts` the names and limits, `shared/types/plugin-shader-files.d.ts` a shader import's type). The content build bundles the folder (a shader as a string) and writes `files.json` next to `plugin.js`; the configuration's `plugins` list is unchanged | not touched: a plugin still arrives as one module |
 | 6.3 | 6.16.0 | in develop | **the card look** (#361, "How the card is picked up" above): the experience's `appearance.card` – how the marginalia card is picked up, `{ type, …parameters }`: the built-in `cardFlight` with its values (`near`, `far`, `fill`, `lift`, `spins`, `impact`, `rumble`) or a plugin's card look (`registered.cardLooks`, plugin API 4.1 `registerCardLook`) | dropped (forward compatibility): the app flies its own card |
+| 6.4 | 6.17.0 | in develop | **the landing's texts and shop** (#365, "The landing's texts and shop" below): `experience.landing.texts` – by language (`en`, `de`, `fr`, `nl`) the page's own `intro`, `getApp`, `openOnPhone` and `shop` heading – and `experience.landing.shop` – up to 4 items `{ label, url, image? \| cover: true }`, `[]` = no shop; a landing may hold them **without a pick** (`scene`, `target` optional – but both or neither, and `hero` / `cover` only with them). Publish writes them into `landing.json` (`texts`, `shopItems`) | ignored: a 6.3 app reads neither field and shows the app's texts and shop. It would refuse a landing without a pick – publish leaves such a landing out of the readers' configuration (its texts and shop reach the landing in `landing.json`); a **content build** keeps it (its configuration is also the import's source), so a 6.3 app refuses such a build |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.
@@ -1438,9 +1439,10 @@ builds those targets without their AR video.
 
 What the desktop landing shows of an experience ([pages, "The desktop landing"](pages.md#desktop-landing)), in one
 small file next to the game configuration of a content version: `<base>/<experience>/<build>/landing.json`. **Written
-by publish** (`server/api/src/Landing.php`, before `files.json` and `game.config.json`) from the experience's pick
-`experience.landing` (below) – without a pick, or with a pick that has no hero yet, publish writes none (the server
-does not run the TypeScript extractor). **The content build** writes it too, next to the bundled configuration
+by publish** (`server/api/src/Landing.php`, before `files.json` and `game.config.json`) from the experience's landing as
+stored, `experience.landing` (below) – without a pick (or with a pick that has no hero yet) the file has no `hero` (the
+server does not run the TypeScript extractor) and the reader derives the hero; with neither a hero nor texts nor a shop
+publish writes none. **The content build** writes it too, next to the bundled configuration
 (`client/src/game.landing.json` – the landing reads it for the bundled content; `osct content sync` uploads it into the
 version's folder): from the pick, else from the default the landing always took (the first of
 `LANDING_FALLBACK_ENTRIES` with a model, else the content's first model, else its first video). Without a readable file
@@ -1454,8 +1456,9 @@ extractor). Shape and guard: `shared/api/landing.ts` (`LandingFile`, `isLandingF
 | `experience`, `title`, `author`, `publisher` | the experience's id, title, its book's author and publisher (`""` without) |
 | `images` | the experience's target images in scene order (the hero's drifting pictures) |
 | `cover` | the print layout's front cover, `null` without |
-| `hero` | `null` (nothing to show) or the scan stage: `aspect` (the surface's height in surface widths), `pages` (its printed page numbers), `prints` and `target` (images on the surface: `src`, `x`, `top`, `width`, `height?` in surface widths), `entity` (the target's entity as the configuration has it – a model, a video, a plugin's node type, a node a component drives), `spread` and `earlier` (the layout's pictures of the surface and the spreads before it), `pageImages` (other prints for the turning pages), `plugins` (`{ id, src, api }` of the version's plugins) and `appearance` (the experience's looks) |
-| `shop` | optional – the shop items (`id` `book` / `shirt`, `url`, `image?`, `cover?`); none: the app's |
+| `hero` | none (the experience has no pick: the reader derives the hero from `game.config.json` and keeps the file's texts and shop – #365; a reader of 6.16 refuses such a file and derives everything), `null` (nothing to show) or the scan stage: `aspect` (the surface's height in surface widths), `pages` (its printed page numbers), `prints` and `target` (images on the surface: `src`, `x`, `top`, `width`, `height?` in surface widths), `entity` (the target's entity as the configuration has it – a model, a video, a plugin's node type, a node a component drives), `spread` and `earlier` (the layout's pictures of the surface and the spreads before it), `pageImages` (other prints for the turning pages), `plugins` (`{ id, src, api }` of the version's plugins) and `appearance` (the experience's looks) |
+| `texts` | optional (#365) – the experience's own texts by language (`experience.landing.texts`); none: the app's |
+| `shopItems` | optional (#365) – the experience's shop (`experience.landing.shop`, pictures resolved like the configuration's paths); none: the app's two items, `[]`: no shop. (Format 2's `shop` of the app's item ids was never written and is gone.) A reader of format 2 ignores `texts` and `shopItems` |
 
 Paths are content paths (`/assets/content/…`), resolved against the version's folder like the configuration's – or URLs
 where the configuration names URLs (a server publish names the import's files below its assets base).
@@ -1489,10 +1492,45 @@ extractor does it everywhere – `shared/api/landing-extract.ts` (the draft's si
 - `pageImages` are six other target images (a stable shuffle), `plugins` the experience's (`id`, `src`, `api`),
   `appearance` its looks.
 
-`landingHeroStale(stored, fresh)` compares a stored hero with one extracted again (key order aside): the editor's
-Inspector says *out of date* when they differ. The content build, the guard (shape only) and the API (scene, target,
-AR content, the hero's shape – `Landing::check`) refuse a pick that cannot be the hero. An app before 6.1 ignores the
-field; the export writes `scene` and `target` only (the build extracts the hero again).
+`landingHeroStale(stored, fresh)` compares a stored hero with one extracted again (key order aside – the texts and the
+shop never count): the editor's Inspector says *out of date* when they differ. The content build, the guard (shape only)
+and the API (scene, target, AR content, the hero's shape – `Landing::check`) refuse a pick that cannot be the hero. An
+app before 6.1 ignores the field; the export writes `scene` and `target` only (the build extracts the hero again), with
+the texts and the shop.
+
+### The landing's texts and shop (schema 6.4, #365)
+
+Tilman, 2026-11-23 (concept `agents/design/landing-texts.html`, *"Yes, as recommended"*): texts per language, an empty
+field is the app's text; the shop up to four items, one label for all languages; stored in the experience.
+
+```yaml
+# experience.yaml
+landing:
+  scene: studio-a              # the pick is optional now – texts and a shop need none
+  target: studio-dragon
+  texts:
+    de:
+      intro: "Die Begleit-App zu {title} von {author} – richte dein Handy auf die Seiten."
+  shop:
+    - label: The tree print    # one label for every language
+      url: https://buildingfictions.com/shop/tree
+      image: entries/ancient-tree/images-102.jpg   # a file of the folder (or a URL); cover: true = the book's cover
+```
+
+| Field | |
+|---|---|
+| `texts` | by language – a two-letter code, the reader's `en`, `de`, `fr`, `nl` – the page's own `intro` (≤ 600 characters), `getApp` (≤ 120: the link under the intro and the heading beside the QR code), `openOnPhone` (≤ 300: the line beside the QR code) and `shop` (≤ 120: the shop's heading). **A text left out is the app's text in that language** – a visitor reads yours only in the language you wrote it in. Plain text: the landing escapes it, fills in `{title}` and `{author}` (also `{{title}}`), keeps the intro's line breaks. Every other text of the page – the QR code's alt text, *Scan with your phone*, *Privacy & terms*, the item names of the app's shop – stays the app's |
+| `shop` | up to 4 items: `label` (not empty, ≤ 120), `url` (`http://` or `https://`), and a picture – `image` (a file of the content folder, which must exist, or a URL; in the editor a file of the Library) **or** `cover: true` (the print layout's front cover, as the app's book item), or none. **Left out: the app's two items** (`ui/landing/landing-config.ts` `LANDING_CONFIG.shop`); **`[]`: no shop section** on the page |
+
+The app's own texts live with the landing piece, `ui/landing/locales/<language>/landing.json` (the reader's i18next-cli
+maintains them, RULES #20); they are the fallback field by field (`ui/landing/texts.ts` `landingTexts` with the
+experience's texts, `landing-html.ts` `withOwnTexts`; the shop: `landing-config.ts` `shopItemsOf`). The static landing in
+`index.html` uses the same rule with the default experience's English texts and its shop (from the content's
+`landing.json`, else its configuration). Checked by the guard (`landingTextsProblems`, `landingShopProblems` in
+`shared/types/landing.ts`), the content build (which also resolves a picture's path), the API (`Landing::check` – blank
+texts left out, files below the assets base back to content paths) and the MCP's `put_experience_landing_texts`. A
+landing without a pick is never in a reader's `game.config.json` from a publish (a 6.3 app would refuse it);
+`landing.json` carries it.
 
 ### Folders
 

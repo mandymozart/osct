@@ -27,6 +27,7 @@ export const GROUPS = [
   ["content", "Targets and AR content", "", ["add_entry", "put_target", "put_entity"]],
   ["texts", "Texts", "", ["update_entry", "delete_entry", "update_experience"]],
   ["look", "Look", "", ["put_experience_passes", "put_experience_appearance", "put_environment"]],
+  ["landing", "The landing page", "", ["put_experience_landing", "put_experience_landing_texts"]],
   ["files", "Files", "", ["list_assets", "upload_asset", "rename_asset", "delete_asset", "set_asset_credits", "plan_asset_names", "apply_asset_names"]],
   ["plugins", "Plugins", "", ["list_plugins", "get_plugin", "put_plugin", "upload_plugin", "plugin_usages", "delete_plugin"]],
   ["import", "New experiences, import and deliveries", "", ["create_experience", "preview_import", "import_experience", "preview_delivery", "import_delivery", "list_deliveries"]],
