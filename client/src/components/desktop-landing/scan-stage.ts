@@ -558,6 +558,12 @@ export class ScanStage {
       loaded.animations.forEach(clip => this.mixer!.clipAction(clip).play());
     }
     void document.fonts?.ready.then(() => (this.textDirty = true));
+    // Everything is drawn once before the show starts – the model too, into the phone's picture – so no shader is
+    // built in the middle of a movement (a stutter just as the phone lifts off)
+    this.placed.visible = true;
+    this.film(new Vector3(this.target.x, this.target.y, 0));
+    this.placed.visible = false;
+    this.renderer.render(this.scene, this.camera);
     this.clock.start();
     this.start();
     this.renderer.domElement.style.opacity = "1";
@@ -1049,8 +1055,9 @@ export class ScanStage {
   private autopilot(seconds: number): Vector2 {
     const hold = new Vector2(this.target.x + Math.sin(seconds * 1.3) * 0.006, this.target.y + AIM_UP + Math.sin(seconds * 0.9) * 0.005);
     // Off the book on either side, so the model leaves and is found again
-    const side = new Vector2(0.98, this.target.y - 0.12);
-    const away = new Vector2(-0.98, this.target.y + 0.2);
+    // – just off it: the phone stays in the picture
+    const side = new Vector2(0.5 + SIGHT_MARGIN + 0.06, this.target.y - 0.12);
+    const away = new Vector2(-(0.5 + SIGHT_MARGIN + 0.06), this.target.y + 0.2);
     const u = (seconds % LOOP_S) / LOOP_S;
     if (u < 0.15) return side.lerp(hold, smooth(u / 0.15));
     if (u < 0.66) return hold;
