@@ -246,6 +246,9 @@ final class ExportArchive
                     $environment->{$field} = ($field === 'worldSrc' || $field === 'skySrc') && is_string($src) && $src !== '' ? substr($address($src, 'environment'), strlen(self::CONTENT_PREFIX)) : $src;
                 }
                 $experience->environment = $environment;
+            } elseif ($key === 'landing' && $value instanceof stdClass) {
+                // The landing's pick (#355): its ids – the build extracts the hero again
+                $experience->landing = (object) ['scene' => $value->scene ?? null, 'target' => $value->target ?? null];
             } else {
                 $experience->{$key} = $value;
             }

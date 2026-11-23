@@ -17,3 +17,7 @@ logic:
           scope: experience
     - on: chapterFinished
       do: { goto: "scene:cover" }
+# The desktop landing's hero (content schema 6.1, #355): a target with a 3D model on a scene – the build extracts the hero
+landing:
+  scene: studio-a
+  target: studio-dragon

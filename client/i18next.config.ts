@@ -25,7 +25,8 @@ export default defineConfig({
     // Missing translations stay empty – i18next then shows English (returnEmptyString: false)
     defaultValue: "",
     // Keys built at runtime (browser name, category, API error code) – keep them even if extraction can't resolve them
-    preservePatterns: ["camera:*", "entries:categories.*", "entries:consulted.*", "account:errors.*"],
+    // The desktop landing and the static Privacy & terms page read their namespaces without t() (#355)
+    preservePatterns: ["camera:*", "entries:categories.*", "entries:consulted.*", "account:errors.*", "landing:*", "privacy:*"],
     removeUnusedKeys: true,
     sort: false,
     indentation: 2,

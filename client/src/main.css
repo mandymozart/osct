@@ -46,6 +46,9 @@
   --gold-shimmer: linear-gradient(110deg, transparent 40%, rgba(255, 248, 230, .95) 50%, transparent 60%);
   --shimmer-duration: 4s;
   --shine-duration: 1.8s;
+  /* Placeholders while data loads (the desktop landing's skeleton, #355): a quiet grey block, a faint band over it */
+  --skeleton: rgba(139, 141, 140, .14);
+  --skeleton-shine: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .07) 50%, transparent 70%);
 
   --color-muted: #8b8d8c;
   --color-inactive: #d6d8d8;

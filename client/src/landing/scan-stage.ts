@@ -1,5 +1,5 @@
 import {
-  AdditiveBlending, AmbientLight, Box3, AnimationMixer, BackSide, BoxGeometry, BufferAttribute, CanvasTexture, Clock,
+  AdditiveBlending, AmbientLight, Box3, BackSide, BoxGeometry, BufferAttribute, CanvasTexture, Clock,
   DirectionalLight, Euler, ExtrudeGeometry, FrontSide, Group, MathUtils, Mesh,
   MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, type Object3D, PerspectiveCamera, Plane, PlaneGeometry, PMREMGenerator,
   PointLight, Quaternion, Raycaster,
@@ -7,14 +7,14 @@ import {
   WebGLRenderTarget,
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { disposeObject, loadGltf } from "@engine/scene/assets";
+import { AssetStore, disposeObject } from "@engine/scene/assets";
 import { type Celebration, celebrate } from "@engine/scene/celebration";
-import { applyTextureSets } from "@engine/scene/model-textures";
+import { buildEntity, type EntityInstance } from "@engine/scene/entities";
+import { setMediaSound } from "@engine/scene/media";
 import { loadPlugins } from "@engine/scene/plugins";
-import { entityMomentAppearance, type Moment } from "@shared/types/appearance";
-import { resolvePlacement } from "@shared/types/placement";
-import { getExperience, getPlugins } from "@/utils/game-config";
+import type { AssetData, EntityData } from "@shared/types/game-config";
+import { entityMomentAppearance, type ExperienceAppearance, type Moment } from "@shared/types/appearance";
+import type { PluginData } from "@shared/types/plugins";
 import type { ScanPrint, ScanStageData } from "./scan-stage-data";
 
 /**
@@ -24,12 +24,15 @@ import type { ScanPrint, ScanStageData } from "./scan-stage-data";
  * the real reveal we got"; "the phone can also follow the mouse so it becomes a simulation of the scan".
  *
  * The book lies closed, its cover opens, a few pages turn, and it lies open on the scene of `ScanStageData`. Then a phone
- * comes in and scans it: only on its screen – the picture of its own camera, magnified – does the model stand on the page. When the
+ * comes in and scans it: only on its screen – the picture of its own camera, magnified – does the target's AR content
+ * (a model, a video, a component – #355) stand on the page. When the
  * target comes into the screen, the experience's own looks play (`reveal` the first time, then `found`; `lost` when it
  * leaves – the content's appearance and plugins, the engine's `celebrate`, as in the reader). The phone follows the
  * mouse once clicked ("the simulation should do this automatic scan, but when i click the mouse it should take control
  * of the phone"); another click, leaving the stage or a resting mouse give it back to the autopilot.
- * Plain three.js and the engine's model loading – no tracker, no `ArScene`; loaded lazily (the `three` chunk).
+ * Plain three.js and the engine's own entity builder (`buildEntity` over an `AssetStore`, the reader's one path for
+ * every node type, component and plugin) – no tracker, no `ArScene`, nothing of the app: everything comes in with
+ * `ScanStageData` and `ScanStageExtras` (the landing's data, #355); loaded lazily (the `three` chunk, `hero.ts`).
  */
 
 export interface ScanStageExtras {
@@ -45,6 +48,9 @@ export interface ScanStageExtras {
   pageImages: readonly string[];
   /** The Mark (the eye) at the top of the phone's screen, as in the app */
   markSrc: string;
+  /** The experience's plugins (URLs) and its own looks: the reveal, found and lost looks play as in the reader */
+  plugins: readonly PluginData[];
+  appearance?: ExperienceAppearance;
 }
 
 /**
@@ -477,8 +483,9 @@ export class ScanStage {
   /** 0 = the autopilot's distance, 1 = steered: nearer the eye */
   private near = 0;
   private mouseAt = -Infinity;
-  private mixer: AnimationMixer | null = null;
-  private model: Object3D | null = null;
+  /** The target's entity as the engine builds it for a found target (its hooks: found, lost, the frame's update) */
+  private entity: EntityInstance | null = null;
+  private readonly assets = new AssetStore(() => 1024);
   private celebration: Celebration | null = null;
   private inView = false;
   private revealed = false;
@@ -530,33 +537,31 @@ export class ScanStage {
     this.fit();
   }
 
-  /** The book, the content's plugins (their looks) and the model; resolves once everything is there and running */
+  /**
+   * The book, the content's plugins (their looks, node types and components) and the target's entity; resolves once
+   * everything is there and running. The entity is built as the reader builds it for a found target – its files in an
+   * `AssetStore`, then `buildEntity` (placed by its params on the target, every node type, a video keyed by its filters,
+   * the plugins' components) – a video plays muted, the landing never makes a sound.
+   */
   async load(): Promise<void> {
-    const { entity, asset } = this.data;
-    const [loaded] = await Promise.all([
-      loadGltf(asset.src, asset.assetType === "gltf" ? "gltf" : "glb"),
-      loadPlugins(getPlugins()).catch(() => undefined),
+    const { entity } = this.data;
+    setMediaSound(() => false);
+    await Promise.all([
+      this.assets.load(assetsOf(entity)),
+      loadPlugins([...this.extras.plugins]).catch(() => undefined),
       this.buildBook(),
     ]);
     if (this.stopped) return;
-    const model = cloneSkinned(loaded.scene);
-    if (asset.textures?.length) void applyTextureSets(model, asset.textures, 1024);
-    model.traverse(object => {
+    const built = buildEntity({ id: "landing", entryId: "landing", sceneId: "landing", imageSrc: this.data.target.src, entity }, id => this.assets.get(id));
+    if (!built) throw new Error("the hero's entity builds nothing");
+    built.object.traverse(object => {
       if ((object as Mesh).isMesh) object.frustumCulled = false;
     });
-    const { position, rotation, scale } = resolvePlacement(entity.type, entity.params);
-    this.placed.position.set(...position);
-    this.placed.rotation.set(...(rotation.map(MathUtils.degToRad) as [number, number, number]));
-    this.placed.scale.set(...scale);
-    this.placed.add(model);
-    this.model = model;
+    this.placed.add(built.object);
+    this.entity = built;
     this.anchor.updateWorldMatrix(true, true);
     new Box3().setFromObject(this.placed).getCenter(this.centre);
     this.centre.z *= FOCUS_HEIGHT;
-    if (loaded.animations.length) {
-      this.mixer = new AnimationMixer(model);
-      loaded.animations.forEach(clip => this.mixer!.clipAction(clip).play());
-    }
     void document.fonts?.ready.then(() => (this.textDirty = true));
     // Everything is drawn once before the show starts – the model too, into the phone's picture – so no shader is
     // built in the middle of a movement (a stutter just as the phone lifts off)
@@ -573,6 +578,8 @@ export class ScanStage {
     this.stopped = true;
     cancelAnimationFrame(this.frame);
     this.celebration?.finish();
+    this.entity?.onLost?.();
+    this.entity?.dispose?.();
     this.resize.disconnect();
     this.visibility.disconnect();
     this.section.removeEventListener("pointerdown", this.handleClick);
@@ -1099,7 +1106,7 @@ export class ScanStage {
     // The screen wakes early on the way up (from 15 % of it) – lying flat it shows nothing of its camera
     this.screen?.color.setScalar(smooth((this.rise - 0.15) / 0.25));
     this.animateMarks(seconds, delta);
-    this.mixer?.update(delta);
+    this.entity?.update?.(delta);
     if (onPage) this.film(onPage);
     this.renderer.render(this.scene, this.camera);
   }
@@ -1144,8 +1151,11 @@ export class ScanStage {
     const x = MathUtils.lerp(this.aim.x, this.centre.x, this.stick);
     const y = MathUtils.lerp(this.aim.y, this.centre.y, this.stick);
     const inView = Math.abs(x) < 0.5 + SIGHT_MARGIN && Math.abs(y) < this.data.aspect / 2 + SIGHT_MARGIN;
-    if (inView === this.inView || !this.model) return;
+    if (inView === this.inView || !this.entity) return;
     this.inView = inView;
+    // Found and lost as in the reader: a video plays on and stops, a component's hooks run
+    if (inView) this.entity.onFound?.();
+    else this.entity.onLost?.();
     if (this.still) {
       this.placed.visible = inView;
       return;
@@ -1156,6 +1166,9 @@ export class ScanStage {
       this.placed.visible = true;
     }
     this.celebration?.finish();
-    this.celebration = celebrate(this.anchor, this.placed, moment, entityMomentAppearance(this.data.entity, getExperience(), moment));
+    this.celebration = celebrate(this.anchor, this.placed, moment, entityMomentAppearance(this.data.entity, { appearance: this.extras.appearance }, moment));
   }
 }
+
+/** Every file of an entity's node tree – what the store loads before the builder runs */
+const assetsOf = (entity: EntityData): AssetData[] => [...entity.assets, ...(entity.children ?? []).flatMap(assetsOf)];

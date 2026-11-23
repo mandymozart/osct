@@ -71,6 +71,9 @@ export const activeExperience = (
 export const experiencePrefix = (experience: string | null = activeExperience()): string =>
   experience ? `/${encodeURIComponent(experience)}` : "";
 
+/** Privacy & terms: the static page beside the app (privacy.html, #355) below the experience's path – the installed app keeps it in its window */
+export const privacyHref = (prefix: string = experiencePrefix()): string => `${prefix}/privacy`;
+
 /**
  * The content base URL of the experience: the environment's (`VITE_CONTENT_BASE_URL`) + the experience; "" without an
  * environment base (bundled content) or without an experience

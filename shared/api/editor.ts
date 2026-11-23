@@ -5,6 +5,7 @@
  * Not content: `shared/api/` is outside the content schema lock (RULES #10).
  */
 import type { ExperienceAppearance } from "../types/appearance";
+import type { ExperienceLanding } from "../types/landing";
 import type { ContentManifest } from "../types/content-manifest";
 import type { EnvironmentData } from "../types/environment";
 import type { ExperienceData, EntityData, EntryData, GameConfiguration, GroupData, LogicData, PassData, VariableDeclaration, RecognitionMode, SceneData, SurfaceData, TargetData } from "../types/game-config";
@@ -485,6 +486,8 @@ export interface ExperienceUpdate {
   book?: { author?: string; publisher?: string | null } | null;
   /** Schema 4.2 (#306): how the reader gets its targets' recognition data; `"original"` or null = the default (stored as none) */
   recognition?: RecognitionMode | null;
+  /** Schema 6.1 (#355): the desktop landing's hero – the pick with what was extracted from it; null removes it */
+  landing?: ExperienceLanding | null;
 }
 
 /** `PUT /editor/experiences/{id}`: the experience after the change (its title, its printed book and the rest it holds) */

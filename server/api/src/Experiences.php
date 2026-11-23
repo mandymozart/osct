@@ -23,6 +23,7 @@ final class Experiences
         'editor', 'admin', 'api', 'docs', 'mcp', 'assets', 'vendor', '_app', 'static', 'public', 'content',
         'manifest', 'manifest.webmanifest', 'service-worker', 'service-worker.js', 'sw', 'sw.js', 'registersw.js', 'workbox',
         'robots.txt', 'favicon.ico', 'index.html', 'icons', 'fonts',
+        'privacy', 'privacy.html',
         'src', 'node_modules', '@vite', '@fs', '@id',
         'app', 'www', 'help', 'status', 'health', 'well-known', '.well-known',
     ];
@@ -1626,6 +1627,8 @@ final class Experiences
         if (property_exists($experience, 'recognition') && !in_array($experience->recognition, self::RECOGNITION_MODES, true)) {
             $fail('experience.recognition must be "original" or "prepared".');
         }
+        // The landing's pick (#355, schema 6.1): its shape – whether its scene and target exist is the content build's check
+        if (property_exists($experience, 'landing') && ($problem = Landing::shapeProblem($experience->landing)) !== null) $fail($problem);
         if (property_exists($experience, 'logic')) {
             try {
                 Logic::check($experience->logic, 'experience', 'experience.logic', 'invalid-configuration');

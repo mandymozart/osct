@@ -457,7 +457,7 @@ final class Plugins
 
     /**
      * A plugin as the change log stores it (#352, Reverts): its files `[{ name, text }]` – the single source a change before
-     * 6.9.0 holds is its `index.ts` –, null for none; false for anything else (not revertable)
+     * 6.11.0 holds is its `index.ts` –, null for none; false for anything else (not revertable)
      * @return list<array{name: string, text: string}>|null|false
      */
     public static function filesOfValue(mixed $value): array|null|false

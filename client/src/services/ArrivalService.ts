@@ -8,7 +8,7 @@ import { API_URL } from "./ApiService";
  * it (`credentials: "omit"`), and the server keeps counts only.
  */
 export const SOURCE_PARAM = "s";
-/** The desktop landing page's own QR code (`<desktop-landing>`) */
+/** The desktop landing page's own QR code (`landing/links.ts`) */
 export const LANDING_SOURCE = "lp1";
 /** The browser reported an arrival before: the next one is no first arrival */
 export const ARRIVED_KEY = "osct-arrived";

@@ -1,7 +1,7 @@
-// Relative, not "@/constants": the inline landing decision in index.html is built from this file too (#343)
-import { BREAKPOINT_TABLET } from "../../constants";
+// Relative, not "@/…": the inline landing decision in index.html is built from this file too (#343)
+import { BREAKPOINT_TABLET } from "../constants";
 
-/** sessionStorage key a developer sets by hand ("1") to get past the landing on a computer – visitors cannot (#354) */
+/** sessionStorage key a developer sets by hand ("1") to get the app on a computer – visitors cannot (#354) */
 export const LANDING_SKIPPED_KEY = "osct-desktop-landing-skipped";
 
 /** What the browser tells about the device, read once at startup (`readDeviceSignals`) */
@@ -36,20 +36,16 @@ export const readDeviceSignals = (win: Window = window): DeviceSignals => {
   };
 };
 
-/** The pages a computer opens directly, without the landing in front (#353): `privacy`, linked from the landing's footer */
-export const LANDING_FREE_PAGES: readonly string[] = ["privacy"];
+/**
+ * What the page loads (#355): the landing (`page` – the static landing written into index.html is this experience's
+ * own: the build's default experience, or none named; `skeleton` – another experience: the same page as placeholders
+ * until its data is there) or, `null`, the app. A computer gets the landing on every experience's path; a developer who
+ * set `LANDING_SKIPPED_KEY` gets the app. The inline decision in index.html is this rule's twin
+ * (landing-decision-html.ts) – a test keeps the two equal case by case.
+ */
+export type LandingMode = "page" | "skeleton" | null;
 
-/** Whether the path's last segment is one of `LANDING_FREE_PAGES` (`/osct/privacy`, `/privacy/`) */
-export const isLandingFreePath = (pathname: string): boolean => {
-  const last = pathname.split("/").filter(Boolean).pop()?.toLowerCase();
-  return last !== undefined && LANDING_FREE_PAGES.includes(last);
-};
-
-/** The landing is skipped in this tab (`LANDING_SKIPPED_KEY`, developers only) */
-export const landingSkipped = (): boolean => {
-  try {
-    return sessionStorage.getItem(LANDING_SKIPPED_KEY) === "1";
-  } catch {
-    return false;
-  }
+export const landingMode = (signals: DeviceSignals, skipped: boolean, experience: string | null, fallback: string | null): LandingMode => {
+  if (!isDesktopVisitor(signals) || skipped) return null;
+  return experience === null || experience === fallback ? "page" : "skeleton";
 };

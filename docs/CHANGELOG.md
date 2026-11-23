@@ -8,7 +8,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
-## 6.9.0 – 2026-11-23
+## 6.11.0 – 2026-11-23
 
 ### Added
 - **A plugin can have more than one file** (#352, Tilman: *"for a plugin do we have an option to have more than one file
@@ -33,11 +33,55 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 ### Changed
 - The API answers a plugin with its `files`; `PUT …/plugins/{pid}` takes `files` (or `source` for one file) and an
   optional `origin`. The export file is format 2 (`sources: [{ id, files }]`); the editor still reads format 1.
-- Content schema 6.1: the plugin file rules in `shared/`. The configuration's `plugins` list is unchanged, so content
-  of 6.0 apps needs nothing.
+- Content schema 6.2: the plugin file rules in `shared/`. The configuration's `plugins` list is unchanged, so content
+  of 6.1 apps needs nothing.
 - The MCP tools `get_plugin` and `put_plugin` work with files; `osct plugins listen` rewrites every TypeScript file of
   a plugin.
 
+## 6.10.0 – 2026-11-23
+
+### Added
+- **Pick the landing's hero in the editor** (#355): right-click a target on the stage – *Use for the landing page*. The
+  desktop landing then opens its book on that scene's page and shows that target's AR content rising from its print – a
+  model, a video or a plugin's component; a note or a link without AR content cannot be picked (the menu says why). What
+  the hero needs – the page, its prints, the target's content, the book's pictures, the experience's looks – is taken
+  from the draft when you pick and stored with the experience (content schema 6.1).
+- **The experience's settings (⚙) show the pick** in a *landing page* section: the scene (a click opens it with the
+  target selected), the target, whether the stored hero is still up to date – *Refresh* takes it from the draft again –
+  and *Remove*.
+- **Publish writes the landing's data** (`landing.json`) into the published version, so a computer's landing reads one
+  small file instead of the whole experience. Without a pick, the landing works out its hero from the experience as
+  before.
+- **AI connections** can pick it too: `put_experience_landing { scene, target }` (or `remove: true`).
+- The content build writes the landing's data beside its configuration, and `osct content sync` uploads it with the
+  version; `landing:` in `experience.yaml` names the pick (`scene`, `target`).
+
+### Changed
+- The landing's hero is built by the engine the reader uses, so a video (keyed or not) or a plugin's component plays on
+  the hero as it does on the page – always muted on the landing.
+
+
+## 6.9.0 – 2026-11-23
+
+### Changed
+- **A computer gets the landing without loading the app** (#355): the page decides at once whether it is a computer
+  and then loads either the app or the landing's own small code – never both. On a computer the app, its debugging
+  tools and the offline worker are no longer downloaded (about 39 kB before the 3D hero instead of the whole app); the
+  3D hero loads after the page is up. Phones and tablets load the app as before.
+  - Every experience's address gets the landing on a computer, not only the default's: another experience shows the
+    same page with quiet placeholders until its texts and pictures are there.
+  - What is still loading – the QR code, the 3D hero – shows a quiet placeholder.
+  - Arrivals from a printed code (`?s=`) are still counted on a computer.
+  - The landing is a piece of its own that takes its data from the experience – from a `landing.json` next to the
+    content once publish writes one (next step), until then from the experience's configuration – so the editor can
+    show the same page later.
+- **Privacy & terms is a static page** (#355): `/privacy` (and `/<experience>/privacy`) opens a page of its own in the
+  reader's language, without the app – the Info page, the consent card of another site's video and the landing link to
+  it; in the installed app it opens in the app's window, × goes back. It works offline too.
+
+### Removed
+- **The in-app Privacy page** (#355): the app has no Privacy route any more – the static page replaces it, with the
+  same text.
 
 ## 6.8.0 – 2026-11-23
 

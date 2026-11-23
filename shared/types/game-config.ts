@@ -21,6 +21,7 @@ import type { MaterialData } from "./materials";
 import type { SubtitleData } from "./subtitles";
 import type { LogicData } from "./logic";
 import type { VariableDeclaration } from "./variables";
+import type { ExperienceLanding } from "./landing";
 
 export * from "./filters";
 export * from "./placement";
@@ -37,6 +38,7 @@ export * from "./appearance";
 export * from "./plugins";
 export * from "./node-types";
 export * from "./subtitles";
+export * from "./landing";
 export * from "./materials";
 export * from "./spec-builders";
 
@@ -122,14 +124,19 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * rewritten (`osct plugins listen --dir`), the server's rows by `Migration6.php`, the stored plugin sources by
  * `osct plugins listen`; every published experience is published again.
  *
- * **6.1** (#352): a plugin is a folder of files – `index.ts` and the TypeScript and shader files next to it
+ * **6.1** (#355): the experience's optional `landing` – the target with AR content (a model, a video, a component) the
+ * desktop landing's hero shows,
+ * `{ scene, target }` by id, with the hero (`LandingHeroData`) and the print layout's `cover` extracted when the person
+ * picked it (`./landing.ts`); publish writes the version's `landing.json` from it. An app of 6.0 ignores the field.
+ *
+ * **6.2** (#352): a plugin is a folder of files – `index.ts` and the TypeScript and shader files next to it
  * (`./plugins.ts` PluginFile, the names and limits, `./plugin-shader-files.d.ts` the shader imports' types). The content
- * build and the editor bundle the folder; the configuration's `plugins` list is unchanged – an app of 6.0 reads 6.1 as
+ * build and the editor bundle the folder; the configuration's `plugins` list is unchanged – an app of 6.1 reads 6.2 as
  * it is, nothing to skip.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "6.1";
+export const CONTENT_SCHEMA_VERSION = "6.2";
 /** The oldest content schema MAJOR this contract reads – 6: no 5.x content is read (6.0 renamed a spec's `uses.hears` to `uses.listens`) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 6;
 
@@ -185,6 +192,11 @@ export interface ExperienceData {
    * an undeclared variable takes the type of its first set
    */
   variables?: Record<string, VariableDeclaration>;
+  /**
+   * Optional (schema 6.1, #355): the target with AR content the desktop landing's hero shows – `{ scene, target }` by id
+   * (the target's surface is the hero's), with the hero and the layout's cover extracted when it was picked (`./landing.ts`)
+   */
+  landing?: ExperienceLanding;
 }
 
 /** How the reader gets its targets' recognition data (schema 4.2, #306): `ExperienceData.recognition` */

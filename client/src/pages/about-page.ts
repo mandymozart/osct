@@ -1,5 +1,6 @@
 import { ConsultationPage } from "./consultation-page";
 import { getExperience } from "@/utils/game-config";
+import { escapeHtml, privacyHref } from "@/utils";
 import { t } from "i18next";
 import "@/components/settings";
 
@@ -26,7 +27,8 @@ export class AboutPage extends ConsultationPage {
     const experience = getExperience();
     const params = { title: experience.title, author: experience.book?.author ?? "" };
     const here = `<a href="/credits" data-action="credits">${t("about:here")}</a>`;
-    const privacy = `<a href="/privacy" data-action="privacy">${t("about:privacyLink")}</a>`;
+    // Privacy & terms is a static page beside the app (#355): a plain link, in the installed app's window too
+    const privacy = `<a href="${escapeHtml(privacyHref())}">${t("about:privacyLink")}</a>`;
     return /* html */ `
       <div class="content">
         <h2 class="section-title">${t("about:info")}</h2>
@@ -84,12 +86,12 @@ export class AboutPage extends ConsultationPage {
     this.shadowRoot?.removeEventListener("click", this.handleCredits);
   }
 
-  /** "here" → the image credits, "Privacy & terms" → that page; a plain link without the app (a new tab) still works */
+  /** "here" → the image credits; a plain link without the app (a new tab) still works */
   private handleCredits = (event: Event) => {
-    const link = (event.target as HTMLElement).closest<HTMLElement>("[data-action=credits], [data-action=privacy]");
+    const link = (event.target as HTMLElement).closest<HTMLElement>("[data-action=credits]");
     if (!link || (event as MouseEvent).metaKey || (event as MouseEvent).ctrlKey) return;
     event.preventDefault();
-    this.game.router.navigate(link.dataset.action === "privacy" ? "/privacy" : "/credits");
+    this.game.router.navigate("/credits");
   };
 
   protected update(): void {

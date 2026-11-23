@@ -1,22 +1,31 @@
 /**
- * The desktop landing page's markup and styles as plain functions (#343): `<desktop-landing>` renders them into its
- * shadow root, and the build writes the same page into index.html (`renderStaticLanding`, vite.config.js plugin
- * `osct-static-landing`) so a computer sees the landing at once – before the app's bundle has loaded. Tilman,
- * 2026-11-22: "same thing goes for the browser redirect to that landing page ... write a small script we put in the
- * skeleton and run immediately".
+ * The desktop landing page's markup and styles as plain functions (#343): the landing (`mount.ts`) renders them into its
+ * host's shadow root, and the build writes the same page into index.html (`renderStaticLanding`, vite.config.js plugin
+ * `osct-static-landing`) so a computer sees the landing at once – before any code has loaded. Tilman, 2026-11-22: "same
+ * thing goes for the browser redirect to that landing page ... write a small script we put in the skeleton and run
+ * immediately".
+ * What is still loading shows as a quiet placeholder (#355, Tilman 2026-11-23: "build a static html and load data with
+ * skeleton animations progressively"): the QR code and the hero's stage (`.loading`, until drawn), and – on another
+ * experience's path, whose texts and images the static page does not have – every part that comes from the experience
+ * (`.slot`, while the host carries `data-skeleton`).
  *
  * Imports are relative and import-free modules only: vite.config.js loads this file.
  */
-import { MEDIA_QUERY } from "../../constants";
-import { DESIGN_PRIMITIVES_CSS } from "../../styles/design-css";
-import { escapeHtml } from "../../utils/strings";
-import { goldButton } from "../buttons/gold-button";
+import { MEDIA_QUERY } from "../constants";
+import { DESIGN_PRIMITIVES_CSS } from "../styles/design-css";
+import { escapeHtml } from "../utils/strings";
+import { goldButton } from "../components/buttons/gold-button";
 import type { LandingConfig, ShopItem } from "./landing-config";
+import { seededPick } from "../../../shared/api/landing";
 
-/** The static landing's element in index.html; `<desktop-landing>` removes it when it takes over */
+/** The static landing's element in index.html: the landing's page mounts into it (`mount.ts`) */
 export const STATIC_LANDING_ID = "static-landing";
-/** The attribute the inline decision sets on `<html>` for a desktop visitor (landing-decision-html.ts) */
+/** The attribute the inline decision sets on `<html>` for a desktop visitor (`page` / `skeleton`, landing-decision-html.ts) */
 export const LANDING_ATTRIBUTE = "data-osct-landing";
+/** The host's attribute while the experience's own parts are placeholders */
+export const SKELETON_ATTRIBUTE = "data-skeleton";
+/** The host's attribute when the page is mounted inside another page's box (the editor's stage), not over the window */
+export const CONTAINED_ATTRIBUTE = "data-contained";
 
 /** How many of the book's images drift over the hero */
 export const SCATTER_COUNT = 14;
@@ -33,17 +42,8 @@ export const SCATTER: ReadonlyArray<{ x: number; y: number; size: number; turn: 
   { x: 38, y: 89, size: 6.5, turn: 2 }, { x: 64, y: 93, size: 5, turn: -5 },
 ];
 
-/** A stable shuffle (the same images every visit of the same content): a seeded linear congruential generator */
-export const pick = <T>(items: readonly T[], count: number, seed = 324): T[] => {
-  const out = [...items];
-  let state = seed;
-  for (let i = out.length - 1; i > 0; i--) {
-    state = (state * 1103515245 + 12345) % 2147483648;
-    const j = state % (i + 1);
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out.slice(0, count);
-};
+/** A stable shuffle (the same images every visit of the same content) – the landing's one (`shared/api/landing.ts`) */
+export const pick = seededPick;
 
 /** The texts of the `landing` i18n namespace, translated; `intro` with the title and the author filled in (escaped) */
 export type LandingTexts = Record<
@@ -52,7 +52,7 @@ export type LandingTexts = Record<
   string
 >;
 
-export interface LandingSource extends LandingConfig {
+export interface LandingSource extends Pick<LandingConfig, "shop"> {
   texts: LandingTexts;
   /** The experience's title, its book's author and publisher ("" without) */
   title: string;
@@ -60,7 +60,7 @@ export interface LandingSource extends LandingConfig {
   publisher: string;
   /** The experience's target images in scene order (URLs as the reader loads them); a stable pick of them is scattered */
   images: readonly string[];
-  /** The footer's "Privacy & terms" (#353): the app's `/privacy` below the experience's path – the landing stays away there */
+  /** The footer's "Privacy & terms": the static page (#355) below the experience's path */
   privacyHref?: string;
 }
 
@@ -89,14 +89,14 @@ const shopItem = (item: ShopItem, texts: LandingTexts): string => {
   const name = item.id === "book" ? texts.shopBook : texts.shopShirt;
   return /* html */ `
       <li class="item" data-item="${item.id}">
-        <div class="picture"><img src="${escapeHtml(item.image)}" alt="" /></div>
+        <div class="picture${item.cover ? " slot" : ""}"><img src="${escapeHtml(item.image)}" alt="" /></div>
         <span class="name">${name}</span>
         ${goldButton({ label: texts.toShop, href: item.url, attrs: { "aria-label": `${name} – ${texts.toShop}` } })}
       </li>
     `;
 };
 
-/** The page's own styles (`:host` = `<desktop-landing>`, or the static landing's element) */
+/** The page's own styles (`:host` = the host it is mounted into – the static landing's element, or another page's box) */
 export const LANDING_CSS = /* css */ `
         :host {
           position: fixed;
@@ -110,6 +110,7 @@ export const LANDING_CSS = /* css */ `
           --column: 72rem;
         }
         :host([hidden]) { display: none; }
+        :host([data-contained]) { position: absolute; z-index: auto; }
         .landing { min-height: 100%; }
         .wrap { box-sizing: border-box; width: 100%; max-width: calc(var(--column) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
 
@@ -215,8 +216,29 @@ export const LANDING_CSS = /* css */ `
         footer { padding-block: 2.5rem 3rem; border-top: var(--rule); }
         footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
 
+        /* Placeholders while data or the 3D hero load (#355) */
+        .slot { position: relative; }
+        :host([data-skeleton]) .slot { -webkit-text-fill-color: transparent; color: transparent; }
+        :host([data-skeleton]) .slot img { visibility: hidden; }
+        :host([data-skeleton]) .slot::after,
+        .loading::after {
+          content: "";
+          position: absolute;
+          inset: .08em 0;
+          border-radius: .5rem;
+          background: var(--skeleton-shine) 0 0 / 300% 100% no-repeat, var(--skeleton);
+          animation: skeleton 1.6s ease-in-out infinite;
+          pointer-events: none;
+        }
+        :host([data-skeleton]) .scatter { display: none; }
+        .qr-code.loading { position: relative; }
+        .qr-code.loading::after { inset: 0; }
+        .stage.loading::after { inset: 18%; border-radius: 50%; opacity: .6; }
+        @keyframes skeleton { from { background-position: 100% 0, 0 0; } to { background-position: -50% 0, 0 0; } }
+
         @media (prefers-reduced-motion: reduce) {
           .float { animation: none; transition: none; }
+          :host([data-skeleton]) .slot::after, .loading::after { animation: none; }
         }
         @media (${MEDIA_QUERY.TABLET}) {
           .hero-grid { grid-template-columns: minmax(0, 1fr); }
@@ -227,10 +249,25 @@ export const LANDING_CSS = /* css */ `
 `;
 
 /**
- * The page: its styles and `<main>`. What needs the browser is filled in afterwards – the address (`.address`, the
+ * The page: its styles and `<main>` (with its `renderKey`). What needs the browser is filled in afterwards – the address (`.address`, the
  * page's host), the QR code (`.qr-code`), the book's cover.
  */
+/** A short checksum of a rendered page: the landing keeps the static page when its own render is the same (`mount.ts`) */
+export const renderKey = (html: string): string => {
+  let hash = 5381;
+  for (let i = 0; i < html.length; i++) hash = ((hash * 33) ^ html.charCodeAt(i)) >>> 0;
+  return hash.toString(36);
+};
+
+/** The key a rendered page carries (`<main data-render>`), "" for none */
+export const renderKeyOf = (html: string): string => /<main [^>]*data-render="(\w+)"/.exec(html)?.[1] ?? "";
+
 export const renderLanding = (source: LandingSource): string => {
+  const markup = renderMarkup(source);
+  return markup.replace("<main ", `<main data-render="${renderKey(markup)}" `);
+};
+
+const renderMarkup = (source: LandingSource): string => {
   const { texts, title, author, publisher, shop, privacyHref = "/privacy" } = source;
   // The title as on the book's title page: its words on lines of their own, the "and" / "&" between them alone
   const titleLines = title.split(/\s+(&|and|und|et|en)\s+/i).map(part => escapeHtml(part));
@@ -241,14 +278,14 @@ export const renderLanding = (source: LandingSource): string => {
           <div class="scatter" aria-hidden="true">${scatter(source.images)}</div>
           <div class="wrap hero-grid">
             <div class="intro-block">
-              <h1>${titleLines.map((part, i) => `<span class="line gold shimmer${i % 2 ? " and" : ""}">${part}</span>`).join("")}</h1>
-              ${author ? `<p class="author gold">${escapeHtml(author)}</p>` : ""}
-              <p class="intro">${texts.intro}</p>
+              <h1>${titleLines.map((part, i) => `<span class="line gold shimmer slot${i % 2 ? " and" : ""}">${part}</span>`).join("")}</h1>
+              ${author ? `<p class="author gold slot">${escapeHtml(author)}</p>` : ""}
+              <p class="intro slot">${texts.intro}</p>
               <div class="actions">
                 <a class="scroll-hint muted" href="#get">${texts.getApp} ↓</a>
               </div>
             </div>
-            <aside class="stage" role="img" aria-label="${texts.previewAlt}"></aside>
+            <aside class="stage loading" role="img" aria-label="${texts.previewAlt}"></aside>
           </div>
         </section>
 
@@ -256,7 +293,7 @@ export const renderLanding = (source: LandingSource): string => {
           <div class="wrap">
             <div class="get-grid">
               <figure class="qr-card" style="margin:0">
-                <div class="qr-code" role="img" aria-label="${texts.qrAlt}"></div>
+                <div class="qr-code loading" role="img" aria-label="${texts.qrAlt}"></div>
                 <figcaption class="qr-caption">${texts.scan}</figcaption>
               </figure>
               <div>
@@ -277,8 +314,8 @@ export const renderLanding = (source: LandingSource): string => {
 
         <footer>
           <div class="wrap muted small">
-            <span>${escapeHtml(title)}${author ? ` · ${escapeHtml(author)}` : ""}</span>
-            <span>${publisher ? `${escapeHtml(publisher)} · ` : ""}<a href="${escapeHtml(privacyHref)}">${texts.privacy}</a></span>
+            <span class="slot">${escapeHtml(title)}${author ? ` · ${escapeHtml(author)}` : ""}</span>
+            <span>${publisher ? `<span class="slot">${escapeHtml(publisher)}</span> · ` : ""}<a href="${escapeHtml(privacyHref)}">${texts.privacy}</a></span>
           </div>
         </footer>
       </main>
@@ -293,7 +330,8 @@ export const fillTexts = (raw: Record<string, string>, values: Record<string, st
 /**
  * The static landing for index.html (#343): the same page in a declarative shadow root (`<template shadowrootmode>`),
  * with the design primitives' CSS, shown only while `<html>` carries `data-osct-landing` (the inline decision in the
- * head) – then the static splash makes way. A small script after it writes the address before the bundle has loaded.
+ * head) – then the static splash makes way. A small script after it writes the address and, on another experience's path
+ * (`skeleton`), turns the experience's parts into placeholders – before any code has loaded.
  * The page tokens (main.css) and the font (`@font-face` in the head) are loaded before first paint already.
  */
 export const renderStaticLanding = (source: LandingSource): string => [
@@ -306,5 +344,6 @@ export const renderStaticLanding = (source: LandingSource): string => [
   `<script>(function () { try {`,
   ` var host = document.getElementById(${JSON.stringify(STATIC_LANDING_ID)}); var root = host && host.shadowRoot; if (!root) return;`,
   ` var address = root.querySelector(".address"); if (address) address.textContent = location.host;`,
+  ` if (document.documentElement.getAttribute(${JSON.stringify(LANDING_ATTRIBUTE)}) === "skeleton") host.setAttribute(${JSON.stringify(SKELETON_ATTRIBUTE)}, "");`,
   `} catch (e) {} })();</script>`,
 ].join("");

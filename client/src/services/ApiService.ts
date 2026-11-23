@@ -1,4 +1,4 @@
-import { isObject } from "@shared/guards/game-config";
+import { isObject } from "@shared/guards/primitives";
 
 /**
  * Base URL of the accounts API (`server/`, PHP + MySQL): always `/api` next to the app, on the same origin (every

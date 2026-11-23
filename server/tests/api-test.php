@@ -809,6 +809,30 @@ try {
     [, $data] = call($api, 'GET', '/editor/experiences/osct/changes?limit=1', null, $editor);
     check(count($data['changes']) === 1, 'limit');
 
+    echo "editor: the landing's hero (#355, schema 6.1)\n";
+    $print = ['src' => '/assets/content/entries/racoon/img.jpg', 'x' => 0, 'top' => null, 'width' => 0.6];
+    $hero = ['aspect' => 0.696, 'pages' => [1, 2], 'prints' => [$print], 'target' => $print,
+        'entity' => ['type' => 'model', 'assets' => [['id' => 'racoon-0', 'assetType' => 'glb', 'src' => '/assets/content/entries/racoon/racoon.glb']]],
+        'spread' => '/assets/content/layout/sheets/p1-2.jpg', 'earlier' => [], 'pageImages' => ['/assets/content/entries/castle/img.jpg'], 'plugins' => []];
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => ['scene' => 's9', 'target' => 'racoon']], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-landing' && str_contains($data['error']['message'], 'no scene "s9"'), 'PUT experience landing: an unknown scene → 400 invalid-landing');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => ['scene' => 's2', 'target' => 'racoon']], $editor);
+    check($status === 400 && str_contains($data['error']['message'], 'no target "racoon" on the scene "s2"'), '… a target of another scene → 400');
+    // Tilman: "or video or component. marginalia and links wouldnt work"
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => ['scene' => 's2', 'target' => 'castle-target']], $editor);
+    check($status === 200 && $data['experience']['landing'] === ['scene' => 's2', 'target' => 'castle-target'], '… a target whose (shared) entity is a video can be the hero');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => ['scene' => 's2', 'target' => 'link']], $editor);
+    check($status === 400 && str_contains($data['error']['message'], 'no target "link"'), '… a link (an entry without a target, no AR content) cannot → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => ['scene' => 's1', 'target' => 'racoon', 'hero' => ['aspect' => 'wide'] + $hero]], $editor);
+    check($status === 400 && str_contains($data['error']['message'], 'landing.hero: aspect'), '… a hero of the wrong shape → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => ['scene' => 's1', 'target' => 'racoon', 'colour' => 'red']], $editor);
+    check($status === 400 && str_contains($data['error']['message'], 'landing.colour'), '… an unknown field → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => ['scene' => 's1', 'target' => 'racoon', 'hero' => $hero, 'cover' => '/assets/content/layout/sheets/cover.jpg']], $editor);
+    check($status === 200 && $data['experience']['landing']['scene'] === 's1' && $data['experience']['landing']['hero']['pages'] === [1, 2]
+        && $data['experience']['landing']['cover'] === '/assets/content/layout/sheets/cover.jpg', 'PUT experience landing: the pick with its hero and cover is stored');
+    [, $changes] = call($api, 'GET', '/editor/experiences/osct/changes?limit=1', null, $editor);
+    check($changes['changes'][0]['kind'] === 'experience' && ($changes['changes'][0]['after']['landing']['target'] ?? null) === 'racoon', '… and recorded (History shows it)');
+
     echo "editor: publish (local store)\n";
     [$status, $data] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'No where!'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-env', 'an env that is no environment name → 400');
@@ -828,6 +852,12 @@ try {
     [$status, $first] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => 'local', 'note' => 'first'], $editor);
     check($status === 200 && $first['env'] === 'local' && preg_match('/^[0-9a-f]{12}$/', $first['build']) === 1 && str_starts_with($first['hash'], $first['build']) && isset($first['publishedAt']), 'publish → env, build, hash');
     check(is_file("$storeDir/local/osct/{$first['build']}/game.config.json") && is_file("$storeDir/local/osct/{$first['build']}/files.json") && is_file("$storeDir/local/osct/latest.json") && is_file("$storeDir/local/osct/versions.json"), 'the version folder, versions.json and latest.json are in the store dir');
+    [$status, $landing] = call($api, 'GET', "/content/local/osct/{$first['build']}/landing.json");
+    check($status === 200 && $landing['format'] === 2 && $landing['schema'] === '6.0' && $landing['experience'] === 'osct' && $landing['title'] === 'Test Experience'
+        && $landing['author'] === 'Someone' && $landing['publisher'] === 'Building Fictions' && $landing['cover'] === '/assets/content/layout/sheets/cover.jpg'
+        && $landing['images'] === ['/assets/content/entries/racoon/img.jpg', '/assets/content/entries/castle/img.jpg'] && $landing['hero']['pages'] === [1, 2]
+        && $landing['hero']['plugins'] === [['id' => 'tint', 'src' => '/assets/content/plugins/tint/plugin.js', 'api' => '1.0']] && !isset($landing['hero']['appearance']),
+        '#355: publish writes landing.json beside game.config.json – the pick\'s hero, the version\'s texts, images and plugins');
     [$status, $data, $headers] = call($api, 'GET', '/content/local/osct/latest.json');
     check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '6.0' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
     check(in_array('Cache-Control: no-cache', $headers, true), 'latest.json is revalidated');
@@ -1041,7 +1071,9 @@ try {
     $basedOn = $comparison['draft']['basedOn'] ?? [];
     check(($basedOn['build'] ?? null) === 'abababababab' && $basedOn['date'] === '2026-01-01T00:00:00.000Z' && $basedOn['appVersion'] === '1.9.0' && $basedOn['importedBy'] === 'author@example.com' && is_string($basedOn['importedAt']),
         '… against what the draft is based on: build, date, app version, who imported it and when');
-    check($comparison['draft']['edits'] === 3 && $comparison['draft']['recentEdits'][0]['kind'] === 'entity' && $comparison['draft']['recentEdits'][0]['ref'] === 'castle' && $comparison['draft']['recentEdits'][0]['user'] === 'author@example.com'
+    // The edits: the landing's pick (#355) and the entity among them
+    $castleEdit = array_values(array_filter($comparison['draft']['recentEdits'], static fn($e) => $e['kind'] === 'entity'))[0] ?? [];
+    check($comparison['draft']['edits'] === 5 && in_array('experience', array_column($comparison['draft']['recentEdits'], 'kind'), true) && ($castleEdit['ref'] ?? null) === 'castle' && ($castleEdit['user'] ?? null) === 'author@example.com'
         && preg_match('/^[0-9a-f]{12}$/', $comparison['draft']['build']) === 1 && $comparison['same'] === false && ($comparison['draft']['live'][0]['env'] ?? null) === 'local',
         "… and the draft's unpublished edits since the import (the change log), its build and where it is live");
     [, $after] = call($api, 'GET', '/editor/experiences/osct/entities', null, $editor);
@@ -1054,7 +1086,7 @@ try {
     $castleNow['params'] = ['scale' => 4];
     call($api, 'PUT', '/editor/experiences/osct/entities/castle', $castleNow, $editor);
     [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files, 'confirm' => $confirmation['id']]);
-    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $data['error']['comparison']['draft']['edits'] === 4, 'an edit after the comparison voids the id; the new comparison counts it');
+    check($status === 409 && $data['error']['code'] === 'confirmation-void' && $data['error']['comparison']['draft']['edits'] === 6, 'an edit after the comparison voids the id; the new comparison counts it');
     $confirmation = $data['error']['confirmation'];
     call($api, 'POST', '/auth/request', ['email' => 'listed@example.com']);
     [, $other] = call($api, 'POST', '/auth/verify', ['token' => lastMail($mailLog)['token']]);
@@ -1243,7 +1275,7 @@ try {
     check(array_keys($data) === ["$base/assets/content/entries/racoon/racoon.glb", "$base/assets/content/entries/racoon/img.jpg"], 'files.json keys rewritten, in order');
     [, $data] = call($api, 'GET', '/editor/experiences/osct/changes', null, $editor);
     [, $tree] = call($api, 'GET', '/editor/experiences/osct', null, $editor);
-    check(count($data['changes']) === 4 && $tree['scenes'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
+    check(count($data['changes']) === 6 && $tree['scenes'][0]['entries'][0]['target']['entity']['params'] === ['scale' => 0.5], 're-import replaced the edited rows; the change log stays');
 
     echo "editor: node trees (content schema 2.0)
 ";
@@ -2027,6 +2059,8 @@ try {
     check($status === 200 && !array_key_exists('recognition', $data['experience']), 'PUT experience: recognition original is the default – stored as none');
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['recognition' => 'compiled'], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-experience', 'PUT experience: an unknown recognition path → 400');
+    [$status, $data] = call($api, 'PUT', '/editor/experiences/osct', ['landing' => null], $editor);
+    check($status === 200 && !array_key_exists('landing', $data['experience']), 'PUT experience: landing null removes the landing\'s pick (#355)');
 
     // The onboarding is the reader's (#236): no route of the API reads or writes it
     [$status] = call($api, 'GET', '/editor/experiences/osct/tutorial', null, $editor);

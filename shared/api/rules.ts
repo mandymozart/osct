@@ -6,14 +6,7 @@
  */
 import { ASSET_TYPES } from "../types/game-config";
 
-/** An id or reference in the editor API's paths and bodies – experiences, scenes, entries, targets, entities (`Editor::ID`) */
-export const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
-
-/**
- * An environment's name (`ContentStore::ENV`): the instance's ENV, a publish's `env`, the content route and the CDN's
- * `<env>/latest.json` – lower-case letters, digits and -, a letter first, at most 32
- */
-export const ENV_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+export { ENV_NAME, ID_PATTERN } from "./names";
 
 /**
  * The kinds of a Library file (`Assets::KINDS`): the content contract's asset types, `shader` (a source file a plugin

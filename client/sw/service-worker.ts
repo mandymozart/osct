@@ -7,7 +7,8 @@
  * - App shell (index.html, built files in assets/app/ incl. the three.js chunk, the 8th Wall engine in
  *   assets/xr8/, UI images, sounds, icons): precached at install, one cache per build.
  * - Pages (navigations): always from the network while online, so a deploy shows at once; offline the
- *   precached index.html (it matches the precached files).
+ *   precached index.html (it matches the precached files) – for Privacy & terms (`/privacy`, `/<experience>/privacy`)
+ *   the precached privacy.html, never the app (#355).
  * - Content (target images, models, images, videos – from the content CDN when the build has a content base
  *   URL, else assets/content/ of the app): cached when first used (the PreloaderService's fetches fill it) and
  *   served from the cache afterwards. Bundled content: one cache per content build (`version.hash`), older ones
@@ -31,6 +32,7 @@ import type { WorkboxPlugin } from "workbox-core/types";
 import type { RouteHandlerCallback } from "workbox-core/types";
 import { RangeRequestsPlugin } from "workbox-range-requests";
 import { EditorClients, isEditorPage } from "./editor-clients";
+import { isPrivacyPage } from "./static-pages";
 import { answerBuildQuery } from "./build-query";
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision: string | null }> };
@@ -155,6 +157,7 @@ if (FONT_BASE_URL) {
 setCatchHandler(async ({ request }) => {
   // An editor page never gets the reader's shell – the browser's own error page is the honest answer offline
   if (request.mode === "navigate" && isEditorPage(request.url)) return fetch(request);
+  if (request.mode === "navigate" && isPrivacyPage(request.url)) return (await matchPrecache("/privacy.html")) ?? Response.error();
   if (request.mode === "navigate") return (await matchPrecache("/index.html")) ?? Response.error();
   return Response.error();
 });

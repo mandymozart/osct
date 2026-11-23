@@ -462,7 +462,7 @@ and the whole stage 1.9 ms, as with the heightfield; the GPU takes 1–1.3 ms pe
 tested through the real plugin (`aquarium-fluid.test.ts`: the built tank's `object.userData.splash`); unit tests have
 no WebGPU, so they run the fallback.
 
-## A plugin of several files (6.9.0, #352)
+## A plugin of several files (6.11.0, #352)
 
 A plugin is a **folder of files**: `index.ts` – the entry, it exports `register` – and any TypeScript and shader files
 next to it. TypeScript imports its siblings by `./name`, a shader file (`.frag`, `.vert`, `.glsl`, `.wgsl`) comes in as
@@ -491,7 +491,7 @@ without it). Nothing else may be imported – no package, no folder below the pl
 - **In your own folder and tools** – `osct plugin link`, `push`, `pull` ("Your own folder" below).
 - **Shared shaders stay in the Library** ("A shader file" below): one file several plugins load by its URL.
 
-## Your own folder: osct plugin link, push, pull (6.9.0, #352)
+## Your own folder: osct plugin link, push, pull (6.11.0, #352)
 
 A plugin can be developed where you develop everything else – your editor, your repository, your tests – and still be
 seen on the editor's stage at once. In `scripts/` (the osct CLI, `OSCT_API_URL` the instance's API, `OSCT_EDITOR_TOKEN`

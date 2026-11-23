@@ -5,7 +5,6 @@ import "@/i18n";
 import "@/components";
 import "@/pages";
 import type { IErrorPage } from "@/pages";
-import type { DesktopLanding } from "@/components";
 import { reportArrival, UserService, FeedbackService, GameStoreService, InstallService, LinkService, LocalDeviceStorage, ServiceWorkerService, UpdateService } from "@/services";
 import type {
   ErrorInfo,
@@ -90,7 +89,6 @@ export class ReaderApp extends HTMLElement {
   `;
 
   template = /* html */ `
-    <desktop-landing></desktop-landing>
     <camera-permission-page></camera-permission-page>
     <game-header></game-header>
     <coach-marks></coach-marks>
@@ -98,7 +96,6 @@ export class ReaderApp extends HTMLElement {
     <pages-router>
       <about-page></about-page>
       <credits-page></credits-page>
-      <privacy-page></privacy-page>
       <scene-page></scene-page>
       <splash-page></splash-page>
       <entries-page></entries-page>
@@ -173,8 +170,6 @@ export class ReaderApp extends HTMLElement {
       window.READER = this.game;
       // A printed QR code's or a link's source (`?s=bk1`, #324): counted once, taken out of the address – before anything reads it
       reportArrival();
-      // A visitor on a computer first gets the desktop landing page (#293); the app starts once they open it here
-      await this.shadowRoot?.querySelector<DesktopLanding>("desktop-landing")?.whenDone();
       // A requested view (link or reload) opens directly, without a resume prompt.
       // Plain start: first visit → onboarding (skip / finish marks it done), else home.
       // The static splash (index.html) already shows the first onboarding step, so onboarding continues

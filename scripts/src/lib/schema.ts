@@ -34,6 +34,7 @@ export const schemas = {
       appearance: { type: "Object", required: false }, // the look an entity appears with: { reveal?, found?, lost? }, each { type, ...parameters }, see shared/types/appearance.ts
       variables: { type: "Object", required: false }, // the rules' typed variables: { name: { type, scope?, default? } } (schema 5.0, #334 B7), see shared/types/variables.ts
       logic: { type: "Object", required: false }, // the experience's rules: { rules: [{ on, when?, do }], canvas? } – the canvas stays out of the build (schema 5.0, #334), see shared/types/logic.ts
+      landing: { type: "Object", required: false }, // the desktop landing's hero: { scene, target } – a target with AR content (a model, a video, a component); the build extracts the hero (schema 6.1, #355), see shared/types/landing.ts
     },
   },
 

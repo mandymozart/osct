@@ -99,7 +99,14 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   }
   if (method === "DELETE" && /^\/editor\/experiences\/osct\/(scenes\/s2|entries\/castle)$/.test(path)) return removal(seen);
   if (path === "/editor/experiences/osct/draft/latest.json") return { json: { build: "abcdef012345", hash: "abcdef012345" + "0".repeat(52) } };
-  if (path === "/editor/experiences/osct/draft/abcdef012345/game.config.json") return { json: { version: { schema: "2.14" }, plugins: [{ id: "tint", src: "/p.js", api: "1.2", registered: REGISTERED }], entities: ENTITIES.entities } };
+  if (path === "/editor/experiences/osct/draft/abcdef012345/game.config.json") {
+    return { json: {
+      version: { schema: "2.14" }, plugins: [{ id: "tint", src: "/p.js", api: "1.2", registered: REGISTERED }], entities: ENTITIES.entities,
+      experience: { id: "osct", title: "Test Experience" },
+      scenes: TREE.scenes.map(({ entries: _entries, ...scene }) => scene),
+      entries: TREE.scenes.flatMap(scene => scene.entries as unknown[]),
+    } };
+  }
   if (path === "/editor/experiences/osct/draft/abcdef012345/files.json") return { json: { "/m.glb": { size: 1 } } };
   if (path === "/editor/experiences/osct/plugins") return { json: { plugins: sources ? [{ id: "glow", size: 10 }] : [] } };
   if (path === "/editor/experiences/osct/plugins/glow") return { json: { plugin: { id: "glow", files: [{ name: "index.ts", text: 'api.registerLayer("glow", {}, { glsl: "" }); api.registerNodeType("beam", {}, build); api.registerAppearance("popIn", {}, look);' }] } } };
@@ -188,7 +195,7 @@ describe("the content tools", () => {
     expect([...rec.tools.keys()].sort()).toEqual(
       [
         "add_entry", "create_experience", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
-        "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
+        "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_landing", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "put_surface", "delete_scene", "group_scenes", "rename_group", "ungroup",
         "set_surface_reference",
@@ -506,7 +513,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("6.1");
+    expect(model.contentSchema).toBe("6.2");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");
@@ -681,6 +688,29 @@ describe("the content tools", () => {
     expect(opening.ok).toBe(false);
     expect(opening.data.error).toMatchObject({ status: 409, code: "initial-scene" });
     expect(opening.data.error.hint).toContain("cannot be removed");
+  });
+
+  it("put_experience_landing: extracts the hero from the draft and saves it with the pick – a model or a video; an unknown target is refused (#355)", async () => {
+    const ok = await rec.call("put_experience_landing", { experience: "osct", scene: "s1", target: "racoon" });
+    expect(ok.ok).toBe(true);
+    const put = seen.find(s => s.method === "PUT")!;
+    expect(put.path).toBe("/editor/experiences/osct");
+    const landing = (put.body as { landing: { scene: string; target: string; hero: Record<string, unknown> } }).landing;
+    expect(landing).toMatchObject({ scene: "s1", target: "racoon", hero: { aspect: 320 / 460, target: { src: "/img.jpg", x: 0, top: null }, entity: { type: "model", assets: [{ src: "/m.glb" }] }, spread: null, plugins: [{ id: "tint", src: "/p.js", api: "1.2" }] } });
+    expect(landing.hero.plugins).toEqual([{ id: "tint", src: "/p.js", api: "1.2" }]);
+    seen.length = 0;
+    // Tilman: "or video or component" – the shared video entity is the hero's entity, as the configuration has it
+    expect((await rec.call("put_experience_landing", { experience: "osct", scene: "s2", target: "castle-target" })).ok).toBe(true);
+    expect((seen.find(s => s.method === "PUT")!.body as { landing: { hero: { entity: unknown } } }).landing.hero.entity).toEqual(VIDEO_ENTITY);
+    seen.length = 0;
+    const unknown = await rec.call("put_experience_landing", { experience: "osct", scene: "s1", target: "ghost" });
+    expect(unknown.ok).toBe(false);
+    expect(unknown.data.error.code).toBe("invalid-landing");
+    expect(unknown.data.error.message).toMatch(/no target "ghost"/);
+    expect(seen.filter(s => s.method === "PUT")).toHaveLength(0);
+    seen.length = 0;
+    expect((await rec.call("put_experience_landing", { experience: "osct", remove: true })).ok).toBe(true);
+    expect(seen).toEqual([expect.objectContaining({ method: "PUT", path: "/editor/experiences/osct", body: { landing: null } })]);
   });
 
   it("put_experience_appearance: a look per moment, checked against the contract; null removes it (#265)", async () => {

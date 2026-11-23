@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 /**
  * A publish as a job (#345, docs/server.md "Publish jobs"). `POST …/publish` checks the draft as before, then writes
- * what the publish will write into a row of `publish_jobs` – the version folder's files (the plugins' modules, files.json,
- * game.config.json last), the switch (versions.json, latest.json, the publish log), the build's export archive
+ * what the publish will write into a row of `publish_jobs` – the version folder's files (the plugins' modules, the
+ * landing's landing.json – #355 –, files.json, game.config.json last), the switch (versions.json, latest.json, the publish log), the build's export archive
  * (`ExportArchive::files`, export.json last) – and runs it for at most PUBLISH_STEP_SECONDS in the request. Done in that
  * time → 200 with the outcome, as before; else 202 `{ job }`, and the job runs on:
  *
@@ -58,6 +58,9 @@ final class PublishJob
         $folder = [];
         // The plugins' modules first, game.config.json last: a version whose configuration is there is complete
         foreach ($injected as $plugin) $folder[] = [ltrim((string) $plugin['declaration']->src, '/'), $plugin['code'], 'text/javascript'];
+        // The desktop landing's data (#355): from the experience's pick – none without one (the reader derives it then)
+        $landing = Landing::file($version['configuration'], (string) (Db::value('SELECT assets_base FROM experiences WHERE id = :id', ['id' => $experienceId]) ?? ''));
+        if ($landing !== null) $folder[] = [Landing::FILE, $landing, 'application/json'];
         $folder[] = ['files.json', Editor::encode($version['files']), 'application/json'];
         $folder[] = ['game.config.json', Editor::encode($version['configuration']), 'application/json'];
         // The export archive of the build (#322): planned now, written after the switch – a failure is reported, not a failed publish

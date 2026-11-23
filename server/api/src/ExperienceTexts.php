@@ -139,21 +139,24 @@ final class ExperienceTexts
     }
 
     /**
-     * PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null, recognition?: "original" | "prepared" | null }
+     * PUT /editor/experiences/{id} { title?, book?: { author?, publisher? } | null, recognition?: "original" | "prepared" | null,
+     *   landing?: { scene, target, hero?, cover? } | null }
      * → 200 { experience }: the experience's
      * title – the splash, the home page and the onboarding show it – and the printed book it accompanies (#320): `book`
      * changes the fields sent (`publisher: null` or "" removes it), `book: null` removes the printed book, a new one needs
      * its `author`. `recognition` (#306, schema 4.2): how the reader gets its targets' recognition data – only "prepared"
-     * is stored, "original" or null is the default (none). 400 `invalid-experience`.
+     * is stored, "original" or null is the default (none). `landing` (#355, schema 6.1): the desktop landing's hero – a
+     * target with a 3D model on a scene and what the editor extracted from it (`Landing::check`, 400 `invalid-landing`);
+     * null removes it. 400 `invalid-experience`.
      */
     public static function putExperience(string $experienceId): never
     {
         $user = Editor::user();
         Experiences::exists($experienceId);
         $body = Editor::body();
-        $unknown = array_diff(array_keys(get_object_vars($body)), ['title', 'book', 'recognition']);
-        if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field ' . implode(', ', $unknown) . ' – send title, book or recognition.');
-        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-experience', 'Send title, book or recognition.');
+        $unknown = array_diff(array_keys(get_object_vars($body)), ['title', 'book', 'recognition', 'landing']);
+        if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field ' . implode(', ', $unknown) . ' – send title, book, recognition or landing.');
+        if (!get_object_vars($body)) throw new ApiError(400, 'invalid-experience', 'Send title, book, recognition or landing.');
         if (property_exists($body, 'recognition') && !in_array($body->recognition, [null, ...Experiences::RECOGNITION_MODES], true)) {
             throw new ApiError(400, 'invalid-experience', 'recognition must be "original", "prepared" or null.');
         }
@@ -163,7 +166,9 @@ final class ExperienceTexts
             $unknown = array_diff(array_keys(get_object_vars($bookBody)), ['author', 'publisher']);
             if ($unknown) throw new ApiError(400, 'invalid-experience', 'Unknown field book.' . implode(', book.', $unknown) . ' – send book.author or book.publisher.');
         }
-        $experience = Db::transaction(static function () use ($experienceId, $body, $bookBody, $user) {
+        // The landing's pick (#355, schema 6.1): checked against the rows before the write – null removes it
+        $landing = property_exists($body, 'landing') && $body->landing !== null ? Landing::check($body->landing, $experienceId) : null;
+        $experience = Db::transaction(static function () use ($experienceId, $body, $bookBody, $user, $landing) {
             $row = Experiences::experienceRow($experienceId, true);
             $experience = Editor::decode($row['experience_json']);
             if (property_exists($body, 'title')) $experience->title = self::text($body->title, 'title', true, 'invalid-experience');
@@ -172,6 +177,10 @@ final class ExperienceTexts
             if (property_exists($body, 'recognition')) {
                 if ($body->recognition === 'prepared') $experience->recognition = 'prepared';
                 else unset($experience->recognition);
+            }
+            if (property_exists($body, 'landing')) {
+                if ($landing === null) unset($experience->landing);
+                else $experience->landing = $landing;
             }
             $json = Editor::encode($experience);
             Db::run('UPDATE experiences SET title = :title, experience_json = :data WHERE id = :id', ['title' => $experience->title, 'data' => $json, 'id' => $experienceId]);

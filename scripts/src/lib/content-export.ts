@@ -216,6 +216,9 @@ export function planExport(data: ExperienceExport): ExportPlan {
     if (key === 'environment' && isObject(value)) {
       experience.environment = Object.fromEntries(Object.entries(value).map(([field, src]) =>
         [field, (field === 'worldSrc' || field === 'skySrc') && typeof src === 'string' && src ? address(src, 'environment').slice(CONTENT_PREFIX.length) : src]));
+    } else if (key === 'landing' && isObject(value)) {
+      // The landing's pick (#355): its ids – the build extracts the hero again
+      experience.landing = { scene: value.scene, target: value.target };
     } else experience[key] = value;
   }
   texts.set('experience.yaml', toYaml(experience));

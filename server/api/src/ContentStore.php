@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Where published content versions go – the store layout of docs/content-cdn.md (shared/api/content-store.ts, #87):
  * every experience has a store of its own in each environment, its root `<title>/<env>/<experience>` on the storage
  * zone (`<env>/<experience>` in the directory store – one instance, one title), and in it
- * `<build>/game.config.json` and `files.json` (never overwritten), `versions.json` (every version and when it was
+ * `<build>/game.config.json`, `files.json` and the landing's `landing.json` (#355 – never overwritten), `versions.json` (every version and when it was
  * current) and `latest.json` (the current one, written last). Two stores behind one interface: the directory
  * CONTENT_STORE_DIR, served by `GET /content/{env}/{experience}/{path}` (development, a host without the CDN), and
  * bunny.net's Storage API – the zone the osct CLI syncs to, with the same paths and headers, so the reader cannot tell
@@ -33,7 +33,7 @@ final class ContentStore
     public const BUILD = '/^[0-9a-f]{12}$/';
 
     /** The files below an experience's store in an environment that the local store serves (nothing else, no other folders) */
-    private const SERVED = '#^' . Editor::ID . '/(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files)\.json)$#';
+    private const SERVED = '#^' . Editor::ID . '/(latest\.json|versions\.json|[0-9a-f]{12}/(game\.config|files|landing)\.json)$#';
     /** A Code tab plugin a publish put into a version (#78): JavaScript, loaded cross-origin by the reader */
     private const SERVED_PLUGIN = '#^' . Editor::ID . '/[0-9a-f]{12}/assets/content/plugins/[a-z][a-z0-9-]{0,39}/plugin-[0-9a-f]{12}\.js$#';
     /** The assets' files (Assets.php): `<experience>/<asset>/v<n>.<ext>` under the `assets` environment – any experience id (`Editor::ID`) */

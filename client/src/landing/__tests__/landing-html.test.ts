@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 import en from "@/i18n/locales/en/landing.json";
-import { goldButton } from "@/components/buttons";
 import { DESIGN_PRIMITIVES_CSS } from "@/styles/design-css";
 import { isEntryInExperience } from "@shared/types/game-config";
-import { LANDING_SKIPPED_KEY } from "../desktop-visitor";
 import { LANDING_CONFIG } from "../landing-config";
 import {
-  fillTexts, LANDING_ATTRIBUTE, landingImages, renderLanding, renderStaticLanding, SCATTER_COUNT, STATIC_LANDING_ID,
-  type LandingSource,
+  fillTexts, LANDING_ATTRIBUTE, landingImages, renderKeyOf, renderLanding, renderStaticLanding, SCATTER_COUNT,
+  SKELETON_ATTRIBUTE, STATIC_LANDING_ID, type LandingSource,
 } from "../landing-html";
 
 const source = (over: Partial<LandingSource> = {}): LandingSource => ({
@@ -23,8 +21,8 @@ const source = (over: Partial<LandingSource> = {}): LandingSource => ({
 describe("the landing page's markup (#343)", () => {
   it("sets the title as on the book's title page, in the gold gradient", () => {
     const html = renderLanding(source());
-    expect(html).toContain('<span class="line gold shimmer">Onion Skin</span><span class="line gold shimmer and">&amp;</span><span class="line gold shimmer">Crocodile Tears</span>');
-    expect(html).toContain('<p class="author gold">Kévin &lt;Bray&gt;</p>');
+    expect(html).toContain('<span class="line gold shimmer slot">Onion Skin</span><span class="line gold shimmer slot and">&amp;</span><span class="line gold shimmer slot">Crocodile Tears</span>');
+    expect(html).toContain('<p class="author gold slot">Kévin &lt;Bray&gt;</p>');
   });
 
   it("fills the intro as t() does: the values escaped, the text's own markup kept", () => {
@@ -33,7 +31,7 @@ describe("the landing page's markup (#343)", () => {
     expect(texts.getApp).toBe(en.getApp);
   });
 
-  it("links Privacy & terms in the footer, below the experience's path (#353)", () => {
+  it("links Privacy & terms in the footer, the static page below the experience's path (#355)", () => {
     expect(renderLanding(source())).toContain(`<a href="/privacy">${en.privacy}</a>`);
     expect(renderLanding(source({ privacyHref: "/osct/privacy" }))).toContain('<a href="/osct/privacy">');
   });
@@ -49,11 +47,27 @@ describe("the landing page's markup (#343)", () => {
   it("has the stage, the QR card, the shop and the footer; the address is filled at runtime", () => {
     const html = renderLanding(source());
     expect(html).not.toContain('class="mark"');   // the Mark sits on the stage's phone screen (#354)
-    expect(html).toContain(`<aside class="stage" role="img" aria-label="${en.previewAlt}"></aside>`);
-    expect(html).toContain('<div class="qr-code" role="img"');
+    expect(html).toContain(`<aside class="stage loading" role="img" aria-label="${en.previewAlt}"></aside>`);
+    expect(html).toContain('<div class="qr-code loading" role="img"');
     LANDING_CONFIG.shop.forEach(item => expect(html).toContain(`href="${item.url}"`));
-    expect(html).toContain(`<span>Onion Skin &amp; Crocodile Tears · Kévin &lt;Bray&gt;</span>\n            <span>Building Fictions · <a href="/privacy">${en.privacy}</a></span>`);
+    expect(html).toContain(`<span class="slot">Onion Skin &amp; Crocodile Tears · Kévin &lt;Bray&gt;</span>\n            <span><span class="slot">Building Fictions</span> · <a href="/privacy">${en.privacy}</a></span>`);
     expect(html).toContain('<span class="address gold"></span>');
+  });
+});
+
+describe("the render key (#355)", () => {
+  it("is the same for the same page and another for other data or texts", () => {
+    const key = renderKeyOf(renderLanding(source()));
+    expect(key).toMatch(/^\w+$/);
+    expect(renderKeyOf(renderLanding(source()))).toBe(key);
+    expect(renderKeyOf(renderLanding(source({ title: "Demo" })))).not.toBe(key);
+    expect(renderKeyOf(renderLanding(source({ texts: { ...source().texts, getApp: "Hol dir die App" } })))).not.toBe(key);
+  });
+
+  it("marks the experience's own parts as placeholders and the slow ones as loading", () => {
+    const html = renderLanding(source());
+    expect(html.match(/class="[^"]*\bslot\b/g)?.length).toBeGreaterThanOrEqual(6);   // title lines, author, intro, footer, publisher, cover
+    expect(html).toContain('<div class="picture slot">');
   });
 });
 
@@ -86,18 +100,27 @@ describe("the static landing for index.html", () => {
     expect(html).toContain(`html[${LANDING_ATTRIBUTE}] #static-splash{display:none}`);
   });
 
-  it("writes the address before the bundle; a computer cannot enter the app or install it (#354)", () => {
-    // happy-dom does not attach declarative shadow roots: build the host by hand and run the script
+  // happy-dom does not attach declarative shadow roots: build the host by hand and run the script
+  const runScript = (mode: string) => {
     const host = document.createElement("div");
     host.id = STATIC_LANDING_ID;
     host.attachShadow({ mode: "open" }).innerHTML = renderLanding(source());
     document.body.appendChild(host);
-    document.documentElement.setAttribute(LANDING_ATTRIBUTE, "");
+    document.documentElement.setAttribute(LANDING_ATTRIBUTE, mode);
     const script = html.slice(html.lastIndexOf("<script>") + 8, html.lastIndexOf("</script>"));
     new Function(script)();
+    document.documentElement.removeAttribute(LANDING_ATTRIBUTE);
+    return host;
+  };
+
+  it("writes the address before any code; a computer cannot enter the app or install it (#354)", () => {
+    const host = runScript("page");
     expect(host.shadowRoot!.querySelector(".address")!.textContent).toBe(location.host);
     expect(host.shadowRoot!.querySelector('[data-action="continue"], settings-install, .kicker, .steps')).toBeNull();
-    host.remove();
-    document.documentElement.removeAttribute(LANDING_ATTRIBUTE);
+    expect(host.hasAttribute(SKELETON_ATTRIBUTE)).toBe(false);
+  });
+
+  it("on another experience's path turns the experience's parts into placeholders (#355)", () => {
+    expect(runScript("skeleton").hasAttribute(SKELETON_ATTRIBUTE)).toBe(true);
   });
 });

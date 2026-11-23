@@ -9,7 +9,7 @@
  * Imports are relative (no aliases): vite.config.js loads this file.
  */
 import { RESERVED_PATHS, SOURCE_EXPERIENCES } from "../../../shared/api/experience-paths";
-import { ID_PATTERN } from "../../../shared/api/rules";
+import { ID_PATTERN } from "../../../shared/api/names";
 
 export interface LegacyRedirectData {
   /** The site's own top-level paths (`RESERVED_PATHS`) */

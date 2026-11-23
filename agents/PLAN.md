@@ -469,8 +469,8 @@ then the plugin API and code in the editor. Concept notes: `agents/research/2026
        `put_environment`), [x] plugins everywhere (#188, plugin API 1.4, schema 2.17: `registerMaterial` – a node's
        `material` –, `registerTexture` and the parameter kind `texture`, recorded and checked like node types; the Entity
        panel's material row and **make it code**; the demo's aquarium), [x] the demo's zero plane (#189: every model
-       on its page, the content build warns when one floats or sinks), [~] plugins of several files (#352, 6.9.0 – in
-       review: file tabs, bundling and a type check at Publish in the browser, `osct plugin link / push / pull`).
+       on its page, the content build warns when one floats or sinks), [x] plugins of several files (#352, 6.11.0 –
+       file tabs, bundling and a type check at Publish in the browser, `osct plugin link / push / pull`).
 5. [~] Spread **formats** (Tilman 2026-10-29: "Format als assignable ins Modell … default Spread, special Front und
        Back, Bonus Museumswand") and the geometry import (#60): [x] the import from the designed PDFs (`npm run
        layout`, 1.10.0); [x] `format` on a spread (schema 2.3): `spread`, `cover`, `back` – the covers as spreads of

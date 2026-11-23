@@ -19,7 +19,7 @@ declare(strict_types=1);
  * a creation, a removal, an entry moved to another surface, a deleted file, a change saved before the content schema 3.0
  * and the migration itself – are listed as not revertable. A **plugin** (#352) is revertable every way – a save, a push,
  * a file deleted in the Code tab, its creation (it goes again) and its deletion (it comes back): its `before` / `after`
- * are its files (one source before 6.9.0: its `index.ts`) or null. A delivery's new scene, entry or target
+ * are its files (one source before 6.11.0: its `index.ts`) or null. A delivery's new scene, entry or target
  * (#322, `changes.delivery_id`) is the exception among the creations: it is removed again – a target first, an entry once
  * it has no target, a scene once nothing lies on it and the experience does not open on it (a conflict otherwise).
  * A revert changes the draft only; readers see it with the next publish.
@@ -86,7 +86,7 @@ final class Reverts
         if ($kind === 'asset') return 'A file a removal deleted – its bytes are gone.';
         // The migration to schema 3.0 (#319, its code is gone) wrote its changes with the kind `migration`
         if ($kind === 'migration') return 'The migration to the content schema 3.0 – not revertable.';
-        // A plugin (#352): its files or null, both ways – one source before 6.9.0 is its index.ts
+        // A plugin (#352): its files or null, both ways – one source before 6.11.0 is its index.ts
         if ($kind === 'plugin') {
             foreach ([$row['before_json'], $row['after_json']] as $json) {
                 if (Plugins::filesOfValue($json === null ? null : Editor::decode($json)) === false) return 'Not revertable.';

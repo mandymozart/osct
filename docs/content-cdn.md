@@ -17,6 +17,7 @@ and in it **one immutable folder per content version**, served through the pull 
 <zone>/<title>/<env>/<experience>/versions.json             every version on the storage and when it was current (for purge) – written before latest.json
 <zone>/<title>/<env>/<experience>/<build>/game.config.json  the game configuration of that version
 <zone>/<title>/<env>/<experience>/<build>/files.json        size and checksum of every content file (whole-experience download)
+<zone>/<title>/<env>/<experience>/<build>/landing.json      what the desktop landing shows (docs/content.md "landing.json") – written by publish from the next step of #355 on
 <zone>/<title>/<env>/<experience>/<build>/assets/content/…  the content files, same paths as in the app's public folder
 <zone>/<title>/<env>/<experience>/exports/<build>/…         the export archive of a published build (below) – never purged
 <zone>/assets/<experience>/…                                the editor Library's uploads (docs/server.md "Assets") – no title, no environment
@@ -230,10 +231,11 @@ page title, the description and the home-screen title from the loaded content.
 
 **index.html's head, in this order** – inline scripts that need no database and no bundle, written in at build time
 (`client/vite.config.js`): the legacy redirect (`utils/legacy-redirect-html.ts`), the manifest link of the address's
-experience (`utils/manifest-link-html.ts`), the desktop landing's decision (`components/desktop-landing/
-landing-decision-html.ts` – `<html data-osct-landing>` for a computer on the default's path). The body carries the
-static landing (`landing-html.ts`) and the static splash (`utils/static-splash-html.ts`); the first paint shows one of
-them ([pages, "The desktop landing"](pages.md#desktop-landing)).
+experience (`utils/manifest-link-html.ts`), the desktop landing's decision (`landing/landing-decision-html.ts` –
+`<html data-osct-landing>` for a computer, on every experience's path) and the early preload of the entry it chose. The
+body carries the static landing (`landing/landing-html.ts`) and the static splash (`utils/static-splash-html.ts`); the
+first paint shows one of them, and the page then loads **either** the app **or** the landing's own entry – never both
+([pages, "The desktop landing"](pages.md#desktop-landing)).
 
 <a id="the-installed-app-pwa"></a>**The installed app (PWA).** **Every experience links its own manifest, the default too**
 (Tilman, 2026-11-22: *"ja, ein eigenes manifest pro experience why not"*): `/api/experiences/<id>/manifest.webmanifest`

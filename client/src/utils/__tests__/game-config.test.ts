@@ -102,12 +102,13 @@ describe("game configuration", () => {
     });
   });
 
-  // RULES.md #14 – single source of truth: one module reads the JSON (and runs the type guard)
-  it("is imported only by utils/game-config.ts", () => {
+  // RULES.md #14 – single source of truth: one module of the app reads the JSON (and runs the type guard); the landing's
+  // entry, which loads none of the app (#355), hands it to the engine's loader itself
+  it("is imported only by utils/game-config.ts and the landing's entry", () => {
     const importers = listSourceFiles(srcDir)
       // static or dynamic imports of the JSON or of the bundled-configuration module (vite.config.js)
       .filter(file => /(from\s*|import\(\s*|require\(\s*)['"]([^'"]*game\.config\.json|virtual:osct-game-config)['"]/.test(readFileSync(file, "utf8")))
       .map(file => relative(srcDir, file).split("\\").join("/"));
-    expect(importers).toEqual(["utils/game-config.ts"]);
+    expect(importers).toEqual(["landing/entry.ts", "utils/game-config.ts"]);
   });
 });

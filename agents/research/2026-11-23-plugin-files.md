@@ -1,6 +1,6 @@
-Status 2026-11-23: **decided** (Tilman, #352) and **built in 6.9.0** on `feature/352-plugin-files` (worktree
-`osct-352`) for Tilman's review offline – not merged, not pushed. Draft: `agents/design/plugin-files.html` (frames `#tabs
-#add #linked`, `?shot` hides the notes). How it was built: "Built (6.9.0)" at the end.
+Status 2026-11-23: **decided** (Tilman, #352) and **built in 6.11.0** on `feature/352-plugin-files` (worktree
+`osct-352`), reviewed by Tilman and merged into develop. Draft: `agents/design/plugin-files.html` (frames `#tabs
+#add #linked`, `?shot` hides the notes). How it was built: "Built (6.11.0)" at the end.
 
 # Plugins with more than one file – file tabs in the Code tab
 
@@ -66,7 +66,7 @@ download. The files are the truth; a bundle is only ever made from them.
    (`api.loadText`, its uses count, Replace… as today).
 3. **Export and import carry the sources**: each plugin `{ id, files: [{ name, text }] }` in place of `{ id, source }`.
    (Built: the export file's `formatVersion` 2 – no content schema MAJOR was needed, the configuration's `plugins` list
-   is unchanged; content schema 6.1 only for the file rules in `shared/`. Stored sources need no migration: `source`
+   is unchanged; content schema 6.2 only for the file rules in `shared/`. Stored sources need no migration: `source`
    stays the `index.ts`.)
    The bundle doesn't travel: a published version holds its `plugin-<hash>.js`, an import rebuilds from the files.
 4. **The Code tab's files are the truth.** The CLI links an IDE folder: `osct plugin link <experience> <id>`, then
@@ -109,10 +109,10 @@ download. The files are the truth; a bundle is only ever made from them.
   joined there – decide when building (esbuild only does the latter).
 - Whether sucrase stays for one-file plugins (no wasm at all for small plugins) or esbuild-wasm does every Run.
 
-## Built (6.9.0, 2026-11-23)
+## Built (6.11.0, 2026-11-23)
 
 Tilman: *"built this locally and let me review it offline"*. On `feature/352-plugin-files` (develop merged in, 6.8.0 →
-6.9.0), every suite green; checked in the running editor against the worktree's own API and database.
+6.11.0), every suite green; checked in the running editor against the worktree's own API and database.
 
 - **Server** (`Plugins.php`): `source` stays the `index.ts`, `files_json` the other files, `origin_json` the link
   (`ALTER TABLE … ADD COLUMN`, `Db::migrate`); the API answers `files`, `PUT` takes `files` or `source` and `origin`;

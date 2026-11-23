@@ -12,6 +12,7 @@ coverage
 .claude
 # Content build output – built by every `npm run build` in client/ (prebuild → `npm run content`), CI and deploys
 client/src/game.config.json
+client/src/game.landing.json
 client/public/assets/content/
 
 # Server secrets and local data (docs/server.md "Content store and var"): published content and uploads in content-store/,

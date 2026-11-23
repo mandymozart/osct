@@ -28,7 +28,7 @@ final class Editor
      * experience of an older MAJOR is refused (`Db::migrate` turns every stored 4.x experience into 6.0 – `Migration5`, #334 –
      * and every 5.x one – `Migration6`, #341)
      */
-    public const CONTENT_SCHEMA = '6.1';
+    public const CONTENT_SCHEMA = '6.2';
     /**
      * The levels a picture, video or sound may hold (shared/types/media-levels.ts `MEDIA_LEVELS`, schema 4.3, #331): image
      * px (longest side), video height, audio kbps

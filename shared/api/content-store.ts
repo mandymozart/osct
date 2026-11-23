@@ -5,6 +5,7 @@
  *   <title>/<env>/<experience>/latest.json           the current version of that experience there (ContentManifest)
  *   <title>/<env>/<experience>/versions.json         every version on the storage and when it was current
  *   <title>/<env>/<experience>/<build>/…             one immutable folder per content version
+ *   <title>/<env>/<experience>/<build>/landing.json  what the desktop landing shows (landing.ts – written by publish, #355)
  *
  * `<title>/<env>/<experience>` is the store root (`storeRoot`). The title is a setting of the instance (`OSCT_TITLE`,
  * default `osct` – `Config::title()` on the server, the osct CLI's environment), never part of the content. A reader is
@@ -14,7 +15,7 @@
  * The PHP side is `ContentStore` (server/api/src/ContentStore.php); `mcp/test/php-rules.test.ts` compares the rules.
  * Not content: `shared/api/` is outside the content schema lock (RULES #10).
  */
-import { ENV_NAME, ID_PATTERN } from "./rules";
+import { ENV_NAME, ID_PATTERN } from "./names";
 
 /** The title when OSCT_TITLE is not set (`Config::DEFAULTS['TITLE']`) */
 export const DEFAULT_TITLE = "osct";
