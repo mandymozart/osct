@@ -52,7 +52,8 @@
   import ScenesPanel from "#lib/ScenesPanel.svelte";
   import { scenes } from "#lib/scenes.svelte.js";
   import FloatingPanel from "#lib/components/FloatingPanel.svelte";
-  import { Floats, openFloats } from "#lib/components/floats.svelte.js";
+  import Workspace from "#lib/components/Workspace.svelte";
+  import { Floats } from "#lib/components/floats.svelte.js";
   import { at, chromeOf, type PanelSpec } from "#lib/components/floats.js";
   import type { TabSpec } from "#lib/components/float-tabs.js";
   import UndoRedo from "#lib/UndoRedo.svelte";
@@ -81,6 +82,8 @@
    * tabs and resets the layout and the tabs' arrangement, which are remembered per workspace
    * in this browser. The editor is desktop and iPad only (Tilman, 2026-11-18): the phone's layout – a sheet at the
    * bottom with the tree as a tab, ‹ › over the stage – is gone (#317). `?tab=environment` opens a tab.
+   * The shell – the window as the stage, the panels over it, their room and the panels menu – is `Workspace.svelte` (#356);
+   * this page fills it with the engine, its toolbar and the scene's panels.
    */
   const experienceId = $derived(page.params.experience!);
   const sceneId = $derived(page.params.scene!);
@@ -102,7 +105,6 @@
     { id: "history", name: "History", icon: "history", home: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312)." },
     { id: "logic", name: "Logic", icon: "nodes", home: "logic", about: "The experience's logic as a graph, one level at a time (#239, #334): the experience, a group, a scene, a target's entity – a click selects, a double-click opens a level." },
   ];
-  const COARSE = "(pointer: coarse)";
   /**
    * `?render[=view]` (#89, render-view.ts): the stage alone at a view preset, for the MCP server's `render_scene` – no
    * panels, no toolbar, no notices; the state on `<html data-osct-render>`
@@ -112,8 +114,8 @@
 
   let container = $state<HTMLDivElement>();
   let stage = $state<Stage | null>(null);
-  /** A finger: every control is the touch height (app.css), so the tab row needs more room for its words */
-  let coarse = $state(window.matchMedia(COARSE).matches);
+  /** A finger (the workspace says): every control is the touch height (app.css), so the toolbar needs more room */
+  let coarse = $state(false);
   // The one selection of the tree, the stage and the Inspector – a target, its entity or a node (#162), the scene to start
   // with (#229) or what the header search asked for on this scene (#237); `reveal` counts the asks to show it
   let revealSeen = untrack(() => selection.reveal);
@@ -200,40 +202,16 @@
     selection.show({ target: pick.target, node: pick.path, onTarget: false });
     select();
   };
-  let workspaceWidth = $state(0);
-  let workspaceHeight = $state(0);
-  // The room and the measures from the page's CSS: the control height (44 px with a finger), the gap of .5rem
-  $effect(() => {
-    const [el, w, h] = [workspace, workspaceWidth, workspaceHeight];
-    void coarse;
-    if (!el || !w || !h) return;
-    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const token = getComputedStyle(el).getPropertyValue("--control-height").trim();
-    const control = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
-    const gap = rem / 2;
-    floats.metrics = { rem, gap, head: control + (3 * rem) / 8 + 1, button: control, char: rem / 2 };
-    floats.area = { x: gap, y: gap, w: Math.max(1, w - 2 * gap), h: Math.max(1, h - 2 * gap) };
-  });
   // The Code tab asks for a wider panel (36rem) where it shows – until the person resizes the panel
   $effect(() => {
     const at = floats.showing("code");
     const h = at ? floats.spec(at)?.size.h : undefined;
     floats.asks = at && h !== undefined ? { [at]: { w: 36, h } } : {};
   });
-  // The top bar's panels menu lists this workspace's panels
-  $effect(() => {
-    openFloats.current = floats;
-    return () => {
-      if (openFloats.current === floats) openFloats.current = null;
-    };
-  });
   /** A form or a removal step opens in the Inspector tab: it shows, its folded panel opens for it */
   $effect(() => {
     if ((removal || addingTarget || addingEntry || addingScene)) untrack(() => floats.showTab("inspector", true));
   });
-
-  let workspace = $state<HTMLDivElement>();
-
 
   // ── targets and entries: the forms, removal, a changed image or placement ──
   let addingTarget = $state(false);
@@ -656,13 +634,9 @@
 
   onMount(() => {
     disposed = false;
-    const pointer = window.matchMedia(COARSE);
-    const onPointer = (event: MediaQueryListEvent) => (coarse = event.matches);
-    pointer.addEventListener("change", onPointer);
     void start();
     return () => {
       disposed = true;
-      pointer.removeEventListener("change", onPointer);
       pluginGuard.dismiss();
       void stage?.dispose();
       stage = null;
@@ -1031,6 +1005,49 @@
   {/if}
 {/snippet}
 
+{#snippet stageView()}
+  <!-- The stage's own layers over the engine: its menus, the subtitle, the notices and the colour picker -->
+  {#if stage && stage.status === "running"}
+    {#if stageMenu?.hit}
+      {@const hit = stageMenu.hit}
+      {@const hasTree = !!stage.treeOf(hit.targetId)}
+      <ContextMenu at={stageMenu} label="Target" head="{hit.targetId}{hit.path.length ? ` › ${hit.path.join(' › ')}` : ''}" onclose={() => (stageMenu = null)} items={[
+        { label: hasTree ? "Add node…" : "Add AR content…", select: menuAddNode },
+        ...(hasTree ? [{ label: hit.path.length ? "Remove node" : "Remove entity", select: menuRemoveNode }] : []),
+        { label: "Placement on the surface…", select: menuPlacement },
+        { label: "Replay the first find", select: () => stage?.replayUnlock() },
+        { label: "Library…", select: () => chooseTab("library") },
+        { label: "Remove target", danger: true, select: () => { const t = content.scene(sceneId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
+      ]} />
+    {:else if stageMenu}
+      <ContextMenu at={stageMenu} label="Stage" head={scene ? sceneLabel(scene) : sceneId} onclose={() => (stageMenu = null)} items={[
+        { label: "+ target…", select: () => (addingTarget = true) },
+        { label: "Replay the first find", select: () => stage?.replayUnlock() },
+        { label: "View settings…", select: () => void openViewSettings() },
+      ]} />
+    {/if}
+  {/if}
+  {#if stage?.subtitle}
+    <p class="subtitle" data-help-name="Subtitle" data-help="What the playing video says: the cue of its subtitle file – a WebVTT file named like the video with a language, speak.en.vtt beside speak.mp4. The stage shows English; a reader sees their own language.">{stage.subtitle}</p>
+  {/if}
+  {#if loadError}
+    <p class="notice danger" role="alert">{loadError} <button type="button" class="pill framed" onclick={() => void start()}>Retry</button></p>
+  {:else if actionError}
+    <p class="notice danger" role="alert">{actionError} <button type="button" class="pill framed" onclick={() => (actionError = null)}>Dismiss</button></p>
+  {:else if !stage || stage.status === "idle" || stage.status === "loading" || stage.status === "starting"}
+    <p class="notice muted">{content.loading ? "Loading the draft…" : "Building the stage…"}</p>
+  {:else if stage.status === "error"}
+    <p class="notice danger">{stage.error}</p>
+  {/if}
+  {#if picking}
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+    <div bind:this={picker} class="picker" role="dialog" aria-label="Pick a colour from the stage – tap to take it, Esc to cancel" tabindex="-1"
+      onpointermove={samplePick} onpointerdown={samplePick} onclick={() => endPick(pickHex)} onkeydown={e => { if (e.key === "Escape") endPick(null); }}>
+      {#if pickHex}<span class="pick-chip" style:left="{pickAt.x + 16}px" style:top="{pickAt.y + 16}px" style:--c={pickHex}>{pickHex}</span>{/if}
+    </div>
+  {/if}
+{/snippet}
+
 {#snippet toolbar()}
   {#if stage}
     <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
@@ -1116,73 +1133,17 @@
   {/if}
 {/snippet}
 
-{#if render}
-<div class="workspace render"><div class="stage" bind:this={container}></div></div>
-{:else}
-<div class="workspace" class:holding={!!floats.held || !!floats.tabHeld} bind:this={workspace} bind:clientWidth={workspaceWidth} bind:clientHeight={workspaceHeight}>
-  <div class="stage" bind:this={container}
-    data-help-name="Stage" data-help={NAVIGATION_HELP}>
-    {#if stage && stage.status === "running"}
-      {#if stageMenu?.hit}
-        {@const hit = stageMenu.hit}
-        {@const hasTree = !!stage.treeOf(hit.targetId)}
-        <ContextMenu at={stageMenu} label="Target" head="{hit.targetId}{hit.path.length ? ` › ${hit.path.join(' › ')}` : ''}" onclose={() => (stageMenu = null)} items={[
-          { label: hasTree ? "Add node…" : "Add AR content…", select: menuAddNode },
-          ...(hasTree ? [{ label: hit.path.length ? "Remove node" : "Remove entity", select: menuRemoveNode }] : []),
-          { label: "Placement on the surface…", select: menuPlacement },
-          { label: "Replay the first find", select: () => stage?.replayUnlock() },
-          { label: "Library…", select: () => chooseTab("library") },
-          { label: "Remove target", danger: true, select: () => { const t = content.scene(sceneId)?.targets.find(x => x.id === hit.targetId); if (t) void removeEntry(t.entryId, t.id); } },
-        ]} />
-      {:else if stageMenu}
-        <ContextMenu at={stageMenu} label="Stage" head={scene ? sceneLabel(scene) : sceneId} onclose={() => (stageMenu = null)} items={[
-          { label: "+ target…", select: () => (addingTarget = true) },
-          { label: "Replay the first find", select: () => stage?.replayUnlock() },
-          { label: "View settings…", select: () => void openViewSettings() },
-        ]} />
-      {/if}
-    {/if}
-    {#if stage?.subtitle}
-      <p class="subtitle" data-help-name="Subtitle" data-help="What the playing video says: the cue of its subtitle file – a WebVTT file named like the video with a language, speak.en.vtt beside speak.mp4. The stage shows English; a reader sees their own language.">{stage.subtitle}</p>
-    {/if}
-    {#if loadError}
-      <p class="notice danger" role="alert">{loadError} <button type="button" class="pill framed" onclick={() => void start()}>Retry</button></p>
-    {:else if actionError}
-      <p class="notice danger" role="alert">{actionError} <button type="button" class="pill framed" onclick={() => (actionError = null)}>Dismiss</button></p>
-    {:else if !stage || stage.status === "idle" || stage.status === "loading" || stage.status === "starting"}
-      <p class="notice muted">{content.loading ? "Loading the draft…" : "Building the stage…"}</p>
-    {:else if stage.status === "error"}
-      <p class="notice danger">{stage.error}</p>
-    {/if}
-    {#if picking}
-      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-      <div bind:this={picker} class="picker" role="dialog" aria-label="Pick a colour from the stage – tap to take it, Esc to cancel" tabindex="-1"
-        onpointermove={samplePick} onpointerdown={samplePick} onclick={() => endPick(pickHex)} onkeydown={e => { if (e.key === "Escape") endPick(null); }}>
-        {#if pickHex}<span class="pick-chip" style:left="{pickAt.x + 16}px" style:top="{pickAt.y + 16}px" style:--c={pickHex}>{pickHex}</span>{/if}
-      </div>
-    {/if}
-  </div>
-
-  <!-- The panels float over the stage, in the order of growth (#308) -->
-    {#each floats.tabPanels as id (id)}
-      <FloatingPanel {floats} {id} tab={tabBody} extra={sceneExtra} />
-    {/each}
-    {#if stage && stage.status === "running"}
-      <FloatingPanel {floats} id="tools" label="Stage tools" along={toolbarAlong}>{@render toolbar()}</FloatingPanel>
-    {/if}
+<Workspace {floats} alone={!!render} bind:stageElement={container} bind:coarse help={{ name: "Stage", text: NAVIGATION_HELP }}
+  stage={render ? undefined : stageView} tab={tabBody} extra={sceneExtra}>
+  {#if stage && stage.status === "running"}
+    <FloatingPanel {floats} id="tools" label="Stage tools" along={toolbarAlong}>{@render toolbar()}</FloatingPanel>
+  {/if}
   <RevertPrompt />
   <PluginGuardPrompt />
-</div>
-{/if}
+</Workspace>
 
 <style>
-  /* Desktop and iPad (#308): the stage is the whole window, the panels float over it (the phone's sheet is gone, #317) */
-  .workspace { position: fixed; inset: var(--top-height) 0 0; background: var(--stage-background); }
-  .workspace > .stage { position: absolute; inset: 0; }
-  /* The render view (#89): no top bar above it */
-  .workspace.render { inset: 0; }
-  .workspace.holding { user-select: none; }
-  .workspace.holding .stage :global(.stage-host) { pointer-events: none; }
+  :global(.workspace.holding > .stage .stage-host) { pointer-events: none; }
   .float-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .float-body.inspector { min-width: 0; }
   /* The toolbar in its floating panel: one row; the page computes the groups' widths from these sizes */
@@ -1205,10 +1166,9 @@
   .live, .filters { display: flex; gap: .125rem; }
   .live .on { color: var(--accent, currentColor); }
   .tree-body { padding: .25rem .375rem .75rem; }
-  .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
   /* The stage's layer (#340: in this page, no frame) under the toolbar and the notices; a panel drag over it stays the page's */
-  .stage :global(.stage-host) { position: absolute; inset: 0; overflow: hidden; }
-  .stage :global(.stage-host canvas) { display: block; }
+  :global(.workspace > .stage .stage-host) { position: absolute; inset: 0; overflow: hidden; }
+  :global(.workspace > .stage .stage-host canvas) { display: block; }
   .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }

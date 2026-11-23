@@ -8,6 +8,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.7.1 – 2026-11-23
+
+### Changed
+- **The editor's workspace shell is its own component** (#356): the stage as the whole window with the panels floating
+  over it is no longer built into the scene page, so other pages can use it with a stage of their own. Nothing visible
+  changes, and remembered panel layouts stay as they are.
+
 ## 6.7.0 – 2026-11-23
 
 ### Added
