@@ -396,13 +396,15 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
 | Logic | bottom right, closed ([the Logic panel](#the-logic-panel-239)) | |
 
 - **Move** by the head (its grip, icon and name; ← ↑ → ↓ on the focused handle, Shift for larger steps): the panel
-  follows the pointer over the others; let go, its edges **snap** to a wall, to the gap beside another panel or in line
-  with another panel's edge (12 px), and a panel let go on another one goes to the nearest free place – none ever
-  overlaps another, every panel keeps a gap of .5rem.
+  follows the pointer over the others; let go, it **stays where it was dropped** (#364, Tilman 2026-11-23: *"remove the
+  snapping of windows. only limit them to not go out of the stage area"*) – over another panel too, the one in front on
+  top – only kept inside the stage. It is then **free** (`Place.free`): the layout neither pushes it nor makes room for
+  it, and it keeps the size it had (a toolbar follows its content). Reset layout lays every panel out again. The panels
+  the layout places sit flush against the stage's walls and each other – no gap since #364 (it was .5rem).
 - **Resize** by its edges and corners (wider grips with a finger). The resize **makes room** (#329, `evade` in
   `floats.ts`): the panels in its way move on, away from the moving edge (one pushes the next), and at the wall they
   shrink – the one nearest the wall first – down to their least size; the resized panel stops where they can give no
-  more. Panels not in the way stay. Let go, that arrangement is the stored layout (a panel that shrank keeps its new
+  more. Panels not in the way stay. A free panel's resize moves no other (#364). Let go, that arrangement is the stored layout (a panel that shrank keeps its new
   size). A double-click on an edge gives the panel back its own size.
 - **Fast**: a drag is laid out once per animation frame (the pointer events between coalesce); during a resize only the
   pushed panels' boxes change (`left`/`top`/`width`/`height` – their content is not drawn again) and nothing is stored
@@ -436,7 +438,7 @@ the pure part is `components/float-tabs.ts` (tested in `lib/__tests__/float-tabs
   after the tab under the pointer (before the first tab whose middle lies right of it) – a line marks the place and the
   panel is outlined; over another panel's body at the end of its tabs; within its own head it takes a new place.
 - **Drag a tab out onto the stage**: it becomes a **panel of its own** (`float-<n>`) at the drop point – as large as its
-  home panel's size where that is a number, else the panel it left, at most 24rem – snapped like a moved panel.
+  home panel's size where that is a number, else the panel it left, at most 24rem – free, like a moved panel (#364).
 - A panel whose **last tab leaves closes**: a home panel is closed (the panels menu brings its tabs back), a panel made
   by a drag goes, its place with it.
 - **The Inspector is never lost**: the panel holding it has no close (wherever it lives), the panels menu does not list
@@ -513,14 +515,15 @@ Code tab keeps **Save** (Ctrl+S): half-typed code does not belong in the draft. 
 
 Every save is a row of the change log (docs/server.md "Reverting saved changes"), and the way back goes through it:
 
-- **↶ ↷** in the stage toolbar (a group of its own, `UndoRedo.svelte`) and **Ctrl+Z**, **Ctrl+Shift+Z** / **Ctrl+Y**
+- **↶ ↷** in the top bar after the crumbs (in a scene's workspace; `UndoRedo.svelte` – the stage toolbar's first group
+  until #364) and **Ctrl+Z**, **Ctrl+Shift+Z** / **Ctrl+Y**
   (not while a text field, a select or the code editor has the focus – they keep their own undo). Undo takes back the
   newest **step** of the person's own saved changes since the page opened: one save's rows, an autosaved burst of one
   thing (saves of it less than 8 s apart) or a revert's change set (`history.ts` `newestStep`). What waits to be saved
   is saved first. The server writes their `before` again as new changes; redo reverts that revert, until something new
   is edited. A plain undo runs at once; with a conflict, a change that cannot be reverted, later edits of the same
   thing or other people's changes it asks first.
-- **The History panel** (the clock in the toolbar or the panels menu; closed at first): the experience's saved changes,
+- **The History panel** (the clock beside ↶ ↷ in the top bar, or the panels menu; closed at first): the experience's saved changes,
   newest first – when, who (you, an e-mail's name, an AI connection), what (the kind and its scene, entry or target)
   and before → after. Filters: scene (a scene's own changes, its entries', targets' and entities'), kind, person. A
   click on a row opens *Revert* (the change and the later edits of the same thing) and *Jump back to here* (every
@@ -975,7 +978,9 @@ workspace is open). Nothing of the reader's store, progress or routes is involve
 
 The **Tools** panel (#180, #308 – an inline [floating panel](#floating-panels) at the stage's top left: it moves,
 resizes like the others, a row or – its button, #315 – a column, and never folds; `components/ToolGroup.svelte`,
-`lib/tool-groups.ts`), icons only (its menus add the names), every button's label its tooltip:
+`lib/tool-groups.ts`), icons only (its menus add the names), every button's label its tooltip. Since #364 (Tilman,
+2026-11-23: *"we are running into a massive amount of options in the toolbar"*) it holds only the stage's own tools –
+undo / redo / history went to the top bar, the camera onto the stage:
 
 - **the tool** – **select** (a plain pointer, **Q**: a click picks what the filters allow, the selection is outlined, no
   gizmo; the tool a workspace starts with), the [gizmo](#the-gizmo)'s **move / rotate / scale** (**W / E / R**) or
@@ -1039,11 +1044,13 @@ The camera is moved on the stage itself: **drag** orbits (any tilt – level wit
 returns to the reader's view (35 cm above the page, tilted 30°; the free orbit is kept on the device). The panel's former
 view presets and found chips doubled these and are gone.
 
-The toolbar's **camera** group (#335) says what the camera turns around – the looked-at point, a point in space:
+The **camera** (#335) – three buttons in a column at the stage's bottom right corner (#364: out of the toolbar; moved
+left past any panel lying in that corner, `clearCorner` in `floats.ts`, so no panel hides them) – says what the camera
+turns around – the looked-at point, a point in space:
 - **Home** (the Home key, a double tap): the reader's view around the scene's origin on the table.
 - **Focus** (F): the camera flies to the selection and turns around its middle – a surface (a standing poster, a wall)
   front-on and whole, a printed target front-on, a node by its box from where the camera looks; with nothing selected
-  the whole scene from the reader's side. The stage's bottom right corner names it (✕ = Home).
+  the whole scene from the reader's side. A chip left of the camera's buttons names it (✕ = Home).
 - **Fixed / free**: fixed (the default), a pan slides the point along the plane of the surface it was focused on (the
   table without one). Free, a pan moves it along the screen – up, down, anywhere within 10 m. Back to fixed, the point
   slides along the line of sight onto that surface, so the view does not move.
