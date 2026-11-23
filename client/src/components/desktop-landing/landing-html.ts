@@ -178,8 +178,9 @@ export const LANDING_CSS = /* css */ `
           aspect-ratio: 1;
           margin-inline-end: calc(-1 * var(--gutter) / 2);
           background: radial-gradient(closest-side, rgba(127, 96, 50, .22), transparent);
+          cursor: pointer;                /* a click takes the phone (scan-stage.ts) */
         }
-        .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.2s ease; }
+        .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .7s ease; }
         .stage.ready canvas { opacity: 1; }
 
         /* Get the app: the QR code on a champagne card, the address – a computer neither enters nor installs the app (#354) */
@@ -196,7 +197,6 @@ export const LANDING_CSS = /* css */ `
           border-radius: 1.5rem;
           background: #f5e7c8;
           box-shadow: 0 0 0 1px rgba(245, 231, 200, .35), 0 0 4rem rgba(210, 174, 90, .35), 0 1.5rem 4rem rgba(0, 0, 0, .7);
-          transform: rotate(-2deg);
         }
         .qr-code { aspect-ratio: 1; }
         .qr-code img, .qr-code canvas { display: block; width: 100% !important; height: auto !important; image-rendering: pixelated; }

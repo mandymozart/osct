@@ -7,7 +7,7 @@ import { getExperience, getScenes } from "@/utils/game-config";
 import { ONBOARDING_ICON_SRC } from "@/utils/static-splash-html";
 import { isDesktopVisitor, landingSkipped, readDeviceSignals } from "./desktop-visitor";
 import { LANDING_CONFIG, type LandingConfig } from "./landing-config";
-import { LANDING_ATTRIBUTE, renderLanding, STATIC_LANDING_ID, type LandingTexts } from "./landing-html";
+import { LANDING_ATTRIBUTE, pick, renderLanding, STATIC_LANDING_ID, type LandingTexts } from "./landing-html";
 import { scanStageData } from "./scan-stage-data";
 import type { ScanStage } from "./scan-stage";
 
@@ -82,7 +82,14 @@ export class DesktopLanding extends HTMLElement {
     try {
       const { ScanStage } = await import("./scan-stage");
       if (!this.shown || !box.isConnected) return;
-      this.stage = new ScanStage(box, data);
+      const experience = getExperience();
+      const prints = new Set(data.prints.map(print => print.src));
+      this.stage = new ScanStage(box, data, {
+        cover: bookCoverUrl(),
+        title: experience.title,
+        author: experience.book?.author ?? "",
+        pageImages: pick(getScenes().flatMap(scene => scene.targets.map(target => target.imageSrc)).filter(src => !prints.has(src)), 6, 354),
+      });
       await this.stage.load();
       box.classList.add("ready");
     } catch (error) {
