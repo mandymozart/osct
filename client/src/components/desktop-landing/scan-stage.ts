@@ -1,7 +1,8 @@
 import {
-  AmbientLight, Box3, AnimationMixer, BackSide, BoxGeometry, BufferAttribute, CanvasTexture, Clock,
+  AdditiveBlending, AmbientLight, Box3, AnimationMixer, BackSide, BoxGeometry, BufferAttribute, CanvasTexture, Clock,
   DirectionalLight, Euler, ExtrudeGeometry, FrontSide, Group, MathUtils, Mesh,
-  MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, type Object3D, PerspectiveCamera, Plane, PlaneGeometry, PMREMGenerator, Quaternion, Raycaster,
+  MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, type Object3D, PerspectiveCamera, Plane, PlaneGeometry, PMREMGenerator,
+  PointLight, Quaternion, Raycaster,
   RepeatWrapping, Scene, Shape, ShapeGeometry, SRGBColorSpace, type Texture, TextureLoader, Vector2, Vector3, WebGLRenderer,
   WebGLRenderTarget,
 } from "three";
@@ -108,6 +109,8 @@ const PHONE_RISE = 2;
  */
 const SCAN = { width: 0.62, turn: 2.4, opacity: 0.9 };
 const LIGHT = { ambient: 2.2, sun: 1.5 };
+/** The light that shows the cover's lacquer (`ScanStage.shine`): from when (s), how high over the book, how strong */
+const SHINE = { from: 0.4, height: 0.32, intensity: 0.05, sheen: 0.8 };
 const PAPER = "#f6f3ec";
 /**
  * The book (surface widths): its thickness closed, a cover's, and the share of its pages that lie on the left once it
@@ -234,7 +237,7 @@ const paintCover = (extras: ScanStageExtras, aspect: number): HTMLCanvasElement 
  * where the screen is left out – a glossy lacquer (clear coat), the gold title metal. The masks are read from the
  * picture itself into one texture: red = lacquer (clearcoatMap), green = roughness, blue = metalness.
  */
-const lacquerCover = (image: HTMLImageElement, environment: Texture): MeshPhysicalMaterial => {
+const lacquerCover = (image: HTMLImageElement, environment: Texture): { material: MeshPhysicalMaterial; lacquer: Texture } => {
   const { width, height } = image;
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -289,10 +292,21 @@ const lacquerCover = (image: HTMLImageElement, environment: Texture): MeshPhysic
   }
   g.putImageData(pixels, 0, 0);
   const masks = new CanvasTexture(canvas);
+  // The lacquer and the gold alone, as light: where the sheen shows (`ScanStage.sheen`)
+  const glossy = document.createElement("canvas");
+  glossy.width = width;
+  glossy.height = height;
+  const shine = glossy.getContext("2d")!.createImageData(width, height);
+  for (let i = 0; i < count; i++) {
+    const value = Math.max(data[i * 4], data[i * 4 + 2]);
+    shine.data.set([value, value, value, 255], i * 4);
+  }
+  glossy.getContext("2d")!.putImageData(shine, 0, 0);
+  const lacquer = new CanvasTexture(glossy);
   const map = new CanvasTexture(image);
   map.colorSpace = SRGBColorSpace;
   map.anisotropy = 8;
-  return new MeshPhysicalMaterial({
+  const material = new MeshPhysicalMaterial({
     map,
     roughness: 1,
     roughnessMap: masks,
@@ -300,11 +314,12 @@ const lacquerCover = (image: HTMLImageElement, environment: Texture): MeshPhysic
     metalnessMap: masks,
     clearcoat: 1,
     clearcoatMap: masks,
-    clearcoatRoughness: 0.08,
+    clearcoatRoughness: 0.22,
     envMap: environment,
     envMapIntensity: 0.45,
-    color: "#c9c9c9",   // under the stage's bright light the paper stays just below white: its dot screen and the gold read
+    color: "#a6a6a6",   // a shade below white under the stage's bright light: the lacquer and the gold shine out of it
   });
+  return { material, lacquer };
 };
 
 /** A leaf's face: paper and one of the book's prints in its middle */
@@ -351,6 +366,12 @@ class Leaf {
     back.side = BackSide;
     this.group.add(new Mesh(this.geometry, front), new Mesh(this.geometry, back));
     this.turn(0);
+  }
+
+  /** Another layer on its front (the cover's sheen) */
+  cover(material: MeshBasicMaterial) {
+    material.side = FrontSide;
+    this.group.add(new Mesh(this.geometry, material));
   }
 
   /** 0 = lying on the right, 1 = turned over onto the left; the free edge trails while it turns */
@@ -423,6 +444,12 @@ export class ScanStage {
   /** How much the phone's camera keeps to the target's middle: 0 held over the book, 1 pulled all the way to the eye */
   private stick = 0;
   private risen = false;
+  /**
+   * A small light that passes low over the closed book: its reflection runs across the cover's lacquer and gold while
+   * the book still lies there like a picture ("i want to see some of the nice cover page shine when it is still flat")
+   */
+  private readonly shine = new PointLight(0xffffff, 0, 0, 2);
+  private sheen: MeshBasicMaterial | null = null;
   private screen: MeshBasicMaterial | null = null;
   /** How far the phone has come up from where it lay: 0 lying, 1 held over the book */
   private rise = 0;
@@ -480,7 +507,7 @@ export class ScanStage {
     // The lights shine for every camera, whichever layers it films
     ambient.layers.enableAll();
     sun.layers.enableAll();
-    this.scene.add(ambient, sun);
+    this.scene.add(ambient, sun, this.shine);
     this.camera.layers.enable(PHONE_LAYER);
 
     this.view(this.still ? 1 : 0);
@@ -587,8 +614,32 @@ export class ScanStage {
     const count = PAGES + 1;
     // On the right the cover lies on top; on the left the last page turned does
     const lift = (i: number): [number, number] => [(count - i) * LIFT, (i + 1) * LIFT];
-    const cover = coverImage ? lacquerCover(coverImage, this.environment) : page(canvasTexture(paintCover(this.extras, aspect)));
-    this.leaves.push(new Leaf(0.5, aspect, cover, page(endpaper), lift(0), 0.25));
+    const printed = coverImage ? lacquerCover(coverImage, this.environment) : null;
+    const cover = printed?.material ?? page(canvasTexture(paintCover(this.extras, aspect)));
+    const coverLeaf = new Leaf(0.5, aspect, cover, page(endpaper), lift(0), 0.25);
+    this.leaves.push(coverLeaf);
+    if (printed) {
+      // The sheen: a band of light that runs over the cover and shows on its lacquer and gold only
+      const band = document.createElement("canvas");
+      band.width = 512;
+      band.height = 4;
+      const g = band.getContext("2d")!;
+      const gradient = g.createLinearGradient(0, 0, 512, 0);
+      gradient.addColorStop(0.38, "#000");
+      gradient.addColorStop(0.5, "#fff");
+      gradient.addColorStop(0.62, "#000");
+      g.fillStyle = gradient;
+      g.fillRect(0, 0, 512, 4);
+      const map = new CanvasTexture(band);
+      map.center.set(0.5, 0.5);
+      map.rotation = -0.5;
+      map.repeat.set(0.45, 1);
+      this.sheen = new MeshBasicMaterial({
+        map, alphaMap: printed.lacquer, transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false,
+        opacity: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      });
+      coverLeaf.cover(this.sheen);
+    }
     for (let i = 0; i < PAGES; i++) {
       const current = before[i];
       const next = i === PAGES - 1 ? spread : before[i + 1];
@@ -981,6 +1032,17 @@ export class ScanStage {
     });
     this.thicken();
     this.view((seconds - INTRO.hold) / INTRO.move);
+    // The shine crosses the cover from its upper left to its lower right, and is gone when the cover opens
+    const pass = smooth((seconds - SHINE.from) / (COVER_AT - SHINE.from));
+    this.shine.position.set(MathUtils.lerp(-0.2, 0.75, pass), MathUtils.lerp(0.45, -0.4, pass), SHINE.height);
+    const lit = smooth(seconds / 0.6) * (1 - smooth((seconds - COVER_AT) / 0.8));
+    this.shine.intensity = SHINE.intensity * lit;
+    if (this.sheen?.map) {
+      // Twice across while the book lies there
+      const run = ((seconds - SHINE.from) / ((COVER_AT - SHINE.from) / 2)) % 1;
+      this.sheen.map.offset.x = MathUtils.lerp(0.45, -0.45, run);
+      this.sheen.opacity = SHINE.sheen * lit * Math.sin(Math.PI * MathUtils.clamp(run, 0, 1));
+    }
   }
 
   /** The autopilot's page point over one loop: in from the side onto the target, a while there, off, back */
