@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plugin files – design drafts</title>
+<style>
+  /*
+   * Design drafts for #352: a plugin is a folder of files, shown as file tabs in the Code tab like Shadertoy's
+   * (Tilman, 2026-11-23: "no file tree. just file tabs. like shader toy … shaders and other related code files can also
+   * appear there and you must have a + to add a file to the plugin"). Measured from the running editor (6.5.0, the demo
+   * book): the Code panel about 282px of content, the plugin picker 152x28, pills 28px (#383838, line #444), 12px
+   * system-ui, the status line 11px, body #2c2c2c. Frames: #tabs #add #linked. ?shot hides the draft bar and the notes.
+   */
+  :root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, Consolas, monospace;
+    --text: #ffffff; --muted: #a3a3a3; --line: #444444; --surface: #2c2c2c; --surface-head: #1e1e1e;
+    --control-background: #383838; --code: #1e1e1e; --danger: #ff6b5b; --accent: #ffffff; --stage: #0c0c0c;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px/1.3 var(--font); color: var(--text); background: var(--stage); }
+  .draftbar { position: sticky; top: 0; z-index: 50; display: flex; gap: 4px; align-items: center; padding: 6px 12px;
+              background: #ffe9a8; color: #1e1e1e; font-size: 11px; border-bottom: 1px solid #e6cf85; }
+  .draftbar a { color: inherit; padding: 2px 8px; text-decoration: none; }
+  .draftbar a.on { background: #1e1e1e; color: #ffe9a8; }
+  body.shot .draftbar, body.shot .notes { display: none; }
+  .notes { background: #fff7da; color: #1e1e1e; border-top: 1px solid #e6cf85; padding: 10px 16px; font-size: 11px; line-height: 1.45; }
+  .notes ul { margin: 4px 0 0; padding-left: 18px; }
+  .frame { display: none; } .frame.on { display: flex; }
+  .stage { min-height: 560px; padding: 24px; justify-content: flex-end; gap: 24px;
+           background: linear-gradient(rgba(120,90,200,.22) 1px, transparent 1px) 0 0/40px 40px, var(--stage); }
+
+  .panel { width: 300px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; }
+  .head { display: flex; align-items: center; gap: 8px; padding: 8px; }
+  .head .label { color: var(--muted); width: 56px; }
+  select, .pill { height: 28px; font: inherit; color: var(--text); background: var(--control-background);
+                  border: 1px solid var(--line); padding: 0 8px; }
+  select { flex: 1; }
+  .pill.primary { background: transparent; border-color: var(--accent); }
+  /* The new row: one tab per file, the entry first and fixed, + at the end; scrolls sideways when the files don't fit */
+  .files { display: flex; align-items: stretch; height: 26px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .tab { display: flex; align-items: center; gap: 4px; padding: 0 8px; font-family: var(--mono); font-size: 11px;
+         color: var(--muted); border-right: 1px solid var(--line); white-space: nowrap; }
+  .tab.on { color: var(--text); background: var(--code); box-shadow: inset 0 2px 0 var(--accent); }
+  .tab .kind { font-family: var(--font); font-size: 9px; padding: 0 3px; border: 1px solid var(--line); color: var(--muted); }
+  .tab.entry .kind { border-color: var(--muted); }
+  .tab .x { color: var(--muted); margin-left: 2px; }
+  /* + stays at the right edge however many tabs scroll under it */
+  .add { position: sticky; right: 0; margin-left: auto; width: 28px; display: grid; place-items: center; color: var(--text);
+         font-size: 15px; flex: none; background: var(--surface); border-left: 1px solid var(--line); }
+  .add.open { background: var(--control-background); }
+  pre { margin: 0; height: 300px; overflow: hidden; background: var(--code); padding: 6px 0; font: 11px/1.5 var(--mono); color: #d4d4d4; }
+  pre .ln { display: inline-block; width: 30px; text-align: right; padding-right: 8px; color: #6e7681; }
+  .k { color: #569cd6; } .s { color: #ce9178; } .c { color: #6a9955; } .t { color: #4ec9b0; }
+  .status { padding: 6px 8px; font-size: 11px; }
+  .foot { display: flex; align-items: center; gap: 8px; padding: 8px; }
+  .foot .grow { flex: 1; }
+  .link { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); text-decoration: underline; }
+
+  .menu { position: absolute; width: 196px; background: var(--surface); border: 1px solid var(--line); padding: 4px 0; z-index: 3; }
+  .menu div { padding: 6px 10px; } .menu div:hover { background: var(--control-background); }
+  .menu .muted { color: var(--muted); font-size: 11px; padding-top: 0; }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  .linked { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 11px; border-bottom: 1px solid var(--line); }
+  .linked .dot { width: 6px; height: 6px; border-radius: 50%; background: #6cc070; }
+  .linked .grow { flex: 1; }
+  .ro { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="draftbar">Plugin files (#352) – draft · <a href="#tabs">tabs</a><a href="#add">+ a file</a><a href="#linked">linked from an IDE</a></div>
+
+<!-- #tabs: the aquarium as a folder – the entry, its own fluid, its shaders -->
+<section class="frame stage" id="tabs">
+  <div class="panel">
+    <div class="head"><span class="label">plugin</span><select><option>aquarium</option></select><button class="pill">new</button></div>
+    <div class="files">
+      <span class="tab entry on">index.ts</span>
+      <span class="tab">fluid.ts</span>
+      <span class="tab">water.frag</span>
+      <span class="tab">caustics.glsl</span>
+      <span class="add" title="Add a file to this plugin">+</span>
+    </div>
+<pre><span class="ln">1</span><span class="k">import type</span> { <span class="t">PluginApi</span> } <span class="k">from</span> <span class="s">"osct-plugin-api"</span>;
+<span class="ln">2</span><span class="k">import</span> { stepFluid } <span class="k">from</span> <span class="s">"./fluid"</span>;
+<span class="ln">3</span><span class="k">import</span> WATER <span class="k">from</span> <span class="s">"./water.frag"</span>;
+<span class="ln">4</span><span class="k">import</span> CAUSTICS <span class="k">from</span> <span class="s">"./caustics.glsl"</span>;
+<span class="ln">5</span>
+<span class="ln">6</span><span class="c">// the shaders arrive as strings – a layer's glsl too</span>
+<span class="ln">7</span><span class="k">export const</span> register = (api: <span class="t">PluginApi</span>) => {
+<span class="ln">8</span>  api.registerMaterial(<span class="s">"water"</span>, spec, ({ three }) =>
+<span class="ln">9</span>    <span class="k">new</span> three.ShaderMaterial({ fragmentShader: WATER, … }));
+<span class="ln">10</span>  …</pre>
+    <div class="status">on the stage: the saved version · 4 files, 31 KB bundled</div>
+    <div class="foot"><button class="link">Delete</button><span class="grow"></span><button class="link">Download</button><button class="pill">Run</button><button class="pill primary">Save</button></div>
+  </div>
+</section>
+
+<!-- #add: the + menu -->
+<section class="frame stage" id="add">
+  <div class="panel" style="position:relative">
+    <div class="head"><span class="label">plugin</span><select><option>aquarium</option></select><button class="pill">new</button></div>
+    <div class="files">
+      <span class="tab entry">index.ts</span>
+      <span class="tab">fluid.ts</span>
+      <span class="tab on">water.frag <span class="x">×</span></span>
+      <span class="tab">caustics.glsl</span>
+      <span class="add open">+</span>
+    </div>
+    <div class="menu" style="right:-1px; top:70px">
+      <div>TypeScript file <span class="muted">.ts</span></div>
+      <div>Fragment shader <span class="muted">.frag</span></div>
+      <div>Vertex shader <span class="muted">.vert</span></div>
+      <div>GLSL include <span class="muted">.glsl</span></div>
+      <div>WGSL <span class="muted">.wgsl</span></div>
+      <hr>
+      <div>Upload files…</div>
+      <div class="muted">or drop them on the tabs</div>
+    </div>
+<pre><span class="ln">1</span><span class="k">precision</span> highp float;
+<span class="ln">2</span><span class="k">uniform</span> float time;
+<span class="ln">3</span><span class="k">varying</span> vec2 vUv;
+<span class="ln">4</span>…</pre>
+    <div class="status">water.frag · named by index.ts</div>
+    <div class="foot"><button class="link">Delete</button><span class="grow"></span><button class="link">Download</button><button class="pill">Run</button><button class="pill primary">Save</button></div>
+  </div>
+</section>
+
+<!-- #linked: the folder is pushed from someone's IDE with the osct CLI -->
+<section class="frame stage" id="linked">
+  <div class="panel">
+    <div class="head"><span class="label">plugin</span><select><option>aquarium</option></select><button class="pill">new</button></div>
+    <div class="linked"><span class="dot"></span><span class="grow">linked · ben's folder, pushed 2 min ago</span><button class="link">Unlink</button></div>
+    <div class="files">
+      <span class="tab entry on">index.ts</span>
+      <span class="tab">fluid.ts</span>
+      <span class="tab">water.frag</span>
+      <span class="tab">caustics.glsl</span>
+      <span class="add">+</span>
+    </div>
+<pre><span class="ln">1</span><span class="k">import type</span> { <span class="t">PluginApi</span> } <span class="k">from</span> <span class="s">"osct-plugin-api"</span>;
+<span class="ln">2</span><span class="k">import</span> { stepFluid } <span class="k">from</span> <span class="s">"./fluid"</span>;
+<span class="ln">3</span>…</pre>
+    <div class="status">every push runs on the stage · edits here go back with <code>osct plugin pull</code></div>
+    <div class="foot"><button class="link">Delete</button><span class="grow"></span><button class="link">Download</button><button class="pill">Run</button><button class="pill primary">Save</button></div>
+  </div>
+</section>
+
+<div class="notes">
+  <b>Open in these drafts</b>
+  <ul>
+    <li>The entry (<code>index.ts</code>) is the first tab and can't be closed or renamed; every other tab has × on hover (delete the file) and a double-click to rename.</li>
+    <li>A shader in a tab is the plugin's own, imported as a string (esbuild's text loader) – a layer's GLSL can use it too. A Library shader stays for files several plugins share (<code>api.loadText</code>).</li>
+    <li>Linked: a strip, not a lock – edits in the editor are allowed; the CLI's pull brings them back. Who wins on both sides: the later save, like every save today.</li>
+  </ul>
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  if (params.has("shot")) document.body.classList.add("shot");
+  const show = () => {
+    const id = (location.hash || "#tabs").slice(1);
+    document.querySelectorAll(".frame").forEach(f => f.classList.toggle("on", f.id === id));
+    document.querySelectorAll(".draftbar a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + id));
+  };
+  addEventListener("hashchange", show); show();
+</script>
+</body>
+</html>
