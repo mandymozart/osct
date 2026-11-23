@@ -39,6 +39,10 @@ const settle = async () => {
   flushSync();
 };
 
+// A whole page mounted per test: its first load can take more than the default 5 s under load (CI, the full suite) – each
+// test waits for the page to be ready (`render`), so a slow machine waits longer instead of failing
+vi.setConfig({ testTimeout: 30000 });
+
 describe("the landing workspace (#356)", () => {
   let component: ReturnType<typeof mount> | undefined;
   beforeEach(() => localStorage.clear());
@@ -48,9 +52,18 @@ describe("the landing workspace (#356)", () => {
     document.body.innerHTML = "";
   });
 
+  /**
+   * The page mounted and **ready**: its stage drawn (the landing's title in the shadow root) and the Inspector's pick there.
+   * A fixed number of turns was not enough on CI (the page's first load is slower there): wait for it, up to 15 s.
+   */
   const render = async () => {
     const { default: Page } = await import("../../routes/(app)/[experience]/landing/+page.svelte");
     component = mount(Page, { target: document.body });
+    await vi.waitFor(() => {
+      const host = document.querySelector<HTMLElement>("[data-landing-stage]");
+      if (!host?.shadowRoot?.querySelector("h1") || !host.hasAttribute("data-contained")) throw new Error("the stage is not drawn yet");
+      if (!document.querySelector('select[aria-label="The hero\'s scene"]')) throw new Error("the Inspector is not there yet");
+    }, { timeout: 15000, interval: 25 });
     await settle();
   };
 
@@ -66,7 +79,7 @@ describe("the landing workspace (#356)", () => {
     expect(root.querySelector("footer")?.textContent).toContain("P. Press");
     expect(root.querySelector("footer a")?.getAttribute("href")).toBe("/demo/privacy");
     // The hero runs with the draft's pick – here the default, the first model
-    expect(startHero).toHaveBeenCalled();
+    await vi.waitFor(() => expect(startHero).toHaveBeenCalled(), { timeout: 15000, interval: 25 });
     expect(startHero.mock.calls.at(-1)?.[1]).toMatchObject({ entity: { type: "model", assets: [{ src: `${CDN}/assets/content/models/dragon.glb` }] } });
     // The brand stays inside: its tokens on the shadow host, the editor's document gets the font's faces only
     expect(root.querySelector("style")?.textContent?.startsWith(":host")).toBe(true);

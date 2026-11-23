@@ -56,6 +56,10 @@ const tab = (id: string) => document.querySelector<HTMLButtonElement>(`[role=tab
 const card = (id: string) => document.querySelector<HTMLButtonElement>(`[data-card="${id}"]`)!;
 const key = (target: Element, k: string) => target.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
 
+// A whole page mounted per test: its first load can take more than the default 5 s under load (CI, the full suite) – each
+// test waits for the page to be ready (`render`), so a slow machine waits longer instead of failing
+vi.setConfig({ testTimeout: 30000 });
+
 describe("the Experiences workspace (#356)", () => {
   let component: ReturnType<typeof mount> | undefined;
   beforeEach(() => {
@@ -72,9 +76,14 @@ describe("the Experiences workspace (#356)", () => {
     document.body.innerHTML = "";
   });
 
+  /** The page mounted and ready – its covers and the Inspector there; a fixed number of turns was not enough under load */
   const render = async () => {
     const { default: Page } = await import("../../routes/(app)/+page.svelte");
     component = mount(Page, { target: document.body });
+    await vi.waitFor(() => {
+      if (api.experiences.length && !document.querySelector("[data-card]")) throw new Error("the books are not on the stage yet");
+      if (!inspector()) throw new Error("the Inspector is not there yet");
+    }, { timeout: 15000, interval: 25 });
     await settle();
   };
 

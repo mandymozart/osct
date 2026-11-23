@@ -31,8 +31,14 @@ export const SHADER_MODULES_PATH = "file:///node_modules/@types/osct-shader-file
 /** The folder of three's declarations */
 export const THREE_TYPES_PATH = "file:///node_modules/@types/three/";
 
-/** Where a plugin's file lies for the check */
-export const pluginCheckPath = (plugin: string, name: string): string => `file:///check/${plugin}/${name}`;
+/**
+ * Where a plugin's file lies for the check. `run` (the browser's check) puts each check in a folder of its own
+ * (`file:///check/<run>/<plugin>/<name>` – a plugin id starts with a letter, so a run number never meets one): Monaco's
+ * TypeScript worker keeps its own copy of every model by its address and version, and a model made again at the same
+ * address starts at version 1 again – the worker would check the copy of the last check, not the new text
+ */
+export const pluginCheckPath = (plugin: string, name: string, run?: number): string =>
+  run === undefined ? `file:///check/${plugin}/${name}` : `file:///check/${run}/${plugin}/${name}`;
 
 /**
  * The compiler options – TypeScript's numbers, as Monaco's worker and `ts.createProgram` both take them: strict, ES2020

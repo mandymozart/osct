@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { THREE_TYPES_PATH, type PluginSources } from "@shared/plugins/type-check";
+import { pluginCheckPath, THREE_TYPES_PATH, type PluginSources } from "@shared/plugins/type-check";
 import { threeTypesByPath } from "../three-types";
 import { checkLibs, checkWithMonacoTypeScript, checkWithMonacoWorker, checkWithNodeTypeScript, folderPlugins, problemLines, repoRoot } from "./node-check";
 
@@ -36,6 +36,15 @@ const SOURCES: PluginSources[] = [
 ];
 
 describe("the plugin type check in Node and in Monaco", () => {
+  it("puts each browser check in a folder of its own – Monaco's worker would check the last check's copy at the same address", () => {
+    // A repair's second look checks the same plugin again: at the same address the worker, which keeps its copy of a model by
+    // address and version, saw the unrepaired text (found on the editor, 2026-11-23). A run number is never a plugin id.
+    expect(pluginCheckPath("my-tank-code", "index.ts")).toBe("file:///check/my-tank-code/index.ts");
+    expect(pluginCheckPath("my-tank-code", "index.ts", 1)).toBe("file:///check/1/my-tank-code/index.ts");
+    expect(pluginCheckPath("my-tank-code", "index.ts", 2)).not.toBe(pluginCheckPath("my-tank-code", "index.ts", 1));
+    expect(pluginCheckPath("my-tank-code", "fluid.ts", 1).replace(/[^/]+$/, "")).toBe(pluginCheckPath("my-tank-code", "index.ts", 1).replace(/[^/]+$/, ""));
+  });
+
   it("gives the same problems with Monaco's worker, Monaco's TypeScript and the editor's TypeScript", async () => {
     const worker = await checkWithMonacoWorker(SOURCES);
     const monaco = checkWithMonacoTypeScript(SOURCES);

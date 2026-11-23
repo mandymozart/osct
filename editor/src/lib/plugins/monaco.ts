@@ -153,15 +153,18 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
  * Type-check plugins' files (#352 Publish, #366 the Code tab's check of a saved plugin): every file as a model of its own at
  * its check path (`file:///check/<plugin>/<name>`, apart from the Code tab's open models), its TypeScript files asked of the
  * TypeScript worker for their syntax and type errors – the shared check's options and declarations, as the Node check runs
- * them. The models go again afterwards.
+ * them. The models go again afterwards. Each check lies in a folder of its own (`run`): the worker keeps its copy of a model
+ * by address and version, so a check at the same address again – a repair's second look – would see the last one's text.
  */
+let checkRun = 0;
 export const typeCheckPlugins = async (sources: readonly PluginSources[]): Promise<PluginTypeProblem[]> => {
   const made: monaco.editor.ITextModel[] = [];
   const checked: Array<{ plugin: string; file: string; model: monaco.editor.ITextModel }> = [];
+  const run = ++checkRun;
   try {
     for (const { id, files } of sources) {
       for (const file of files) {
-        const uri = monaco.Uri.parse(pluginCheckPath(id, file.name));
+        const uri = monaco.Uri.parse(pluginCheckPath(id, file.name, run));
         monaco.editor.getModel(uri)?.dispose();
         const model = monaco.editor.createModel(file.text, codeLanguage(file.name), uri);
         made.push(model);
