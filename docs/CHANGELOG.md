@@ -8,6 +8,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.17.2 – 2026-11-23
+
+### Changed
+- **The documentation site's pictures show the new editor** (Tilman, 2026-11-23: *"Why not update the Screenshots?"*): the
+  Experiences page as a workspace (the books on the stage, the Inspector panel), AI connections as its tab, and the two
+  tutorial pictures of the Experiences page with *New experience* open; the landing guide has its first two – the
+  landing workspace with the draft and its Inspector (the hero, the texts, the shop).
+
 ## 6.17.1 – 2026-11-23
 
 ### Fixed

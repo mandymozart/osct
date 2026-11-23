@@ -300,7 +300,7 @@ npm run osct -- content sync --env staging</code></pre>
   <h3 class="sec" id="import-empty">An empty instance</h3>
   <p>A new instance has no book. The Experiences page says so, names the three ways in and links to this chapter. <b>New experience</b> and <b>Import</b> sit in the Inspector panel beside the books – step by step, see the <a href="/docs/guide/experiences/">Experiences guide</a>. In its <b>AI connections</b> tab, <b>Connect an AI agent</b> gives you one prompt to paste into Claude, Codex, OpenCode, Cursor or any other MCP client – a fresh token in it – and the agent sets itself up; <b>Existing connections</b> lists the tokens to renew or revoke. The agent then saves drafts as you, and publishing stays your button.</p>
   <figure class="shot">
-    <img src="/docs/tutorials/import/01-empty.webp" width="1280" height="800" loading="lazy" alt="The editor's Experiences page with no experience: the text No experience yet, import one with Import an experience – the CDN, a URL or a file, and the link How to bring an experience in; on the right the Import an experience form with the source the CDN selected and the Import button; the Info view names the CDN source.">
+    <img src="/docs/tutorials/import/01-empty.webp" width="1280" height="800" loading="lazy" alt="The editor\'s Experiences page with no experience yet: only the + card on the stage, with the hint to make one with New or import one; in the Inspector panel on the right, New experience at step 1 with From an export chosen – File, URL or Published, the file field and where the assets are.">
     <figcaption>No experience yet. On an instance the form starts on <b>the CDN</b>, and its fields are empty.</figcaption>
   </figure>
   <p>Since 1.26.7 the form fills in addresses only on a developer's machine: on <code>localhost</code> it suggests the reader's dev server (<code>http://localhost:5174/src/game.config.json</code>, assets at <code>http://localhost:5174</code>). On staging or production nothing is filled in, and <b>the CDN</b> is selected – the instance's own published content is the usual way in.</p>
@@ -393,7 +393,7 @@ npm run osct -- content status --env staging</code></pre>
   </ol>
 
   <figure class="shot">
-    <img src="/docs/tutorials/demo/01-experiences.webp" width="1280" height="800" loading="lazy" alt="The editor's Experiences page: the demo experience's cover on the left, marked draft; on the right the Import an experience form with the source URL, the URL https://buildingfictions.b-cdn.net/demo and an empty assets at field; the Info view explains the URL field.">
+    <img src="/docs/tutorials/demo/01-experiences.webp" width="1280" height="800" loading="lazy" alt="The editor\'s Experiences page: the covers of Onion Skin &amp; Crocodile Tears and The Demo Book on the stage, then the + card; in the Inspector panel on the right, New experience at step 1 with From an export chosen – File, URL or Published.">
     <figcaption>The Experiences page with the demo's content base typed in. <b>assets at</b> stays empty: the form fills it in from <code>latest.json</code>. The demo's cover is a real sheet from its layout.</figcaption>
   </figure>
 
