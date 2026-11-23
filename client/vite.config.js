@@ -221,6 +221,7 @@ function staticLanding(experience, config, contentBase) {
           author: fields.author,
           publisher: fields.publisher,
           images: landingImages(config, url),
+          privacyHref: experience ? `/${experience}/privacy` : '/privacy',
         }));
     },
   };

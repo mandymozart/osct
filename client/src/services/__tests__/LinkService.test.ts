@@ -83,6 +83,8 @@ describe("links: resolving", () => {
     expect(game.state.currentRoute).toMatchObject({ page: Pages.ENTRIES, param: { value: "all" } });
     expect(resolveLink(game, { slug: "/credits" })).toBe(true);
     expect(game.state.currentRoute?.page).toBe(Pages.CREDITS);
+    expect(resolveLink(game, { slug: "/privacy" })).toBe(true);
+    expect(game.state.currentRoute?.page).toBe(Pages.PRIVACY);
     resolveLink(game, { slug: "/tutorial", value: "2" });
     expect(game.state.currentRoute).toMatchObject({ page: Pages.TUTORIAL, param: { value: "2" } });
   });
@@ -104,6 +106,7 @@ describe("links: resolving", () => {
     [{ slug: "/nowhere" }],
     [{ slug: "/about", value: "extra" }],
     [{ slug: "/credits", value: "extra" }],
+    [{ slug: "/privacy", value: "extra" }],
   ])("shows not found for %o", link => {
     expect(resolveLink(game, link)).toBe(false);
     expect(game.state.currentRoute?.page).toBe(Pages.NOT_FOUND);

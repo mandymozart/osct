@@ -48,7 +48,7 @@ export const pick = <T>(items: readonly T[], count: number, seed = 324): T[] => 
 /** The texts of the `landing` i18n namespace, translated; `intro` with the title and the author filled in (escaped) */
 export type LandingTexts = Record<
   | "label" | "intro" | "getApp" | "openOnPhone" | "shop" | "shopBook" | "shopShirt" | "toShop"
-  | "previewAlt" | "scan" | "qrAlt",
+  | "previewAlt" | "scan" | "qrAlt" | "privacy",
   string
 >;
 
@@ -60,6 +60,8 @@ export interface LandingSource extends LandingConfig {
   publisher: string;
   /** The experience's target images in scene order (URLs as the reader loads them); a stable pick of them is scattered */
   images: readonly string[];
+  /** The footer's "Privacy & terms" (#353): the app's `/privacy` below the experience's path – the landing stays away there */
+  privacyHref?: string;
 }
 
 /** The book's images of a game configuration as `getScenes()` lists its targets: scene order, switched-off targets left out */
@@ -229,7 +231,7 @@ export const LANDING_CSS = /* css */ `
  * page's host), the QR code (`.qr-code`), the book's cover.
  */
 export const renderLanding = (source: LandingSource): string => {
-  const { texts, title, author, publisher, shop } = source;
+  const { texts, title, author, publisher, shop, privacyHref = "/privacy" } = source;
   // The title as on the book's title page: its words on lines of their own, the "and" / "&" between them alone
   const titleLines = title.split(/\s+(&|and|und|et|en)\s+/i).map(part => escapeHtml(part));
   return /* html */ `
@@ -276,7 +278,7 @@ export const renderLanding = (source: LandingSource): string => {
         <footer>
           <div class="wrap muted small">
             <span>${escapeHtml(title)}${author ? ` · ${escapeHtml(author)}` : ""}</span>
-            ${publisher ? `<span>${escapeHtml(publisher)}</span>` : ""}
+            <span>${publisher ? `${escapeHtml(publisher)} · ` : ""}<a href="${escapeHtml(privacyHref)}">${texts.privacy}</a></span>
           </div>
         </footer>
       </main>

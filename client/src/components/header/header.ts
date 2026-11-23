@@ -13,7 +13,7 @@ import { t } from "i18next";
  * - CONSULTATION: Mark with the current target's picture beside it + a white "i" (→ About); the counter with
  *   "Marginalia consulted" only on the entries list. A backdrop lets the pages scroll under the header (#283).
  *   The "Entries" back button lives in ConsultationPage, not here. On Info and the image credits a gold × takes the
- *   place of the "i" (#291): Info closes to the entries list, the credits back to Info.
+ *   place of the "i" (#291): Info closes to the entries list, the credits and privacy & terms (#353) back to Info.
  */
 export class GameHeader extends HTMLElement {
   private game: Readonly<IGame>;
@@ -96,7 +96,8 @@ export class GameHeader extends HTMLElement {
                 :host(:not([mode="consultation"])) .close,
                 :host([page="about"]) .info,
                 :host([page="credits"]) .info,
-                :host(:not([page="about"]):not([page="credits"])) .close,
+                :host([page="privacy"]) .info,
+                :host(:not([page="about"]):not([page="credits"]):not([page="privacy"])) .close,
                 :host(:not([mode="consultation"])) .counter,
                 :host([mode="consultation"]:not([page="entries"])) .counter {
                     display: none;
@@ -124,7 +125,7 @@ export class GameHeader extends HTMLElement {
       this.game.router.navigate("/about");
     });
     this.shadowRoot?.querySelector("#close")?.addEventListener("click", () => {
-      this.game.router.navigate(this.game.state.currentRoute?.page === Pages.CREDITS ? "/about" : "/entries");
+      this.game.router.navigate([Pages.CREDITS, Pages.PRIVACY].includes(this.game.state.currentRoute?.page as Pages) ? "/about" : "/entries");
     });
   }
 }

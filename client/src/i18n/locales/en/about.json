@@ -20,5 +20,7 @@
   "font": "Font: Areal, Dinamo + Are.na",
   "publisher": "Publisher: Building Fictions, Amsterdam",
   "isbn": "ISBN: 978-90-833756-7-0",
-  "copyright": "© Building Fictions, {{author}}, 2027"
+  "copyright": "© Building Fictions, {{author}}, 2027",
+  "privacyText": "How the app handles your data and its terms of use: {{- link}}.",
+  "privacyLink": "Privacy & terms"
 }

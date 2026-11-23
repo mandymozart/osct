@@ -5,6 +5,7 @@ import { GraphicsService } from "@/services/GraphicsService";
 import { renderEntryText, type VariableLookup } from "@shared/text/entry-text";
 import { getEntryPlaceLabel } from "@/utils/game-config";
 import { EmbedConsentService } from "@/services/EmbedConsentService";
+import { GameStoreService } from "@/services/GameStoreService";
 import { goldButton } from "@/components/buttons";
 import { categoryLabel, type LinkEmbed, linkEmbed } from "./entries-model";
 import { t } from "i18next";
@@ -15,7 +16,7 @@ import { t } from "i18next";
  * long text; video: a note to scan the access page + a preview player; link: the embedded player across the screen's
  * full width (the page's gutter, `--content-gutter`, is bled) or the embedded page, + "open in a new tab".
  * Another site's player or page loads only after the reader agreed (#351): until then a card in its place says who
- * would load and that they may set cookies and track, with the provider's privacy policy, a button that loads it
+ * would load and that they may set cookies and track, with the provider's privacy policy and the app's (#353), a button that loads it
  * (a video then plays at once) and "Always for <provider>" (`EmbedConsentService`, taken back in Info → Settings).
  * Nothing is requested from the provider before that – the card's poster is the entry's own image, if it has one.
  * The body is set in Medium (`--text-size`).
@@ -169,7 +170,8 @@ export class EntryDetail extends HTMLElement {
     return /* html */ `
       <div class="gate" data-embed-gate${background}>
         <div class="who">${escapeHtml(t(video ? "entry:embedVideoFrom" : "entry:embedPageFrom", { provider }))}</div>
-        <p>${escapeHtml(t(video ? "entry:embedVideoNotice" : "entry:embedPageNotice", { provider }))}${policy}</p>
+        <p>${escapeHtml(t(video ? "entry:embedVideoNotice" : "entry:embedPageNotice", { provider }))}${policy}
+          · <a href="/privacy" data-action="privacy">${escapeHtml(t("entry:embedOurPolicy"))}</a></p>
         <div class="acts">
           ${goldButton({ label: t(video ? "entry:embedPlay" : "entry:embedShow"), primary: true, attrs: { "data-action": "load-embed" } })}
           <label><input type="checkbox" data-embed-always> ${escapeHtml(t("entry:embedAlways", { provider }))}</label>
@@ -180,6 +182,13 @@ export class EntryDetail extends HTMLElement {
 
   /** The card's button: remember "Always" if ticked, then put the player or page in the card's place */
   private handleClick = (event: Event) => {
+    // "Our privacy notice" (#353) opens the app's page; a modified click still opens it in a new tab
+    const privacy = (event.target as HTMLElement).closest("[data-action=privacy]");
+    if (privacy && !(event as MouseEvent).metaKey && !(event as MouseEvent).ctrlKey) {
+      event.preventDefault();
+      GameStoreService.getInstance().router.navigate("/privacy");
+      return;
+    }
     const button = (event.target as HTMLElement).closest<HTMLElement>("[data-action=load-embed]");
     const gate = button?.closest<HTMLElement>("[data-embed-gate]");
     const entry = this._entry;

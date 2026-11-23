@@ -20,5 +20,7 @@
   "font": "Police : Areal, Dinamo + Are.na",
   "publisher": "Éditeur : Building Fictions, Amsterdam",
   "isbn": "ISBN : 978-90-833756-7-0",
-  "copyright": "© Building Fictions, {{author}}, 2027"
+  "copyright": "© Building Fictions, {{author}}, 2027",
+  "privacyText": "Comment l'application traite vos données et ses conditions d'utilisation : {{- link}}.",
+  "privacyLink": "Confidentialité & conditions"
 }

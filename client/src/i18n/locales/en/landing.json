@@ -9,5 +9,6 @@
   "toShop": "Shop",
   "previewAlt": "The app on a phone",
   "scan": "Scan with your phone",
-  "qrAlt": "QR code that opens the app on your phone"
+  "qrAlt": "QR code that opens the app on your phone",
+  "privacy": "Privacy & terms"
 }

@@ -44,6 +44,8 @@ export enum Pages {
   ABOUT = "about",
   /** Image credits, from Info (#292) */
   CREDITS = "credits",
+  /** Privacy & terms, from Info and the desktop landing (#353) */
+  PRIVACY = "privacy",
   ERROR = "error",
   ENTRIES = "entries",
   ENTRY = "entry",

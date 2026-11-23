@@ -12,7 +12,7 @@
  */
 import { BREAKPOINT_TABLET } from "../../constants";
 import { legacyRedirectData } from "../../utils/legacy-redirect-html";
-import { LANDING_SKIPPED_KEY } from "./desktop-visitor";
+import { LANDING_FREE_PAGES, LANDING_SKIPPED_KEY } from "./desktop-visitor";
 import { LANDING_ATTRIBUTE } from "./landing-html";
 
 export interface LandingDecisionData {
@@ -27,6 +27,8 @@ export interface LandingDecisionData {
   /** The site's own top-level paths and the id rule – as the legacy redirect knows them – to read the path's experience */
   reserved: readonly string[];
   id: string;
+  /** Pages a computer opens without the landing (`LANDING_FREE_PAGES`, #353) – the path's last segment */
+  free: readonly string[];
 }
 
 /** The script's body: a function of (window, sessionStorage) returning whether the landing shows – a test runs it against a fake window */
@@ -47,7 +49,9 @@ export const landingDecisionSource = (data: LandingDecisionData): string => `(fu
   var low = first === null ? "" : first.toLowerCase();
   var named = first !== null && new RegExp(D.id).test(first) && D.reserved.indexOf(low) < 0 && low.indexOf("workbox-") !== 0;
   var onDefault = !named || first === D.fallback;
-  var show = !standalone && !coarse && !mobile && wide && !skipped && onDefault;
+  var last = segs.length ? segs[segs.length - 1].toLowerCase() : "";
+  var free = D.free.indexOf(last) >= 0;
+  var show = !standalone && !coarse && !mobile && wide && !skipped && onDefault && !free;
   if (show) win.document.documentElement.setAttribute(D.attribute, "");
   return show;
 })`;
@@ -66,5 +70,6 @@ export const landingDecisionData = (fallback: string): LandingDecisionData => {
     fallback: fallback.trim(),
     reserved: paths.reserved,
     id: paths.id,
+    free: LANDING_FREE_PAGES,
   };
 };

@@ -15,5 +15,6 @@
   "embedPolicy": "Privacybeleid van {{provider}}",
   "embedPlay": "Video afspelen",
   "embedShow": "Pagina tonen",
-  "embedAlways": "Altijd voor {{provider}}"
+  "embedAlways": "Altijd voor {{provider}}",
+  "embedOurPolicy": "Onze privacyverklaring"
 }

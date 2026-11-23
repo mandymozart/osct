@@ -5,7 +5,8 @@ import "@/components/settings";
 
 /**
  * Info page (#291), opened with "i" in consultation mode; the gold × in the header closes it to the entries list.
- * Sections, in the design's order: info text with the link to the image credits (#292) · install as app · Account
+ * Sections, in the design's order: info text with the links to the image credits (#292) and privacy & terms (#353, also
+ * after the © line) · install as app · Account
  * (sign-in, progress explanation and reset, update options) · Settings (sound & vibration, language, then graphics and
  * the download, which the design leaves out – kept, RULES #1) · colophon, its lines as in the design (p. 61; no logo,
  * #297). The texts are placeholders until they move into the content (`experience.yaml`). The image tracking library is credited in the project README, not here; its MIT
@@ -25,12 +26,14 @@ export class AboutPage extends ConsultationPage {
     const experience = getExperience();
     const params = { title: experience.title, author: experience.book?.author ?? "" };
     const here = `<a href="/credits" data-action="credits">${t("about:here")}</a>`;
+    const privacy = `<a href="/privacy" data-action="privacy">${t("about:privacyLink")}</a>`;
     return /* html */ `
       <div class="content">
         <h2 class="section-title">${t("about:info")}</h2>
         <p>${t("about:infoText", params)}</p>
         <p>${t("about:scanText")}</p>
         <p>${t("about:creditsText", { here })}</p>
+        <p>${t("about:privacyText", { link: privacy })}</p>
         <div class="settings">
           <settings-install></settings-install>
         </div>
@@ -66,7 +69,7 @@ export class AboutPage extends ConsultationPage {
           <p>${t("about:desktop")}</p>
           <p>${t("about:ios")}</p>
         </div>
-        <p>${t("about:copyright", params)}</p>
+        <p>${t("about:copyright", params)} · ${privacy}</p>
       </div>
     `;
   }
@@ -81,12 +84,12 @@ export class AboutPage extends ConsultationPage {
     this.shadowRoot?.removeEventListener("click", this.handleCredits);
   }
 
-  /** "here" → the image credits; a plain link without the app (a new tab) still works */
+  /** "here" → the image credits, "Privacy & terms" → that page; a plain link without the app (a new tab) still works */
   private handleCredits = (event: Event) => {
-    const link = (event.target as HTMLElement).closest("[data-action=credits]");
+    const link = (event.target as HTMLElement).closest<HTMLElement>("[data-action=credits], [data-action=privacy]");
     if (!link || (event as MouseEvent).metaKey || (event as MouseEvent).ctrlKey) return;
     event.preventDefault();
-    this.game.router.navigate("/credits");
+    this.game.router.navigate(link.dataset.action === "privacy" ? "/privacy" : "/credits");
   };
 
   protected update(): void {
