@@ -14,7 +14,7 @@ import type { SurfaceReferences } from "./surfaces";
 import type { GizmoPlacement, StageTool } from "./gizmo";
 import type { PickFilter, StagePick } from "./pick";
 import { runPluginCode } from "./plugin-run";
-import { type GhostPlace, StageCore } from "./stage-core.svelte";
+import { type CameraFocus, type GhostPlace, StageCore } from "./stage-core.svelte";
 
 export type { StageEvent } from "./event-log";
 export type { PickFilter, PickKind, StagePick } from "./pick";
@@ -392,6 +392,21 @@ export class Stage {
   /** A new game: every variable cleared, nothing unlocked, the timeline empty, the scene's targets found anew */
   resetNarrative(): void {
     this.core.resetNarrative();
+  }
+
+  /** The camera (#335): back to the reader's view around the scene's origin */
+  cameraHome(): void {
+    this.core.cameraHome();
+  }
+
+  /** The camera's point free (a pan moves it along the screen) or fixed to its surface again */
+  cameraFree(free: boolean): void {
+    this.core.cameraFree(free);
+  }
+
+  /** The camera turns around the selection – a surface, a node, a target – shown whole; none = the whole scene */
+  focusCamera(on: CameraFocus): void {
+    this.core.focusCamera(on);
   }
 
   /** The Live switch (#269): off holds the entities' clock on the stage, on lets it run */

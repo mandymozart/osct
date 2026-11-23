@@ -8,6 +8,17 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.8.0 – 2026-11-23
+
+### Added
+- **The stage camera turns around what you choose** (#335): a camera group in the stage's toolbar.
+  - **Home** (the Home key, or a double click as before) brings back the reader's view.
+  - **Focus** (F) flies to the selection and turns around its middle: a standing poster or a wall front-on and whole, a
+    printed target, a node. With nothing selected it shows the whole scene, standing surfaces included. The stage's
+    bottom right corner names what the camera turns around.
+  - **Fixed / free**: fixed, a pan slides along the focused surface (the table by default); free, a pan moves the point
+    along the screen, up off the table and anywhere within 10 m. Back to fixed, the view stays where it is.
+
 ## 6.7.1 – 2026-11-23
 
 ### Changed

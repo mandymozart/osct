@@ -1,12 +1,12 @@
-import { Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycaster, Vector3 } from "three";
+import { Box3, Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type Raycaster, Vector3 } from "three";
 import type { Target } from "@engine/types";
 import { getScene } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
 import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, type SurfaceGrid, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedScene } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
-import { type LivePlacement, type PlaceBox, placeCentre, placeHeight, surfaceAxes, surfaceLeft, type Surfaces, withLivePlacement } from "./placement";
-import { DEFAULT_SURFACE, findSurface, sceneSurfaces, surfaceFrame, type SceneSurface, type SurfaceFrame, type SurfaceReference, type SurfaceReferences } from "./surfaces";
+import { framesOf, type LivePlacement, type PlaceBox, placeCentre, placeHeight, surfaceAxes, surfaceLeft, type Surfaces, withLivePlacement } from "./placement";
+import { DEFAULT_SURFACE, findSurface, sceneSurfaces, surfaceFrame, type SceneSurface, type SurfaceFrame, type SurfaceReference, type SurfaceReferences, toStage } from "./surfaces";
 
 export { surfaceLeft };
 
@@ -49,10 +49,14 @@ export const VIEW_PRESETS: Record<PreviewView, Orbit> = {
 };
 
 const MIN_DISTANCE = 80;
-/** Far enough to see a wall of a few metres whole */
-const MAX_DISTANCE = 4000;
-/** The looked-at point may be panned this far from the scene's own (mm) */
-const MAX_PAN = 600;
+/** Far enough to see a room whole */
+const MAX_DISTANCE = 10000;
+/** The looked-at point may be panned this far from the scene's own (mm): a room (#335) */
+const MAX_PAN = 10000;
+/** A focus or Home flies there in this long (ms), easing out */
+const FLIGHT_MS = 350;
+/** A focused thing fills this much less than the whole view (room around it) */
+const FIT_MARGIN = 1.25;
 /** A pointer that moved this far is a drag (orbit), not a tap */
 const DRAG_PX = 8;
 const ORBIT_DEGREES_PER_PX = 0.4;
@@ -167,15 +171,69 @@ export const targetTurn = (target: StageTarget, surfaces: Surfaces = [], out = n
  * Any tilt: past 90° the camera looks up from below the table, past 180° it is upside down over the far side (#335).
  */
 export const cameraMatrix = (orbit: Orbit, focus: Vector3, target = new Matrix4()): Matrix4 => {
-  // A camera above the focus looking down (up = the top of the page), tilted about its own x, then turned about z
-  const turn = new Quaternion().setFromAxisAngle(Z_AXIS, degrees(orbit.yaw))
-    .multiply(new Quaternion().setFromAxisAngle(X_AXIS, degrees(orbit.tilt)));
+  const turn = cameraTurn(orbit);
   const eye = new Vector3(0, 0, orbit.distance / 1000).applyQuaternion(turn).add(focus);
   return target.compose(eye, turn, new Vector3(1, 1, 1));
 };
 
+/** The camera's turn: above the focus looking down (up = the top of the page), tilted about its own x, then turned about z */
+const cameraTurn = (orbit: Pick<Orbit, "tilt" | "yaw">, out = new Quaternion()): Quaternion =>
+  out.setFromAxisAngle(Z_AXIS, degrees(orbit.yaw)).multiply(new Quaternion().setFromAxisAngle(X_AXIS, degrees(orbit.tilt)));
+
 const X_AXIS = new Vector3(1, 0, 0);
 const Z_AXIS = new Vector3(0, 0, 1);
+
+/** The tilt and yaw that look straight at a face whose normal (stage frame) is `normal`: front-on (#335) */
+export const facing = (normal: readonly [number, number, number]): { tilt: number; yaw: number } => {
+  const n = new Vector3(...normal).normalize();
+  const tilt = (Math.acos(Math.min(1, Math.max(-1, n.z))) * 180) / Math.PI;
+  const yaw = Math.hypot(n.x, n.y) < 1e-6 ? 0 : (Math.atan2(n.x, -n.y) * 180) / Math.PI;
+  return { tilt: tidyDegrees(tilt), yaw: tidyDegrees(yaw) };
+};
+
+const tidyDegrees = (value: number): number => Math.round(value * 1e6) / 1e6;
+
+/** How far away the camera shows a `width` × `height` mm face whole, in a view of `aspect` (width / height) */
+export const fitDistance = (width: number, height: number, aspect: number): number =>
+  ((Math.max(height, width / Math.max(aspect, 0.1)) / 2) / Math.tan(degrees(PREVIEW_FOV) / 2)) * FIT_MARGIN;
+
+/** A screen axis moved along a plane (normal `n`): its part in the plane at full length – none when it stands on the plane */
+const alongPlane = (axis: Vector3, n: Vector3): Vector3 => {
+  const inPlane = axis.clone().sub(n.clone().multiplyScalar(axis.dot(n)));
+  return inPlane.lengthSq() < 1e-6 ? inPlane.set(0, 0, 0) : inPlane.normalize();
+};
+
+/** The shortest turn from one angle to another (degrees) */
+const turnBetween = (from: number, to: number): number => ((((to - from + 180) % 360) + 360) % 360) - 180;
+
+/** An orbit on the way between two (0…1): the distance evenly in scale, the angles the short way, the point in a line */
+export const orbitBetween = (from: Orbit, to: Orbit, k: number): Orbit => {
+  const a = from.pan ?? { x: 0, y: 0 };
+  const b = to.pan ?? { x: 0, y: 0 };
+  return {
+    ...to,
+    distance: from.distance * Math.pow(to.distance / from.distance, k),
+    tilt: from.tilt + turnBetween(from.tilt, to.tilt) * k,
+    yaw: from.yaw + turnBetween(from.yaw, to.yaw) * k,
+    pan: { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: (a.z ?? 0) + ((b.z ?? 0) - (a.z ?? 0)) * k },
+  };
+};
+
+/** What the camera can focus on (#335): a point (mm, the stage frame), how big it is, the face's normal, its surface */
+export interface CameraSpot {
+  centre: { x: number; y: number; z: number };
+  /** The size to show whole (mm) – a face's width and height, a thing's diameter both */
+  width: number;
+  height: number;
+  /** Look straight at this face (its normal, stage frame); none = from where the camera looks now */
+  normal?: readonly [number, number, number];
+  /** Or from this direction (the whole scene: the reader's) */
+  direction?: { tilt: number; yaw: number };
+  /** The surface the point is fixed to (a pan slides along its plane); none = the table */
+  surface?: string;
+  /** What the stage's corner calls it */
+  label: string;
+}
 
 /** A tilt brought into −180…180° (the orbit turns freely; the stored value stays small) */
 const wrapTilt = (tilt: number): number => ((((tilt + 180) % 360) + 360) % 360) - 180;
@@ -537,6 +595,7 @@ export class MockTracker implements IImageTracker {
   tick(nowMs: number): void {
     if (!this.started || this.paused) return;
     const t = (nowMs - this.startedAt) / 1000;
+    this.fly(nowMs);
     const { orbit, offset } = wobbled(this.orbit, this.preview.wobble, t);
     cameraMatrix(orbit, this.focus(), this.cameraWorld);
     if (offset.lengthSq() > 0) this.cameraWorld.setPosition(new Vector3().setFromMatrixPosition(this.cameraWorld).add(offset));
@@ -568,7 +627,133 @@ export class MockTracker implements IImageTracker {
    */
   private focus(): Vector3 {
     const pan = this.orbit.pan;
-    return new Vector3((pan?.x ?? 0) / 1000, (pan?.y ?? 0) / 1000, 0);
+    return new Vector3((pan?.x ?? 0) / 1000, (pan?.y ?? 0) / 1000, (pan?.z ?? 0) / 1000);
+  }
+
+  // ── The camera's point (#335): Home, a focus on what is selected, fixed to a surface or free ──
+
+  /** A focus or Home on its way: where it started, where it goes, when it started, what is stored when it lands */
+  private flight: { from: Orbit; to: Orbit; start: number; store: boolean } | null = null;
+
+  /** Home: back to the reader's view around the scene's origin, fixed to the table (as a double click) */
+  home(): void {
+    this.flyTo({ ...VIEW_PRESETS.reader }, false);
+    updatePreview({ view: "reader", orbit: null });
+  }
+
+  /** Turn around `spot`: the camera flies to show it whole – front-on to a face – and its point is fixed to its surface */
+  focusOn(spot: CameraSpot): void {
+    const direction = spot.direction ?? (spot.normal ? facing(spot.normal) : { tilt: this.orbit.tilt, yaw: this.orbit.yaw });
+    const width = this.container.clientWidth || 1;
+    const height = this.container.clientHeight || 1;
+    const distance = Math.min(MAX_DISTANCE, Math.max(MIN_DISTANCE, fitDistance(Math.max(spot.width, 1), Math.max(spot.height, 1), width / height)));
+    const { x, y, z } = spot.centre;
+    const to: Orbit = { distance, ...direction, pan: { x, y, z }, label: spot.label, ...(spot.surface ? { surface: spot.surface } : {}) };
+    this.flyTo(to, true);
+    updatePreview({ orbit: { ...to } });
+  }
+
+  /** Focus on a surface of the open scene by id: its middle, front-on, the surface whole */
+  focusSurface(id: string, label = id): boolean {
+    const frame = this.frames.find(f => f.id === id);
+    if (!frame) return false;
+    const [x, y, z] = toStage(frame, frame.widthMm / 2, frame.heightMm / 2);
+    this.focusOn({ centre: { x, y, z }, width: frame.widthMm, height: frame.heightMm, normal: frame.normal, surface: id, label });
+    return true;
+  }
+
+  /** Focus on a printed target by id: its image's middle, front-on to its surface */
+  focusTarget(id: string, label = id): boolean {
+    const target = this.targets.find(t => t.id === id);
+    if (!target) return false;
+    const surfaces = this.placeSurfaces();
+    const height = placeHeight(target, this.printedAspect(id));
+    const centre = placeCentre(target, surfaces, this.printedAspect(id));
+    const frame = this.frames.find(f => f.id === target.surface);
+    this.focusOn({ centre, width: target.width, height, ...(frame ? { normal: frame.normal } : {}), surface: target.surface, label });
+    return true;
+  }
+
+  /** Focus on the whole scene: every surface – a standing poster too – from the reader's side */
+  focusScene(label = "the scene"): void {
+    const corners = framesOf(this.frames).flatMap(frame =>
+      [[0, 0], [frame.widthMm, 0], [0, frame.heightMm], [frame.widthMm, frame.heightMm]].map(([u, v]) => new Vector3(...toStage(frame, u, v))));
+    const box = new Box3().setFromPoints(corners);
+    const centre = box.getCenter(new Vector3());
+    const diameter = box.getSize(new Vector3()).length();
+    const { tilt, yaw } = VIEW_PRESETS.reader;
+    this.focusOn({ centre: { x: centre.x, y: centre.y, z: centre.z }, width: diameter, height: diameter, direction: { tilt, yaw }, label });
+  }
+
+  /**
+   * Free (#335): the point leaves its surface, a pan moves it along the screen. Back to fixed: the point slides along
+   * the line of sight onto the surface it was fixed to (the table without one) – the view does not jump.
+   */
+  setFree(free: boolean): void {
+    this.landFlight();
+    if (free === !!this.orbit.free) return;
+    const { free: _, ...rest } = this.orbit;
+    this.orbit = free ? { ...rest, free: true } : this.landed(rest);
+    window.clearTimeout(this.storeTimer);
+    updatePreview({ orbit: { ...this.orbit } });
+  }
+
+  /** The orbit with its point moved along the line of sight onto its surface's plane (else straight onto it) */
+  private landed(orbit: Orbit): Orbit {
+    const frame = orbit.surface ? this.frames.find(f => f.id === orbit.surface) : undefined;
+    const origin = frame ? new Vector3(...frame.origin) : new Vector3();
+    const n = this.fixedNormal(orbit);
+    const pan = orbit.pan ?? { x: 0, y: 0 };
+    const point = new Vector3(pan.x, pan.y, pan.z ?? 0);
+    const sight = new Vector3(0, 0, -1).applyQuaternion(cameraTurn(orbit));
+    const eye = point.clone().sub(sight.clone().multiplyScalar(orbit.distance));
+    const facingPlane = sight.dot(n);
+    const along = Math.abs(facingPlane) > 1e-3 ? origin.clone().sub(eye).dot(n) / facingPlane : -1;
+    if (along >= MIN_DISTANCE && along <= MAX_DISTANCE) {
+      const hit = eye.add(sight.multiplyScalar(along));
+      return { ...orbit, distance: along, pan: { x: hit.x, y: hit.y, z: hit.z } };
+    }
+    const onPlane = point.sub(n.clone().multiplyScalar(point.clone().sub(origin).dot(n)));
+    return { ...orbit, pan: { x: onPlane.x, y: onPlane.y, z: onPlane.z } };
+  }
+
+  /** The normal of the plane a fixed point slides along: its surface's, else the table's */
+  private fixedNormal(orbit: Orbit = this.orbit): Vector3 {
+    const frame = orbit.surface ? this.frames.find(f => f.id === orbit.surface) : undefined;
+    return frame ? new Vector3(...frame.normal).normalize() : new Vector3(0, 0, 1);
+  }
+
+  private flyTo(to: Orbit, store: boolean): void {
+    window.clearTimeout(this.storeTimer);
+    this.flight = { from: { ...this.orbit }, to, start: this.now(), store };
+  }
+
+  /** A flight's step at `nowMs`; it lands at its end (and is stored when it was a focus) */
+  private fly(nowMs: number): void {
+    const flight = this.flight;
+    if (!flight) return;
+    const k = Math.min(1, Math.max(0, (nowMs - flight.start) / FLIGHT_MS));
+    if (k >= 1) {
+      this.landFlight();
+      return;
+    }
+    this.orbit = orbitBetween(flight.from, flight.to, 1 - Math.pow(1 - k, 3));
+  }
+
+  /** Stop a flight where it is now (a drag or the wheel takes over from there) */
+  private stopFlight(): void {
+    if (!this.flight) return;
+    this.flight = null;
+    this.orbitChanged();
+  }
+
+  /** End a flight where it goes (a mode change) */
+  private landFlight(): void {
+    const flight = this.flight;
+    if (!flight) return;
+    this.flight = null;
+    this.orbit = { ...flight.to };
+    if (flight.store) updatePreview({ orbit: { ...flight.to } });
   }
 
   private loop(): void {
@@ -584,10 +769,16 @@ export class MockTracker implements IImageTracker {
   private applyPreview(state: PreviewState, initial: boolean): void {
     const previous = this.preview;
     this.preview = state;
+    let next: Orbit | null = null;
     if (initial || state.view !== previous.view || (state.orbit === null && previous.orbit !== null)) {
-      this.orbit = { ...(state.orbit ?? VIEW_PRESETS[state.view]) };
+      next = { ...(state.orbit ?? VIEW_PRESETS[state.view]) };
     } else if (state.orbit && !sameOrbit(state.orbit, this.orbit)) {
-      this.orbit = { ...state.orbit };
+      next = { ...state.orbit };
+    }
+    // A focus or Home stores where it goes as it starts: the flight takes the camera there
+    if (next && !(this.flight && sameOrbit(next, this.flight.to))) {
+      this.flight = null;
+      this.orbit = next;
     }
     if (initial || state.shading !== previous.shading) this.stage?.setShading?.(state.shading);
     if (initial || state.hdri !== previous.hdri || state.hdriOn !== previous.hdriOn) this.stage?.setHdri(hdriOf(state));
@@ -612,17 +803,20 @@ export class MockTracker implements IImageTracker {
   private pan(dx: number, dy: number): void {
     const height = this.container.clientHeight || window.innerHeight || 1;
     const mmPerPx = (2 * this.orbit.distance * Math.tan(degrees(PREVIEW_FOV) / 2)) / height;
-    const yaw = degrees(this.orbit.yaw);
-    // The screen's right and up in the page plane (the camera's up is the top of the page, turned by the yaw;
-    // from below the table or upside down it points the other way)
-    const flip = Math.cos(degrees(this.orbit.tilt)) < 0 ? -1 : 1;
-    const right = { x: Math.cos(yaw), y: Math.sin(yaw) };
-    const up = { x: -Math.sin(yaw) * flip, y: Math.cos(yaw) * flip };
+    // The screen's right and up (#335): free, as they are – the point follows the pointer anywhere; fixed, along the
+    // plane of the surface the point is fixed to (the table without one), each at full speed
+    const turn = cameraTurn(this.orbit);
+    let right = new Vector3(1, 0, 0).applyQuaternion(turn);
+    let up = new Vector3(0, 1, 0).applyQuaternion(turn);
+    if (!this.orbit.free) {
+      const n = this.fixedNormal();
+      right = alongPlane(right, n);
+      up = alongPlane(up, n);
+    }
+    const move = right.multiplyScalar(-dx).add(up.multiplyScalar(dy)).multiplyScalar(mmPerPx);
     const pan = this.orbit.pan ?? { x: 0, y: 0 };
-    this.orbit.pan = {
-      x: Math.min(MAX_PAN, Math.max(-MAX_PAN, pan.x - (right.x * dx - up.x * dy) * mmPerPx)),
-      y: Math.min(MAX_PAN, Math.max(-MAX_PAN, pan.y - (right.y * dx - up.y * dy) * mmPerPx)),
-    };
+    const reach = (value: number) => Math.min(MAX_PAN, Math.max(-MAX_PAN, value));
+    this.orbit.pan = { x: reach(pan.x + move.x), y: reach(pan.y + move.y), z: reach((pan.z ?? 0) + move.z) };
     this.orbitChanged();
   }
 
@@ -650,6 +844,7 @@ export class MockTracker implements IImageTracker {
 
   private onPointerDown = (event: PointerEvent): void => {
     if (this.paused || !this.onStage(event) || this.ignorePointer?.(event)) return;
+    this.stopFlight();
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, button: event.button });
     if (this.pointers.size === 1) this.dragging = false;
     this.lastPinch = 0;
@@ -713,12 +908,13 @@ export class MockTracker implements IImageTracker {
 
   private onDoubleClick = (event: MouseEvent): void => {
     if (this.paused || !this.onStage(event)) return;
-    updatePreview({ view: "reader", orbit: null });
+    this.home();
   };
 
   private onWheel = (event: WheelEvent): void => {
     if (this.paused || !this.onStage(event)) return;
     event.preventDefault();
+    this.stopFlight();
     this.zoom(1 + Math.sign(event.deltaY) * WHEEL_STEP);
   };
 
@@ -742,4 +938,5 @@ export class MockTracker implements IImageTracker {
 }
 
 const sameOrbit = (a: Orbit, b: Orbit) =>
-  a.distance === b.distance && a.tilt === b.tilt && a.yaw === b.yaw && (a.pan?.x ?? 0) === (b.pan?.x ?? 0) && (a.pan?.y ?? 0) === (b.pan?.y ?? 0);
+  a.distance === b.distance && a.tilt === b.tilt && a.yaw === b.yaw && (a.pan?.x ?? 0) === (b.pan?.x ?? 0) && (a.pan?.y ?? 0) === (b.pan?.y ?? 0)
+  && (a.pan?.z ?? 0) === (b.pan?.z ?? 0) && a.surface === b.surface && a.label === b.label && !!a.free === !!b.free;

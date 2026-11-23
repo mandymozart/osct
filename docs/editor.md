@@ -1010,10 +1010,20 @@ change (ResizeObserver, MutationObserver), so it cannot loop or flicker.
 
 ### Camera and view settings
 
-The camera is moved on the stage itself: **drag** orbits, **Shift + drag**, the **middle button** or **two fingers**
-pan (the looked-at point moves in the page plane), **wheel / pinch** change the distance, **double tap** returns to the
-reader's view (35 cm above the page, tilted 30°; the free orbit is kept on the device). The panel's former view presets
-and found chips doubled these and are gone.
+The camera is moved on the stage itself: **drag** orbits (any tilt – level with the table, from below, over the top),
+**Shift + drag**, the **middle button** or **two fingers** pan, **wheel / pinch** change the distance, **double tap**
+returns to the reader's view (35 cm above the page, tilted 30°; the free orbit is kept on the device). The panel's former
+view presets and found chips doubled these and are gone.
+
+The toolbar's **camera** group (#335) says what the camera turns around – the looked-at point, a point in space:
+- **Home** (the Home key, a double tap): the reader's view around the scene's origin on the table.
+- **Focus** (F): the camera flies to the selection and turns around its middle – a surface (a standing poster, a wall)
+  front-on and whole, a printed target front-on, a node by its box from where the camera looks; with nothing selected
+  the whole scene from the reader's side. The stage's bottom right corner names it (✕ = Home).
+- **Fixed / free**: fixed (the default), a pan slides the point along the plane of the surface it was focused on (the
+  table without one). Free, a pan moves it along the screen – up, down, anywhere within 10 m. Back to fixed, the point
+  slides along the line of sight onto that surface, so the view does not move.
+All of it is stored on the device with the orbit (`PreviewOrbit`: `pan.z`, `surface`, `label`, `free`).
 
 The toolbar's **view** group – how the editor shows the scene, stored on the device: **shake**: 0 = still, 1 = a hand
 holding a phone. **origin**: the 3 × 3 alignment square ([below](#grid-origin-and-snapping)). **top**: the Eiermann
