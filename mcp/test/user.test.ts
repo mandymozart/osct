@@ -70,7 +70,7 @@ describe("the user's server", () => {
   it("without a token: whoami and the sign-in pair only; a sign-in with the editor role opens the tools and tells the client", async () => {
     const fake = fakeFetch(accountsApi);
     createUserServer(CONFIG, fake.api(""), null);
-    expect([...rec.tools.keys()]).toEqual(["whoami", "sign_in_request", "sign_in_verify"]);
+    expect([...rec.tools.keys()]).toEqual(["whoami", "update_server", "sign_in_request", "sign_in_verify"]);
     expect(rec.resources.size).toBe(0);
 
     const who = await rec.call("whoami");

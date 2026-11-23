@@ -217,7 +217,7 @@
             <dt class="muted">{row.label}</dt><dd><code>{row.value}</code></dd>
           {/each}
         </dl>
-        <p class="small muted">Any other MCP client takes these four values. After a deploy of this instance, download the file again.</p>
+        <p class="small muted">Any other MCP client takes these four values. After a deploy of this instance the server updates itself (the agent calls <code>update_server</code>, you reconnect it once).</p>
       </details>
     </div>
   {:else}

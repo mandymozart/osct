@@ -130,12 +130,15 @@ describe.skipIf(!hasPhp)("end to end: the MCP server over stdio against the PHP 
     rmSync(tmp, { recursive: true, force: true });
   });
 
-  it("starts without a token: whoami and the sign-in pair, nothing else", async () => {
-    expect(await names()).toEqual(["sign_in_request", "sign_in_verify", "whoami"]);
+  it("starts without a token: whoami, update_server and the sign-in pair, nothing else; the PHP API has its version", async () => {
+    expect(await names()).toEqual(["sign_in_request", "sign_in_verify", "update_server", "whoami"]);
     const who = await call("whoami");
     expect(who.ok).toBe(true);
     expect(who.data.user).toBeNull();
     expect(who.data.api).toContain("(local dev)");
+    // the API and this server carry one version (RULES #10): not outdated, and a checkout is never replaced (#367)
+    expect(who.data.version).toMatchObject({ outdated: false, mcp: who.data.version.instance });
+    expect((await call("update_server")).data.message).toContain("checkout");
   });
 
   it("signs in through the mail log; the editor's tools, prompts and rules open", async () => {

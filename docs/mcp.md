@@ -67,7 +67,7 @@ The server is **one file every instance serves**: `/mcp/osct-mcp.mjs` next to th
 (`https://osct.porschuetz.de/mcp/osct-mcp.mjs`, #272) – `scripts/bundle.mjs` bundles `src/` with its dependencies, the
 shared contract and `docs/plugins.md` into it, so it needs Node 22 and nothing else; the Docker image and the FTPS
 staging deploy build it, the editor's dev server bundles it on request (`npm ci` in `mcp/` first), and it is always the
-instance's deployed version (download it again after a deploy). Or from a checkout of the repository: once
+instance's deployed version – and updates itself after a deploy ([updates](#updates)). Or from a checkout of the repository: once
 `cd mcp && npm ci` (Node 22), then `mcp/bin/osct-mcp.mjs`, which bundles the checkout's current code at every start. Any MCP client that starts a
 stdio server needs four things – the editor's experiences page shows them under *Connect an AI agent*
 ([editor](editor.md#ai-connections)) with the instance's values, a token just made and the path the person typed once:
@@ -136,6 +136,24 @@ Start the API (`cd client && npm run dev:api`, [editor, "Try it"](editor.md#try-
 and ask `whoami`. Against staging for one session: `OSCT_API_URL=https://osct.porschuetz.de/api
 OSCT_EDITOR_TOKEN=osct_… claude`; for good, the `osct-staging` server above.
 
+### Updates
+
+The downloaded file is the version its instance served that day, and a deploy of the instance can change the API under
+it (#367, `src/update.ts`). So the server reads the instance's version (`GET /health` → `version`, at most once a
+minute) and compares it with its own:
+
+- **at start** – an outdated server logs it and its instructions tell the agent to call `update_server` first;
+- **in `whoami`** – `version: { mcp, instance, outdated, next? }`;
+- **when a call fails the way an outdated client's fails** (400, 404, 405, 422) – the error carries `outdated` and its
+  hint starts with the next step.
+
+`update_server` downloads `/mcp/osct-mcp.mjs` from the instance next to `OSCT_API_URL`, checks the file's banner
+(`// OSCT MCP server X.Y.Z`, written by `scripts/bundle.mjs`) and writes it over its own file – next to it first, then
+moved over, so a half-written file never runs. Only a newer file replaces it (`force` takes the same version, for a
+damaged file). A running process keeps the tools it started with: the answer tells the person to reconnect the server
+(Claude Code: `/mcp` → the server → Reconnect; other clients: restart). A server started from a checkout
+(`mcp/bin/osct-mcp.mjs`) bundles the checkout's code at every start and is never replaced – it says to `git pull`.
+
 ## The tools
 
 Every result is JSON. Writes answer with `open`, the editor's link to check the draft; errors come back as the API's
@@ -143,7 +161,8 @@ Every result is JSON. Writes answer with `open`, the editor's link to check the 
 
 | tool | what |
 |---|---|
-| `whoami` | the user (email, roles), how the server is signed in (`signedIn`: an AI connection's token with its name, a session, or null), the service open, the API, the editor app. Call it first |
+| `whoami` | the user (email, roles), how the server is signed in (`signedIn`: an AI connection's token with its name, a session, or null), the service open, the API, the editor app, and `version`: this server's against the instance's (`outdated`, `next`). Call it first |
+| `update_server { force? }` | replaces the one-file server with the one its instance serves now, when that is newer ([below](#updates)); a checkout is pulled, never replaced |
 | `sign_in_request` · `sign_in_verify` | the sign-in by mail code, for people without a token (above) |
 | `list_experiences` | the instance's experiences with their last publish and where they are live, and `environments` – what each environment serves (or that its store cannot be read) |
 | `preview_import { url \| configuration \| source: "cdn", assetsBase?, experience? }` | read-only: what an import would bring in, nothing imported (the API's [import preview](server.md#import-preview)) – with `source: "cdn"` the store of `experience` (default the instance's own) on the instance's CDN (#87); the content base and its `latest.json`, `incoming` (the one experience's id and title, the build, its date, app and schema version), `counts`, and `existing`: the draft of that id it would replace (null: a new experience) – with `next`, what to tell the person and the `import_experience` call that follows |
