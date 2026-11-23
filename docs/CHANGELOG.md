@@ -18,6 +18,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   reserved scene id `landing`. The guide's first page, the workspace, stage, Inspector and Experiences pages link to it,
   and the tutorials for editors have a twelfth: *Choose the landing page's hero*. No new screenshots yet.
 
+### Fixed
+- **A landing hero refreshed a moment ago no longer shows *out of date*.** The draft hands the stored pick out with its
+  files' addresses resolved, a fresh extraction keeps content paths – the comparison now reads both as content paths.
+
 ## 6.13.0 – 2026-11-23
 
 ### Added
