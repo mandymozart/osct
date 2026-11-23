@@ -6,221 +6,292 @@
 <title>Git sync – design drafts</title>
 <style>
   /*
-   * Design drafts for #350, the fundamental version (Tilman, 2026-11-23: "way too complex … rethink for a fundamental
-   * integration first"). An experience connected to one folder of one repository: the editor commits its export, a push
-   * to the branch comes back in through the existing import and is published to staging. No merging, no previews.
-   * Static page, the editor's tokens (editor/src/app.css). Frames: #connect #commit #behind #workflow. ?shot hides notes.
+   * Design drafts for #350, the fundamental version, inside the editor as it is (Tilman, 2026-11-23: "can we integrate
+   * this into the editor view not its separate page? the setup can be just part of the manage sidebar"). No page of its
+   * own: the setup is a section of a book's Manage sheet on the experiences page; the status and the commit live in the
+   * editor's top bar next to Publish, as a dialog like Publish's. Measured from the running editor (6.5.0): top bar 40px
+   * #1e1e1e, body #2c2c2c, line #444, 12px system-ui, pills 28px framed in white, dialog 448px, padding 16/18px.
+   * Frames: #connect #connected #commit #behind #workflow. ?shot hides the draft bar and the notes; ?scheme=light.
    */
   :root {
     --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, Consolas, monospace;
-    --text-size: .75rem; --text-small: .6875rem; --control-height: 1.75rem;
-    --text: #1e1e1e; --muted: #6b6b6b; --line: #e6e6e6; --surface: #ffffff; --surface-head: #f5f5f5;
-    --control-background: #f5f5f5; --hover-background: #ebebeb; --within-background: #efefef; --danger: #c0392b;
-    --stage-background: #0c0c0c; --accent: #1e1e1e; --primary-text: #ffffff; --ok: #2e7d32;
-    color-scheme: light;
-  }
-  html[data-scheme="dark"] {
     --text: #ffffff; --muted: #a3a3a3; --line: #444444; --surface: #2c2c2c; --surface-head: #1e1e1e;
-    --control-background: #383838; --hover-background: #3f3f3f; --within-background: #363636; --danger: #ff6b5b;
-    --accent: #ffffff; --primary-text: #1e1e1e; --ok: #6fcf73;
+    --control-background: #383838; --hover-background: #3f3f3f; --danger: #ff6b5b; --accent: #ffffff;
+    --primary-text: #1e1e1e; --stage: #0c0c0c; --grid: rgba(120, 90, 200, .22);
     color-scheme: dark;
   }
+  html[data-scheme="light"] {
+    --text: #1e1e1e; --muted: #6b6b6b; --line: #e6e6e6; --surface: #ffffff; --surface-head: #f5f5f5;
+    --control-background: #f5f5f5; --hover-background: #ebebeb; --danger: #c0392b; --accent: #1e1e1e; --primary-text: #ffffff;
+    color-scheme: light;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font: var(--text-size)/1.45 var(--font); color: var(--text); background: var(--surface-head); }
-  h1, h2 { margin: 0; font-weight: 600; } h1 { font-size: 1rem; } h2 { font-size: .8125rem; }
-  p { margin: 0; }
-  code { font-family: var(--mono); font-size: var(--text-small); }
-  .muted { color: var(--muted); } .small { font-size: var(--text-small); } .ok { color: var(--ok); } .danger { color: var(--danger); }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: .375rem; height: var(--control-height);
-         padding: 0 .75rem; background: var(--control-background); border: 0; font: inherit; color: var(--text); white-space: nowrap; }
-  .btn.primary { background: var(--accent); color: var(--primary-text); }
-  .btn.quiet { background: transparent; }
-  input[type=text], select, textarea { font: inherit; color: var(--text); height: var(--control-height); padding: 0 .5rem;
-         background: var(--control-background); border: 1px solid transparent; width: 100%; }
-  textarea { height: auto; padding: .375rem .5rem; resize: none; }
-  .label { color: var(--muted); font-size: var(--text-small); text-transform: uppercase; letter-spacing: .06em; }
-  .icon { width: 1rem; height: 1rem; flex: none; stroke: currentColor; fill: none; stroke-width: 1.5; }
-  .avatar { width: 1.5rem; height: 1.5rem; background: var(--control-background); display: grid; place-items: center; font-size: var(--text-small); flex: none; }
+  body { margin: 0; font: 12px/1.3 var(--font); color: var(--text); background: var(--surface); }
+  h1, h2, h3, p { margin: 0; }
+  h2 { font-size: 15px; font-weight: 600; }
+  h3 { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  code { font-family: var(--mono); font-size: 11px; }
+  .muted { color: var(--muted); } .small { font-size: 11px; } .danger { color: var(--danger); }
+  .pill { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid var(--muted);
+          background: transparent; color: var(--text); font: inherit; white-space: nowrap; }
+  .pill.primary { border-color: var(--accent); }
+  .pill.danger-pill { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
+  .text-link { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); text-decoration: underline; }
+  .actions { display: flex; align-items: center; gap: 10px; }
+  input[type=text], textarea { font: inherit; color: var(--text); height: 28px; padding: 0 8px; width: 100%;
+          background: var(--control-background); border: 1px solid transparent; }
+  textarea { height: auto; padding: 6px 8px; resize: none; line-height: 1.4; }
+  .field { display: grid; gap: 4px; } .field > span:first-child { color: var(--muted); font-size: 11px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .icon { width: 14px; height: 14px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: square; }
 
-  .draftbar { position: sticky; top: 0; z-index: 50; display: flex; gap: .25rem; align-items: center; padding: .375rem .75rem;
-              background: #ffe9a8; color: #1e1e1e; font-size: var(--text-small); border-bottom: 1px solid #e6cf85; }
-  .draftbar a { color: inherit; padding: .125rem .5rem; text-decoration: none; }
+  .draftbar { position: sticky; top: 0; z-index: 50; display: flex; gap: 4px; align-items: center; padding: 6px 12px;
+              background: #ffe9a8; color: #1e1e1e; font-size: 11px; border-bottom: 1px solid #e6cf85; }
+  .draftbar a { color: inherit; padding: 2px 8px; text-decoration: none; }
   .draftbar a.on { background: #1e1e1e; color: #ffe9a8; }
   .draftbar .grow { flex: 1; }
-  .draftbar button { font: inherit; background: #1e1e1e; color: #ffe9a8; border: 0; padding: .125rem .5rem; }
+  .draftbar button { font: inherit; background: #1e1e1e; color: #ffe9a8; border: 0; padding: 2px 8px; }
   body.shot .draftbar, body.shot .notes { display: none; }
-  .notes { background: #fff7da; color: #1e1e1e; border-top: 1px solid #e6cf85; padding: .625rem 1rem; font-size: var(--text-small); }
-  .notes ul { margin: .25rem 0 0; padding-left: 1.1rem; }
+  .notes { background: #fff7da; color: #1e1e1e; border-top: 1px solid #e6cf85; padding: 10px 16px; font-size: 11px; line-height: 1.45; }
+  .notes ul { margin: 4px 0 0; padding-left: 18px; }
   .frame { display: none; } .frame.on { display: block; }
 
-  .app { display: grid; grid-template-rows: 2.5rem 1fr; height: calc(100vh - 1.75rem); min-height: 36rem; }
+  .app { display: grid; grid-template-rows: 40px 1fr; height: calc(100vh - 26px); min-height: 600px; }
   body.shot .app { height: 100vh; }
-  .top { display: flex; align-items: center; gap: .75rem; padding: 0 .75rem; border-bottom: 1px solid var(--line); background: var(--surface-head); }
-  .top .brand { font-weight: 600; } .top .crumb { color: var(--muted); } .top .grow { flex: 1; }
-  .split { display: grid; grid-template-columns: 1fr 24rem; min-height: 0; }
-  .main { overflow: auto; padding: 1.25rem 1.5rem; background: var(--surface); }
-  .side { border-left: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
-  .side-head { display: flex; align-items: center; gap: .5rem; padding: .625rem .75rem; border-bottom: 1px solid var(--line); background: var(--surface-head); }
-  .side-head h2 { flex: 1; }
-  .side-body { padding: .75rem; display: grid; gap: 1rem; align-content: start; flex: 1; }
-  .side-foot { padding: .75rem; border-top: 1px solid var(--line); display: grid; gap: .5rem; background: var(--surface-head); }
-  .field { display: grid; gap: .25rem; }
-  .row { display: flex; align-items: center; gap: .5rem; } .row .grow { flex: 1; }
-  .box { border: 1px solid var(--line); padding: .75rem; display: grid; gap: .5rem; }
+  .top { display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--surface-head); }
+  .top .grow { flex: 1; }
+  .crumbs { display: flex; align-items: center; gap: 8px; } .crumbs .sep { color: var(--muted); } .crumbs .current { font-weight: 600; }
+  .ibtn { width: 28px; height: 28px; display: grid; place-items: center; color: var(--text); }
+  .ibtn.framed { border: 1px solid var(--muted); }
+  .search { width: 290px; height: 26px; background: var(--control-background); color: var(--muted); display: flex; align-items: center; padding: 0 8px; gap: 6px; }
 
-  /* The sync status in the top bar: one word, one colour-free mark */
-  .sync { display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .625rem; border: 1px solid var(--line); background: var(--surface); }
-  .sync.hot { background: var(--accent); color: var(--primary-text); border-color: var(--accent); }
+  /* The new item in the top bar: the repository's state, next to "live on …" – a button that opens the commit dialog */
+  .repo { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; color: var(--text);
+          border: 1px solid transparent; font-size: 11px; }
+  .repo.saves { border-color: var(--muted); }
+  .repo.ahead { border-color: var(--danger); color: var(--danger); }
+  .repo .dot { width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
 
-  .stage { background: var(--stage-background); display: grid; place-items: center; position: relative; min-height: 0; }
-  .spread { display: flex; gap: 2px; }
-  .spread i { width: 14rem; height: 19.5rem; background: #e9e4da; display: block; position: relative; }
-  .spread i b { position: absolute; border: 1.5px solid #f3cc94; }
-  .menu { position: absolute; top: .25rem; right: 3.25rem; z-index: 5; width: 17rem; background: var(--surface); border: 1px solid var(--line);
-          box-shadow: 0 6px 18px rgba(0,0,0,.25); padding: .25rem 0; }
-  .menu div { padding: .375rem .75rem; display: grid; }
-  .menu div.hover { background: var(--hover-background); }
-  .menu hr { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; }
+  /* Experiences page */
+  .split { display: grid; grid-template-columns: 1fr 480px; min-height: 0; }
+  .shelf { padding: 16px 32px; overflow: hidden; }
+  .shelf h1 { font-size: 15px; margin-bottom: 14px; }
+  .covers { display: flex; gap: 24px; }
+  .book { width: 182px; display: grid; gap: 4px; justify-items: start; }
+  .book .cover { width: 182px; height: 257px; background: #f3f3f1; color: #1e1e1e; display: grid; place-items: center; text-align: center; font-size: 17px; padding: 20px; }
+  .book .cover.add { background: transparent; border: 1px dashed var(--muted); color: var(--muted); font-size: 32px; }
+  .book .t { font-weight: 600; margin-top: 8px; }
+  .badge { border: 1px solid var(--line); padding: 1px 5px; font-size: 10px; color: var(--muted); }
+  .badge.on { border-color: var(--text); color: var(--text); }
+  .manage { justify-self: center; font-size: 10px; padding: 3px 10px; border: 1px solid var(--line); color: var(--muted); }
+  .manage.on { background: var(--accent); color: var(--primary-text); border-color: var(--accent); }
+  .side { border-left: 1px solid var(--line); padding: 24px 28px; display: grid; gap: 18px; align-content: start; overflow: hidden; }
+  .sheet-head { display: grid; gap: 4px; }
+  .versions ul { list-style: none; margin: 8px 0 0; padding: 0; }
+  .versions li { display: grid; grid-template-columns: 110px 60px 1fr auto; padding: 6px 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .repo-box { border-top: 1px solid var(--line); padding-top: 16px; display: grid; gap: 10px; }
+  .repo-box.new { outline: 1px dashed #e6cf85; outline-offset: 8px; }
+  body.shot .repo-box.new { outline: 0; }
+  .kv { display: grid; grid-template-columns: 84px 1fr; row-gap: 6px; }
+  .kv span:nth-child(odd) { color: var(--muted); }
+  .state { display: flex; align-items: center; gap: 6px; }
+  .delete { border-top: 1px solid var(--line); padding-top: 16px; }
 
+  /* Editor view */
+  .stage { position: relative; background: var(--stage); overflow: hidden;
+           background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+           background-size: 64px 64px; background-position: center; }
+  .stage .spread { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%) perspective(900px) rotateX(38deg);
+           display: flex; gap: 2px; }
+  .stage .spread i { width: 200px; height: 270px; background: #d9d6cf; display: block; }
+  .panel { position: absolute; background: var(--surface); border: 1px solid var(--line); opacity: .85; }
+  .panel .ph { height: 26px; border-bottom: 1px solid var(--line); display: flex; align-items: center; padding: 0 8px; font-size: 11px; color: var(--muted); gap: 6px; }
+  .backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.35); display: grid; place-items: center; }
+  .dialog { width: 448px; background: var(--surface); border: 1px solid var(--line); padding: 16px 18px; display: grid; gap: 12px;
+            box-shadow: rgba(0,0,0,.25) 0 8px 24px -8px; }
+  .dialog h2 { font-size: 15px; }
+  .changes { display: grid; gap: 3px; padding: 8px 10px; background: var(--control-background); }
+  .choice { border: 1px solid var(--line); padding: 10px 12px; display: grid; gap: 6px; justify-items: start; }
+
+  /* Repository side */
+  .repo-side { padding: 24px 32px; overflow: auto; background: var(--surface); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .cols > div { display: grid; gap: 12px; align-content: start; }
   table { border-collapse: collapse; width: 100%; }
-  td { padding: .4375rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
-  td:first-child { color: var(--muted); width: 9rem; }
-  .term { font-family: var(--mono); font-size: var(--text-small); line-height: 1.6; white-space: pre; background: #0c0c0c; color: #e6e6e6; padding: .875rem 1rem; overflow: auto; }
-  .term .p { color: #8f8f8f; } .term .ok { color: #6fcf73; } .term .y { color: #f3cc94; } .term .r { color: #ff6b5b; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { color: var(--muted); width: 180px; }
+  .term { font-family: var(--mono); font-size: 11px; line-height: 1.6; white-space: pre; background: #0c0c0c; color: #e6e6e6; padding: 14px 16px; overflow: auto; }
+  .term .p { color: #8f8f8f; } .term .ok { color: #6fcf73; } .term .r { color: #ff6b5b; }
 </style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute">
-  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5 6.5 12 13 4.5"/></symbol>
-  <symbol id="i-up" viewBox="0 0 16 16"><path d="M8 14V3M3.5 7.5 8 3l4.5 4.5"/></symbol>
-  <symbol id="i-down" viewBox="0 0 16 16"><path d="M8 2v11M3.5 8.5 8 13l4.5-4.5"/></symbol>
-  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2 15 14H1z"/><path d="M8 6.5v3.5M8 11.5v1"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/><path d="M12 15V9M9 12l3-3 3 3"/></symbol>
+  <symbol id="i-panels" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M18 11.5c0 4-6 3-10.5 5"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
 </svg>
 
 <nav class="draftbar">
-  <b>#350 Git – fundamental</b>
-  <a href="#connect">1 Connect</a><a href="#commit">2 Commit</a><a href="#behind">3 Both changed</a><a href="#workflow">4 The repository's side</a>
-  <span class="grow"></span><button id="scheme">Night</button>
+  <b>#350 Git – in the editor</b>
+  <a href="#connect">1 Manage: connect</a><a href="#connected">2 Manage: connected</a><a href="#commit">3 Editor: commit</a><a href="#behind">4 Editor: both changed</a><a href="#workflow">5 The repository's side</a>
+  <span class="grow"></span><button id="scheme">Day</button>
 </nav>
 
-<!-- 1 CONNECT -->
+<!-- The experiences page's top bar, shared by frames 1 and 2 -->
+<template id="t-pagebar">
+  <header class="top"><b>Experiences</b><span class="grow"></span><span class="ibtn"><svg class="icon"><use href="#i-menu"/></svg></span></header>
+</template>
+<template id="t-shelf">
+  <main class="shelf">
+    <h1>Experiences</h1>
+    <div class="covers">
+      <div class="book"><div class="cover">Onion Skin &amp; Crocodile Tears</div><span class="t">Onion Skin &amp; Crocodile Tears</span><span class="muted">Kévin Bray</span><span class="badge">draft</span><span class="manage">Manage</span></div>
+      <div class="book"><div class="cover" style="background:#f3f3f1 radial-gradient(#999 1px,transparent 1.5px) 0 0/6px 6px"></div><span class="t">The Demo Book</span><span class="muted">OSCT</span><span class="badge on">• staging</span><span class="manage on">Manage</span></div>
+      <div class="book"><div class="cover add">+</div><span class="t">New</span></div>
+    </div>
+  </main>
+</template>
+<template id="t-sheethead">
+  <div class="sheet-head"><h2>The Demo Book</h2><span class="muted">OSCT</span><code>https://osct.porschuetz.de/demo/</code></div>
+  <p class="actions"><span class="pill primary">Open</span><span class="pill">Export</span><span class="pill">Replace…</span></p>
+  <section class="versions"><h3>Versions</h3><ul>
+    <li><span>today 09:41</span><span>staging</span><span class="muted small">repository · c08e5f1</span><span class="badge on">• live</span></li>
+    <li><span>today 09:33</span><span>staging</span><span class="muted small">editor@osct.test</span><span class="text-link">make live</span></li>
+  </ul></section>
+</template>
+
+<!-- 1 MANAGE: CONNECT -->
 <section class="frame" id="f-connect">
   <div class="app">
-    <header class="top"><span class="brand">OSCT</span><span class="crumb">Onion Skin &amp; Crocodile Tears / Settings</span><span class="grow"></span><span class="avatar">TP</span></header>
+    <div data-use="t-pagebar"></div>
     <div class="split">
-      <main class="main">
-        <h1>Settings</h1>
-        <p class="muted" style="margin:.25rem 0 1rem">Title, format, environments … (as now)</p>
-        <div class="box" style="max-width:34rem">
-          <h2>Repository</h2>
-          <p class="muted">Keep this experience as files in a GitHub repository. The editor commits them; a push to the branch comes back here and goes to staging.</p>
-          <div class="field"><span class="label">Repository</span><input type="text" value="https://github.com/buildingfictions/osct-content"></div>
-          <div class="grid2">
-            <div class="field"><span class="label">Branch</span><input type="text" value="develop"></div>
-            <div class="field"><span class="label">Folder</span><input type="text" value="osct/"></div>
-          </div>
-          <div class="field"><span class="label">Access token</span><input type="text" value="github_pat_••••••••••••••••3fQa"><span class="muted small">A fine-grained token with <i>Contents: read and write</i> on this repository only. Stored on the server, never shown again.</span></div>
-          <div class="row"><span class="grow muted small">The folder is empty – the first commit writes the experience into it.</span><button class="btn primary">Connect</button></div>
-        </div>
-      </main>
+      <div data-use="t-shelf"></div>
       <aside class="side">
-        <div class="side-head"><h2>What goes into the repository</h2></div>
-        <div class="side-body">
-          <p>The experience's <b>export</b>, as <code>osct content export</code> writes it today:</p>
-          <p><code>experience.yaml</code>, <code>scenes/</code>, <code>entries/</code>, <code>entities/</code>, <code>plugins/&lt;id&gt;/index.ts</code>, <code>credits.yaml</code>, <code>export.json</code></p>
-          <p class="muted">Pictures, videos and models stay in the Library; <code>export.json</code> names each by its address and checksum.</p>
-          <p class="muted"><code>game.config.json</code> is not committed – it is built from these files.</p>
-        </div>
+        <div data-use="t-sheethead" style="display:contents"></div>
+        <section class="repo-box new">
+          <h3>Repository</h3>
+          <p class="muted">Keep the experience as files in a GitHub repository: the editor commits its export there; a push to the branch comes back into the draft and is published to staging.</p>
+          <label class="field"><span>Repository</span><input type="text" value="https://github.com/buildingfictions/demo-book"></label>
+          <div class="two">
+            <label class="field"><span>Branch</span><input type="text" value="develop"></label>
+            <label class="field"><span>Folder</span><input type="text" value="osct/"></label>
+          </div>
+          <label class="field"><span>Access token</span><input type="text" value="github_pat_••••••••••••••••3fQa">
+            <span class="muted small">Fine-grained, <i>Contents: read and write</i> on this repository only. Kept on the server, never shown again.</span></label>
+          <p class="actions"><span class="pill primary">Connect</span><span class="text-link">Cancel</span><span class="muted small" style="margin-left:auto">The folder is empty – the first commit fills it.</span></p>
+        </section>
+        <section class="delete"><span class="pill danger-pill">Delete experience…</span></section>
       </aside>
     </div>
   </div>
   <div class="notes"><b>Notes.</b><ul>
-    <li>Four fields, one box in the experience's settings. GitHub first; the same fields fit Forgejo/Gitea later.</li>
-    <li>No new file format, no manifest: the repository holds the export that exists already (the same as the export archive of #322).</li>
+    <li>No settings page: the repository is one more section of the book's <b>Manage</b> sheet – under Versions, above Delete. Closed, it is one line: <i>Repository – not connected</i> · <span style="text-decoration:underline">Connect…</span>, which opens these four fields in place.</li>
+    <li>Connect checks the token and the branch at once (one request to GitHub) and says what is wrong in the sheet, like Replace does.</li>
   </ul></div>
 </section>
 
-<!-- 2 COMMIT -->
+<!-- 2 MANAGE: CONNECTED -->
+<section class="frame" id="f-connected">
+  <div class="app">
+    <div data-use="t-pagebar"></div>
+    <div class="split">
+      <div data-use="t-shelf"></div>
+      <aside class="side">
+        <div data-use="t-sheethead" style="display:contents"></div>
+        <section class="repo-box new">
+          <h3>Repository</h3>
+          <div class="kv">
+            <span>Repository</span><span><code>buildingfictions/demo-book</code></span>
+            <span>Branch</span><span><code>develop</code> · folder <code>osct/</code></span>
+            <span>State</span><span class="state"><span class="repo saves" style="height:22px"><span class="dot"></span>6 saves not committed</span></span>
+            <span>Last commit</span><span>today 09:40 · <code>c08e5f1</code> · Tilman Porschütz</span>
+            <span>Push</span><span>publishes to staging · last run today 09:41 <span class="muted">✓</span></span>
+          </div>
+          <p class="actions"><span class="pill">Commit…</span><span class="text-link">Change…</span><span class="text-link">Disconnect</span></p>
+        </section>
+        <section class="delete"><span class="pill danger-pill">Delete experience…</span></section>
+      </aside>
+    </div>
+  </div>
+  <div class="notes"><b>Notes.</b><ul>
+    <li>Connected, the section says where, the state (the same words as in the editor's top bar), the last commit and the last push run.</li>
+    <li><b>Commit…</b> here and the top bar's item open the same dialog (frame 3). A version from the repository shows in Versions as <i>repository · c08e5f1</i>.</li>
+    <li><i>Disconnect</i> forgets the token and the state; the repository and the draft stay as they are.</li>
+  </ul></div>
+</section>
+
+<!-- The editor's top bar and stage, shared by frames 3 and 4 -->
+<template id="t-editor">
+  <header class="top">
+    <nav class="crumbs"><span>Experiences</span><span class="sep">›</span><span>The Demo Book</span><svg class="icon"><use href="#i-gear"/></svg><span class="sep">›</span><span class="current">3–4</span></nav>
+    <span class="grow"></span>
+    <span class="search"><svg class="icon"><use href="#i-search"/></svg>Search the experience</span>
+    <span class="muted small">live on staging</span>
+    <span class="slot"></span>
+    <span class="ibtn framed"><svg class="icon"><use href="#i-cloud"/></svg></span>
+    <span class="ibtn"><svg class="icon"><use href="#i-panels"/></svg></span>
+    <span class="ibtn"><svg class="icon"><use href="#i-user"/></svg></span>
+  </header>
+  <div class="stage">
+    <div class="spread"><i></i><i></i></div>
+    <div class="panel" style="left:8px;top:8px;width:440px;height:300px"><div class="ph">Logic</div></div>
+    <div class="panel" style="right:8px;top:8px;width:270px;height:520px"><div class="ph">Library</div></div>
+    <div class="panel" style="left:8px;bottom:8px;width:120px;height:26px"><div class="ph">Info</div></div>
+    <div class="panel" style="left:280px;bottom:8px;width:140px;height:26px"><div class="ph">Scenes</div></div>
+    <div class="backdrop"></div>
+  </div>
+</template>
+
+<!-- 3 EDITOR: COMMIT -->
 <section class="frame" id="f-commit">
-  <div class="app">
-    <header class="top"><span class="brand">OSCT</span><span class="crumb">Onion Skin &amp; Crocodile Tears / Scene 12–13</span><span class="grow"></span>
-      <span class="sync"><svg class="icon"><use href="#i-up"/></svg>Not committed · 6 saves</span>
-      <button class="btn primary">Publish ▾</button><span class="avatar">TP</span></header>
-    <div class="split">
-      <div class="stage">
-        <div class="spread"><i><b style="left:12%;top:18%;width:42%;height:30%"></b></i><i><b style="left:30%;top:52%;width:50%;height:28%"></b></i></div>
-        <div class="menu">
-          <div class="hover"><b>Commit to the repository…</b><span class="muted small">osct-content · develop · 6 saves</span></div>
-          <hr>
-          <div><b>Publish to staging</b><span class="muted small">as now</span></div>
-          <div><b>Publish to production</b><span class="muted small">as now</span></div>
-        </div>
-      </div>
-      <aside class="side">
-        <div class="side-head"><h2>Commit to the repository</h2></div>
-        <div class="side-body">
-          <p class="muted">6 saves since the last commit – scenes 12–13 and 30–31, the entry <i>The key</i>, the plugin <i>fluid</i>.</p>
-          <div class="field"><span class="label">Message</span><textarea rows="3">Scene 12–13: the key entry, its target moved</textarea></div>
-          <div class="row"><span class="avatar">TP</span><span class="muted">Committed as Tilman Porschütz</span></div>
-        </div>
-        <div class="side-foot">
-          <button class="btn primary">Commit</button>
-          <span class="muted small">The push to <code>develop</code> then publishes to staging by itself (frame 4).</span>
-        </div>
-      </aside>
-    </div>
-  </div>
+  <div class="app" data-use="t-editor"
+       data-slot='<span class="repo saves"><svg class="icon"><use href="#i-git"/></svg>6 saves not committed</span>'
+       data-dialog='
+    <div class="dialog" role="dialog">
+      <h2>Commit “The Demo Book” to <code style="font-size:14px">demo-book</code>?</h2>
+      <p class="muted">develop · osct/ · last commit today 09:40 (c08e5f1)</p>
+      <div class="changes"><span>6 saves since then</span><span class="small muted">scenes 3–4 and 12–13 · the entry <i>The key</i> · the plugin <i>fluid</i></span></div>
+      <label class="field"><span>Message</span><textarea rows="2">Scene 3–4: the key entry, its target moved</textarea></label>
+      <p class="small muted">As Tilman Porschütz. The push publishes to staging by itself.</p>
+      <p class="actions"><span class="pill primary">Commit</span><span class="text-link">Cancel</span></p>
+    </div>'></div>
   <div class="notes"><b>Notes.</b><ul>
-    <li>One more line in the Publish menu, one dialog with a message. The whole export is written as one commit – git works out which files changed.</li>
-    <li>The top bar says one of three things: <b>In sync</b> · <b>Not committed · n saves</b> · <b>Repository is ahead</b>.</li>
-    <li>Saves, drafts, revert and Publish stay exactly as they are. Without a connected repository nothing changes.</li>
+    <li>One item next to <i>live on staging</i>, only when a repository is connected: <b>In sync</b> (quiet, no frame) · <b>n saves not committed</b> (framed) · <b>Repository is ahead</b> (red, frame 4). A click opens the dialog.</li>
+    <li>The dialog is Publish's dialog with a message field: what changed since the last commit, then Commit / Cancel. The whole export goes in as one commit; git works out the files.</li>
+    <li>Saves, undo, revert and Publish stay as they are. No repository connected – nothing in the top bar changes.</li>
   </ul></div>
 </section>
 
-<!-- 3 BOTH CHANGED -->
+<!-- 4 EDITOR: BOTH CHANGED -->
 <section class="frame" id="f-behind">
-  <div class="app">
-    <header class="top"><span class="brand">OSCT</span><span class="crumb">Onion Skin &amp; Crocodile Tears / Scene 12–13</span><span class="grow"></span>
-      <span class="sync hot"><svg class="icon"><use href="#i-warn"/></svg>Repository is ahead</span>
-      <button class="btn primary">Publish ▾</button><span class="avatar">TP</span></header>
-    <div class="split">
-      <div class="stage">
-        <div class="spread"><i><b style="left:12%;top:18%;width:42%;height:30%"></b></i><i><b style="left:30%;top:52%;width:50%;height:28%"></b></i></div>
-      </div>
-      <aside class="side">
-        <div class="side-head"><h2>The repository changed too</h2></div>
-        <div class="side-body">
-          <p><b>marie</b> pushed 2 commits to <code>develop</code> since your last commit, and you have 6 saves that are not committed.</p>
-          <p class="muted">They were not brought in, so nothing of yours is lost. Choose one:</p>
-          <div class="box">
-            <b>Take the repository's version</b>
-            <span class="muted">Shows the comparison of the import you know – what comes in, scene by scene. Your 6 saves stay in the history and can be reverted to.</span>
-            <button class="btn primary">Compare…</button>
-          </div>
-          <div class="box">
-            <b>Commit mine over it</b>
-            <span class="muted">Your version becomes the repository's. marie's commits stay in git's history.</span>
-            <button class="btn">Commit mine…</button>
-          </div>
-        </div>
-      </aside>
-    </div>
-  </div>
+  <div class="app" data-use="t-editor"
+       data-slot='<span class="repo ahead"><svg class="icon"><use href="#i-git"/></svg>Repository is ahead</span>'
+       data-dialog='
+    <div class="dialog" role="dialog">
+      <h2>The repository changed too</h2>
+      <p><b>marie</b> pushed 2 commits to <code>develop</code> since your last commit, and the draft has 6 saves that are not committed. Nothing was brought in, nothing of yours is lost.</p>
+      <div class="choice"><b>Take the repository’s version</b><span class="muted">The comparison you know from Replace – what comes in, scene by scene. Your 6 saves stay in the history.</span><span class="pill primary">Compare…</span></div>
+      <div class="choice"><b>Commit mine over it</b><span class="muted">Your version becomes the repository’s; marie’s commits stay in git’s history.</span><span class="pill">Commit mine…</span></div>
+      <p class="actions"><span class="text-link">Not now</span></p>
+    </div>'></div>
   <div class="notes"><b>Notes.</b><ul>
-    <li>No merging in the editor. When both sides changed, a person picks one side; git keeps the other in its history.</li>
-    <li>"Take the repository's version" is the existing import with its version comparison (<code>confirm-import</code>), nothing new.</li>
-    <li>Without saves of its own the editor never asks: a push comes in by itself (frame 4).</li>
+    <li>No merging. When both sides changed, a person picks one side; git keeps the other.</li>
+    <li><i>Compare…</i> is the existing import comparison (<code>confirm-import</code>), here with the repository as its source – the same source Replace… in the Manage sheet gets as a fourth choice next to file, URL and published.</li>
+    <li>Without saves of its own the editor never asks: a push comes in by itself (frame 5) and the item says <i>In sync</i> again.</li>
   </ul></div>
 </section>
 
-<!-- 4 THE REPOSITORY'S SIDE -->
+<!-- 5 THE REPOSITORY'S SIDE -->
 <section class="frame" id="f-workflow">
   <div class="app">
-    <header class="top"><span class="brand muted">The repository</span><span class="crumb"><code>.github/workflows/osct.yml</code></span><span class="grow"></span></header>
-    <main class="main">
-      <div class="grid2">
-        <div style="display:grid;gap:.75rem;align-content:start">
+    <header class="top"><b>The repository</b><code class="muted">.github/workflows/osct.yml</code><span class="grow"></span></header>
+    <main class="repo-side">
+      <div class="cols">
+        <div>
           <h2>One file in the repository</h2>
           <div class="term"><span class="p"># written by the editor's first commit</span>
 on:
@@ -238,24 +309,24 @@ jobs:
           OSCT_TOKEN: ${{ secrets.OSCT_TOKEN }}</div>
           <table>
             <tr><td>Push from a person</td><td>build → into the editor's draft → published to staging</td></tr>
-            <tr><td>Push from the editor</td><td>nothing to bring in (already the draft) → published to staging</td></tr>
-            <tr><td>Draft has saves not committed</td><td>refused – the run fails with the reason, the editor shows frame 3</td></tr>
+            <tr><td>Push from the editor</td><td>nothing to bring in (it is the draft) → published to staging</td></tr>
+            <tr><td>Draft has saves not committed</td><td>refused – the run fails with the reason, the editor shows frame 4</td></tr>
             <tr><td>Production</td><td>never from here – the editor's Publish, a person</td></tr>
           </table>
         </div>
-        <div style="display:grid;gap:.75rem;align-content:start">
+        <div>
           <h2>A run</h2>
           <div class="term"><span class="p">push</span> 77be0d4 marie: Scene 4–5: second target for the fold-out
-<span class="p">build</span> osct  92 scenes · 210 entries · 14 plugins  <span class="ok">✓</span>
-<span class="p">push</span>  draft of osct is in sync with c08e5f1 – bringing in 77be0d4
+<span class="p">build</span> osct  12 scenes · 48 entries · 10 plugins  <span class="ok">✓</span>
+<span class="p">push</span>  draft of demo is in sync with c08e5f1 – bringing in 77be0d4
        1 scene changed  <span class="ok">✓</span>
 <span class="p">publish</span> staging  build 53099b9d32d8  <span class="ok">✓</span>
-       https://osct.porschuetz.de/osct/</div>
+       https://osct.porschuetz.de/demo/</div>
           <h2>When the editor has saves of its own</h2>
-          <div class="term"><span class="p">push</span>  draft of osct has 6 saves since c08e5f1 that are not committed
-<span class="r">✗ not brought in.</span> Commit them in the editor, or take this
-  version there: Settings → Repository → Compare.</div>
-          <p class="muted"><code>OSCT_TOKEN</code>: a token from the editor for this experience – may bring in and publish to staging, nothing else.</p>
+          <div class="term"><span class="p">push</span>  draft of demo has 6 saves since c08e5f1 that are not committed
+<span class="r">✗ not brought in.</span> In the editor: Repository is ahead –
+  commit them, or take this version (Compare).</div>
+          <p class="muted"><code>OSCT_TOKEN</code>: made in the Manage sheet's Repository section for this experience – may bring in and publish to staging, nothing else.</p>
         </div>
       </div>
     </main>
@@ -263,12 +334,18 @@ jobs:
   <div class="notes"><b>Notes.</b><ul>
     <li>Auto-deploy like a connected repository: every push to the branch reaches staging in about a minute.</li>
     <li>The build runs on the repository's side (the existing CLI) – the server needs no Node and no git.</li>
-    <li>New on the server: the repository settings, the commit (GitHub's API), "in sync with which commit", the token kind, and <code>osct push</code> (the import without the comparison when the draft is unchanged).</li>
   </ul></div>
 </section>
 
 <script>
-  const frames = ["connect", "commit", "behind", "workflow"];
+  // Fill the shared parts: templates by data-use, the editor's top-bar slot and dialog by data-slot / data-dialog
+  for (const host of document.querySelectorAll("[data-use]")) {
+    host.append(document.getElementById(host.dataset.use).content.cloneNode(true));
+    if (host.dataset.slot) host.querySelector(".slot").outerHTML = host.dataset.slot;
+    if (host.dataset.dialog) host.querySelector(".backdrop").innerHTML = host.dataset.dialog;
+  }
+  for (const host of document.querySelectorAll("[data-use]:not(.app)")) host.replaceWith(...host.childNodes);
+  const frames = ["connect", "connected", "commit", "behind", "workflow"];
   const show = () => {
     const name = frames.includes(location.hash.slice(1)) ? location.hash.slice(1) : "connect";
     for (const f of frames) document.getElementById(`f-${f}`).classList.toggle("on", f === name);
@@ -279,9 +356,9 @@ jobs:
   const params = new URLSearchParams(location.search);
   if (params.has("shot")) document.body.classList.add("shot");
   const button = document.getElementById("scheme");
-  const setScheme = (dark) => { document.documentElement.dataset.scheme = dark ? "dark" : "light"; button.textContent = dark ? "Day" : "Night"; };
-  setScheme(params.get("scheme") === "dark");
-  button.addEventListener("click", () => setScheme(document.documentElement.dataset.scheme !== "dark"));
+  const setScheme = (light) => { document.documentElement.dataset.scheme = light ? "light" : "dark"; button.textContent = light ? "Night" : "Day"; };
+  setScheme(params.get("scheme") === "light");
+  button.addEventListener("click", () => setScheme(document.documentElement.dataset.scheme !== "light"));
 </script>
 </body>
 </html>
