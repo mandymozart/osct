@@ -1,8 +1,9 @@
 import {
-  AlwaysDepth, AlwaysStencilFunc, AmbientLight, AnimationMixer, BackSide, BoxGeometry, BufferAttribute, CanvasTexture, Clock,
-  DirectionalLight, EqualStencilFunc, ExtrudeGeometry, FrontSide, Group, type Material, MathUtils, Mesh,
+  AmbientLight, AnimationMixer, BackSide, BoxGeometry, BufferAttribute, CanvasTexture, Clock,
+  DirectionalLight, ExtrudeGeometry, FrontSide, Group, MathUtils, Mesh,
   MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, type Object3D, PerspectiveCamera, Plane, PlaneGeometry, PMREMGenerator, Raycaster,
-  RepeatWrapping, ReplaceStencilOp, ShaderMaterial, Scene, Shape, ShapeGeometry, SRGBColorSpace, type Texture, Vector2, Vector3, WebGLRenderer,
+  RepeatWrapping, Scene, Shape, ShapeGeometry, SRGBColorSpace, type Texture, TextureLoader, Vector2, Vector3, WebGLRenderer,
+  WebGLRenderTarget,
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -22,7 +23,7 @@ import type { ScanPrint, ScanStageData } from "./scan-stage-data";
  * the real reveal we got"; "the phone can also follow the mouse so it becomes a simulation of the scan".
  *
  * The book lies closed, its cover opens, a few pages turn, and it lies open on the scene of `ScanStageData`. Then a phone
- * comes in and scans it: only through its screen – a stencil portal – does the model stand on the page. When the
+ * comes in and scans it: only on its screen – the picture of its own camera, magnified – does the model stand on the page. When the
  * target comes into the screen, the experience's own looks play (`reveal` the first time, then `found`; `lost` when it
  * leaves – the content's appearance and plugins, the engine's `celebrate`, as in the reader). The phone follows the
  * mouse once clicked ("the simulation should do this automatic scan, but when i click the mouse it should take control
@@ -41,6 +42,8 @@ export interface ScanStageExtras {
   author: string;
   /** Other prints of the book for turning pages without a sheet */
   pageImages: readonly string[];
+  /** The Mark (the eye) at the top of the phone's screen, as in the app */
+  markSrc: string;
 }
 
 /**
@@ -69,7 +72,17 @@ const AIM_UP = 0.07;
  * itself: tolerant, a visitor steering the phone keeps the model while most of the print has left the screen
  */
 const FIND_SHARE = 1.15;
-const STENCIL_REF = 1;
+/** What stands on the target is seen by the phone's camera only; the phone by the visitor's only */
+const MODEL_LAYER = 1;
+const PHONE_LAYER = 2;
+/**
+ * The phone's camera: its angle of view – narrower than what the screen covers of the book, so the screen magnifies
+ * the page below it (about 1.4 × held over the book; pulled away it sees more of it) – and its picture's width in px
+ */
+const PHONE_FOV = 46;
+const FEED_WIDTH = 640;
+/** The scan marks on the screen: the line's width and its travel up and down, in shares of the screen */
+const SCAN = { width: 0.62, travel: 0.19 };
 const LIGHT = { ambient: 2.2, sun: 1.5 };
 const PAPER = "#f6f3ec";
 /**
@@ -379,6 +392,9 @@ export class ScanStage {
   private readonly placed = new Group();
   private readonly leaves: Leaf[] = [];
   private blocks: { left: Mesh; right: Mesh; spine: Mesh } | null = null;
+  private readonly phoneCamera = new PerspectiveCamera(PHONE_FOV, 0.5, 0.05, 10);
+  private feed: WebGLRenderTarget | null = null;
+  private marks: { frame: Mesh; line: Mesh; travel: number } | null = null;
   /** Reflections for the metal, the gilt edges and the cover's lacquer only – the model is lit as in the reader */
   private readonly environment: Texture;
   private readonly cameraHome = new Vector3(0, -1.55, 1.85);
@@ -424,10 +440,14 @@ export class ScanStage {
     this.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
     // White light only, bright and even: nothing tints the model or the cover
-    this.scene.add(new AmbientLight(0xffffff, LIGHT.ambient));
+    const ambient = new AmbientLight(0xffffff, LIGHT.ambient);
     const sun = new DirectionalLight(0xffffff, LIGHT.sun);
     sun.position.set(-0.4, -0.5, 1.6);
-    this.scene.add(sun);
+    // The lights shine for every camera, whichever layers it films
+    ambient.layers.enableAll();
+    sun.layers.enableAll();
+    this.scene.add(ambient, sun);
+    this.camera.layers.enable(PHONE_LAYER);
 
     this.view(this.still ? 1 : 0);
     this.placed.visible = false;
@@ -490,6 +510,7 @@ export class ScanStage {
     this.section.style.cursor = "";
     disposeObject(this.scene);
     this.environment.dispose();
+    this.feed?.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
@@ -617,7 +638,12 @@ export class ScanStage {
     this.target = { x: print.x, y, halfWidth: print.width / 2, halfHeight: height / 2 };
   }
 
-  /** The phone: a graphite body with a gold rim and side buttons, the screen's stencil portal, glass, scan frame, camera pill */
+  /**
+   * The phone: a graphite body with a gold rim and side buttons. Its screen shows what its own camera films
+   * (`film`): the book below it, magnified, with what stands on the page drawn over it – as the reader draws it over
+   * the camera's picture. On the screen as in the app: the Mark at the top, the scan marks and a scan line while it
+   * searches (gone once the target is found), a sheen of glass.
+   */
   private buildPhone() {
     const { width, height, depth, radius, bezel } = PHONE;
     const inner = { width: width - 2 * bezel, height: height - 2 * bezel, radius: radius - bezel };
@@ -636,17 +662,17 @@ export class ScanStage {
       button.position.set(side * (width / 2 + 0.005), y, -depth / 2);
       return button;
     });
-    [body, rim, ...buttons].forEach(mesh => (mesh.renderOrder = 3));
-    const screenShape = roundedRect(inner.width, inner.height, inner.radius);
-    // The screen draws nothing: it marks its pixels (stencil) and clears their depth, so what stands on the page is
-    // drawn over the book there as the reader draws it over the camera's picture – also the part sunk into the page
-    const screen = new Mesh(new ShapeGeometry(screenShape, 14), new ShaderMaterial({
-      vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-      fragmentShader: "void main() { gl_FragColor = vec4(0.0); gl_FragDepth = 1.0; }",
-      colorWrite: false, depthTest: true, depthFunc: AlwaysDepth, depthWrite: true,
-      stencilWrite: true, stencilRef: STENCIL_REF, stencilFunc: AlwaysStencilFunc, stencilZPass: ReplaceStencilOp,
-    }));
-    screen.renderOrder = 1;
+    // The screen's shape with uv over its box (a ShapeGeometry's uv are its positions)
+    const screenGeometry = () => {
+      const geometry = new ShapeGeometry(roundedRect(inner.width, inner.height, inner.radius), 14);
+      const uv = geometry.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / inner.width + 0.5, uv.getY(i) / inner.height + 0.5);
+      return geometry;
+    };
+    this.feed = new WebGLRenderTarget(FEED_WIDTH, Math.round(FEED_WIDTH * (inner.height / inner.width)), { samples: 4 });
+    this.phoneCamera.aspect = inner.width / inner.height;
+    this.phoneCamera.updateProjectionMatrix();
+    const screen = new Mesh(screenGeometry(), new MeshBasicMaterial({ map: this.feed.texture, toneMapped: false }));
     const overlay = (geometry: ShapeGeometry | PlaneGeometry, material: MeshBasicMaterial): Mesh => {
       material.transparent = true;
       material.depthTest = false;
@@ -656,18 +682,78 @@ export class ScanStage {
       mesh.position.z = 0.001;
       return mesh;
     };
-    const glassGeometry = new ShapeGeometry(screenShape, 14);
-    const uv = glassGeometry.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / inner.width + 0.5, uv.getY(i) / inner.height + 0.5);
-    const glass = overlay(glassGeometry, new MeshBasicMaterial({ map: this.glassTexture() }));
-    const frameMaterial = new MeshBasicMaterial({ map: this.scanFrameTexture(), opacity: 0.9 });
-    const frame = overlay(new PlaneGeometry(inner.width, inner.height), frameMaterial);
-    const pill = overlay(new ShapeGeometry(roundedRect(0.07, 0.02, 0.01), 8), new MeshBasicMaterial({ color: "#000000" }));
-    pill.position.y = inner.height / 2 - 0.022;
-    this.phone.add(body, rim, ...buttons, screen, glass, frame, pill);
-    this.phone.userData.frame = frameMaterial;
+    const glass = overlay(screenGeometry(), new MeshBasicMaterial({ map: this.glassTexture() }));
+    const frame = overlay(new PlaneGeometry(inner.width, inner.height), new MeshBasicMaterial({ map: this.scanFrameTexture(), opacity: 0 }));
+    const line = overlay(new PlaneGeometry(inner.width * SCAN.width, inner.height * 0.05), new MeshBasicMaterial({ map: this.scanLineTexture(), opacity: 0 }));
+    this.marks = { frame, line, travel: inner.height * SCAN.travel };
+    this.phone.add(body, rim, ...buttons, screen, glass, frame, line);
+    // The Mark at the top of the screen, as in the app
+    void new TextureLoader().setCrossOrigin("anonymous").loadAsync(this.extras.markSrc).then(texture => {
+      texture.colorSpace = SRGBColorSpace;
+      const image = texture.image as { width: number; height: number };
+      const markWidth = inner.width * 0.36;
+      const mark = overlay(new PlaneGeometry(markWidth, markWidth * (image.height / Math.max(1, image.width))), new MeshBasicMaterial({ map: texture, toneMapped: false }));
+      mark.position.y = inner.height / 2 - 0.05;
+      mark.layers.set(PHONE_LAYER);
+      this.phone.add(mark);
+    }).catch(() => undefined);
+    this.phone.traverse(object => object.layers.set(PHONE_LAYER));
     this.phone.visible = false;
     this.scene.add(this.phone);
+  }
+
+  /** The scan line: a soft gold band */
+  private scanLineTexture(): CanvasTexture {
+    const canvas = document.createElement("canvas");
+    canvas.width = 8;
+    canvas.height = 64;
+    const g = canvas.getContext("2d")!;
+    const gradient = g.createLinearGradient(0, 0, 0, 64);
+    gradient.addColorStop(0, "rgba(225, 190, 110, 0)");
+    gradient.addColorStop(0.5, "rgba(240, 210, 140, .95)");
+    gradient.addColorStop(1, "rgba(225, 190, 110, 0)");
+    g.fillStyle = gradient;
+    g.fillRect(0, 0, 8, 64);
+    return canvasTexture(canvas);
+  }
+
+  /**
+   * The phone's camera films the page it is held over into the screen's picture: first the book, then – over it,
+   * whatever the page hides – what stands on the target (the model and what its looks add)
+   */
+  private film(onPage: Vector3) {
+    if (!this.feed) return;
+    this.phone.updateMatrixWorld();
+    this.phoneCamera.position.copy(this.phone.position);
+    this.phoneCamera.up.set(0, 1, 0).transformDirection(this.phone.matrixWorld);
+    this.phoneCamera.lookAt(onPage);
+    this.anchor.traverse(object => object.layers.set(MODEL_LAYER));
+    const renderer = this.renderer;
+    renderer.setRenderTarget(this.feed);
+    renderer.setClearColor(0x000000, 1);
+    renderer.clear();
+    renderer.autoClear = false;
+    this.phoneCamera.layers.set(0);
+    renderer.render(this.scene, this.phoneCamera);
+    renderer.clearDepth();
+    this.phoneCamera.layers.set(MODEL_LAYER);
+    renderer.render(this.scene, this.phoneCamera);
+    renderer.autoClear = true;
+    renderer.setRenderTarget(null);
+    renderer.setClearColor(0x000000, 0);
+  }
+
+  /** While it searches, the scan marks breathe and the line sweeps; found, both are gone */
+  private animateMarks(seconds: number, delta: number) {
+    if (!this.marks) return;
+    const { frame, line, travel } = this.marks;
+    const frameMaterial = frame.material as MeshBasicMaterial;
+    const lineMaterial = line.material as MeshBasicMaterial;
+    const searching = this.inView ? 0 : 1;
+    frameMaterial.opacity = MathUtils.damp(frameMaterial.opacity, searching * (0.75 + 0.2 * Math.sin(seconds * 4)), 8, delta);
+    lineMaterial.opacity = MathUtils.damp(lineMaterial.opacity, searching * 0.9, 8, delta);
+    frame.scale.setScalar(1 + 0.035 * Math.sin(seconds * 2.4));
+    line.position.y = Math.sin(seconds * 2.1) * travel;
   }
 
   /** The glass: a faint sheen across the screen */
@@ -803,6 +889,7 @@ export class ScanStage {
     if (!this.still) this.playIntro(seconds);
     const scanning = seconds >= this.introEnd;
     this.phone.visible = scanning;
+    let onPage: Vector3 | null = null;
     if (scanning) {
       if (this.steering && seconds - this.mouseAt > IDLE_S) this.steer(false);
       const following = this.steering && this.mouse !== null;
@@ -810,22 +897,21 @@ export class ScanStage {
       if (this.still) this.aim.copy(wanted);
       else this.aim.lerp(wanted, 1 - Math.exp(-(following ? 7 : 3) * delta));
       this.near = MathUtils.damp(this.near, this.steering ? 1 : 0, 5, delta);
-      this.placePhone(seconds);
+      onPage = this.placePhone(seconds);
       this.scan();
     }
     if (this.celebration && !this.celebration.update(delta)) {
       if (this.celebration.kind === "lost") this.placed.visible = false;
       this.celebration = null;
     }
-    this.portal();
-    const frame = this.phone.userData.frame as MeshBasicMaterial;
-    frame.opacity = MathUtils.damp(frame.opacity, this.inView ? 0.15 : 0.9, 4, delta);
+    this.animateMarks(seconds, delta);
     this.mixer?.update(delta);
+    if (onPage) this.film(onPage);
     this.renderer.render(this.scene, this.camera);
   }
 
   /** The phone between the eye and the page point it looks at, held over the book rather than flat to the viewer */
-  private placePhone(seconds: number) {
+  private placePhone(seconds: number): Vector3 {
     const onPage = new Vector3(this.aim.x, this.aim.y, 0);
     const sight = this.camera.position.clone().sub(onPage).normalize();
     // Steered, it is held nearer – and dragged down, towards the visitor, it comes up to the eye ("its more a pulling
@@ -834,8 +920,10 @@ export class ScanStage {
     this.phone.position.copy(onPage).addScaledVector(sight, MathUtils.lerp(PHONE.distance, PHONE.steered + pull, smooth(this.near)));
     this.phone.up.set(0, 0, 1);
     this.phone.lookAt(this.camera.position);
-    this.phone.rotateX(-0.4);
+    // Held over the book its top leans away; pulled to the eye, its top comes towards the visitor
+    this.phone.rotateX(-0.4 + 0.8 * (pull / PHONE.pull) * smooth(this.near));
     this.phone.rotateZ(Math.sin(seconds * 0.5) * 0.035);
+    return onPage;
   }
 
   /** The target comes into the screen or leaves it: the experience's look for the moment, as the reader plays it */
@@ -856,21 +944,5 @@ export class ScanStage {
     }
     this.celebration?.finish();
     this.celebration = celebrate(this.anchor, this.placed, moment, entityMomentAppearance(this.data.entity, getExperience(), moment));
-  }
-
-  /** Everything on the anchor – the model and whatever its look adds (sparks, its own materials) – only through the screen */
-  private portal() {
-    this.anchor.traverse(object => {
-      const mesh = object as Mesh;
-      if (!mesh.material) return;
-      (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((material: Material) => {
-        if (material.stencilWrite && material.stencilFunc === EqualStencilFunc) return;
-        material.stencilWrite = true;
-        material.stencilRef = STENCIL_REF;
-        material.stencilFunc = EqualStencilFunc;
-        material.needsUpdate = true;
-      });
-      mesh.renderOrder = 2;
-    });
   }
 }

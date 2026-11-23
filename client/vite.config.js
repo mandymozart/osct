@@ -221,7 +221,6 @@ function staticLanding(experience, config, contentBase) {
           author: fields.author,
           publisher: fields.publisher,
           images: landingImages(config, url),
-          markSrc: ONBOARDING_ICON_SRC,
         }));
     },
   };

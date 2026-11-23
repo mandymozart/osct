@@ -60,8 +60,6 @@ export interface LandingSource extends LandingConfig {
   publisher: string;
   /** The experience's target images in scene order (URLs as the reader loads them); a stable pick of them is scattered */
   images: readonly string[];
-  /** The Mark over the title (`ONBOARDING_ICON_SRC`) */
-  markSrc: string;
 }
 
 /** The book's images of a game configuration as `getScenes()` lists its targets: scene order, switched-off targets left out */
@@ -157,7 +155,6 @@ export const LANDING_CSS = /* css */ `
           gap: 4rem;
           padding-block: clamp(4rem, 10vh, 7rem);
         }
-        .mark { width: 6.25rem; height: auto; display: block; margin: 0 0 2rem -.5rem; filter: drop-shadow(0 0 1.5rem rgba(90, 200, 60, .25)); }
         h1 {
           margin: 0;
           font-weight: 400;
@@ -242,7 +239,6 @@ export const renderLanding = (source: LandingSource): string => {
           <div class="scatter" aria-hidden="true">${scatter(source.images)}</div>
           <div class="wrap hero-grid">
             <div class="intro-block">
-              <img class="mark" src="${escapeHtml(source.markSrc)}" alt="" />
               <h1>${titleLines.map((part, i) => `<span class="line gold shimmer${i % 2 ? " and" : ""}">${part}</span>`).join("")}</h1>
               ${author ? `<p class="author gold">${escapeHtml(author)}</p>` : ""}
               <p class="intro">${texts.intro}</p>

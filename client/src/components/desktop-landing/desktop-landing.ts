@@ -92,6 +92,7 @@ export class DesktopLanding extends HTMLElement {
         })),
         title: experience.title,
         author: experience.book?.author ?? "",
+        markSrc: ONBOARDING_ICON_SRC,
         pageImages: pick(getScenes().flatMap(scene => scene.targets.map(target => target.imageSrc)).filter(src => !prints.has(src)), 6, 354),
       });
       await this.stage.load();
@@ -195,7 +196,6 @@ export class DesktopLanding extends HTMLElement {
       author,
       publisher: experience.book?.publisher ?? "",
       images: getScenes().flatMap(scene => scene.targets.map(target => target.imageSrc)),
-      markSrc: ONBOARDING_ICON_SRC,
     });
     const address = this.shadowRoot.querySelector(".address");
     if (address) address.textContent = location.host;

@@ -17,7 +17,6 @@ const source = (over: Partial<LandingSource> = {}): LandingSource => ({
   author: "Kévin <Bray>",
   publisher: "Building Fictions",
   images: Array.from({ length: 20 }, (_, i) => `/assets/content/targets/t${i}.webp`),
-  markSrc: "/assets/ui/onboarding/icon.png",
   ...over,
 });
 
@@ -42,9 +41,9 @@ describe("the landing page's markup (#343)", () => {
     expect(renderLanding(source({ images: ["/a.webp", "/a.webp", ""] })).match(/class="float"/g)).toHaveLength(1);
   });
 
-  it("has the Mark, the phone, the QR card, the shop and the footer; the address is filled at runtime", () => {
+  it("has the stage, the QR card, the shop and the footer; the address is filled at runtime", () => {
     const html = renderLanding(source());
-    expect(html).toContain('<img class="mark" src="/assets/ui/onboarding/icon.png"');
+    expect(html).not.toContain('class="mark"');   // the Mark sits on the stage's phone screen (#354)
     expect(html).toContain(`<aside class="stage" role="img" aria-label="${en.previewAlt}"></aside>`);
     expect(html).toContain('<div class="qr-code" role="img"');
     LANDING_CONFIG.shop.forEach(item => expect(html).toContain(`href="${item.url}"`));
