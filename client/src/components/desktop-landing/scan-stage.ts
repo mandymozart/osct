@@ -90,11 +90,16 @@ const FILM_BACK = 0.6;
 const FOCUS_HEIGHT = 0.6;
 const FEED_WIDTH = 640;
 /**
- * Before it scans, the phone lies in front of the book, level with it, its screen up and its long side along the
- * book's lower edge, the Mark to the right ("in the same level as the book parallel to the bottom 90 degrees turned"). It glides in slowly
- * from below while the view moves to the stage, and rises to the scan within `PHONE_RISE` seconds.
+ * The phone against the book: built at `PHONE`'s size (a 460 mm spread = 1: 124 × 258 mm) it dwarfed the book lying
+ * beside it; at this scale it is a large phone's 87 × 180 mm
  */
-const PHONE_REST = { position: new Vector3(0, -0.58, -0.012), quaternion: new Quaternion().setFromEuler(new Euler(0, 0, -Math.PI / 2)) };
+const PHONE_SCALE = 0.7;
+/**
+ * Before it scans, the phone lies in front of the book, level with it, its screen up and upright as it will be held
+ * (not turned: it rises without a twist). It glides in slowly from below while the view moves to the stage, and rises
+ * to the scan within `PHONE_RISE` seconds.
+ */
+const PHONE_REST = { position: new Vector3(0, -0.62, -0.012), quaternion: new Quaternion() };
 const PHONE_ARRIVAL = { at: INTRO.hold, slide: 2.8, from: new Vector3(0, -0.9, 0) };
 const PHONE_RISE = 2;
 /**
@@ -728,6 +733,7 @@ export class ScanStage {
       this.phone.add(mark);
     }).catch(() => undefined);
     this.phone.traverse(object => object.layers.set(PHONE_LAYER));
+    this.phone.scale.setScalar(PHONE_SCALE);
     this.phone.visible = false;
     this.scene.add(this.phone);
   }
