@@ -8,9 +8,11 @@ import { ONBOARDING_ICON_SRC, renderStaticSplash, SPLASH_STEP, splashFields } fr
 import { fontBaseUrl, renderFontFaces } from './src/utils/font-face-html.ts';
 import { legacyRedirectData, renderLegacyRedirect } from './src/utils/legacy-redirect-html.ts';
 import { manifestLinkData, renderManifestLink, withoutBuildManifestLink } from './src/utils/manifest-link-html.ts';
-import { landingDecisionData, renderLandingDecision } from './src/components/desktop-landing/landing-decision-html.ts';
-import { fillTexts, landingImages, renderStaticLanding } from './src/components/desktop-landing/landing-html.ts';
-import { LANDING_CONFIG } from './src/components/desktop-landing/landing-config.ts';
+import { landingDecisionData, renderEntryPreload, renderLandingDecision } from './src/landing/landing-decision-html.ts';
+import { fillTexts, LANDING_ATTRIBUTE, landingImages, renderStaticLanding } from './src/landing/landing-html.ts';
+import { LANDING_CONFIG } from './src/landing/landing-config.ts';
+import { renderPrivacyPage } from './src/privacy/privacy-html.ts';
+import { DEFAULT_LANGUAGE, LANGUAGES } from './src/i18n/languages.ts';
 
 // One version for app and content build (RULES.md #10). Read from package.json because
 // npm_package_version is missing outside `npm run` (e.g. `npx vite`).
@@ -115,6 +117,7 @@ function pwa(shellConfig) {
       // App shell only: content (assets/content/) is cached on first use; dev tools (assets/deps/) never
       globPatterns: [
         'index.html',
+        'privacy.html', // Privacy & terms (#355): answered offline for /privacy and /<experience>/privacy
         'assets/app/**/*.{js,css}',
         'assets/{ui,illustrations,sounds,icons}/**/*',
         'assets/{bf.svg,favicon.ico}',
@@ -199,11 +202,12 @@ function manifestLink() {
 }
 
 /**
- * The desktop landing in the skeleton (#343, src/components/desktop-landing/landing-decision-html.ts and landing-html.ts):
- * an inline script after the legacy redirect decides at once whether this is a computer on the default experience's
- * path (`<html data-osct-landing>`), and the landing page itself is written into the body from the build's game
- * configuration (English texts, the targets' images from the content the build read) – so a computer sees the landing,
- * not the phone's splash, before the bundle has loaded. `<desktop-landing>` takes over when it arrives.
+ * The desktop landing in the skeleton (#343, #355 – src/landing/landing-decision-html.ts and landing-html.ts): an inline
+ * script after the legacy redirect decides at once whether this is a computer (`<html data-osct-landing>`: `page` on the
+ * default experience's path, `skeleton` on another's), and the landing page itself is written into the body from the
+ * build's game configuration (English texts, the targets' images from the content the build read) – so a computer sees
+ * the landing, not the phone's splash, before any code has loaded. index.html's loader then imports the landing's entry
+ * instead of the app (src/landing/entry.ts), which fills it in.
  */
 function staticLanding(experience, config, contentBase) {
   const read = (file) => JSON.parse(readFileSync(resolve(import.meta.dirname, file), 'utf8'));
@@ -223,6 +227,86 @@ function staticLanding(experience, config, contentBase) {
           images: landingImages(config, url),
           privacyHref: experience ? `/${experience}/privacy` : '/privacy',
         }));
+    },
+  };
+}
+
+/**
+ * The chosen entry's files at once (#355, landing-decision-html.ts `renderEntryPreload`): index.html's loader module
+ * imports the app or the landing once the page is parsed; a script right after the decision asks for that entry's built
+ * files (it and its static imports) as module preloads while the page is still parsed – as the preload scanner did when
+ * index.html named the app's script itself. Build only (the dev server has no built files).
+ */
+function entryPreload() {
+  const marker = '<!--osct:entry-preload-->';
+  return {
+    name: 'osct-entry-preload',
+    enforce: 'post',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!html.includes(marker)) return html;
+        const bundle = ctx.bundle;
+        if (!bundle) return html.replace(marker, '');
+        const chunks = Object.values(bundle).filter(item => item.type === 'chunk');
+        const files = (suffix) => {
+          const entry = chunks.find(chunk => (chunk.facadeModuleId ?? '').replace(/\\/g, '/').endsWith(suffix));
+          if (!entry) throw new Error(`osct-entry-preload: no chunk for ${suffix}`);
+          const seen = new Set();
+          const visit = (fileName) => {
+            if (seen.has(fileName)) return;
+            seen.add(fileName);
+            bundle[fileName]?.imports?.forEach(visit);
+          };
+          visit(entry.fileName);
+          return [...seen].map(file => `/${file}`);
+        };
+        return html.replace(marker, renderEntryPreload(LANDING_ATTRIBUTE, { app: files('/src/main.ts'), landing: files('/src/landing/entry.ts') }));
+      },
+    },
+  };
+}
+
+/**
+ * Privacy & terms as a static page (#355, src/privacy/privacy-html.ts): privacy.html gets the app's `privacy` texts in
+ * every language and the build's default experience's title and author; the dev and preview servers answer `/privacy`
+ * and `/<experience>/privacy` with it, as public/.htaccess does.
+ */
+function privacyPage(experience, config, contentBaseUrl) {
+  const read = (file) => JSON.parse(readFileSync(resolve(import.meta.dirname, file), 'utf8'));
+  const route = (req, _res, next) => {
+    const [path, query] = (req.url ?? '').split('?');
+    if (/^\/([^/]+\/)?privacy\/?$/i.test(path) && !/^\/(editor|api)\//.test(path)) {
+      req.url = `/privacy.html${query === undefined ? '' : `?${query}`}`;
+    }
+    next();
+  };
+  return {
+    name: 'osct-privacy-page',
+    configureServer(server) { server.middlewares.use(route); },
+    configurePreviewServer(server) { server.middlewares.use(route); },
+    transformIndexHtml(html) {
+      if (!html.includes('<!--osct:privacy-head-->')) return html;
+      const fields = splashFields(config.experience);
+      const paths = legacyRedirectData(experience);
+      const { head, body } = renderPrivacyPage({
+        languages: Object.fromEntries(LANGUAGES.map(lang => [lang, {
+          texts: read(`src/i18n/locales/${lang}/privacy.json`),
+          name: read(`src/i18n/locales/${lang}/landing.json`).privacy,
+          close: read(`src/i18n/locales/${lang}/header.json`).close,
+        }])),
+        defaultLanguage: DEFAULT_LANGUAGE,
+        title: fields.title,
+        author: fields.author,
+        markSrc: ONBOARDING_ICON_SRC,
+        languageKey: 'osct-language',
+        lastKey: paths.lastKey,
+        fallback: paths.fallback,
+        reserved: paths.reserved,
+        id: paths.id,
+        contentBase: contentBaseUrl,
+      });
+      return html.replace('<!--osct:privacy-head-->', head).replace('<!--osct:privacy-body-->', body);
     },
   };
 }
@@ -344,8 +428,9 @@ export default defineConfig(async ({command,mode})=>{
 
   return {
   plugins: [
-    legacyRedirect(experience), staticLanding(experience, shellConfig, shellContentBase), designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
-    manifestLink(), contentFromCdn(contentBaseUrl), docsIndex(), ...(https ? [basicSsl()] : []),
+    legacyRedirect(experience), staticLanding(experience, shellConfig, shellContentBase), privacyPage(experience, shellConfig, contentBaseUrl),
+    designFont(fontUrl), staticSplash(shellConfig), gameConfigModule(contentBaseUrl), contentSizes(contentBaseUrl), xr8Engine(), ...pwa(shellConfig),
+    manifestLink(), entryPreload(), contentFromCdn(contentBaseUrl), docsIndex(), ...(https ? [basicSsl()] : []),
   ],
   define: {
     __VITE_BUILD_DATE__: JSON.stringify(new Date().toISOString()),
@@ -389,15 +474,24 @@ export default defineConfig(async ({command,mode})=>{
     // The three.js chunk (~600 kB) is large by nature and loads lazily
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      // The page (it loads the app or, on a computer, the landing – src/landing/entry.ts) and Privacy & terms (#355)
       input: {
-        main: resolve(import.meta.dirname, 'index.html')
+        index: resolve(import.meta.dirname, 'index.html'),
+        privacy: resolve(import.meta.dirname, 'privacy.html'),
       },
       output: {
         // Keep @license headers in the chunks (Rolldown drops them by default)
         comments: { legal: true },
         // The AR code (only reached through import("./ar"), loaded on the first scan): three.js in its own chunk
-        manualChunks: (id) => {
-          if (id.includes('/node_modules/three/')) return 'three';
+        // The content contract in a chunk of its own: the landing's fallback (#355) reads the game configuration through
+        // it without the engine's scene and three.js (bundled with it otherwise); its leaves apart from it – the landing's
+        // first code needs them alone
+        codeSplitting: {
+          groups: [
+            { name: 'three', test: /[\\/]node_modules[\\/]three[\\/]/, priority: 3 },
+            { name: 'contract-base', test: /[\\/]shared[\\/](guards[\\/]primitives|types[\\/]content-manifest)\.ts$/, priority: 2, includeDependenciesRecursively: false },
+            { name: 'contract', test: /[\\/]shared[\\/](types|guards|text)[\\/]/, priority: 1, includeDependenciesRecursively: false },
+          ],
         },
         // Built (hashed) files in assets/app/ – served with a long, immutable cache (server/docker/apache.conf);
         // assets/ itself also holds the unhashed content (public/assets/content)

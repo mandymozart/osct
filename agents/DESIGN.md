@@ -206,6 +206,11 @@ Startup loader (`index.html`) and loading page: `--loading-background` (the cons
 slight vignette) + `.gold-spinner` (gold gradient ring) in the centre – Tilman, 2026-09-25. The tracking
 engine shows no loading UI of its own.
 
+**Skeleton placeholders** (the desktop landing, #355 – Tilman 2026-11-23: "load data with skeleton animations
+progressively"): what is still loading is a quiet grey block (`--skeleton`, the muted grey at 14 %) with a faint light
+band sweeping over it every 1.6 s (`--skeleton-shine`, white at 7 %); still with reduced motion. The 3D stage's
+placeholder is a soft disc in its middle, the QR code's the card's square.
+
 **Scanning indicator** (Tilman, 2026-09-25; it replaced MindAR's white corner brackets): a thin circle whose
 gold fades in from transparent and sweeps around (`.gold-scanning`, `#osct-scanning` in index.html). The AR
 scene reports `scanning` and `<ar-bridge>` toggles `.hidden` on it (shown while no target is in view); it only shows while the scene runs

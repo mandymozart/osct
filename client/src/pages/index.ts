@@ -2,7 +2,6 @@
 export * from "./error-page";
 export * from "./about-page";
 export * from "./credits-page";
-export * from "./privacy-page";
 export * from "./not-found-page";
 export * from "./splash-page";
 export * from "./tutorial-page";

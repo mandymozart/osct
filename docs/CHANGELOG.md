@@ -8,6 +8,28 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.9.0 – 2026-11-23
+
+### Changed
+- **A computer gets the landing without loading the app** (#355): the page decides at once whether it is a computer
+  and then loads either the app or the landing's own small code – never both. On a computer the app, its debugging
+  tools and the offline worker are no longer downloaded (about 39 kB before the 3D hero instead of the whole app); the
+  3D hero loads after the page is up. Phones and tablets load the app as before.
+  - Every experience's address gets the landing on a computer, not only the default's: another experience shows the
+    same page with quiet placeholders until its texts and pictures are there.
+  - What is still loading – the QR code, the 3D hero – shows a quiet placeholder.
+  - Arrivals from a printed code (`?s=`) are still counted on a computer.
+  - The landing is a piece of its own that takes its data from the experience – from a `landing.json` next to the
+    content once publish writes one (next step), until then from the experience's configuration – so the editor can
+    show the same page later.
+- **Privacy & terms is a static page** (#355): `/privacy` (and `/<experience>/privacy`) opens a page of its own in the
+  reader's language, without the app – the Info page, the consent card of another site's video and the landing link to
+  it; in the installed app it opens in the app's window, × goes back. It works offline too.
+
+### Removed
+- **The in-app Privacy page** (#355): the app has no Privacy route any more – the static page replaces it, with the
+  same text.
+
 ## 6.8.0 – 2026-11-23
 
 ### Added

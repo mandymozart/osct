@@ -1,4 +1,5 @@
-import { CONTENT_PATH, contentUrl, getContentSizes } from "@/utils/game-config";
+// The engine's accessors directly (RULES #14): the landing (#355) reads the layout too and imports nothing of the app
+import { CONTENT_PATH, contentUrl, getContentSizes } from "@engine/content/game-config";
 
 /** The print layout inside the content (`layout/layout.json`, written by the delivery's layout step) */
 const LAYOUT = `${CONTENT_PATH}layout/`;

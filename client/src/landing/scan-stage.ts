@@ -12,9 +12,9 @@ import { disposeObject, loadGltf } from "@engine/scene/assets";
 import { type Celebration, celebrate } from "@engine/scene/celebration";
 import { applyTextureSets } from "@engine/scene/model-textures";
 import { loadPlugins } from "@engine/scene/plugins";
-import { entityMomentAppearance, type Moment } from "@shared/types/appearance";
+import { entityMomentAppearance, type ExperienceAppearance, type Moment } from "@shared/types/appearance";
 import { resolvePlacement } from "@shared/types/placement";
-import { getExperience, getPlugins } from "@/utils/game-config";
+import type { PluginData } from "@shared/types/plugins";
 import type { ScanPrint, ScanStageData } from "./scan-stage-data";
 
 /**
@@ -29,7 +29,8 @@ import type { ScanPrint, ScanStageData } from "./scan-stage-data";
  * leaves – the content's appearance and plugins, the engine's `celebrate`, as in the reader). The phone follows the
  * mouse once clicked ("the simulation should do this automatic scan, but when i click the mouse it should take control
  * of the phone"); another click, leaving the stage or a resting mouse give it back to the autopilot.
- * Plain three.js and the engine's model loading – no tracker, no `ArScene`; loaded lazily (the `three` chunk).
+ * Plain three.js and the engine's model loading – no tracker, no `ArScene`, nothing of the app: everything comes in with
+ * `ScanStageData` and `ScanStageExtras` (the landing's data, #355); loaded lazily (the `three` chunk, `hero.ts`).
  */
 
 export interface ScanStageExtras {
@@ -45,6 +46,9 @@ export interface ScanStageExtras {
   pageImages: readonly string[];
   /** The Mark (the eye) at the top of the phone's screen, as in the app */
   markSrc: string;
+  /** The experience's plugins (URLs) and its own looks: the reveal, found and lost looks play as in the reader */
+  plugins: readonly PluginData[];
+  appearance?: ExperienceAppearance;
 }
 
 /**
@@ -535,7 +539,7 @@ export class ScanStage {
     const { entity, asset } = this.data;
     const [loaded] = await Promise.all([
       loadGltf(asset.src, asset.assetType === "gltf" ? "gltf" : "glb"),
-      loadPlugins(getPlugins()).catch(() => undefined),
+      loadPlugins([...this.extras.plugins]).catch(() => undefined),
       this.buildBook(),
     ]);
     if (this.stopped) return;
@@ -1156,6 +1160,6 @@ export class ScanStage {
       this.placed.visible = true;
     }
     this.celebration?.finish();
-    this.celebration = celebrate(this.anchor, this.placed, moment, entityMomentAppearance(this.data.entity, getExperience(), moment));
+    this.celebration = celebrate(this.anchor, this.placed, moment, entityMomentAppearance(this.data.entity, { appearance: this.extras.appearance }, moment));
   }
 }

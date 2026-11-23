@@ -39,8 +39,9 @@ there once. Bring them along when staging moves to the VM (into the volume below
    is still in git ([content-out-of-git](content-out-of-git.md)). The reader and the editor call the API at the fixed
    path `/api` on their own origin – no build flag (`VITE_API_URL` went with #33).
 2. **Serve** (PHP 8.3 + Apache): `client/dist` at the document root, `server/api` as `/api`. The two `.htaccess`
-   files do what they do on a shared host (SPA fallback, API routing); `server/docker/apache.conf` adds the cache
-   headers (`assets/app/*` immutable, `index.html` / service worker / manifest `no-cache`), the MIME types the
+   files do what they do on a shared host (SPA fallback, API routing, Privacy & terms – `privacy.html` for `/privacy`
+   and `/<experience>/privacy`, #355); `server/docker/apache.conf` adds the cache headers (`assets/app/*` immutable,
+   `index.html` / `privacy.html` / service worker / manifest `no-cache`), the MIME types the
    PWA needs, gzip for text, and takes the client IP from kamal-proxy's `X-Forwarded-For` (the API rate-limits
    per IP). API errors go to the container log. PHP has `pdo_mysql` and **GD with WebP, JPEG and PNG** (#298): the
    API converts every uploaded picture to WebP ([server](server.md) "The image rule at upload"). A host without GD –

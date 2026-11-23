@@ -129,7 +129,9 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     of a type in another package.
 14. In the reader only `client/src/utils/game-config.ts` imports the bundled `game.config.json` and hands it to the
     engine's loader (`engine/src/content/game-config.ts`: type guard, then map). Everything else asks
-    `utils/game-config.ts`. Vocabulary: *content* = authored input (the content source),
+    `utils/game-config.ts`. The one exception is the desktop landing (`src/landing/`, #355), a piece that loads none of the
+    app: its entry hands the bundled copy to the engine's loader itself and reads the engine's accessors directly (as
+    `utils/book-cover.ts`, which it shares). Vocabulary: *content* = authored input (the content source),
     *game configuration* = build output (`game.config.json`).
 15. Unused types, methods, functions etc. are removed unless a planning document (`PLAN.md`, open
     items in `MEMORY.md`) still needs them (future phase or unfinished item). Before removing, check
@@ -206,6 +208,10 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     - Inside a folder (or a component group, e.g. `ar-bridges/ar` → `../utils`) import relative files;
       never the own barrel (`types/*.ts` import their siblings, not `@/types`).
     - A component group's barrel registers its elements – pages import the group, not single files.
+    - **The desktop landing** (`src/landing/`, #355) and the static pages (`src/privacy/`) import **files, never a barrel**
+      (relative paths, or `@/…/<file>`): a barrel brings the app along, and the landing must load none of it – no store,
+      router, pages, services' singletons, dev tools or i18next runtime. index.html loads either the app or the landing's
+      entry, never both; `landing/__tests__/landing-decision-html.test.ts` checks the loader.
     - Exceptions: `@/utils/game-config` (not in the `@/utils` barrel – it loads and checks the config on
       import, RULES #14); `store/` imports `@/services/ProgressStorage` by file (the barrel would cycle
       GameStoreService → GameStore → managers). Tests may import their subject as `../file`.
@@ -229,14 +235,18 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     namespace per page/area; **informal** in every language). Translations are **JSON** (i18next JSON v4) in
     `src/i18n/locales/<lang>/<ns>.json`, maintained with **i18next-cli** (`npm run i18n`; the build runs it
     and warns – never fails – about missing translations, which fall back to English).
-    Book content (titles, entries) is not UI text; the onboarding is (the app's own steps, `utils/onboarding.ts`, #236). The language is stored by the i18next language
+    The desktop landing and the static Privacy & terms page (#355) load no i18next: they read the same JSON files
+    (`landing`, `privacy`) and pick the language as the app's detector does (`landing/texts.ts` `pickLanguage`, a test
+    keeps them equal). Book content (titles, entries) is not UI text; the onboarding is (the app's own steps, `utils/onboarding.ts`, #236). The language is stored by the i18next language
     detector (`osct-language`), not in the progress. Dev tools and the **editor** (`/editor`, an authors' tool, not a
     reader's view) stay English.
 
 21. **PWA**: the service worker (`client/sw/`, own tsconfig: `npx tsc -p sw`) serves pages
     network-first and content from a cache named after the content build hash. New public files that
     belong to the app shell must match its precache globs (`vite.config.js` → `pwa()`); content stays under
-    `assets/content/`. Never make the worker serve pages cache-first (deploys would not show).
+    `assets/content/`. Never make the worker serve pages cache-first (deploys would not show). A static page beside the
+    app (`privacy.html`, #355) is precached and answered offline for its own addresses (`sw/static-pages.ts`), never with
+    the app's shell. A computer never registers the worker (it gets the landing, not the app).
 
 22. **Code comments**: describe what a unit is responsible for, its business rules and contract (events, state,
     attributes), and non-obvious *why* – in neutral, present-tense English. No names, dates, design page/frame

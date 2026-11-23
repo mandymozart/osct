@@ -23,6 +23,7 @@ final class Experiences
         'editor', 'admin', 'api', 'docs', 'mcp', 'assets', 'vendor', '_app', 'static', 'public', 'content',
         'manifest', 'manifest.webmanifest', 'service-worker', 'service-worker.js', 'sw', 'sw.js', 'registersw.js', 'workbox',
         'robots.txt', 'favicon.ico', 'index.html', 'icons', 'fonts',
+        'privacy', 'privacy.html',
         'src', 'node_modules', '@vite', '@fs', '@id',
         'app', 'www', 'help', 'status', 'health', 'well-known', '.well-known',
     ];

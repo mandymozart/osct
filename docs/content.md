@@ -1400,6 +1400,27 @@ builds those targets without their AR video.
 | `client/src/game.config.json` | Everything the app needs to know about the experience (not in git) |
 | `client/public/assets/content/` | The content media, optimised, and every plugin's compiled `plugin.js` next to its source (not in git) |
 
+### landing.json
+
+What the desktop landing shows of an experience ([pages, "The desktop landing"](pages.md#desktop-landing)), in one
+small file next to the game configuration of a content version: `<base>/<experience>/<build>/landing.json`. **Written by
+publish from the next step of #355 on** (the editor's landing workspace: the experience's scene and surface for the
+hero); the content build does not write it. Until a version has one, the reader's landing derives the same data from
+`game.config.json` (`client/src/landing/derive.ts`: the scene and model of the first of `LANDING_CONFIG.scanEntries` that
+has a model, else the content's first model). Shape and guard: `shared/api/landing.ts` (`LandingFile`, `isLandingFile`):
+
+| Field | |
+|---|---|
+| `format` | `1` – the shape's own version; a reader that does not know it derives the data instead |
+| `schema` | the content schema `MAJOR.MINOR` of the version it was made from – a reader that cannot read that MAJOR derives the data |
+| `experience`, `title`, `author`, `publisher` | the experience's id, title, its book's author and publisher (`""` without) |
+| `images` | the experience's target images in scene order (the hero's drifting pictures) |
+| `cover` | the print layout's front cover, `null` without |
+| `hero` | `null` (nothing to show) or the scan stage: `aspect` (the surface's height in surface widths), `pages` (its printed page numbers), `prints` and `target` (images on the surface: `src`, `x`, `top`, `width`, `height?` in surface widths), `entity` and `asset` (the model – `EntityData` / `AssetData`), `spread` and `earlier` (the layout's pictures of the surface and the spreads before it), `pageImages` (other prints for the turning pages), `plugins` (`PluginData[]`) and `appearance` (the experience's looks) |
+| `shop` | optional – the shop items (`id` `book` / `shirt`, `url`, `image?`, `cover?`); none: the app's |
+
+Paths are content paths (`/assets/content/…`), resolved against the version's folder like the configuration's.
+
 ### Folders
 
 ```

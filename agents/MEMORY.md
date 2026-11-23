@@ -4,6 +4,38 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – Step 1: a computer gets the landing without the app; Privacy & terms static (6.9.0, #355 #356)
+- Tilman: *"the landing page hero needs only a specific target on a surface on a scene to show of how they work. so that
+  data can be extracted in the editor to fill in the data needed to build the landing page. that's part one."* ·
+  *"shared ui for the landing page should be very little because it basically does not need to load the app at all if
+  its on desktop. including debugging and everything. a skeleton script could handle that right?"* · *"the landing.json
+  is fine, if we can speed up performance. we can even build a static html and load data with skeleton animations
+  progressively."* · *"privacy and terms make it static. we can link to it from the app, so we wont have duplicate
+  pages"* · *"the model loading and reveal are modular i suppose so we can lazy load them after the skeleton handling
+  the delegation.. since we also have catch legacy qr codes here"* · *"the editor shows the final product the landing
+  page draft"* (a later step).
+- Built (step 1): index.html's head decides (legacy redirect → manifest → `data-osct-landing="page|skeleton"` → early
+  preload of the chosen entry), one loader module imports **either** `src/main.ts` **or** `src/landing/entry.ts`. The
+  landing (`client/src/landing/`, was `components/desktop-landing/`; `<desktop-landing>` is gone from the app) is a
+  function of `LandingData` + a host (`mountLanding`), imports files never barrels, no i18next (`texts.ts` picks the
+  language like the detector), counts `?s=` itself; the hero (`hero.ts`, three.js) and the fallback (`derive.ts`, the
+  engine's loader) are lazy chunks. On a computer: 39 kB (15 kB gzip) before the hero instead of the app's
+  1.2 MB. Every experience's path gets the landing (another's as skeleton placeholders). `landing.json` shape:
+  `shared/api/landing.ts` (outside the schema lock; `format` 1 + the content `schema` it was made from), docs/content.md.
+- Privacy & terms: `privacy.html` (Vite input, 4 languages, a tiny language script), served for `/privacy` and
+  `/<experience>/privacy` (.htaccess, dev/preview middleware, SW offline copy); `privacy` is a reserved path now. The
+  in-app page, its route and the header rule are removed (Tilman asked).
+- My calls: the developers' `sessionStorage["osct-desktop-landing-skipped"]` stays (it now loads the app on a computer);
+  `shared/api/names.ts` split from `rules.ts` (rules pulled the whole contract into the landing's first code); Vite's
+  `codeSplitting` groups `contract` / `contract-base` so the fallback loads without three.js; the landing ignores the
+  debug `?content=` override.
+- [ ] Step 2: the editor extracts the hero (scene + surface, #355 concept 2) and **publish writes `landing.json`**
+  (`LandingFile`) into the version folder – the reader reads it already.
+- [ ] Step 3: the editor's landing workspace (#356 b) mounts `mountLanding(host, data, { contained: true })` with the
+  draft; the host must provide main.css's tokens and the font.
+- [ ] Open: the static privacy page names the default experience's book; another experience's title/author come only
+  from its `landing.json` (none before step 2).
+
 ## 2026-11-23 – One workspace shell for the editor, after SCUTOONS (#356)
 - Tilman: *"maybe it is time to rethink the dashboard and make it merely a stage without the 3d scene in the background.
   this way we can also load the landing page. look at how scutoon is using the panels and the stage now. lets adopt the

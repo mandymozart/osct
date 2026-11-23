@@ -2,7 +2,6 @@ export * from "./ar-bridges";
 export * from "./buttons";
 export * from "./common";
 export * from "./consultation";
-export * from "./desktop-landing";
 export * from "./dev-tools";
 export * from "./header";
 export * from "./pages-router";

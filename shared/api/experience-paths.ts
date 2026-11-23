@@ -27,6 +27,8 @@ export const RESERVED_PATHS = [
   "editor", "admin", "api", "docs", "mcp", "assets", "vendor", "_app", "static", "public", "content",
   "manifest", "manifest.webmanifest", "service-worker", "service-worker.js", "sw", "sw.js", "registersw.js", "workbox",
   "robots.txt", "favicon.ico", "index.html", "icons", "fonts",
+  // the static pages beside the app (Privacy & terms, #355 – privacy.html, answered for /privacy and /<experience>/privacy)
+  "privacy", "privacy.html",
   // the dev server's (Vite) own paths
   "src", "node_modules", "@vite", "@fs", "@id",
   // kept free
