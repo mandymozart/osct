@@ -15,16 +15,28 @@ import { registerRenderTool } from "./render-tool.ts";
 import { registerResources } from "./resources.ts";
 import { fail, failure, text } from "./result.ts";
 import { appLinks, fetchUser, servicesOf, type Services, type User } from "./services.ts";
+import { Versions } from "./update.ts";
 
 /** = mcp/package.json version (RULES #10: one version with the app) */
-export const VERSION = "6.19.0";
+export const VERSION = "6.20.0";
 
-export function createUserServer(config: Config, api: OsctApi, user: User | null): McpServer {
+/**
+ * `versions` compares this server with its instance (#367): `main` checks it before, so an outdated server says so in
+ * its instructions; every call that fails like an outdated client's carries the next step (OsctApi.staleCheck).
+ */
+export function createUserServer(config: Config, api: OsctApi, user: User | null, versions: Versions = new Versions(api, VERSION)): McpServer {
   let services: Services | null = user ? servicesOf(user.roles) : null;
+  api.staleCheck = async () => {
+    const status = await versions.describe();
+    return status.outdated || status.updatedTo ? { ...status } : null;
+  };
+  const stale = versions.last?.outdated
+    ? `\nThis MCP server (${versions.current}) is older than its instance (${versions.last.instance}) – ${versions.self.kind === "bundle" ? "call update_server first" : "the checkout needs a git pull"}, then the person reconnects it.`
+    : "";
   // every capability is declared now: a sign-in later registers the editor's tools, prompts and rules on a connected server
   const server = new McpServer(
     { name: "osct", version: VERSION },
-    { instructions: instructions(services, config.api, config.local), capabilities: { tools: { listChanged: true }, prompts: { listChanged: true }, resources: { listChanged: true } } },
+    { instructions: instructions(services, config.api, config.local) + stale, capabilities: { tools: { listChanged: true }, prompts: { listChanged: true }, resources: { listChanged: true } } },
   );
   const links = appLinks(config);
   let opened = false;
@@ -70,12 +82,27 @@ export function createUserServer(config: Config, api: OsctApi, user: User | null
         services: services ?? { editor: false, admin: false },
         api: config.local ? `${config.api} (local dev)` : config.api,
         editor: links.editor,
+        version: await versions.describe(),
         ...(user
           ? services?.editor
             ? { confirm: "Saves change the experience's draft. Give the person the link from each result: they check it on the stage and publish to readers in the editor." }
             : { hint: "No editor role – an admin grants it on the admin page (/editor/admin); this server lists the editor's tools once the role is there." }
           : { hint: "Not signed in: start the server with OSCT_EDITOR_TOKEN set to a token made on the editor's experiences page (AI connections) – or sign_in_request { email } (the code arrives by mail), then sign_in_verify { requestId, code }." }),
       });
+    },
+  );
+
+  server.registerTool(
+    "update_server",
+    {
+      description:
+        "Updates this MCP server to its instance's version (#367): when whoami's `version.outdated` is true, or a call's error says so, it downloads the server file the instance serves (/mcp/osct-mcp.mjs) and replaces its own file – then the person reconnects the server (the client loads tools at start). A server run from a checkout is never replaced: it says to git pull. `force` fetches the file even when the versions match (a damaged file).",
+      inputSchema: z.object({ force: z.boolean().optional().describe("replace even when the versions match – only when the person asks for it") }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async ({ force }) => {
+      const result = await versions.update(force ?? false);
+      return result.failed ? fail(result) : text(result);
     },
   );
 

@@ -17,7 +17,16 @@ export class ApiError extends Error {
   }
 }
 
+/** The answers an outdated client gets from a newer API: a body it no longer accepts, a route that moved (#367) */
+const STALE_STATUSES = new Set([400, 404, 405, 422]);
+
 export class OsctApi {
+  /**
+   * Asked when a call fails with one of STALE_STATUSES (#367): the version status when this server is older than its
+   * instance (it lands in the error's details as `outdated`), else null. Set by the user's server (`Versions`).
+   */
+  staleCheck: (() => Promise<Record<string, unknown> | null>) | null = null;
+
   constructor(
     readonly baseUrl: string,
     private token: string,
@@ -68,6 +77,10 @@ export class OsctApi {
     }
     if (!response.ok) {
       const { code, message, details } = apiErrorFields(response.status, response.statusText, data);
+      if (this.staleCheck && STALE_STATUSES.has(response.status) && path !== "/health") {
+        const outdated = await this.staleCheck().catch(() => null);
+        if (outdated) details.outdated = outdated;
+      }
       throw new ApiError(response.status, code, message, details);
     }
     return data as T;

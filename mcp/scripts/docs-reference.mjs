@@ -21,7 +21,7 @@ export const OUTPUT = "api/mcp/reference/index.html";
 
 /** The tools grouped as the guide page groups them; a tool no group names lands in "Other" (and the test says so) */
 export const GROUPS = [
-  ["start", "Start", "Who the agent is, and the sign-in for people without a token.", ["whoami", "sign_in_request", "sign_in_verify", "describe_content_model"]],
+  ["start", "Start", "Who the agent is, the server's own update, and the sign-in for people without a token.", ["whoami", "update_server", "sign_in_request", "sign_in_verify", "describe_content_model"]],
   ["reading", "Reading", "Nothing here changes anything.", ["list_experiences", "get_experience", "list_scenes", "get_scene", "get_entries", "get_entity", "get_draft"]],
   ["scenes", "Scenes, surfaces and groups", "", ["add_scene", "put_scene", "put_surface", "set_surface_reference", "move_scenes", "delete_scene", "group_scenes", "rename_group", "ungroup"]],
   ["content", "Targets and AR content", "", ["add_entry", "put_target", "put_entity"]],

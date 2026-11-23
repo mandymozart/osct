@@ -5,7 +5,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { OsctApi } from "./api.ts";
 import { loadConfig } from "./config.ts";
 import { fetchUser, servicesOf } from "./services.ts";
-import { createUserServer } from "./user.ts";
+import { Versions } from "./update.ts";
+import { createUserServer, VERSION } from "./user.ts";
 
 try {
   const config = loadConfig();
@@ -17,7 +18,11 @@ try {
     // a dead token or an API that is down: the server still starts (whoami says what is wrong)
     console.error(`osct-mcp: ${config.api} – ${error instanceof Error ? error.message : error}`);
   }
-  const server = createUserServer(config, api, user);
+  // the instance's version before the server starts: an outdated server says so in its instructions (#367)
+  const versions = new Versions(api, VERSION);
+  const status = await versions.check();
+  if (status.outdated) console.error(`osct-mcp: this server is ${VERSION}, the instance ${status.instance} – update_server fetches the instance's file (then reconnect)`);
+  const server = createUserServer(config, api, user, versions);
   await server.connect(new StdioServerTransport());
   const who = user ? `${user.email} (${servicesOf(user.roles).editor ? "editor" : "no editor role"})` : "not signed in (sign_in_request / sign_in_verify)";
   const token = user?.token ? `the AI connection "${user.token.name}"` : config.tokenSource;

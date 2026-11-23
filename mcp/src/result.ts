@@ -68,7 +68,9 @@ export function hintFor(error: ApiError): string {
 /** An error as the agent reads it: the API's own code and message, the extra fields, a hint */
 export function failure(error: unknown): Result {
   if (error instanceof ApiError) {
-    const hint = hintFor(error);
+    // an outdated server (#367): the call may fail only because the instance is newer – its next step comes first
+    const outdated = error.details.outdated as { next?: string } | undefined;
+    const hint = [outdated?.next, hintFor(error)].filter(Boolean).join(" ");
     return fail({ error: { status: error.status, code: error.code, message: error.message, ...error.details, ...(hint ? { hint } : {}) } });
   }
   return fail({ error: { code: "mcp", message: error instanceof Error ? error.message : String(error) } });

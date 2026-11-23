@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MCP tools reference – OSCT docs</title>
-  <meta name="description" content="Every tool of the OSCT MCP server (58) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
+  <meta name="description" content="Every tool of the OSCT MCP server (59) with its parameters: reading, scenes, targets, texts, files, plugins, import, history, render_scene, publish.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/docs/docs.css">
@@ -16,11 +16,11 @@
 <main class="reference">
   <p class="kicker">API</p>
   <h1>MCP tools reference</h1>
-  <p class="lead">All 58 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
+  <p class="lead">All 59 tools of the MCP server with their parameters, straight from the server's own definitions. For connecting an agent and the rules it works under, read the <a href="/docs/api/mcp/">MCP server</a> guide first.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <div class="table"><table>
     <tr><th>Area</th><th>Tools</th></tr>
-    <tr><td><a href="#start">Start</a></td><td class="wrap"><a href="#whoami"><code>whoami</code></a> · <a href="#sign_in_request"><code>sign_in_request</code></a> · <a href="#sign_in_verify"><code>sign_in_verify</code></a> · <a href="#describe_content_model"><code>describe_content_model</code></a></td></tr>
+    <tr><td><a href="#start">Start</a></td><td class="wrap"><a href="#whoami"><code>whoami</code></a> · <a href="#update_server"><code>update_server</code></a> · <a href="#sign_in_request"><code>sign_in_request</code></a> · <a href="#sign_in_verify"><code>sign_in_verify</code></a> · <a href="#describe_content_model"><code>describe_content_model</code></a></td></tr>
     <tr><td><a href="#reading">Reading</a></td><td class="wrap"><a href="#list_experiences"><code>list_experiences</code></a> · <a href="#get_experience"><code>get_experience</code></a> · <a href="#list_scenes"><code>list_scenes</code></a> · <a href="#get_scene"><code>get_scene</code></a> · <a href="#get_entries"><code>get_entries</code></a> · <a href="#get_entity"><code>get_entity</code></a> · <a href="#get_draft"><code>get_draft</code></a></td></tr>
     <tr><td><a href="#scenes">Scenes, surfaces and groups</a></td><td class="wrap"><a href="#add_scene"><code>add_scene</code></a> · <a href="#put_scene"><code>put_scene</code></a> · <a href="#put_surface"><code>put_surface</code></a> · <a href="#set_surface_reference"><code>set_surface_reference</code></a> · <a href="#move_scenes"><code>move_scenes</code></a> · <a href="#delete_scene"><code>delete_scene</code></a> · <a href="#group_scenes"><code>group_scenes</code></a> · <a href="#rename_group"><code>rename_group</code></a> · <a href="#ungroup"><code>ungroup</code></a></td></tr>
     <tr><td><a href="#content">Targets and AR content</a></td><td class="wrap"><a href="#add_entry"><code>add_entry</code></a> · <a href="#put_target"><code>put_target</code></a> · <a href="#put_entity"><code>put_entity</code></a></td></tr>
@@ -35,11 +35,19 @@
   </table></div>
 
   <h2 id="start">Start</h2>
-  <p>Who the agent is, and the sign-in for people without a token.</p>
+  <p>Who the agent is, the server's own update, and the sign-in for people without a token.</p>
   <h3 id="whoami"><code>whoami</code> <span class="who">reads</span></h3>
   <p>Who you work for (email, roles), how this server is signed in (an AI connection's token with its name, a session, or not yet), whether the editor's tools are open, the API and the editor app whose links every result hands back.</p>
   <pre><code>whoami {}</code></pre>
   <details><summary>Details</summary><p>Call it first.</p></details>
+  <h3 id="update_server"><code>update_server</code> <span class="who">writes</span></h3>
+  <p>Updates this MCP server to its instance's version (#367).</p>
+  <pre><code>update_server { force? }</code></pre>
+  <div class="table"><table>
+    <tr><th>Parameter</th><th>Type</th><th>What</th></tr>
+    <tr id="update_server-force"><td><code>force</code> <span class="muted">optional</span></td><td class="wrap"><code>boolean</code></td><td class="wrap">replace even when the versions match – only when the person asks for it</td></tr>
+  </table></div>
+  <details><summary>Details</summary><p>when whoami's <code>version.outdated</code> is true, or a call's error says so, it downloads the server file the instance serves (/mcp/osct-mcp.mjs) and replaces its own file – then the person reconnects the server (the client loads tools at start). A server run from a checkout is never replaced: it says to git pull. <code>force</code> fetches the file even when the versions match (a damaged file).</p></details>
   <h3 id="sign_in_request"><code>sign_in_request</code> <span class="who">writes</span></h3>
   <p>Starts a sign-in by e-mail, for people without a token.</p>
   <pre><code>sign_in_request { email }</code></pre>
