@@ -8,6 +8,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.3.3 – 2026-11-23
+
+### Fixed
+- **The editor's stage camera orbits freely** (#335): dragging up and down no longer stops at 85° from the vertical –
+  the camera goes down to the level of the table, below it to look up, and over the top to the far side. The start
+  view and the presets are unchanged, and a double click still brings back the reader's view.
+
 ## 6.3.2 – 2026-11-22
 
 ### Fixed

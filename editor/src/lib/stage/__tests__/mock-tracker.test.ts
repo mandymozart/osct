@@ -96,6 +96,22 @@ describe("mock stage geometry", () => {
     expect(eye.z).toBeCloseTo(0.3, 6);
   });
 
+  it("orbits through any tilt: level, from below, upside down (#335)", () => {
+    const focus = new Vector3(0.1, 0.05, 0);
+    for (const tilt of [-120, -45, 85, 90, 135, 180, 250]) {
+      const camera = cameraMatrix({ distance: 400, tilt, yaw: 30 }, focus);
+      const eye = new Vector3().setFromMatrixPosition(camera);
+      expect(eye.distanceTo(focus)).toBeCloseTo(0.4, 6);
+      const turn = new Quaternion().setFromRotationMatrix(camera);
+      const forward = new Vector3(0, 0, -1).applyQuaternion(turn);
+      expect(forward.angleTo(focus.clone().sub(eye))).toBeCloseTo(0, 5);
+      expect(Number.isFinite(turn.w)).toBe(true);
+    }
+    // Level at 90°: the eye at the focus's height; past it, below the table
+    expect(new Vector3().setFromMatrixPosition(cameraMatrix({ distance: 400, tilt: 90, yaw: 0 }, focus)).z).toBeCloseTo(0, 6);
+    expect(new Vector3().setFromMatrixPosition(cameraMatrix({ distance: 400, tilt: 135, yaw: 0 }, focus)).z).toBeLessThan(0);
+  });
+
   it("wobbles deterministically and not at all at zero", () => {
     const orbit = VIEW_PRESETS.reader;
     expect(wobbled(orbit, 0, 3).orbit).toEqual(orbit);

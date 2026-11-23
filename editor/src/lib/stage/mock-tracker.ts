@@ -51,7 +51,6 @@ export const VIEW_PRESETS: Record<PreviewView, Orbit> = {
 const MIN_DISTANCE = 80;
 /** Far enough to see a wall of a few metres whole */
 const MAX_DISTANCE = 4000;
-const MAX_TILT = 85;
 /** The looked-at point may be panned this far from the scene's own (mm) */
 const MAX_PAN = 600;
 /** A pointer that moved this far is a drag (orbit), not a tap */
@@ -165,16 +164,21 @@ export const targetTurn = (target: StageTarget, surfaces: Surfaces = [], out = n
 /**
  * The simulated camera in the stage's frame: on a sphere around `focus`, `tilt` degrees from the vertical towards
  * the reader (the bottom edge of the page), turned `yaw` degrees around the vertical; up = the top of the page.
+ * Any tilt: past 90° the camera looks up from below the table, past 180° it is upside down over the far side (#335).
  */
 export const cameraMatrix = (orbit: Orbit, focus: Vector3, target = new Matrix4()): Matrix4 => {
-  const tilt = degrees(orbit.tilt);
-  const yaw = degrees(orbit.yaw);
-  const d = orbit.distance / 1000;
-  const eye = new Vector3(Math.sin(yaw) * Math.sin(tilt) * d, -Math.cos(yaw) * Math.sin(tilt) * d, Math.cos(tilt) * d).add(focus);
-  const up = new Vector3(-Math.sin(yaw), Math.cos(yaw), 0);
-  const rotation = new Matrix4().lookAt(eye, focus, up);
-  return target.compose(eye, new Quaternion().setFromRotationMatrix(rotation), new Vector3(1, 1, 1));
+  // A camera above the focus looking down (up = the top of the page), tilted about its own x, then turned about z
+  const turn = new Quaternion().setFromAxisAngle(Z_AXIS, degrees(orbit.yaw))
+    .multiply(new Quaternion().setFromAxisAngle(X_AXIS, degrees(orbit.tilt)));
+  const eye = new Vector3(0, 0, orbit.distance / 1000).applyQuaternion(turn).add(focus);
+  return target.compose(eye, turn, new Vector3(1, 1, 1));
 };
+
+const X_AXIS = new Vector3(1, 0, 0);
+const Z_AXIS = new Vector3(0, 0, 1);
+
+/** A tilt brought into −180…180° (the orbit turns freely; the stored value stays small) */
+const wrapTilt = (tilt: number): number => ((((tilt + 180) % 360) + 360) % 360) - 180;
 
 /** Hand shake at `wobble` (0…1) at time `t` (seconds), applied to the orbit and as a sideways offset in metres */
 export const wobbled = (orbit: Orbit, wobble: number, t: number): { orbit: Orbit; offset: Vector3 } => {
@@ -609,9 +613,11 @@ export class MockTracker implements IImageTracker {
     const height = this.container.clientHeight || window.innerHeight || 1;
     const mmPerPx = (2 * this.orbit.distance * Math.tan(degrees(PREVIEW_FOV) / 2)) / height;
     const yaw = degrees(this.orbit.yaw);
-    // The screen's right and up in the page plane (the camera's up is the top of the page, turned by the yaw)
+    // The screen's right and up in the page plane (the camera's up is the top of the page, turned by the yaw;
+    // from below the table or upside down it points the other way)
+    const flip = Math.cos(degrees(this.orbit.tilt)) < 0 ? -1 : 1;
     const right = { x: Math.cos(yaw), y: Math.sin(yaw) };
-    const up = { x: -Math.sin(yaw), y: Math.cos(yaw) };
+    const up = { x: -Math.sin(yaw) * flip, y: Math.cos(yaw) * flip };
     const pan = this.orbit.pan ?? { x: 0, y: 0 };
     this.orbit.pan = {
       x: Math.min(MAX_PAN, Math.max(-MAX_PAN, pan.x - (right.x * dx - up.x * dy) * mmPerPx)),
@@ -683,7 +689,7 @@ export class MockTracker implements IImageTracker {
         this.pan(dx, dy);
       } else {
         this.orbit.yaw += dx * ORBIT_DEGREES_PER_PX;
-        this.orbit.tilt = Math.min(MAX_TILT, Math.max(0, this.orbit.tilt + dy * TILT_DEGREES_PER_PX));
+        this.orbit.tilt = wrapTilt(this.orbit.tilt + dy * TILT_DEGREES_PER_PX);
         this.orbitChanged();
       }
     }
