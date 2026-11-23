@@ -80,11 +80,16 @@ const freeName = (base: string, taken: Taken, kind: "node" | "material"): { type
   }
 };
 
-/** The base name of what is made from a node: its name, else its type (`myModel` – a built-in type's name is taken) */
+/**
+ * The base name of what is made from a node: its name, else its type (`myModel` – a built-in type's name is taken). A type
+ * that was made already (`myVideoCode`, `myVideoCode2`) is not wrapped again: its stem comes back, so a second copy is
+ * `myVideoCode2`, never `myMyVideoCodeCode`
+ */
 const baseName = (node: EntityData, suffix: string): string => {
   const named = node.name?.trim() ? camel(node.name) : "";
   if (named && named !== node.type) return `${named}${suffix}`;
-  return `my${node.type[0].toUpperCase()}${node.type.slice(1)}${suffix}`;
+  const stem = node.type.replace(new RegExp(`${suffix}\\d*$`), "").replace(/^my(?=[A-Z])/, "") || node.type;
+  return `my${stem[0].toUpperCase()}${stem.slice(1)}${suffix}`;
 };
 
 /** A spec's parameters as TypeScript, with `defaults` in place of the spec's (the node's values) */
@@ -303,11 +308,13 @@ const copiedTypeSource = (node: EntityData, type: string, owner: PluginSource, s
     ...api,
     registerNodeType: (copiedType, _spec, build) => {
       if (copiedType !== "${node.type}") return;
+      // \`build as never\`: the copied build is typed for the copied spec, the new spec is checked on its own – without it
+      // the type check refuses the new spec ("'S' could be instantiated with a different subtype"); it is the same build
       api.registerNodeType("${type}", {
         description: ${JSON.stringify(spec.description)},
         src: "${spec.src}",
         params: ${spec.params},
-      }, build);
+      }, build as never);
     },
     registerComponent: () => undefined,
     registerLayer: () => undefined,

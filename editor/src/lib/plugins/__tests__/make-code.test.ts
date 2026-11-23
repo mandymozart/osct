@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Mesh, type MeshStandardMaterial, ShaderMaterial } from "three";
 import type { EntityData, Target } from "@engine/types";
@@ -25,6 +27,31 @@ const run = async (id: string, source: string): Promise<void> => {
 
 /** The demo's aquarium (#188): its build closes over FISH_COLOURS, defined in register outside the build (#199) */
 const AQUARIUM = readFileSync(resolve(process.cwd(), "../fixtures/demo/plugins/aquarium/index.ts"), "utf8");
+
+/**
+ * A made source's type errors as the publish's type check (monaco.ts, #352) sees them: its compiler options, the plugin
+ * API as the module `osct-plugin-api`, three's own types – written to a folder of its own and checked with TypeScript
+ */
+const typeErrors = (source: string): string[] => {
+  const require = createRequire(resolve(process.cwd(), "package.json"));
+  const ts = require("typescript") as typeof import("typescript");
+  const dir = mkdtempSync(join(tmpdir(), "osct-made-code-"));
+  try {
+    mkdirSync(join(dir, "node_modules", "osct-plugin-api"), { recursive: true });
+    writeFileSync(join(dir, "node_modules", "osct-plugin-api", "index.d.ts"), readFileSync(resolve(process.cwd(), "src/lib/plugins/plugin-api.d.ts"), "utf8"));
+    writeFileSync(join(dir, "plugin.ts"), source);
+    const three = resolve(process.cwd(), "node_modules/@types/three");
+    const program = ts.createProgram([join(dir, "plugin.ts")], {
+      strict: true, target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Node10,
+      lib: ["lib.es2020.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"], types: [], noEmit: true, skipLibCheck: true, isolatedModules: true,
+      esModuleInterop: true, ignoreDeprecations: "6.0", paths: { three: [join(three, "index.d.ts")], "three/*": [join(three, "*")] },
+    });
+    return ts.getPreEmitDiagnostics(program, program.getSourceFile(join(dir, "plugin.ts")))
+      .map(d => `${d.start !== undefined ? d.file?.getLineAndCharacterOfPosition(d.start).line : "?"}: ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
 
 /** The meshes of a built object */
 const meshes = (object: { traverse(visit: (child: unknown) => void): void }): Mesh[] => {
@@ -111,6 +138,9 @@ export function register(api: PluginApi): void {
     expect(made.source.match(/from "osct-plugin-api"/g)).toHaveLength(1);
     expect(made.source).toContain(`"default":4`);
     expect(made.node.params).toMatchObject({ rotation: [90, 0, 0], fish: 4, fishSpeed: 2 });
+    // The publish's type check passes the made source – the copied build is passed on as `build as never`
+    expect(typeErrors(AQUARIUM)).toEqual([]);
+    expect(typeErrors(made.source)).toEqual([]);
     await run(made.plugin, made.source);
     // Only the node type is the made plugin's: the water and the caustics stay the aquarium's
     expect(pluginNodeTypesOf(made.plugin)).toEqual(["tankCode"]);
@@ -142,6 +172,18 @@ export function register(api: PluginApi): void {
     expect(made.source).toContain("function blobsPlugin(api) {");
     await run(made.plugin, made.source);
     expect(buildEntity(target(made.node), () => undefined)).not.toBeNull();
+  });
+
+  it("makes code from a made-code node again: the next free name, not myMy…CodeCode – and the publish's type check passes", () => {
+    const source = `import type { PluginApi } from "osct-plugin-api";
+export const register = (api: PluginApi): void => {
+  api.registerNodeType("myVideoCode", { description: "A video.", src: "video", params: {} }, ({ three }) => ({ object: new three.Group() }));
+};
+`;
+    installPlugin("my-video-code", { register: api => api.registerNodeType("myVideoCode", { description: "A video.", src: "video", params: {} }, ({ three }) => ({ object: new three.Group() })) });
+    const made = nodeTypeCode({ type: "myVideoCode", assets: [] }, { plugins: installedPlugins(), types: ["myVideoCode"] }, { plugin: "my-video-code", source });
+    expect([made.type, made.plugin]).toEqual(["myVideoCode2", "my-video-code2"]);
+    expect(typeErrors(made.source)).toEqual([]);
   });
 
   it("finds a free name next to the experience's plugins and types", () => {

@@ -8,6 +8,18 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.17.1 – 2026-11-23
+
+### Fixed
+- **Publishing stops at "has a type error" for a node made code from a plugin's node type** (Tilman, 2026-11-23: *"Publishing
+  has a bug right now"*): *Make it code* wrapped the copied plugin's `registerNodeType` so that its new spec did not fit
+  the copied build's type – harmless when it runs, but the type check before publishing (6.11.0, #352) refuses it (*"'S'
+  could be instantiated with a different subtype of constraint 'NodeTypeSpec'"*). Code made from now on passes the build
+  on as `build as never`. **A plugin made before:** in the Code tab, change `}, build);` at the end of its
+  `api.registerNodeType(…)` to `}, build as never);`.
+- *Make it code* on a node that is already made code (`myVideoCode`) names the copy `myVideoCode2`, not
+  `myMyVideoCodeCode`.
+
 ## 6.17.0 – 2026-11-23
 
 ### Added
