@@ -1,0 +1,6 @@
+category: link
+title: YouTube test
+scene: scene1
+body: Placeholder – a link entry with a YouTube video (Big Buck Bunny, Blender Foundation, CC BY 3.0). It loads only after the reader agrees (#351); the entry's own picture is the consent card's poster.
+image: poster.jpg
+media: https://www.youtube.com/watch?v=aqz-KE-bpKQ

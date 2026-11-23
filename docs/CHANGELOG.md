@@ -18,6 +18,8 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   Nothing is requested from the provider before the tap (no thumbnail; the entry's own picture is the poster, if it has
   one); after **Play video** the player starts at once. Info → Settings lists YouTube, Vimeo and every site allowed with
   *Ask again* – kept on this device only (`EmbedConsentService`).
+- The test fixture has a YouTube link entry, *YouTube test* (`fixtures/content/entries/youtube-test`, Big Buck Bunny,
+  CC BY) with its own picture as the card's poster.
 
 ## 6.4.1 – 2026-11-23
 
