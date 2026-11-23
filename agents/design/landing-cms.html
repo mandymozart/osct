@@ -3,221 +3,112 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Landing &amp; legal per experience – concept (#355)</title>
+<title>Landing per experience – concept 2 (#355)</title>
 <style>
-  :root {
-    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --text-size: .75rem; --text-small: .6875rem;
-    --text: #fff; --muted: #a3a3a3; --line: #444; --surface: #2c2c2c; --surface-head: #1e1e1e;
-    --control: #383838; --pressed: #4f4f4f; --selected: #5a5a5a; --stage: #0c0c0c;
-  }
+  :root { --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --text: #fff; --muted: #a3a3a3; --line: #444;
+          --surface: #2c2c2c; --control: #383838; --stage: #0c0c0c;
+          --gold: linear-gradient(90deg,#f5e7c8,#7f6032 30%,#d2ae5a 57%,#f3cc94 74%); }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 24px; font: var(--text-size)/1.45 var(--font); color: var(--text); background: #111; }
-  h1 { font-size: 1.1rem; margin: 0 0 .25rem; } .lead { color: var(--muted); max-width: 1200px; margin: 0 0 1.5rem; font-size: .8rem; }
-  .frame { margin: 0 0 2.25rem; }
-  .frame > .cap { display: flex; gap: .75rem; align-items: baseline; margin-bottom: .5rem; }
-  .frame > .cap b { font-size: .9rem; } .frame > .cap span { color: var(--muted); }
-  .win { display: grid; grid-template-columns: 300px 1fr; height: 520px; border: 1px solid #333; background: var(--stage); }
-  .panel { background: var(--surface); border-right: 1px solid var(--line); overflow: hidden; display: flex; flex-direction: column; }
-  .head { display: flex; justify-content: space-between; align-items: center; padding: .4rem .6rem; border-bottom: 1px solid var(--line);
-          text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-size: var(--text-small); }
-  .tabs span { padding: .15rem .45rem; margin-left: .15rem; } .tabs span.on { background: var(--pressed); color: var(--text); }
-  .sec { border-bottom: 1px solid var(--line); padding: .5rem .6rem; }
-  .sec h4 { margin: 0 0 .35rem; font-size: var(--text-small); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 400;
-            display: flex; justify-content: space-between; }
-  .row { display: grid; grid-template-columns: 5.5rem 1fr; gap: .4rem; align-items: center; margin: .25rem 0; }
-  .row .l { color: var(--muted); }
-  .field { background: var(--control); border: 1px solid #4a4a4a; padding: .2rem .35rem; min-height: 1.4rem; color: #ddd; }
-  .field.area { min-height: 3rem; }
-  .muted { color: var(--muted); } .small { font-size: var(--text-small); }
-  .btn { display: inline-block; background: var(--control); border: 1px solid #555; padding: .15rem .5rem; }
-  .thumbs { display: flex; flex-wrap: wrap; gap: .25rem; }
-  .th { width: 2.2rem; height: 2.2rem; border: 1px solid #555; background: linear-gradient(135deg,#777,#333); }
-  .th.a { background: linear-gradient(135deg,#a85,#334); } .th.b { background: linear-gradient(45deg,#8a6,#ddd); } .th.c { background: radial-gradient(circle,#99a,#222); }
-  .th.add { background: none; border-style: dashed; display: grid; place-items: center; color: var(--muted); }
-  .slot { display: flex; gap: .45rem; align-items: center; margin: .3rem 0; }
-  .slot .grow { flex: 1; }
-  .stage { position: relative; overflow: hidden; display: grid; place-items: center; }
-  .stage .bar { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; padding: .35rem .6rem;
-                background: #000; color: var(--muted); border-bottom: 1px solid #222; }
-  .lp { width: 92%; height: 85%; margin-top: 1.5rem; background: #000; border: 1px solid #222; position: relative; overflow: hidden; font-size: 10px; }
-  .lp .hero { height: 58%; display: grid; place-items: center; position: relative; border-bottom: .5px solid #555; }
-  .lp .title { font-size: 22px; text-align: center; background: linear-gradient(90deg,#f5e7c8,#7f6032 30%,#d2ae5a 57%,#f3cc94 74%); -webkit-background-clip: text; color: transparent; line-height: 1.05; }
-  .lp .fl { position: absolute; border: 1px solid #333; }
-  .lp .shop { display: flex; gap: 14px; padding: 10px 16px; }
-  .lp .item { width: 70px; } .lp .item i { display: block; height: 60px; border: 1px solid #d2ae5a; margin-bottom: 4px; }
-  .lp footer { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; padding: 6px 16px; color: #8b8d8c; border-top: .5px solid #555; }
-  .hl { outline: 2px dashed #d0d0d0; outline-offset: 2px; }
-  .sheet { position: absolute; inset: 2.2rem 1rem 1rem 1rem; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; }
-  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: .4rem; padding: .6rem; }
-  .grid div { aspect-ratio: 1; border: 1px solid #555; background: linear-gradient(135deg,#666,#2a2a2a); position: relative; }
-  .grid div.sel { outline: 2px solid #fff; }
-  .grid div span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 9px; background: #000a; padding: 1px 3px; }
-  .phone { width: 250px; height: 92%; margin-top: 1.5rem; background: #000; border: 6px solid #1b1b1b; border-radius: 22px; padding: 14px 12px; font-size: 9.5px; overflow: hidden; }
-  .phone h5 { margin: 8px 0 3px; color: #8b8d8c; font-weight: 400; text-transform: uppercase; letter-spacing: .06em; border-bottom: .5px solid #8b8d8c; padding-bottom: 3px; }
-  .phone p { margin: 0 0 5px; }
-  pre { background: #000; border: 1px solid #333; padding: .75rem 1rem; margin: 0; font-size: .72rem; line-height: 1.5; color: #ddd; overflow: auto; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-  .q { background: #1a1a1a; border: 1px solid #333; padding: .8rem 1.1rem; font-size: .8rem; max-width: 1200px; }
-  .q li { margin: .4rem 0; } .q b.r { color: #fff; } .q em { font-style: normal; text-decoration: underline; text-underline-offset: 3px; }
+  body { margin: 0; padding: 28px; font: 13px/1.45 var(--font); color: var(--text); background: #111; width: 1300px; }
+  h1 { font-size: 19px; margin: 0 0 4px; } .lead { color: var(--muted); margin: 0 0 22px; font-size: 14px; max-width: 1150px; }
+  .cap { display: flex; gap: 12px; align-items: baseline; margin: 0 0 8px; } .cap b { font-size: 15px; } .cap span { color: var(--muted); }
+  .cols { display: grid; grid-template-columns: 330px 1fr; gap: 28px; margin-bottom: 30px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); }
+  .head { padding: 7px 10px; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-size: 11px;
+          display: flex; justify-content: space-between; }
+  .sec { padding: 8px 10px; border-bottom: 1px solid var(--line); } .sec:last-child { border: 0; }
+  .sec.dim { opacity: .4; }
+  .sec h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 400; }
+  .row { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: center; margin: 5px 0; } .row .l { color: var(--muted); }
+  .field { background: var(--control); border: 1px solid #4a4a4a; padding: 4px 7px; display: flex; justify-content: space-between; }
+  .muted { color: var(--muted); } .small { font-size: 11.5px; }
+  .link { text-decoration: underline; text-underline-offset: 3px; }
+  .new { outline: 2px dashed #d0d0d0; outline-offset: 3px; }
+  .lp { background: #000; border: 1px solid #333; height: 400px; display: grid; grid-template-columns: 1fr 1fr; align-items: center; position: relative; }
+  .lp .t { padding-left: 56px; } .lp .k { color: #8b8d8c; font-size: 12px; margin-bottom: 10px; }
+  .lp .title { font-size: 40px; line-height: 1.05; background: var(--gold); -webkit-background-clip: text; color: transparent; display: inline-block; }
+  .lp .by { margin-top: 12px; background: var(--gold); -webkit-background-clip: text; color: transparent; display: inline-block; }
+  .lp footer { position: absolute; left: 0; right: 0; bottom: 0; padding: 9px 56px; display: flex; justify-content: space-between; color: #8b8d8c; font-size: 11px; border-top: .5px solid #555; }
+  .scene { justify-self: center; width: 330px; height: 230px; perspective: 900px; position: relative; }
+  .page { position: absolute; inset: 0; transform: rotateX(48deg) rotateZ(-14deg); background: linear-gradient(135deg,#efe9dc,#cfc6b4); box-shadow: 0 40px 60px #000a; }
+  .page i { position: absolute; background: linear-gradient(135deg,#8a7a5e,#3b4638); }
+  .ent { position: absolute; border: 1px solid #d2ae5a; background: #d2ae5a22; color: #f3cc94; font-size: 10px; padding: 2px 5px; }
+  .tag { position: absolute; right: 14px; top: 12px; color: #8b8d8c; font-size: 11px; }
+  pre { background: #000; border: 1px solid #333; padding: 12px 16px; margin: 0; font-size: 12.5px; line-height: 1.55; color: #ddd; }
+  .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; margin-bottom: 30px; }
+  .box { background: #1a1a1a; border: 1px solid #333; padding: 12px 16px; } .box ul { margin: 0; padding-left: 18px; } .box li { margin: 5px 0; }
+  .box em { font-style: normal; text-decoration: underline; text-underline-offset: 3px; }
 </style>
 </head>
 <body>
-<h1>#355 – the landing page and the legal page per experience, filled in the editor</h1>
-<p class="lead">Every experience gets its own desktop landing: slots picked from its <b>Library</b> plus a few texts and links, and its own
-<b>publisher</b> for the footer and the Privacy &amp; terms page (#353). A visitor gets the landing of the experience they opened
-(<code>/&lt;experience&gt;/</code>, #343). Nothing set = today's landing (the targets' images, the app's texts). The hero's layout follows
-#354 (in progress elsewhere) – the slots below name <i>what</i> is filled, not where #354 puts it. Editor monochrome (RULES #38).</p>
+<h1>#355 concept 2 – the landing needs two choices: a scene and a surface</h1>
+<p class="lead">No landing page editor, no route of its own, no slots to fill by hand. The experience's settings (⚙ in the top bar) get one
+small section. The landing plays the chosen surface as its hero – its picture, its targets and their AR content – and takes
+everything else from what the experience already has.</p>
 
-<!-- 1 ============================================================ -->
-<div class="frame">
-  <div class="cap"><b>1 · Experience → Landing</b><span>a third tab next to Texts and Appearance; the stage shows the landing instead of a scene</span></div>
-  <div class="win">
-    <div class="panel">
-      <div class="head"><span>Experience</span><span class="tabs"><span>Texts</span><span>Appearance</span><span class="on">Landing</span></span></div>
-      <div class="sec"><h4>Hero <span>slots</span></h4>
-        <div class="slot"><span class="muted" style="width:5.5rem">Images</span><span class="grow thumbs"><i class="th a"></i><i class="th b"></i><i class="th c"></i><i class="th"></i><i class="th add">+</i></span></div>
-        <div class="small muted">Scattered around the title. None picked: the targets' printed images, as today.</div>
-        <div class="slot"><span class="muted" style="width:5.5rem">Scan scene</span><span class="grow field">scene1 – Shadows ▾</span></div>
-        <div class="small muted">What #354's hero shows instead of the phone – one of the experience's scenes. <i>Depends on #354.</i></div>
-      </div>
-      <div class="sec"><h4>Texts</h4>
-        <div class="row"><span class="l">Kicker</span><span class="field">An augmented reality companion</span></div>
-        <div class="row"><span class="l">Intro</span><span class="field area">The companion app to <i>Onion Skin…</i> by Kévin Bray. Point your phone…</span></div>
-        <div class="small muted">Empty = the app's text in the visitor's language.</div>
-      </div>
-      <div class="sec"><h4>Shop <span class="btn">+ Item</span></h4>
-        <div class="slot"><i class="th b"></i><span class="grow"><span class="field" style="display:block">The book</span><span class="field small" style="display:block;margin-top:2px">buildingfictions.com/shop/osct</span></span></div>
-        <div class="slot"><i class="th c"></i><span class="grow"><span class="field" style="display:block">The T-shirt</span><span class="field small" style="display:block;margin-top:2px">buildingfictions.com/shop/shirt</span></span></div>
-        <div class="small muted">0–4 items. No items: no shop section.</div>
-      </div>
-    </div>
-    <div class="stage">
-      <div class="bar"><span>Landing preview · 1280 × 800</span><span>Desktop ▾ · Open in a tab ↗</span></div>
-      <div class="lp">
-        <div class="hero">
-          <i class="fl th a hl" style="left:8%;top:12%;width:46px;height:58px"></i><i class="fl th b hl" style="left:78%;top:18%;width:52px;height:40px"></i>
-          <i class="fl th c hl" style="left:16%;top:62%;width:40px;height:40px"></i><i class="fl th hl" style="left:70%;top:60%;width:56px;height:44px"></i>
-          <div><div class="muted" style="text-align:center;margin-bottom:6px">An augmented reality companion</div><div class="title">Onion Skin<br>&amp;<br>Crocodile Tears</div></div>
-        </div>
-        <div class="shop"><div class="item"><i class="hl"></i>The book</div><div class="item"><i class="hl"></i>The T-shirt</div></div>
-        <footer><span>Onion Skin &amp; Crocodile Tears · Kévin Bray</span><span>Building Fictions · Privacy &amp; terms</span></footer>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 2 ============================================================ -->
-<div class="frame">
-  <div class="cap"><b>2 · Picking an image – the Library as a sheet</b><span>"+" on a slot; only what fits the slot (images; a video where a slot takes one)</span></div>
-  <div class="win">
-    <div class="panel">
-      <div class="head"><span>Experience</span><span class="tabs"><span>Texts</span><span>Appearance</span><span class="on">Landing</span></span></div>
-      <div class="sec"><h4>Hero</h4><div class="slot"><span class="muted" style="width:5.5rem">Images</span><span class="grow thumbs"><i class="th a"></i><i class="th b"></i><i class="th c"></i><i class="th"></i><i class="th add hl">+</i></span></div></div>
-    </div>
-    <div class="stage">
-      <div class="sheet">
-        <div class="head"><span>Library – images</span><span>search… · ✕</span></div>
-        <div class="grid">
-          <div class="sel"><span>p12-crocodile.webp</span></div><div><span>p13-onion.webp</span></div><div class="sel"><span>p28-tree.webp</span></div>
-          <div><span>p31-skin.webp</span></div><div><span>cover-front.webp</span></div><div><span>shop-book.jpg</span></div>
-          <div><span>p40-tears.webp</span></div><div><span>p41-hand.webp</span></div><div><span>p44-eye.webp</span></div>
-          <div><span>p52-map.webp</span></div><div><span>p56-mark.webp</span></div><div><span>upload…</span></div>
-        </div>
-        <div style="margin-top:auto;padding:.5rem .6rem;border-top:1px solid var(--line);display:flex;justify-content:space-between">
-          <span class="muted">2 selected · up to 14 · drag to order in the slot</span><span><span class="btn">Cancel</span> <span class="btn" style="background:var(--selected)">Add 2</span></span></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 3 ============================================================ -->
-<div class="frame">
-  <div class="cap"><b>3 · Publisher &amp; privacy</b><span>a section in the same tab; the stage switches to the phone's Privacy &amp; terms page</span></div>
-  <div class="win">
-    <div class="panel">
-      <div class="head"><span>Experience</span><span class="tabs"><span>Texts</span><span>Appearance</span><span class="on">Landing</span></span></div>
-      <div class="sec"><h4>Publisher <span>footer · Privacy &amp; terms</span></h4>
-        <div class="row"><span class="l">Name</span><span class="field">Building Fictions</span></div>
-        <div class="row"><span class="l">Address</span><span class="field">Lauriergracht 116W, 1016 RR Amsterdam, NL</span></div>
-        <div class="row"><span class="l">Registration</span><span class="field">KvK 58614796</span></div>
-        <div class="row"><span class="l">Contact</span><span class="field">info@buildingfictions.com</span></div>
-        <div class="row"><span class="l">Law</span><span class="field">Netherlands · Amsterdam ▾</span></div>
-      </div>
-      <div class="sec"><h4>Privacy – additions</h4>
-        <div class="field area muted">Optional: what this experience adds – its own newsletter, its own shop's data…</div>
-        <div class="small muted" style="margin-top:.3rem">The app's part (no tracking, storage, account, our processors, other sites' videos, rights) stays the platform's text,
-          translated, and is not editable here – it describes the app, not the book.</div>
-      </div>
-    </div>
-    <div class="stage">
-      <div class="bar"><span>Reader preview · Privacy &amp; terms</span><span>Landing · <b>Privacy</b></span></div>
-      <div class="phone">
-        <h5>Who we are</h5><p class="hl">Building Fictions, Lauriergracht 116W, 1016 RR Amsterdam, NL · KvK 58614796 · info@buildingfictions.com</p>
-        <h5>Privacy</h5><p><b>No tracking</b> – … (the app's text)</p><p><b>Without an account</b> – …</p><p><b>Who processes data for us</b> – Hetzner…</p>
-        <p class="hl"><b>From Building Fictions</b> – the additions, if any.</p>
-        <h5>Terms of use</h5><p>… copyright of <span class="hl">Kévin Bray, Building Fictions</span> …</p>
-        <h5>Applicable law</h5><p class="hl">Dutch law; courts of Amsterdam …</p>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 4 ============================================================ -->
-<div class="frame two">
+<div class="cols">
   <div>
-    <div class="cap"><b>4 · In the content (schema 6.1 – or the next free minor)</b><span style="color:var(--muted)">two optional fields; older apps ignore them</span></div>
-<pre># experience.yaml
-publisher:                      # footer + Privacy &amp; terms; none = the platform's
-  name: Building Fictions
-  address: Lauriergracht 116W, 1016 RR Amsterdam, the Netherlands
-  registration: KvK 58614796
-  email: info@buildingfictions.com
-  law: NL                       # NL only to start
-  privacyAdditions: ""          # Markdown, like an entry's body
-
-landing:                        # none = today's landing
-  images:                       # Library paths, in order; none = the targets' images
-    - /assets/content/library/p12-crocodile.webp
-    - /assets/content/library/p28-tree.webp
-  scene: scene1                 # #354's hero – once #354 settles it
-  kicker: An augmented reality companion
-  intro: The companion app to *{title}* by {author}. …
-  shop:
-    - label: The book
-      url: https://buildingfictions.com/shop/osct
-      image: /assets/content/library/shop-book.jpg
-      cover: true               # the book's cover from the content instead</pre>
+    <div class="cap"><b>1 · In the editor</b><span>Inspector, experience selected</span></div>
+    <div class="panel">
+      <div class="head"><span>Experience</span><span>⚙</span></div>
+      <div class="sec dim"><h4>Texts</h4><div class="row"><span class="l">Title</span><span class="field">Onion Skin &amp; Crocodile Tears</span></div>
+        <div class="row"><span class="l">Author</span><span class="field">Kévin Bray</span></div><div class="row"><span class="l">Publisher</span><span class="field">Building Fictions</span></div></div>
+      <div class="sec new"><h4>Landing page</h4>
+        <div class="row"><span class="l">Scene</span><span class="field"><span>28–29</span><span>▾</span></span></div>
+        <div class="row"><span class="l">Surface</span><span class="field"><span>Left page · 28</span><span>▾</span></span></div>
+        <div class="small muted" style="margin-top:6px">The page visitors on a computer see first plays this surface. <span class="link" style="color:#fff">Open the landing ↗</span></div>
+      </div>
+      <div class="sec dim"><h4>Recognition · Post-processing · Appearance · Rules</h4><span class="muted small">as today</span></div>
+    </div>
+    <p class="muted small" style="margin-top:10px">Two selects, saved by themselves like every edit. Scene lists the experience's scenes by label; Surface lists that
+      scene's surfaces (one surface: chosen for you, the row shows it greyed). Nothing chosen: the first scene's first surface.</p>
   </div>
+
   <div>
-    <div class="cap"><b>5 · Before the bundle</b><span style="color:var(--muted)">the static landing in index.html (#343)</span></div>
-<pre>today      index.html carries the DEFAULT experience's landing;
-           another experience (/demo/) shows the splash until
-           &lt;desktop-landing&gt; renders its own.
-
-proposal   unchanged for now: the default experience's static
-           landing is built from its `landing` (vite reads the
-           content as it does already); other experiences keep
-           splash → their landing.
-
-later      with the white label (#347 frame 3, "server-rendered
-           head"): the server writes each experience's landing
-           into the page it answers for /&lt;experience&gt;/.</pre>
+    <div class="cap"><b>2 · What the landing does with it</b><span>the reader's desktop landing, hero as #354 lays it out</span></div>
+    <div class="lp">
+      <div class="t"><div class="k">An augmented reality companion</div><div class="title">Onion Skin<br>&amp;<br>Crocodile Tears</div><br><span class="by">Kévin Bray</span></div>
+      <div class="scene new">
+        <div class="page"><i style="left:8%;top:10%;width:34%;height:44%"></i><i style="left:54%;top:16%;width:36%;height:30%"></i><i style="left:14%;top:64%;width:60%;height:24%"></i></div>
+        <span class="ent" style="left:36px;top:6px">▶ video</span><span class="ent" style="left:196px;top:26px">◆ model</span><span class="ent" style="left:120px;top:128px">T text</span>
+      </div>
+      <span class="tag">scene 28–29 · left page – loaded and played by the engine, as on a phone that found every target</span>
+      <footer><span>Onion Skin &amp; Crocodile Tears · Kévin Bray</span><span>Building Fictions · Privacy &amp; terms</span></footer>
+    </div>
+    <p class="muted small" style="margin-top:10px">The same engine the editor's stage uses renders the surface: its reference picture as the paper, every target on it shown
+      as found, entities playing in a loop, the camera drifting slowly. Reduced motion or no WebGL: the surface's picture, still.</p>
   </div>
 </div>
 
-<div class="q">
-  <b class="r">Open decisions – my recommendation underlined</b>
-  <ol>
-    <li>Where in the editor → <em>Experience → a "Landing" tab</em> next to Texts and Appearance, the stage previewing the landing (frame 1).</li>
-    <li>Texts per language? The experience's other texts (title, entries) have one language → <em>one language here too</em>, empty = the app's
-      translated text. Translations of content come with the content's languages, not here.</li>
-    <li>The privacy page → <em>platform part fixed and translated, the experience adds its publisher and optional additions</em> (frame 3) –
-      a white-label customer should not have to write the GDPR part, and cannot make it wrong.</li>
-    <li>Governing law → <em>Netherlands only</em> for now (the platform runs from Amsterdam); a choice of law per publisher once a customer needs it.</li>
-    <li>The static landing for other experiences (frame 5) → <em>keep today's split</em>, server-rendered per experience with the white label.</li>
-    <li>Order → <em>after #354 lands</em>: schema + reader first (fixture, the reader reads `landing` / `publisher`), then the editor tab, then
-      the MCP tools (<code>put_experience_landing</code>). The hero's scene slot waits for #354's layout.</li>
-  </ol>
+<div class="three">
+  <div>
+    <div class="cap"><b>3 · In the content</b></div>
+<pre># experience.yaml – optional
+landing:
+  scene: studio-a
+  surface: surface</pre>
+    <p class="muted small" style="margin-top:8px">Two ids. A minor content-schema step; older apps ignore it. A deleted scene or surface: the default again, and the
+      editor says so in the section.</p>
+  </div>
+  <div class="box">
+    <div class="cap"><b>Comes from the experience – nothing to set</b></div>
+    <ul>
+      <li>Title, author, publisher → the Texts above</li>
+      <li>Hero → the chosen surface</li>
+      <li>Texts ("Get the app", the three steps) → the app's, in the visitor's language</li>
+      <li>QR code and address → the experience's own path</li>
+      <li>Footer link → Privacy &amp; terms (#353)</li>
+    </ul>
+  </div>
+  <div class="box">
+    <div class="cap"><b>Left out on purpose</b></div>
+    <ul>
+      <li>Picked images, own landing texts – gone from concept 1</li>
+      <li>Shop items: stay in the app's configuration for OSCT → <em>own small issue when a second experience needs a shop</em></li>
+      <li>Publisher address / privacy additions per experience → <em>with the white label (#347)</em>; the page keeps Building Fictions until then</li>
+      <li>Before the app has loaded, the static landing shows the surface's picture; the animation starts once the engine is there</li>
+    </ul>
+  </div>
 </div>
 </body>
 </html>
