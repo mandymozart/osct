@@ -9,7 +9,7 @@
   import ImportCompare from "#lib/ImportCompare.svelte";
 
   /**
-   * A book's **sheet** in the experiences page's column (#348): its title, author and reader address; **Open** (the
+   * A book's **sheet** in the Experiences workspace's Inspector (#348, #356): its title, author and reader address; **Open** (the
    * editor), **Export** (the draft as one file to download – `GET …/export/file`, the import body Import reads back),
    * **Replace…** step by step (a source – file, URL or published –, then the comparison, then *Replace the draft*; readers
    * keep the live version until the next publish) and **Versions** – the publish log, the live mark per environment, and

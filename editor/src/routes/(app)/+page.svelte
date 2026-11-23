@@ -9,22 +9,46 @@
   import QuickAccess from "#lib/QuickAccess.svelte";
   import InfoView from "#lib/components/InfoView.svelte";
   import Icon from "#lib/components/Icon.svelte";
-  import AiConnections from "#lib/AiConnections.svelte";
+  import AiConnections, { type FreshToken } from "#lib/AiConnections.svelte";
+  import Workspace from "#lib/components/Workspace.svelte";
+  import { Floats } from "#lib/components/floats.svelte.js";
+  import { at, type PanelSpec } from "#lib/components/floats.js";
+  import type { TabSpec } from "#lib/components/float-tabs.js";
   import { PAGE_MM } from "#lib/surface-edit.js";
-  import { columnLabel, moveSelection } from "#lib/experiences-page.js";
+  import { columnLabel, moveSelection, shelfInsets } from "#lib/experiences-page.js";
   import { experiencesMenu } from "#lib/experiences-menu.svelte.js";
 
   /**
-   * The editor's start (#153, #348 – Tilman 2026-11-22: "the right side is still smart"): **the books** on the left – each
-   * experience as its cover (title, author, where it is live) with a **Manage** button centred under it, and a dashed **+** card at
-   * the end –, the AI connections under them (#142, #194); **a context column** on the right: nothing selected → quick
-   * access (New experience, Import, Last worked on); New → the New flow step by step; a book's Manage → its sheet (Open,
-   * Export, Replace…, Versions with make live, Delete experience…; Manage again closes it). Keyboard (Tilman 2026-11-23:
-   * "tab switches through the experiences, enter or click opens it, a select button shows the right hand export and
-   * replace view"): Tab goes from cover to cover (the Manage buttons are no tab stops), Enter or a click opens the editor,
-   * Space manages (selects) the focused book; the arrows move the focus too; an open sheet follows the focus; Esc closes the sheet.
+   * The editor's start, the **Experiences workspace** (#153, #348, #356) on the workspace shell: the stage is a plain page
+   * of **the books** – each experience as its cover (title, author, where it is live) with a **Manage** button centred
+   * under it, and a dashed **+** card at the end – scrolling inside the stage, no 3D; the panels float over it. Where a tall
+   * panel lies along the stage's left or right side, the books keep clear of it (`shelfInsets`) while room for them is left.
+   *
+   * **Inspector** (the context): nothing selected → quick access (New experience, Import, Last worked on); New → the New
+   * flow step by step; a book's Manage → its sheet (Open, Landing page, Export, Replace…, Versions with make live, Delete
+   * experience…; Manage again closes it). Whatever asks for it (Manage, New, the ☰ menu) shows the Inspector's tab, unfolded.
+   * **AI connections** (#142, #194) is a tab of the Inspector's panel; its token made here stays with the page while the tab
+   * is switched (a token is shown once). **Info** as in the other workspaces. No History: there is no history across the
+   * experiences but the quick access's *Last worked on*. The layout is remembered per workspace (`experiences`).
+   *
+   * Keyboard: Tab goes from cover to cover (the Manage buttons are no tab stops), Enter or a click opens the editor, Space
+   * manages (selects) the focused book; the arrows move the focus too; an open sheet follows the focus; Esc closes the sheet.
    * The ☰ menu's *New experience…* and *Import…* open the New flow.
    */
+  const TABS: TabSpec[] = [
+    { id: "inspector", name: "Inspector", icon: "inspector", home: "inspector", essential: true, about: "Quick access (New experience, Import, Last worked on), the New flow, or the sheet of the book you manage. The panel holding it never closes." },
+    { id: "ai", name: "AI connections", icon: "link", home: "inspector", about: "Connect an AI agent (one prompt with a fresh token) and the existing connections: renew or revoke a token." },
+    { id: "info", name: "Info", icon: "info", home: "info", about: "The name and description of the control under the pointer or in focus." },
+  ];
+  /** The panels (rem): the Inspector along the right side, Info folded at the bottom left */
+  const PANELS: PanelSpec[] = [
+    { id: "inspector", name: "Inspector", icon: "inspector", about: "Quick access, the New flow or a book's sheet – and the AI connections. It folds but never closes.",
+      place: at("top-right", 0, 0), size: { w: 26, h: "fill" }, min: { w: 18, h: 10 }, essential: true },
+    { id: "info", name: "Info", icon: "info", about: "The name and description of the control under the pointer or in focus.",
+      place: at("bottom-left", 0, 0, { collapsed: true }), size: { w: 16.5, h: 10 }, min: { w: 12, h: 5 } },
+  ];
+  const floats = new Floats("experiences", PANELS, TABS);
+
   let experiences = $state<ExperienceSummary[] | null>(null);
   let unreadable = $state<EnvironmentUnreadable[]>([]);
   let error = $state<string | null>(null);
@@ -36,6 +60,10 @@
   let newRun = $state(0);
   let sheetView = $state<"sheet" | "replace">("sheet");
   let grid = $state<HTMLElement | null>(null);
+  /** The AI connections' state that outlives its tab being switched: which of its views, the token made here */
+  let aiView = $state<"connect" | "existing">("connect");
+  let aiFresh = $state<FreshToken | null>(null);
+  let aiFreshShown = $state(false);
 
   const load = async () => {
     try {
@@ -58,17 +86,24 @@
   const published = $derived((experiences ?? []).filter(e => (e.live ?? []).some(l => l.env === ownEnv)).map(e => ({ id: e.id, title: e.title })));
   const initialScenes = $derived(Object.fromEntries((experiences ?? []).map(e => [e.id, e.initialScene])));
   const label = $derived(columnLabel(column === "book" ? (sheetView === "replace" ? "replace" : "book") : column, current?.title));
+  /** The books keep clear of a tall panel along a side (px) */
+  const insets = $derived(shelfInsets(Object.values(floats.views), floats.area, floats.metrics.gap, 12 * floats.metrics.rem));
+
+  /** The Inspector's tab comes to the front, its panel unfolded – what was asked for shows */
+  const showInspector = () => floats.showTab("inspector", true);
 
   function select(id: string | null) {
     selected = id;
     column = id ? "book" : "quick";
     sheetView = "sheet";
+    if (id) showInspector();
   }
   const openNew = (start: "empty" | "export" | null) => {
     selected = null;
     newStart = start;
     newRun += 1;
     column = "new";
+    showInspector();
   };
   const open = (id: string) => void goto(resolve(`${id}/`));
   const focusCard = async (index: number) => {
@@ -127,59 +162,64 @@
     if (target?.closest?.("input, textarea, select, [role=menu], [role=alertdialog], .compare")) return;
     select(null);
   };
+
+  const STAGE_HELP = "The experiences of this instance as their covers – where each is live, Manage for its sheet in the Inspector – and the + card for a new one. A click or Enter opens an experience.";
 </script>
 
 <svelte:window onkeydown={onWindowKey} />
 
-<div class="split">
-  <main class="shelf" style:--cover-ratio="{PAGE_MM.width} / {PAGE_MM.height}">
-    <h1>Experiences</h1>
-    {#if error}<p class="danger">{error}</p>{/if}
-    {#if experiences === null && !error}
-      <ul class="covers" aria-busy="true">
-        {#each [0, 1] as i (i)}<li class="skeleton"><span class="cover-box"></span><span class="line"></span><span class="line short"></span></li>{/each}
-      </ul>
-    {:else if experiences}
-      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-      <ul class="covers" bind:this={grid} onkeydown={onGridKey} aria-label="Experiences">
-        {#each experiences as experience (experience.id)}
-          <li class:selected={selected === experience.id}>
-            <button type="button" class="experience" data-card={experience.id}
-              onclick={() => open(experience.id)} onfocus={() => onCardFocus(experience.id)} title="Open in the editor (Enter) – Space: Manage">
-              <span class="cover-box"><ExperienceCover {experience} /></span>
-              <span class="title">{experience.title}</span>
-              {#if experience.experience.book}<span class="author muted">{experience.experience.book.author}</span>{/if}
-              <span class="live" data-help-name="Live" data-help="Where the experience is live: the environments (local, staging, production) that serve a build of it – every experience has its own store in each. Draft = no environment serves it.">
-                {#each experience.live ?? [] as l (l.env)}<span class="badge on" title={l.build ? `build ${l.build}` : undefined}>{l.env}</span>{:else}<span class="badge">draft</span>{/each}
-              </span>
+{#snippet stageView()}
+  <main class="shelf" style:--cover-ratio="{PAGE_MM.width} / {PAGE_MM.height}" style:padding-left="{insets.left}px" style:padding-right="{insets.right}px">
+    <div class="books">
+      <h1>Experiences</h1>
+      {#if error}<p class="danger">{error}</p>{/if}
+      {#if experiences === null && !error}
+        <ul class="covers" aria-busy="true">
+          {#each [0, 1] as i (i)}<li class="skeleton"><span class="cover-box"></span><span class="line"></span><span class="line short"></span></li>{/each}
+        </ul>
+      {:else if experiences}
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <ul class="covers" bind:this={grid} onkeydown={onGridKey} aria-label="Experiences">
+          {#each experiences as experience (experience.id)}
+            <li class:selected={selected === experience.id}>
+              <button type="button" class="experience" data-card={experience.id}
+                onclick={() => open(experience.id)} onfocus={() => onCardFocus(experience.id)} title="Open in the editor (Enter) – Space: Manage">
+                <span class="cover-box"><ExperienceCover {experience} /></span>
+                <span class="title">{experience.title}</span>
+                {#if experience.experience.book}<span class="author muted">{experience.experience.book.author}</span>{/if}
+                <span class="live" data-help-name="Live" data-help="Where the experience is live: the environments (local, staging, production) that serve a build of it – every experience has its own store in each. Draft = no environment serves it.">
+                  {#each experience.live ?? [] as l (l.env)}<span class="badge on" title={l.build ? `build ${l.build}` : undefined}>{l.env}</span>{:else}<span class="badge">draft</span>{/each}
+                </span>
+              </button>
+              <button type="button" class="select" tabindex="-1" aria-label="Manage {experience.title}" title="Export, Replace, Versions, Delete – in the Inspector"
+                aria-pressed={selected === experience.id} onclick={() => toggle(experience.id)}>Manage</button>
+            </li>
+          {/each}
+          <li class="new-card">
+            <button type="button" class="experience add" data-card="new" aria-pressed={column === "new"} onclick={() => openNew(null)}
+              data-help-name="New" data-help="A new experience, step by step in the Inspector: empty, or from an export.">
+              <span class="cover-box"><Icon name="plus" /></span>
+              <span class="title">New</span>
             </button>
-            <button type="button" class="select" tabindex="-1" aria-label="Manage {experience.title}" title="Export, Replace, Versions, Delete – in the column on the right"
-              aria-pressed={selected === experience.id} onclick={() => toggle(experience.id)}>Manage</button>
           </li>
-        {/each}
-        <li class="new-card">
-          <button type="button" class="experience add" data-card="new" aria-pressed={column === "new"} onclick={() => openNew(null)}
-            data-help-name="New" data-help="A new experience, step by step in the column: empty, or from an export.">
-            <span class="cover-box"><Icon name="plus" /></span>
-            <span class="title">New</span>
-          </button>
-        </li>
-      </ul>
-      {#if experiences.length === 0}
-        <p class="muted empty">No experience yet. Make one with <b>New</b>, or import one: an export file, a URL or a published version.
-          <a class="text-link" href="/docs/tutorials/#bringing-in">How to bring an experience in</a></p>
+        </ul>
+        {#if experiences.length === 0}
+          <p class="muted empty">No experience yet. Make one with <b>New</b>, or import one: an export file, a URL or a published version.
+            <a class="text-link" href="/docs/tutorials/#bringing-in">How to bring an experience in</a></p>
+        {/if}
       {/if}
-    {/if}
-    {#each unreadable as e (e.env)}
-      <p class="small muted" title="An environment whose content store cannot be read – where the experiences are live there is not known">
-        {e.env}: the content store cannot be read
-      </p>
-    {/each}
-    <AiConnections />
+      {#each unreadable as e (e.env)}
+        <p class="small muted" title="An environment whose content store cannot be read – where the experiences are live there is not known">
+          {e.env}: the content store cannot be read
+        </p>
+      {/each}
+    </div>
   </main>
+{/snippet}
 
-  <aside class="side">
-    <section class="context" aria-label={label}>
+{#snippet tabBody(t: string)}
+  {#if t === "inspector"}
+    <section class="body context" aria-label={label}>
       {#if column === "new"}
         <h2>New experience</h2>
         {#key newRun}
@@ -192,23 +232,20 @@
         <QuickAccess {initialScenes} onnew={() => openNew(null)} onimport={() => openNew("export")} />
       {/if}
     </section>
-    <InfoView />
-  </aside>
-</div>
+  {:else if t === "ai"}
+    <div class="body"><AiConnections bind:view={aiView} bind:fresh={aiFresh} bind:freshShown={aiFreshShown} /></div>
+  {:else if t === "info"}
+    <InfoView floating />
+  {/if}
+{/snippet}
+
+<Workspace {floats} stage={stageView} tab={tabBody} help={{ name: "Experiences", text: STAGE_HELP }} />
 
 <style>
-  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(22rem, 30rem); height: calc(100dvh - var(--top-height)); }
-  .shelf { overflow-y: auto; padding: 2rem clamp(1rem, 4vw, 3.5rem) 3rem; }
-  .side { display: flex; flex-direction: column; min-height: 0; background: var(--surface-head); border-left: 1px solid var(--line); }
-  .context { flex: 1; overflow-y: auto; padding: 2rem clamp(1rem, 3vw, 2rem); }
-  .context > :global(*) { max-width: 28rem; }
+  .shelf { position: absolute; inset: 0; overflow-y: auto; background: var(--surface); padding-top: 2rem; padding-bottom: calc(3rem + var(--control-height)); }
+  .books { padding: 0 clamp(1rem, 4vw, 3.5rem); }
+  .body { flex: 1; min-height: 0; overflow-y: auto; padding: .75rem 1rem 1rem; container: panel / inline-size; }
   .context h2 { font-size: 1.125rem; font-weight: 600; margin: 0 0 1rem; }
-  @media (max-width: 47.9rem) {
-    .split { grid-template-columns: minmax(0, 1fr); height: auto; }
-    .shelf { overflow: visible; }
-    .side { border-left: none; border-top: 1px solid var(--line); }
-    .side > :global(.info) { display: none; }
-  }
 
   h1 { font-size: 1.125rem; font-weight: 600; margin: 0 0 1.5rem; }
   .empty { font-size: .875rem; max-width: 32rem; }

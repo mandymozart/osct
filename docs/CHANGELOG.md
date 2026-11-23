@@ -8,6 +8,23 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.14.0 – 2026-11-23
+
+### Changed
+- **The Experiences page is a workspace: the books on the stage, the panels over them** (Tilman, 2026-11-23: *"make it
+  merely a stage without the 3d scene in the background … look at how scutoon is using the panels and the stage now"*,
+  #356). `/editor/` works like a scene and the landing page now: the covers fill the window and scroll inside it, and
+  the right-hand column became the **Inspector** panel – quick access (New experience, Import, Last worked on), the New
+  flow, or a book's sheet, exactly as before. **AI connections** moved from under the books into a tab of that panel;
+  a token made there stays shown while you switch tabs. **Info** sits folded at the bottom left. Panels move, fold,
+  resize and split like everywhere else, the top bar's **Panels** button lists them and resets the layout, and the page
+  remembers its own layout. The books keep clear of a panel along the side; in a narrow window they run on under it.
+  Everything else stays: Tab from cover to cover, Enter opens, Space manages, the arrows, Esc closes the sheet, the
+  ☰ menu's New and Import. There is no History panel here – Last worked on is the history across experiences.
+- **The documentation site** describes the Experiences page as a workspace (the guide's Experiences page, its first
+  page, the workspace page and the tutorials). Its screenshot of the Experiences page is not retaken yet.
+
+
 ## 6.13.1 – 2026-11-23
 
 ### Changed
