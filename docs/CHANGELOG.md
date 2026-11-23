@@ -15,9 +15,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   belong to one plugin?"*). A plugin is a folder: `index.ts` and the TypeScript and shader files next to it. TypeScript
   imports its siblings by `./name`; a shader file (`.frag`, `.vert`, `.glsl`, `.wgsl`) comes in as a string, so a
   layer's GLSL can live in a file of its own too. Shaders several plugins share stay in the Library.
-- **File tabs in the Code tab**, like Shadertoy's (*"no file tree. just file tabs"*): `index.ts` first, then the
-  plugin's other files. **+** adds a file or uploads some, a double-click renames one, **×** deletes it (Save makes it
-  stick). Dropping files on the tabs adds them, and a plugin's zip makes a new plugin, so a Download can be passed on.
+- **File tabs in the Code tab**, like Shadertoy's (*"no file tree. just file tabs"*), built like a panel's tab row:
+  `index.ts` first, then the plugin's other files. **+** adds a file or uploads some, a double-click (or right click,
+  F2) renames one, and its close cross deletes it (see Undo below). Dropping files on the tabs adds them, and a plugin's zip makes a new plugin, so a Download can be passed on.
   The status line names the files and the bundle's size.
 - **Run and Publish bundle a plugin in the browser** (esbuild-wasm, the same version as the content build). Publish
   now **type-checks** every file first and stops on a type error, naming the plugin, file and line. A bundle above
@@ -25,6 +25,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **`osct plugin link`, `push` and `pull`**: a plugin developed in your own folder and tools. A push type-checks and
   sends the files, the stage runs them, and the Code tab shows the plugin as *linked* to that folder. Editing it in the
   editor is still allowed, and `pull` takes those edits back.
+- **Plugin changes are in Undo and History** (Tilman: *"the delete is instant. that is dangerous and it is not
+  undoable"*). Deleting a file with its close cross saves that deletion as a change of its own, so Undo brings the file
+  back; the other files' unsaved edits stay as they are. Every save, push or deletion of a plugin can be reverted, a
+  deleted plugin comes back with all its files, and the Code tab and the stage follow an undo.
 
 ### Changed
 - The API answers a plugin with its `files`; `PUT …/plugins/{pid}` takes `files` (or `source` for one file) and an

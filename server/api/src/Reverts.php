@@ -16,8 +16,10 @@ declare(strict_types=1);
  *
  * A change is reverted only while its thing still holds what the change wrote (`after`); otherwise it is a **conflict**:
  * listed, never overwritten, and the older changes of that thing are skipped as well. Kinds the log cannot take back –
- * a creation, a removal, an entry moved to another surface, a plugin source, a deleted file, a change saved before the
- * content schema 3.0 and the migration itself – are listed as not revertable. A delivery's new scene, entry or target
+ * a creation, a removal, an entry moved to another surface, a deleted file, a change saved before the content schema 3.0
+ * and the migration itself – are listed as not revertable. A **plugin** (#352) is revertable every way – a save, a push,
+ * a file deleted in the Code tab, its creation (it goes again) and its deletion (it comes back): its `before` / `after`
+ * are its files (one source before 6.9.0: its `index.ts`) or null. A delivery's new scene, entry or target
  * (#322, `changes.delivery_id`) is the exception among the creations: it is removed again – a target first, an entry once
  * it has no target, a scene once nothing lies on it and the experience does not open on it (a conflict otherwise).
  * A revert changes the draft only; readers see it with the next publish.
@@ -84,7 +86,13 @@ final class Reverts
         if ($kind === 'asset') return 'A file a removal deleted – its bytes are gone.';
         // The migration to schema 3.0 (#319, its code is gone) wrote its changes with the kind `migration`
         if ($kind === 'migration') return 'The migration to the content schema 3.0 – not revertable.';
-        if ($kind === 'plugin') return 'A plugin source – change it in the Code tab.';
+        // A plugin (#352): its files or null, both ways – one source before 6.9.0 is its index.ts
+        if ($kind === 'plugin') {
+            foreach ([$row['before_json'], $row['after_json']] as $json) {
+                if (Plugins::filesOfValue($json === null ? null : Editor::decode($json)) === false) return 'Not revertable.';
+            }
+            return null;
+        }
         // A delivery's new scene, entry or target (#322): reverted by removing it again
         if ($row['before_json'] === null && self::deliveredRow($row)) return null;
         if ($row['before_json'] === null) return 'A creation – remove it instead.';
@@ -234,7 +242,12 @@ final class Reverts
             }
             $current = array_key_exists($key, $state) ? $state[$key] : self::read($experienceId, $key);
             $after = Editor::decode($row['after_json']);
-            $before = Editor::decode($row['before_json']);
+            $before = $row['before_json'] === null ? null : Editor::decode($row['before_json']);
+            if ($row['kind'] === 'plugin') {
+                // As the log stores a plugin now: its files (the old single source as its index.ts), null when it is none
+                $after = Plugins::filesOfValue($after);
+                $before = Plugins::filesOfValue($before);
+            }
             if ($row['kind'] === SurfaceReferences::KIND && $before !== null && !SurfaceReferences::surfaceExists($experienceId, ...SurfaceReferences::split((string) $row['ref']))) {
                 $items[] = $item + ['status' => 'conflict', 'reason' => 'Its scene has no such surface any more.'];
                 $counts['conflict']++;
@@ -305,8 +318,8 @@ final class Reverts
     /** Whether the thing's current value is what the change wrote (the experience: only the fields it changed) */
     private static function holds(mixed $current, mixed $after, array $fields, string $key): bool
     {
-        // A reference image (#314) may be none (null) before and after
-        if (str_starts_with($key, SurfaceReferences::KIND . ':')) return self::canon($current) === self::canon($after);
+        // A reference image (#314) and a plugin (#352) may be none (null) before and after
+        if (str_starts_with($key, SurfaceReferences::KIND . ':') || str_starts_with($key, 'plugin:')) return self::canon($current) === self::canon($after);
         if ($current === null) return false;
         if ($key !== 'experience') return self::canon($current) === self::canon($after);
         foreach ($fields as $field) {
@@ -334,6 +347,7 @@ final class Reverts
         if ($key === 'groups:' . $experienceId) return Editor::decode((string) (Experiences::experienceRow($experienceId, true)['groups_json'] ?? '[]'));
         if ($key === 'order:' . $experienceId) return array_map(static fn(array $row) => (string) $row['id'], Scenes::context($experienceId, true)['rows']);
         [$kind, $ref] = explode(':', $key, 2);
+        if ($kind === 'plugin') return Plugins::current($experienceId, $ref);
         if ($kind === SurfaceReferences::KIND) {
             [$scene, $surface] = SurfaceReferences::split($ref);
             $reference = SurfaceReferences::one($experienceId, $scene, $surface, true);
@@ -387,6 +401,9 @@ final class Reverts
                 $params + ['category' => (string) ($next->category ?? ''), 'title' => (string) ($next->title ?? ''), 'data' => $json, 'id' => $ref]);
         } elseif ($kind === 'scene') {
             Db::run('UPDATE scenes SET label = :label, data_json = :data WHERE experience_id = :experience AND id = :id', $params + ['label' => (string) ($next->label ?? ''), 'data' => $json, 'id' => $ref]);
+        } elseif ($kind === 'plugin') {
+            // Its files again, or gone (a creation taken back) – the change is recorded below, as every revert's
+            Plugins::restore($experienceId, $ref, $next, $user);
         } elseif ($kind === SurfaceReferences::KIND) {
             [$scene, $surface] = SurfaceReferences::split($ref);
             $reference = $next instanceof stdClass ? ['url' => (string) $next->url, 'name' => (string) ($next->name ?? ''), 'fit' => (string) ($next->fit ?? SurfaceReferences::FIT_DEFAULT)] : null;

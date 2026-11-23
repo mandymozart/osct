@@ -9,6 +9,9 @@
   import type { CodeEditor } from "#lib/plugins/monaco.js";
   import { newFileName, pluginFromZip, renameProblem, sizeText } from "#lib/plugins/plugin-files.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
+  import ContextMenu, { type MenuItem } from "#lib/components/ContextMenu.svelte";
+  import Icon from "#lib/components/Icon.svelte";
+  import { filesKey } from "#lib/plugins.svelte.js";
   import { PLUGIN_BUNDLE_WARN_BYTES, PLUGIN_ENTRY, PLUGIN_FILE_PATTERN, pluginFilesProblems, sortPluginFiles, type PluginFile } from "@shared/types/plugins";
 
   /**
@@ -18,8 +21,11 @@
    * content build reports them; Tab indents, Ctrl+Enter runs, Ctrl+S saves.
    *
    * A plugin is a folder of files (#352): **one tab per file**, like Shadertoy's – `index.ts` first (the entry: it can't be
-   * closed or renamed), the plugin's other TypeScript and shader files after it, a double-click renames one, its × deletes
-   * it (an unsaved edit like any other: Save makes it stick, the change log keeps what was saved). **+** adds a file
+   * closed or renamed), the plugin's other TypeScript and shader files after it – the editor's own `pill tab`s, as in a
+   * panel's head. A double-click (or the tab's menu: right click, F2) renames one; its close cross **deletes the file at
+   * once as its own saved change** (Tilman: *"the delete is instant. that is dangerous and it is not undoable"*), so the
+   * editor's Undo brings it back – the other files' unsaved edits stay edits; a file never saved just goes (asked first
+   * when it holds text). **+** adds a file
    * (TypeScript, a fragment or vertex shader, a GLSL include, WGSL) or uploads files; files dropped on the tabs join the
    * plugin, a plugin's zip (its Download) dropped there becomes a new plugin. TypeScript imports its siblings by `./name`,
    * a shader file comes in as a string (`import WATER from "./water.frag"`).
@@ -65,8 +71,8 @@
   let host = $state<HTMLElement>();
   let code = $state<CodeEditor | null>(null);
   let codeError = $state<string | null>(null);
-  /** + is open */
-  let adding = $state(false);
+  /** The + menu or a tab's menu, where it opens */
+  let menu = $state<{ at: { x: number; y: number }; items: MenuItem[]; label: string; head?: string } | null>(null);
   /** The file whose tab is being renamed, and the name typed */
   let renaming = $state<string | null>(null);
   let newName = $state("");
@@ -118,7 +124,7 @@
     notice = null;
     confirmingDelete = false;
     inUse = null;
-    adding = false;
+    menu = null;
     renaming = null;
   };
 
@@ -241,19 +247,63 @@
 
   /** + → a new file of that kind, its tab open and its name ready to type */
   const addFile = (kind: (typeof ADD_KINDS)[number]) => {
-    adding = false;
     const name = newFileName(buffer.files.map(f => f.name), kind.stem, kind.extension);
     buffer.files = [...buffer.files, { name, text: kind.extension === "ts" ? "export {};\n" : "" }];
     buffer.active = name;
     startRename(name);
   };
 
-  /** × on a tab: the file is gone from the plugin (unsaved until Save) */
-  const closeFile = (name: string) => {
+  /**
+   * The close cross: the file goes. A file the stored plugin has is deleted there at once – its own change in History, so
+   * Undo brings it back; the other files' unsaved edits stay edits. A file never saved just goes (asked when it holds text).
+   */
+  const closeFile = async (name: string) => {
     if (name === PLUGIN_ENTRY) return;
-    buffer.files = buffer.files.filter(f => f.name !== name);
-    if (buffer.active === name) buffer.active = PLUGIN_ENTRY;
-    notice = `${name} removed – Save makes it stick`;
+    const id = buffer.open;
+    const text = buffer.files.find(f => f.name === name)?.text ?? "";
+    const without = () => {
+      buffer.files = buffer.files.filter(f => f.name !== name);
+      if (buffer.active === name) buffer.active = PLUGIN_ENTRY;
+    };
+    try {
+      const deleted = id && current?.stored ? await plugins.deleteFile(experienceId, id, name) : null;
+      if (!deleted?.saved && text.trim() && !window.confirm(`Delete ${name}? It was never saved – Undo cannot bring it back.`)) return;
+      without();
+      if (deleted?.saved) {
+        // The stored plugin is its files without this one now; what else is edited stays unsaved
+        buffer.saved = filesKey(deleted.files);
+        buffer.loaded = buffer.saved;
+        notice = `${name} deleted – Undo brings it back`;
+      } else {
+        notice = `${name} removed`;
+      }
+    } catch {
+      // plugins.error says
+    }
+  };
+
+  /** The + menu: a new file of a kind, or files from this computer */
+  const openAddMenu = (button: HTMLElement) => {
+    const r = button.getBoundingClientRect();
+    menu = {
+      at: { x: r.right, y: r.bottom }, label: "Add a file", head: "Add a file to the plugin",
+      items: [
+        ...ADD_KINDS.map((kind): MenuItem => ({ label: `${kind.label} (.${kind.extension})`, select: () => addFile(kind) })),
+        { label: "Upload files…", help: "Files from this computer join the plugin – or drop them on the tabs; a plugin's zip becomes a new plugin", select: () => upload?.click() },
+      ],
+    };
+  };
+
+  /** A tab's menu (right click, the menu key): rename, delete */
+  const openTabMenu = (event: MouseEvent, name: string) => {
+    event.preventDefault();
+    menu = {
+      at: { x: event.clientX, y: event.clientY }, label: "File", head: name,
+      items: [
+        { label: "Rename", keys: "F2", disabled: name === PLUGIN_ENTRY ? "index.ts is the entry – it keeps its name" : false, select: () => startRename(name) },
+        { label: "Delete", danger: true, disabled: name === PLUGIN_ENTRY ? "index.ts is the entry" : false, help: "Deletes the file – Undo brings it back", select: () => void closeFile(name) },
+      ],
+    };
   };
 
   const startRename = (name: string) => {
@@ -406,37 +456,31 @@
   <div class="files" class:drag-over={dragOver} role="tablist" aria-label="The plugin's files" tabindex="-1"
     ondragover={e => { e.preventDefault(); dragOver = true; }} ondragleave={() => (dragOver = false)} ondrop={drop}
     data-help-name="Files" data-help="The plugin's files, one tab each: index.ts is the entry; TypeScript imports its siblings by ./name, a shader file comes in as a string (import WATER from './water.frag'). Double-click a tab to rename it, × deletes the file (Save makes it stick). + adds a file; drop files here to add them, or a plugin's zip to make it a new plugin.">
-    <div class="tabs">
+    <span class="tabs">
       {#each buffer.files as file (file.name)}
         {#if renaming === file.name}
-          <input class="tab rename" class:invalid={!!renameError} bind:value={newName} spellcheck="false" aria-label="The file's new name" title={renameError ?? "Enter keeps it, Esc goes back"}
+          <input class="field rename" class:invalid={!!renameError} bind:value={newName} spellcheck="false" aria-label="The file's new name" title={renameError ?? "Enter keeps it, Esc goes back"}
             onkeydown={e => { if (e.key === "Enter") finishRename(); else if (e.key === "Escape") renaming = null; }} onblur={finishRename} {@attach el => { el.focus(); el.setSelectionRange(0, newName.lastIndexOf(".")); }} />
         {:else}
-          <div class="tab" class:on={buffer.active === file.name} class:entry={file.name === PLUGIN_ENTRY} role="tab" tabindex="0" aria-selected={buffer.active === file.name}
-            title={file.name === PLUGIN_ENTRY ? "The entry: it exports register(api)" : "Double-click to rename"}
-            onclick={() => (buffer.active = file.name)} ondblclick={() => startRename(file.name)}
-            onkeydown={e => { if (e.key === "Enter" || e.key === " ") buffer.active = file.name; else if (e.key === "F2") startRename(file.name); }}>
-            <span class="name">{file.name}</span>
+          <span class="file" class:on={buffer.active === file.name}>
+            <button type="button" role="tab" class="pill tab" class:on={buffer.active === file.name} aria-selected={buffer.active === file.name}
+              title={file.name === PLUGIN_ENTRY ? "The entry: it exports register(api)" : "Double-click or F2 renames it"}
+              onclick={() => (buffer.active = file.name)} ondblclick={() => startRename(file.name)} oncontextmenu={e => openTabMenu(e, file.name)}
+              onkeydown={e => { if (e.key === "F2") startRename(file.name); }}>{file.name}</button>
             {#if file.name !== PLUGIN_ENTRY}
-              <button type="button" class="close" aria-label="Delete {file.name}" title="Delete the file (Save makes it stick)" onclick={e => { e.stopPropagation(); closeFile(file.name); }}>×</button>
+              <button type="button" class="icon-button close" aria-label="Delete {file.name}" title="Delete {file.name} – Undo brings it back"
+                onclick={() => void closeFile(file.name)}><Icon name="close" /></button>
             {/if}
-          </div>
+          </span>
         {/if}
       {/each}
-    </div>
-    <button type="button" class="add" class:open={adding} aria-label="Add a file" aria-expanded={adding} title="Add a file to this plugin" onclick={() => (adding = !adding)}>+</button>
-    {#if adding}
-      <div class="menu" role="menu">
-        {#each ADD_KINDS as kind (kind.extension)}
-          <button type="button" role="menuitem" onclick={() => addFile(kind)}>{kind.label} <span class="muted">.{kind.extension}</span></button>
-        {/each}
-        <hr />
-        <button type="button" role="menuitem" onclick={() => { adding = false; upload?.click(); }}>Upload files…</button>
-        <p class="small muted">or drop them on the tabs</p>
-      </div>
-    {/if}
+    </span>
+    <button type="button" class="icon-button add" aria-label="Add a file" aria-haspopup="menu" title="Add a file to the plugin" onclick={e => openAddMenu(e.currentTarget)}><Icon name="plus" /></button>
     <input type="file" multiple hidden accept=".ts,.frag,.vert,.glsl,.wgsl,.zip" bind:this={upload} onchange={e => { const input = e.currentTarget as HTMLInputElement; if (input.files) void takeFiles(input.files); input.value = ""; }} />
   </div>
+{/if}
+{#if menu}
+  <ContextMenu at={menu.at} label={menu.label} head={menu.head} items={menu.items} onclose={() => (menu = null)} />
 {/if}
 
 <div class="editor" class:has-error={errorLine !== null} data-help-name="Plugin source" data-help="The open file: TypeScript checked against the plugin API as the content build checks it – completion with Ctrl+Space, type errors underlined – or a shader. Run (Ctrl+Enter) shows the plugin on the stage; Save (Ctrl+S) stores its files. Readers get the saved files with the next Publish, which type-checks them first.">
@@ -492,28 +536,21 @@
   .linked { display: flex; align-items: center; gap: .375rem; margin: .25rem 0 0; padding: .25rem 0; border-bottom: 1px solid var(--line); }
   .linked .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success, #6cc070); flex: none; }
   .linked .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* The files: one tab each, scrolling sideways under + at the right edge */
-  .files { position: relative; display: flex; align-items: stretch; height: 1.625rem; margin-top: .375rem; border-bottom: 1px solid var(--line); }
-  .files.drag-over { outline: 1px dashed var(--text); outline-offset: -1px; }
-  .tabs { display: flex; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .tab { display: flex; align-items: center; gap: .25rem; padding: 0 .5rem; flex: none; font: 11px ui-monospace, Consolas, monospace; color: var(--muted); border-right: 1px solid var(--line); cursor: pointer; white-space: nowrap; background: none; }
-  .tab.on { color: var(--text); background: var(--control-background); box-shadow: inset 0 2px 0 var(--text); }
-  .tab .close { border: 0; background: none; color: var(--muted); padding: 0 .125rem; font: inherit; visibility: hidden; cursor: pointer; }
-  .tab.on .close { visibility: visible; }
-  .tab.rename { width: 9rem; border: 1px solid var(--text); color: var(--text); background: var(--control-background); outline: none; cursor: text; }
-  .tab.rename.invalid { border-color: var(--danger); }
-  .add { flex: none; width: 1.75rem; border: 0; border-left: 1px solid var(--line); background: var(--surface, transparent); color: var(--text); font-size: 15px; cursor: pointer; }
-  .add.open { background: var(--control-background); }
-  .menu { position: absolute; right: 0; top: 100%; z-index: 5; width: 12rem; padding: .25rem 0; background: var(--surface, var(--control-background)); border: 1px solid var(--line); box-shadow: 0 4px 12px rgb(0 0 0 / .3); }
-  .menu button { display: block; width: 100%; text-align: left; padding: .375rem .625rem; border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; }
+  /* The files: the editor's tab row (a panel head's `pill tab`s), scrolling sideways, + after it at the right edge */
+  .files { display: flex; align-items: center; gap: .125rem; margin-top: .375rem; }
+  .files.drag-over { outline: 1px dashed var(--text); outline-offset: 1px; }
+  .tabs { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .125rem; overflow-x: auto; scrollbar-width: none; }
+  .file { flex: none; display: inline-flex; align-items: center; }
+  .file .tab { padding: 0 .375rem; }
+  .file.on, .file.on .tab { background: var(--surface); color: var(--text); }
+  .file:not(.on) .tab { color: var(--muted); }
+  .file .close { color: var(--muted); }
+  .rename { flex: none; width: 9rem; }
+  .rename.invalid { border-color: var(--danger); }
+  .add { flex: none; }
   @media (hover: hover) {
-    .tab:hover .close { visibility: visible; }
-    .tab .close:hover { color: var(--text); }
-    .add:hover { background: var(--control-background); }
-    .menu button:hover { background: var(--hover-background, var(--control-background)); }
+    .file .close:hover { color: var(--text); }
   }
-  .menu hr { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; }
-  .menu p { margin: 0; padding: 0 .625rem .25rem; }
   /* Monaco fills this box and follows its size: it needs a definite height */
   .editor { position: relative; flex: 1 1 0; min-height: 10rem; margin-top: .25rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); overflow: hidden; }
   .editor.has-error { border-color: var(--danger); }

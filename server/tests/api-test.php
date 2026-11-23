@@ -1321,6 +1321,14 @@ try {
     }
     [$status, $data] = call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['files' => $glowFiles, 'origin' => null], $editor);
     check($status === 200 && $data['plugin']['origin'] === null, 'origin: null unlinks');
+    // A file deleted in the Code tab is a save of the files without it – Undo (a revert) brings it back (#352)
+    call($api, 'PUT', '/editor/experiences/osct/plugins/glow', ['files' => array_values(array_filter($glowFiles, static fn($f) => $f['name'] !== 'water.frag'))], $editor);
+    [, $log] = call($api, 'GET', '/editor/experiences/osct/changes?limit=1', null, $editor);
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/changes/revert', ['ids' => [$log['changes'][0]['id']]], $editor);
+    check($status === 200 && $data['plan']['counts']['revert'] === 1 && $data['plan']['counts']['notRevertable'] === 0, 'a plugin change is revertable: the plan reverts it');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/changes/revert', ['ids' => [$log['changes'][0]['id']], 'apply' => true], $editor);
+    [, $back] = call($api, 'GET', '/editor/experiences/osct/plugins/glow', null, $editor);
+    check($status === 200 && $data['applied'] === true && array_column($back['plugin']['files'], 'name') === ['index.ts', 'spin.ts', 'water.frag'], 'reverted, the deleted file is back');
     [$status, $export] = call($api, 'GET', '/editor/experiences/osct/export', null, $editor);
     check($status === 200 && array_column($export['plugins'], 'id') === ['glow'] && array_column($export['plugins'][0]['files'], 'name') === ['index.ts', 'spin.ts', 'water.frag'],
         '#322: the export carries the Code tab\'s plugins with every file');
@@ -1332,6 +1340,11 @@ try {
     [$status] = call($api, 'DELETE', '/editor/experiences/osct/plugins/glow', null, $editor);
     [$status2] = call($api, 'GET', '/editor/experiences/osct/plugins/glow', null, $editor);
     check($status === 204 && $status2 === 404, 'DELETE → 204, then 404');
+    [, $log] = call($api, 'GET', '/editor/experiences/osct/changes?limit=1', null, $editor);
+    [$status] = call($api, 'POST', '/editor/experiences/osct/changes/revert', ['ids' => [$log['changes'][0]['id']], 'apply' => true], $editor);
+    [$status2, $data] = call($api, 'GET', '/editor/experiences/osct/plugins/glow', null, $editor);
+    check($status === 200 && $status2 === 200 && count($data['plugin']['files']) === 3, '#352: a deleted plugin comes back with a revert, all its files');
+    call($api, 'DELETE', '/editor/experiences/osct/plugins/glow', null, $editor);
     // Publishing content whose nodes use a component no plugin of the content can provide is refused
     $castle = $configuration['entities']['castle'];
     $castle['components'] = [['type' => 'tint', 'opacity' => 0.4]];

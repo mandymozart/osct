@@ -477,7 +477,8 @@
     if (revision === revisionSeen) return;
     revisionSeen = revision;
     untrack(() => {
-      void Promise.all([reloadContent(), entries.load(experienceId), environmentEdit.load(experienceId, true), scenes.load(experienceId, true)])
+      // #352: plugin changes are revertable – the plugins and the stage's copies follow
+      void Promise.all([reloadContent(), entries.load(experienceId), environmentEdit.load(experienceId, true), scenes.load(experienceId, true), plugins.afterRevert(experienceId, stage)])
         .finally(() => (panelsRevision = revision));
     });
   });

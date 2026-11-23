@@ -122,7 +122,12 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
         plugin = nextPlugin;
         runError = null;
       }
-      for (const name of [...models.keys()]) if (!files.some(f => f.name === name)) drop(name);
+      let filesChanged = false;
+      for (const name of [...models.keys()]) {
+        if (files.some(f => f.name === name)) continue;
+        drop(name);
+        filesChanged = true;
+      }
       for (const file of files) {
         const held = models.get(file.name);
         if (held) {
@@ -131,7 +136,11 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
         }
         const model = makeModel(plugin, file.name, file.text);
         models.set(file.name, { model, changes: model.onDidChangeContent(() => options.onChange(file.name, model.getValue())) });
+        filesChanged = true;
       }
+      // A file that came or went changes what the others' imports find: every model is validated again (the TypeScript
+      // worker re-checks all models when its options are set – an import of a sibling made after it is no error then)
+      if (filesChanged) ts.typescriptDefaults.setDiagnosticsOptions({ ...ts.typescriptDefaults.getDiagnosticsOptions() });
       const target = models.get(active) ?? models.values().next().value;
       if (target && editor.getModel() !== target.model) {
         editor.setModel(target.model);

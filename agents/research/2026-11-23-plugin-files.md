@@ -136,3 +136,18 @@ Decided while building (*mine*, to review):
 - Unlink sends the *stored* files back with `origin: null`, so unsaved edits stay edits.
 - The editor still reads an export file of format 1 (one line) – an export on someone's disk keeps working.
 - The demo's aquarium is **not** split yet: `fixtures/demo` is staging's export, splitting it is content work on staging.
+
+### After the first review (2026-11-23)
+
+- Tilman: *"the delete is instant. that is dangerous and it is not undoable. could it be linked to the undohistory we
+  got?"* → the close cross deletes the file **as its own saved change** (the stored files without it; other unsaved edits
+  stay edits), and plugin changes are **revertable** on the server (`Reverts.php`: before / after are a plugin's files or
+  null – a save, a push, a file deleted, a creation, a deletion). The editor's Undo and History bring a file or a whole
+  plugin back; `plugins.afterRevert` lets the list, the stage and the open plugin follow. A file never saved just goes
+  (asked when it holds text).
+- *"the close icon is a bit small. and i dont like the way the tabs look like there … match our dogmas better"* → the
+  tabs are the editor's own `pill tab`s as in a panel's head (the open one on `--surface`), the drawn close cross as a
+  full `icon-button`, + an `icon-button` with the plus icon opening the shared `ContextMenu`, and a tab's right click
+  opens Rename / Delete there too. No monospace, no borders of their own.
+- Found while checking: an import of a sibling whose model came after the importing file stayed a false "Cannot find
+  module" – Monaco now validates every model again whenever a file comes or goes.

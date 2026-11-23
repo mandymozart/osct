@@ -1052,8 +1052,11 @@ fields it changed) gets its `before` back (`status: revert`); one whose thing ho
 listed, never overwritten, and the older changes of that thing are skipped as well. **Not revertable** (`status:
 not-revertable`, and `notRevertable` in `GET …/changes`): a creation (`before` null – remove it instead; a delivery's new row is the exception, [Deliveries](#deliveries)), a removal
 (`after` null), an entry moved to another surface (its scene is `entries.scene_id`, not in the log), a new order whose
-scenes changed, a plugin source (the Code tab), a deleted file, a change saved before the content schema 3.0 (its rows
-held pages or a print) and the migration itself (`migration`). Scene moves are
+scenes changed, a deleted file, a change saved before the content schema 3.0 (its rows held pages or a print) and the
+migration itself (`migration`). A **plugin** (#352, 6.9.0) reverts every way – a save, a push, a file deleted in the Code
+tab, its creation (it goes again) and its deletion (it comes back with all its files): `before` / `after` are its files
+(a change before 6.9.0 holds one source: its `index.ts`) or null (`Plugins::filesOfValue`, `Plugins::restore`); its link
+(`origin`) stays as it is. Scene moves are
 in the log (`order`, the ids before and after) and revert. Picture credits and Library file names are no
 draft content and not in the log (they are not revertable); a surface's reference image (#314) is no content either but
 is in the log and reverts both ways – set, replaced, removed – while its scene has the surface. Changes of one request get strictly increasing times, so

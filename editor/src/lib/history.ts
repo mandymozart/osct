@@ -198,6 +198,6 @@ export const promptLines = (result: RevertResult): { reverts: string; later: str
     later: later ? `${n(later, "later edit")} to the same things will be lost (reverted with it).` : null,
     others: others.length ? `Changes by other people are among them: ${others.join(", ")}.` : null,
     conflicts: counts.conflict ? `${n(counts.conflict, "change")} cannot be reverted: changed since in a way the log does not hold – left as they are.` : null,
-    skipped: counts.notRevertable ? `${n(counts.notRevertable, "change")} cannot be reverted at all (a creation, a removal, a move, a plugin source) – skipped.` : null,
+    skipped: counts.notRevertable ? `${n(counts.notRevertable, "change")} cannot be reverted at all (a creation, a removal, a move, a deleted file) – skipped.` : null,
   };
 };

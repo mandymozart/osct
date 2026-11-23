@@ -1,5 +1,5 @@
 import { SvelteMap } from "svelte/reactivity";
-import { nodeTypeFailure, pluginNodeTypesOf } from "@engine/scene/plugins";
+import { nodeTypeFailure, pluginNodeTypesOf, uninstallPlugin } from "@engine/scene/plugins";
 import { getPlugins } from "@engine/content/game-config";
 import type { EntityData } from "@engine/types";
 import { deletePlugin, errorText, getPlugin, listPlugins, putPlugin, replacePluginFile, uploadPlugin, type PluginSource, type PluginSummary } from "./api";
@@ -419,6 +419,59 @@ class Plugins {
       this.error = errorText(e, { code: true });
       throw e;
     }
+  }
+
+  /**
+   * A file of a stored plugin deleted **as its own saved change** (#352, Tilman: *"the delete is instant. that is dangerous
+   * and it is not undoable"*): the stored files without it go to the API – a change in History, so the editor's Undo
+   * brings it back –, the Code tab's other unsaved edits stay edits. Returns the stored files now.
+   */
+  async deleteFile(experienceId: string, id: string, name: string): Promise<{ files: PluginFile[]; saved: boolean }> {
+    const stored = await this.files(experienceId, id);
+    const rest = stored.filter(f => f.name !== name);
+    if (rest.length === stored.length) return { files: stored, saved: false };
+    await this.save(experienceId, id, rest);
+    return { files: rest, saved: true };
+  }
+
+  /**
+   * After an undo or a revert (History's `revision`, #352: plugin changes are revertable): the list again; every plugin
+   * whose saved version moved is read and run on the stage again, one that is gone leaves the stage; the Code tab's open
+   * plugin follows unless it holds unsaved edits.
+   */
+  async afterRevert(experienceId: string, stage: RunStage | null): Promise<void> {
+    const before = new Map(this.stored.map(p => [p.id, `${p.updatedAt}|${p.size}`]));
+    await this.load(experienceId);
+    const now = new Map(this.stored.map(p => [p.id, `${p.updatedAt}|${p.size}`]));
+    let changed = false;
+    for (const id of before.keys()) {
+      if (now.has(id)) continue;
+      uninstallPlugin(id);
+      this.ran.delete(id);
+      this.status.delete(id);
+      this.storedText.delete(id);
+      changed = true;
+      if (this.code.open === id && !this.code.unsaved) this.code.reset();
+    }
+    for (const [id, version] of now) {
+      if (before.get(id) === version) continue;
+      const { files, origin } = await this.readStored(experienceId, id);
+      this.ran.delete(id);
+      changed = true;
+      if (this.code.open === id && !this.code.unsaved) this.code.load(files, true, origin);
+      if (!stage) continue;
+      const result = await buildPlugin(files, id);
+      if ("error" in result) {
+        this.status.set(id, { state: "failed", error: buildErrorText(result.error) });
+        continue;
+      }
+      const ran = await stage.runPlugin(id, result.code);
+      this.status.set(id, ran.ok ? { state: "saved" } : { state: "failed", error: ran.error });
+      if (ran.ok) this.ran.set(id, files);
+    }
+    if (!changed) return;
+    this.version += 1;
+    if (stage) await stage.refresh();
   }
 
   /** A script file as a new source, its id from the file's name (409 plugin-exists when that id is taken) */

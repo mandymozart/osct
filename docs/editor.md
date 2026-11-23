@@ -1738,9 +1738,14 @@ The experience's own code ([the decision](../agents/research/2026-10-29-code-in-
 writing a plugin: [plugins](plugins.md)): the plugins stored for the experience and the ones the content declares (compiled by
 the content build – opening one reads its files next to the compiled module, `files.json` naming them; Save keeps a copy).
 A plugin is a folder of files (#352, 6.9.0): **one tab per file** under the picker, like Shadertoy's – `index.ts` first
-(the entry: no ×, no rename), the others after it; a double-click (or F2) renames one, **×** deletes it (unsaved until
-Save), **+** at the right edge adds a TypeScript file, a fragment or vertex shader, a GLSL include or WGSL, or uploads
-files; a drop on the tabs adds files, a plugin's zip makes a new plugin (its id from the zip's folder). A Run's error
+(the entry: no close cross, no rename), the others after it – the editor's own `pill tab`s, as in a panel's head, each
+file but the entry with the drawn close cross; a double-click (or F2, or the tab's menu – right click) renames one. The
+close cross **deletes the file at once as its own saved change** (Tilman: *"the delete is instant. that is dangerous and
+it is not undoable"*): the stored files without it go to the API, so the editor's **Undo** (and History) brings it
+back; the other files' unsaved edits stay edits; a file never saved just goes (asked first when it holds text). After an
+undo or a revert the plugins follow like the draft (`plugins.afterRevert`: the list, the stage's copies, the open plugin
+unless it holds edits). **+** (an icon button at the right edge, the shared context menu) adds a TypeScript file, a
+fragment or vertex shader, a GLSL include or WGSL, or uploads files; a drop on the tabs adds files, a plugin's zip makes a new plugin (its id from the zip's folder). A Run's error
 brings its file's tab forward and marks its line there. A plugin pushed from someone's folder (`osct plugin push`,
 [plugins](plugins.md) "Your own folder") shows a strip *linked · ben's folder `aquarium`, pushed 2 min ago* with
 **Unlink**; editing it here is allowed. The status line adds the files' count and the last bundle's size – above 256 KB

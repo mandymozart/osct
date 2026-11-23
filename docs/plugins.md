@@ -919,8 +919,8 @@ marks every rule that ran with a `behaviour` line – it is the log's own (your 
 
 Open a scene in the editor, **Code**, **new** for a new plugin (it starts with the two examples above) or pick one
 of the experience's. Its files are **tabs** under the picker, like Shadertoy's (#352): `index.ts` first – the entry, it
-keeps its name –, then the others; a double-click renames one, its **×** deletes it (an unsaved edit like any other:
-Save makes it stick, History keeps what was saved). **+** at the tabs' right edge adds a file – a TypeScript file, a
+keeps its name –, then the others; a double-click renames one, its close cross deletes it at once as a saved change of
+its own – the editor's **Undo** brings it back (a plugin's every save, push or delete is in History and reverts). **+** at the tabs' right edge adds a file – a TypeScript file, a
 fragment or vertex shader, a GLSL include, WGSL – or uploads some; files dropped on the tabs join the plugin, and a
 plugin's zip (its Download) dropped there becomes a new plugin. The editor is Monaco with the plugin API's types: completion as you type (Ctrl+Space for the list;
 `api.` and `api.three.` know every member), type errors underlined as the content build would report them, a hover

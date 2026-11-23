@@ -455,6 +455,60 @@ final class Plugins
         Experiences::recordChange($experienceId, $user, 'plugin', $pluginId, $current ? Editor::encode(self::filesOf($current)) : null, Editor::encode($files));
     }
 
+    /**
+     * A plugin as the change log stores it (#352, Reverts): its files `[{ name, text }]` – the single source a change before
+     * 6.9.0 holds is its `index.ts` –, null for none; false for anything else (not revertable)
+     * @return list<array{name: string, text: string}>|null|false
+     */
+    public static function filesOfValue(mixed $value): array|null|false
+    {
+        if ($value === null) return null;
+        if (is_string($value)) return [['name' => self::ENTRY, 'text' => $value]];
+        if (!is_array($value) || $value === []) return false;
+        $files = [];
+        foreach ($value as $file) {
+            $file = $file instanceof stdClass ? (array) $file : $file;
+            if (!is_array($file) || !is_string($file['name'] ?? null) || !is_string($file['text'] ?? null)) return false;
+            $files[] = ['name' => $file['name'], 'text' => $file['text']];
+        }
+        return in_array(self::ENTRY, array_column($files, 'name'), true) ? self::sorted($files) : false;
+    }
+
+    /** A plugin's files now, null when the experience has no such plugin (Reverts) @return list<array{name: string, text: string}>|null */
+    public static function current(string $experienceId, string $pluginId): ?array
+    {
+        $row = Db::one('SELECT * FROM plugins WHERE experience_id = :experience AND id = :id' . Db::forUpdate(), ['experience' => $experienceId, 'id' => $pluginId]);
+        return $row ? self::filesOf($row) : null;
+    }
+
+    /**
+     * A plugin's files written back (Reverts, inside its transaction – the revert records the change): new files, or the
+     * plugin gone (null). Its link stays as it is.
+     * @param list<array{name: string, text: string}>|null $files
+     */
+    public static function restore(string $experienceId, string $pluginId, ?array $files, array $user): void
+    {
+        $params = ['experience' => $experienceId, 'id' => $pluginId];
+        if ($files === null) {
+            Db::run('DELETE FROM plugins WHERE experience_id = :experience AND id = :id', $params);
+            return;
+        }
+        $entry = '';
+        $others = [];
+        foreach (self::sorted(array_map(static fn($f) => (array) $f, $files)) as $file) {
+            if ($file['name'] === self::ENTRY) $entry = (string) $file['text'];
+            else $others[] = ['name' => (string) $file['name'], 'text' => (string) $file['text']];
+        }
+        $now = Editor::nowMs();
+        $values = $params + ['source' => $entry, 'files' => $others ? Editor::encode($others) : null, 'by' => $user['id'], 'now' => $now];
+        if (Db::value('SELECT id FROM plugins WHERE experience_id = :experience AND id = :id', $params) !== null) {
+            Db::run('UPDATE plugins SET source = :source, files_json = :files, updated_by = :by, updated_at = :now WHERE experience_id = :experience AND id = :id', $values);
+        } else {
+            Db::run('INSERT INTO plugins (experience_id, id, source, files_json, created_by, updated_by, created_at, updated_at) VALUES (:experience, :id, :source, :files, :by, :by2, :now, :now2)',
+                $values + ['by2' => $user['id'], 'now2' => $now]);
+        }
+    }
+
     /** @return array<string, mixed> */
     private static function row(string $experienceId, string $pluginId): array
     {
