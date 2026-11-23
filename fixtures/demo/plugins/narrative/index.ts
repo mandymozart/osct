@@ -5,14 +5,14 @@ import type { PluginApi } from "osct-plugin-api";
  * plugin API's events and variables, next to the `behaviour` rules of the content (the key takes itself on a tap, the
  * door's rules decide when it opens):
  *
- * - `door` on a group whose first child is the door: when it hears the scene event `openDoor` for its target (the door's
+ * - `door` on a group whose first child is the door: when it listens to the scene event `openDoor` for its target (the door's
  *   behaviour emits it, found with `hasKey`), the door lifts and turns over `seconds`, `doorOpen` is set in the
  *   **stage** scope and `doorOpened` emitted – an animation of the node's transform, which no rule can do.
  * - `lamp` on any node: hidden until `doorOpen` is set – on this stage, now or earlier (`api.vars.on`).
  */
 export const register = (api: PluginApi): void => {
   api.registerComponent("door", {
-    description: "Opens the door (the first child) when it hears openDoor for its target: lifts and turns it, sets doorOpen on the stage, emits doorOpened.",
+    description: "Opens the door (the first child) when it listens to openDoor for its target: lifts and turns it, sets doorOpen on the stage, emits doorOpened.",
     nodeTypes: ["group"],
     params: {
       lift: { kind: "number", default: 0.35, min: 0, max: 2, step: 0.05, description: "How far the door lifts off the page (target widths)." },

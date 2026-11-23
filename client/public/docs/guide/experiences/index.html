@@ -19,53 +19,96 @@
   <nav id="toc" aria-label="On this page"></nav>
   <h2 id="page">The Experiences page</h2>
   <figure>
-    <a href="/docs/img/experiences.webp"><img src="/docs/img/experiences.webp" width="1440" height="900" alt="The Experiences page: two experiences as covers on the left, the import form on the right, AI connections below." loading="lazy"></a>
-    <figcaption>Left: the experiences, each with where it is live (<i>draft</i> = not published). Below them: AI connections. Right: the import form.</figcaption>
+    <a href="/docs/img/experiences.webp"><img src="/docs/img/experiences.webp" width="1440" height="900" alt="The Experiences page: the experiences as covers on the left with a dashed + card, the quick access column on the right with New experience, Import and Last worked on, AI connections below the covers." loading="lazy"></a>
+    <figcaption>Left: the experiences, each with where it is live (<i>draft</i> = not published), and the <b>+</b> card. Right: the column – here the quick access, as nothing is selected.</figcaption>
   </figure>
-  <p>Click a cover to open the experience. Under each one a line says where it is live and since when, or <i>draft only</i>.</p>
+  <p>Your experiences are on the left, the right column shows what you are doing:</p>
+  <ul>
+    <li><b>Nothing selected</b>: quick access – <b>New experience</b>, <b>Import</b>, and <b>Last worked on</b>: the places you and others worked on last, across all experiences (book · scene · when · who). Click one to open it there.</li>
+    <li><b>A click on a cover</b> selects the experience (it is outlined) and shows its <a href="#sheet">sheet</a>. <b>Double-click</b> it, or press <b>Enter</b>, to open it in the editor. The <b>···</b> under a cover selects it too.</li>
+    <li>The <b>arrow keys</b> move the selection, <b>Esc</b> clears it.</li>
+  </ul>
+  <p>The <b>☰</b> menu at the top right has <i>New experience…</i> and <i>Import…</i> as well.</p>
+
+  <h2 id="new">A new experience</h2>
+  <div class="beside wide">
+    <div>
+      <p><b>New experience</b> (the quick access card, the dashed <b>+</b> card or the ☰ menu) goes step by step in the right column:</p>
+      <ol>
+        <li><b>Start</b>: <i>Empty</i> – one scene, nothing on it – or <i>From an export</i> – a file, a URL or a published version (<a href="#import">below</a>).</li>
+        <li><b>Name</b>: a <b>title</b> and the <b>address</b> (the slug). The whole reader address is shown – <code>https://&lt;installation&gt;/&lt;slug&gt;/</code> – and the slug is proposed from the title: lower-case letters, digits and dashes. A few words are taken by the site itself (<code>editor</code>, <code>api</code>, <code>docs</code>, <code>scene</code>, …) and every experience needs its own.</li>
+        <li><b>Create</b>: the experience is made and opens in the editor.</li>
+      </ol>
+      <p><b>The address can't be changed later</b>: once the experience is published, printed QR codes and shared links depend on it.</p>
+    </div>
+    <figure>
+      <a href="/docs/img/experience-new.webp"><img src="/docs/img/experience-new.webp" width="479" height="359" alt="New experience, step 2: the title, the address and the whole reader address under it." loading="lazy"></a>
+      <figcaption>Step 2: the title and the address, the reader's address in full.</figcaption>
+    </figure>
+  </div>
 
   <h2 id="import">Importing an experience</h2>
   <div class="beside wide">
     <div>
-      <p>An import turns an experience's <b>game configuration</b> into a draft here. Three sources:</p>
+      <p><b>Import</b> brings an experience in as a new one – it is <i>New experience → From an export</i>. Three sources:</p>
       <ul>
-        <li><b>the CDN</b>: the version this installation has published.</li>
+        <li><b>File</b>: an <b>export file</b> (an experience's <a href="#sheet">Export</a> – <code>….osct.json</code>, with its plugin code), or a <code>game.config.json</code> from your computer.</li>
         <li><b>URL</b>: a <code>game.config.json</code>, or a <b>content base</b> – an experience's folder on the CDN that holds <code>latest.json</code>, e.g. <code>…/osct/staging/demo</code>.</li>
-        <li><b>file</b>: a <code>game.config.json</code> from your computer.</li>
+        <li><b>Published</b>: the version of an experience this installation has published.</li>
       </ul>
-      <p><b>Assets at</b> is where the media paths resolve. No media is copied: the draft points at the files where they are.</p>
-      <p>Before anything is imported the form shows <b>what comes in</b>: the build, its date, the app and schema version, the experience and what it holds.</p>
+      <p><b>Assets at</b> (for a bare <code>game.config.json</code>) is where the media paths resolve. No media is copied: the draft points at the files where they are.</p>
+      <p>Before anything is imported the column shows <b>what comes in</b>: the build, its date, the app and schema version and what it holds. <i>Next</i> goes on to the name – the title starts as the export's.</p>
     </div>
     <figure>
-      <a href="/docs/img/import-preview.webp"><img src="/docs/img/import-preview.webp" width="720" height="700" alt="The import form with a content base URL and the preview of what comes in." loading="lazy"></a>
-      <figcaption>The preview. The red lines say a draft of this experience exists and how many edits an import replaces.</figcaption>
+      <a href="/docs/img/import-preview.webp"><img src="/docs/img/import-preview.webp" width="479" height="619" alt="A source chosen by URL and the preview of what comes in." loading="lazy"></a>
+      <figcaption>What comes in, read before anything is imported.</figcaption>
     </figure>
   </div>
-  <p>The experience's id comes from the configuration. If a draft with that id exists, <b>the import replaces it</b>, so the editor shows a comparison first and imports only when you confirm.</p>
+
+  <h2 id="sheet">An experience's sheet</h2>
+  <div class="beside wide">
+    <div>
+      <p>Select an experience and the column shows its sheet: title, author and reader address, and</p>
+      <ul>
+        <li><b>Open</b>: the experience in the editor.</li>
+        <li><b>Export</b>: the draft as one file (<code>&lt;slug&gt;-&lt;build&gt;.osct.json</code>) – its content, its list of files and its plugin code. Import reads it back, here or on another installation. The media stay on the CDN; the file names them.</li>
+        <li><b>Replace…</b>: replace the draft with an export, a URL or a published version, step by step – the source, then a comparison, then <b>Replace the draft</b>. Readers keep the live version until you publish.</li>
+        <li><b>Versions</b>: every publish – when, where, who – and which one readers get now (<i>live</i>).</li>
+      </ul>
+    </div>
+    <figure>
+      <a href="/docs/img/experience-sheet.webp"><img src="/docs/img/experience-sheet.webp" width="479" height="399" alt="An experience's sheet: Open, Export, Replace, and its versions with make live and its confirmation." loading="lazy"></a>
+      <figcaption>The versions: <i>live</i> marks what readers get; <i>make live</i> brings an older one back after a confirmation.</figcaption>
+    </figure>
+  </div>
+  <p><b>Make live</b> brings an older version of this installation back: <i>Make the version of … live on staging again? Readers get it on their next start. The draft is not changed.</i> Every published version is kept, so any of them can come back; the list then shows the switch as <i>made live again</i>. Production is made live from its own editor.</p>
   <figure>
-    <img src="/docs/img/import-compare.webp" width="708" height="420" alt="The comparison: the incoming build against the build the draft is based on, and the edits made since." loading="lazy">
-    <figcaption>Coming in against what the draft is based on, and the edits since that would be lost. <b>Replace the draft</b> imports; <i>Cancel</i> goes back.</figcaption>
+    <img src="/docs/img/import-compare.webp" width="479" height="629" alt="The comparison before replacing a draft: the incoming build against the draft, what each holds, and the edits since that would be lost." loading="lazy">
+    <figcaption><b>Replace…</b>: coming in against the draft – the build, scenes, entries, targets, plugin code – and the edits that would be lost. <b>Replace the draft</b> imports; <i>Cancel</i> goes back.</figcaption>
   </figure>
 
   <h2 id="publish">Publishing</h2>
   <div class="beside wide">
     <div>
       <p><b>Publish</b> is the cloud button in the top bar of an open experience. Next to it: <i>draft only</i> or <i>live on …</i>.</p>
-      <p>It opens a step that names the experience, the target and what it replaces there. Its button publishes; <i>Cancel</i> or <kbd>Esc</kbd> closes it.</p>
+      <p>It opens one box in the middle of the page and asks first: <i>Publish “…” to staging?</i>, what readers get and when it was last published. <b>Publish</b> starts it; <i>Cancel</i>, <kbd>Esc</kbd> or a click beside the box closes it. If a saved plugin source does not compile, the box says so in red and Publish stays off.</p>
+      <p>While it runs the box says <i>Writing the build…</i>, then <i>Live for readers ✓</i> – readers have the new state from that moment – and counts the export archive (<i>Archive 412 / 1522</i>). Keep the page open until it says <i>Published</i>, with how many files were new. It closes by itself after two seconds; <i>Open reader</i> opens the experience.</p>
+      <p>If the logic has errors or warnings, the box names how many and the first one; with errors the button says <b>Publish anyway</b>.</p>
       <ul>
         <li><b>An installation publishes to its own environment only</b>: a local machine to <code>local</code>, staging to <code>staging</code>, production to <code>production</code>. There is no choice.</li>
         <li><b>Each experience has its own store.</b> Publishing one never touches another.</li>
         <li><b>No CDN connected</b> means this server stores and serves the published content itself.</li>
         <li>Publish carries the draft and every <b>saved</b> plugin source. Unsaved code stays behind.</li>
+        <li><b>A big experience takes a while</b> – mostly the export archive, written after readers already have the build. Leaving the page while it runs asks first. If a publish is already running (another tab, after a reload), Publish shows that one.</li>
       </ul>
       <p><b>Going back</b>: revert the draft in <a href="/docs/guide/workspace/#undo">History</a>, then publish again.</p>
     </div>
     <figure>
-      <img src="/docs/img/publish.webp" width="480" height="250" alt="The publish step under the top bar." loading="lazy">
-      <figcaption>The publish step on a local installation.</figcaption>
+      <img src="/docs/img/publish.webp" width="480" height="250" alt="The publish box asking before it starts." loading="lazy">
+      <figcaption>Publish asks first – here on a local installation.</figcaption>
     </figure>
   </div>
-  <p>Readers open the installation's default experience at <code>/</code> and any other at <code>/x/&lt;experience&gt;/</code>.</p>
+  <p>Readers open every experience at its own address, <code>/&lt;slug&gt;/</code> – <code>/osct/</code>, <code>/demo/</code>. The slug is chosen when the experience is made (<b>New experience</b>: a title and an address; the column shows the reader's address in full) and can't be changed once it is published – printed QR codes depend on it. Older codes and links without an experience still work: they open the installation's default experience, and the book's code its own.</p>
 
   <h2 id="ai">AI connections</h2>
   <div class="beside wide">

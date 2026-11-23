@@ -13,7 +13,7 @@
   import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
   import GridSnapMenu from "#lib/components/GridSnapMenu.svelte";
   import ViewMenu from "#lib/components/ViewMenu.svelte";
-  import { expandedGroups, type GroupShape } from "#lib/tool-groups.js";
+  import { closesOnResize, expandedGroups, fittingGroups, groupLength, menuPlace, type GroupShape, type ToolbarMetrics } from "#lib/tool-groups.js";
   import EntityPanel from "#lib/panels/EntityPanel.svelte";
   import TreePanel from "#lib/panels/TreePanel.svelte";
   import LibraryPanel from "#lib/panels/LibraryPanel.svelte";
@@ -53,14 +53,19 @@
   import { scenes } from "#lib/scenes.svelte.js";
   import FloatingPanel from "#lib/components/FloatingPanel.svelte";
   import { Floats, openFloats } from "#lib/components/floats.svelte.js";
-  import { at, type PanelSpec } from "#lib/components/floats.js";
+  import { at, chromeOf, type PanelSpec } from "#lib/components/floats.js";
   import type { TabSpec } from "#lib/components/float-tabs.js";
   import UndoRedo from "#lib/UndoRedo.svelte";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
   import LogicPanel from "#lib/panels/LogicPanel.svelte";
+  import LogPanel from "#lib/panels/LogPanel.svelte";
+  import StageVariables from "#lib/panels/StageVariables.svelte";
   import type { LogicPick } from "#lib/logic/types.js";
   import type { StageMove } from "#lib/logic/navigation.js";
   import RevertPrompt from "#lib/components/RevertPrompt.svelte";
+  import PluginGuardPrompt from "#lib/components/PluginGuardPrompt.svelte";
+  import { pluginGuard } from "#lib/plugin-guard.svelte.js";
+  import { session } from "#lib/session.svelte.js";
   import { history } from "#lib/history.svelte.js";
   import { markRender, renderRequest, renderState } from "#lib/render-view.js";
 
@@ -68,7 +73,7 @@
    * The workspace. On a desktop and an iPad (#308) the **stage** (the engine over the mock stage) is the whole window
    * and the panels float over it (`FloatingPanel`, `SCENE_PANELS`): the **Tree** of the scene (a 3D tool's outliner),
    * the **Inspector** (essential) with its tabs Inspector (whatever is selected – the scene while nothing else is,
-   * #229), Environment, Library and Code (`panel-tabs.ts`), the **Scenes** filmstrip (#307, `ScenesPanel.svelte`: a
+   * #229), Environment, Library, Code, Log and Variables (`panel-tabs.ts`, #337), the **Scenes** filmstrip (#307, `ScenesPanel.svelte`: a
    * card opens its scene, a band selects its group, a drag reorders; the draft follows `scenes.version`), **Info** and
    * the stage's **Tools** (inline). Every content is a tab (#318, `SCENE_TABS`) that can live in any panel: dragged into
    * another panel's head or out onto the stage (a panel of its own). Each moves by its head, resizes by its edges, folds
@@ -90,6 +95,8 @@
     { id: "environment", name: "Environment", icon: "globe", home: "inspector", about: "The sky around the reader and the onion sky, previewed on the stage." },
     { id: "library", name: "Library", icon: "folder", home: "inspector", about: "The experience's files: images, models, videos, sounds and code – use one on the selected node. Ctrl+L opens it and focuses its search." },
     { id: "code", name: "Code", icon: "code", home: "inspector", about: "The experience's code: its plugins' sources, saved with Save or Ctrl+S." },
+    { id: "log", name: "Log", icon: "list", home: "inspector", about: "What happens on the stage, newest first: the events, the rules' lines, the plugins' log and the problems – filtered by kind; tap a target here." },
+    { id: "variables", name: "Variables", icon: "sliders", home: "inspector", about: "The plugins' variables on the stage: each one's scope, type and value to change or delete, one set by hand, reset for a new game." },
     { id: "scenes", name: "Scenes", icon: "film", home: "scenes", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders." },
     { id: "info", name: "Info", icon: "info", home: "info", about: "The name and description of the control under the pointer or in focus." },
     { id: "history", name: "History", icon: "history", home: "history", about: "Every saved change of the experience: filter by scene, kind or person; revert one, or jump back to a point (#312)." },
@@ -140,7 +147,7 @@
   const SCENE_PANELS: PanelSpec[] = [
     { id: "tree", name: "Tree", icon: "tree", about: "The scene's surfaces, entries, their targets and the entities' nodes: a click selects, a drag moves a node.",
       place: at("top-left", 0, 0), size: { w: 16.5, h: "fill" }, min: { w: 12, h: 8 } },
-    { id: "inspector", name: "Inspector", icon: "inspector", about: "Whatever is selected, and the tabs Environment, Library and Code. It folds but never closes.",
+    { id: "inspector", name: "Inspector", icon: "inspector", about: "Whatever is selected, and the tabs Environment, Library, Code, Log and Variables. It folds but never closes.",
       place: at("top-right", 0, 0), size: { w: 25, h: "fill" }, min: { w: 16, h: 10 }, essential: true },
     { id: "scenes", name: "Scenes", icon: "film", about: "The experience's scenes as a filmstrip: a card opens its scene, a band selects its group, a drag reorders.",
       place: at("bottom-left", 17, 0), size: { w: "fill", h: 12 }, min: { w: 20, h: 10 } },
@@ -230,7 +237,7 @@
 
   // ── targets and entries: the forms, removal, a changed image or placement ──
   let addingTarget = $state(false);
-  /** The tree's "+ entry" (#237): an entry without a printed image on this scene */
+  /** The tree's + menu's *entry…* (#237): an entry without a printed image on this scene */
   let addingEntry = $state(false);
   /** The creation step of a new scene (#238 – every experience adds scenes, #320): it follows `after` */
   let addingScene = $state<{ after: string | null } | null>(null);
@@ -588,6 +595,18 @@
       }
       if (disposed || !container) return;
       if (!stage) {
+        // The saved sources' ids before the stage starts: their compiled declarations are not loaded on the stage
+        if (plugins.experienceId !== experienceId) await plugins.load(experienceId).catch(() => undefined);
+        // The guard (#340): the stage runs plugin code in this page, with the person's session – code someone else saved
+        // last runs only after the prompt says so; what it keeps off is said in the Code tab and the Log tab. The render view
+        // (#89, nobody to ask) runs only what the person answered Run for before
+        const declined = await pluginGuard.check(experienceId, plugins.stored, plugins.declared(), session.user?.email ?? null, { ask: !render });
+        plugins.declined.clear();
+        declined.forEach((why, id) => {
+          plugins.declined.set(id, why);
+          plugins.addLog({ level: "warn", text: `[plugin ${id}] not run: ${why}`, t: performance.now() });
+        });
+        if (disposed || !container || stage) return;
         stage = new Stage(container);
         // A click picks by the pick mode; nothing of its kind there clears the selection (tree, stage and panel alike)
         stage.onPick = hit => {
@@ -616,12 +635,12 @@
           select();
         };
         stage.onSurfacePlace = placeSurface;
-        // The Code tab's saved sources run on every frame that starts (#269): their looks and components are known at once
+        // The Code tab's saved sources run when the stage starts (#269): their looks and components are known at once
         const started = stage;
-        started.onStarted = () => void plugins.autoLoad(experienceId, started);
-        started.savedPlugins = () => plugins.stored.map(p => p.id);
-        // The saved sources' ids before the frame starts: their compiled declarations are not loaded on the stage
-        if (plugins.experienceId !== experienceId) await plugins.load(experienceId).catch(() => undefined);
+        // before the first scene builds, so its nodes find what the code registers (#340)
+        started.onStarted = () => plugins.autoLoad(experienceId, started, { refresh: false });
+        // Their content modules never load: a saved source runs instead, a declined plugin not at all (#340)
+        started.keptPlugins = () => [...plugins.stored.map(p => p.id), ...plugins.declined.keys()];
       }
       await stage.open(sceneId);
     } catch (e) {
@@ -644,6 +663,7 @@
     return () => {
       disposed = true;
       pointer.removeEventListener("change", onPointer);
+      pluginGuard.dismiss();
       void stage?.dispose();
       stage = null;
     };
@@ -776,6 +796,7 @@
     const button = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
     // The toolbar's CSS below: gap .125rem, a rule of .125rem margin + .25rem padding + 1px, padding .125rem and a 1px border
     const metrics = { button, gap: rem / 8, rule: (3 * rem) / 8 + 1, chrome: rem / 4 + 2 };
+    if (JSON.stringify(metrics) !== JSON.stringify(untrack(() => toolMetrics))) toolMetrics = metrics;
     // The Tools panel's room: the width it was resized to, else the room between the Tree and the Inspector
     // Less the groups that never fold: undo / redo / history (3 buttons, #312) and Live (2), each with its rule
     const fixed = 5 * button + 3 * metrics.gap + 2 * (metrics.gap + metrics.rule);
@@ -784,6 +805,127 @@
     const next = floats.vertical("tools") ? TOOL_SHAPES.map(() => false) : expandedGroups(TOOL_SHAPES, room, metrics);
     if (next.some((e, i) => e !== expanded[i])) expanded = next;
   });
+
+  // ── the toolbar's overflow (#342, Tilman 2026-11-22): the groups that do not fit the Tools panel – along its row or
+  // its column – go behind a … at its end, whose menu holds them, each working as in the row. The panel asks for the
+  // toolbar's whole length (every group in it, `along`), so the room it is given never depends on what is hidden: each
+  // group's length is measured where it last stood in the toolbar (an estimate from its buttons before that), the room
+  // is the panel's laid-out size less its chrome, and `fittingGroups` decides – no loop, no flicker ──
+  /** The toolbar's groups in order: undo / redo / history, the tool, the select filters, render quality, grid & snap, view, live */
+  const GROUP_COUNT = 7;
+  const VIEW_GROUP = 5;
+  let toolMetrics = $state<ToolbarMetrics>({ button: 28, gap: 2, rule: 7, chrome: 6 });
+  /** Each group's buttons, for its estimate (the tool and the filters side by side when expanded) */
+  const groupButtons = (i: number) => [3, expanded[0] ? TOOL_OPTIONS.length : 1, expanded[1] ? FILTER_OPTIONS.length : 1, 1, 1, 1, 2][i];
+  /** A measured length's key: a group's length depends on the orientation, a finger's button size and its expansion */
+  const lengthKey = (part: number | "more" | "end") => {
+    const at = `${floats.vertical("tools") ? "v" : "h"}${coarse ? "c" : "f"}`;
+    return typeof part === "number" ? `${at}${part}${(part === 1 && expanded[0]) || (part === 2 && expanded[1]) ? "x" : ""}` : `${at}${part}`;
+  };
+  /** The lengths measured along the toolbar (px), by `lengthKey` */
+  let lengths = $state<Record<string, number>>({});
+  const groupLengths = $derived(Array.from({ length: GROUP_COUNT }, (_, i) => lengths[lengthKey(i)] ?? groupLength(groupButtons(i), i === 0, toolMetrics)));
+  const moreLength = $derived(lengths[lengthKey("more")] ?? groupLength(1, false, toolMetrics));
+  const toolbarEnd = $derived(lengths[lengthKey("end")] ?? toolMetrics.chrome / 2);
+  /** The toolbar's length with every group in it: what the Tools panel asks for */
+  const toolbarAlong = $derived(groupLengths.reduce((sum, length) => sum + length, 0) + toolbarEnd);
+  /** The room along the toolbar (px): the Tools panel as laid out, less its grip and its button */
+  const toolbarRoom = $derived.by(() => {
+    const view = floats.views.tools;
+    const spec = floats.spec("tools");
+    if (!view || !spec) return Infinity;
+    const vertical = floats.vertical("tools");
+    const chrome = chromeOf(spec, floats.metrics, vertical);
+    return vertical ? view.rect.h - chrome.h : view.rect.w - chrome.w;
+  });
+  /** How many groups stay in the toolbar (a px of tolerance against subpixel rounding: the panel is as long as the toolbar) */
+  const toolbarFit = $derived(fittingGroups(groupLengths, toolbarRoom - toolbarEnd + 1, moreLength));
+  const shownGroups = $derived(Array.from({ length: toolbarFit }, (_, i) => i));
+  const hiddenGroups = $derived(Array.from({ length: GROUP_COUNT - toolbarFit }, (_, i) => toolbarFit + i));
+  // Measure every part of the toolbar where it stands: a part's length runs from the end of the one before
+  $effect(() => {
+    const bar = tools;
+    if (!bar) return;
+    const measure = () => {
+      const vertical = bar.getAttribute("aria-orientation") === "vertical";
+      const box = bar.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      let end = vertical ? box.top : box.left;
+      const next = { ...untrack(() => lengths) };
+      let changed = false;
+      const put = (key: string | undefined, length: number) => {
+        if (!key || Math.abs((next[key] ?? -1) - length) <= 0.5) return;
+        next[key] = length;
+        changed = true;
+      };
+      bar.querySelectorAll<HTMLElement>(":scope > .part").forEach((part, i) => {
+        const r = part.getBoundingClientRect();
+        const to = vertical ? r.bottom : r.right;
+        // The … alone (nothing fits beside it) has no rule before it: its length with the rule is the one that counts
+        if (i > 0 || part.dataset.length !== lengthKey("more")) put(part.dataset.length, to - end);
+        end = to;
+      });
+      put(bar.dataset.end, (vertical ? box.bottom : box.right) - end);
+      if (changed) lengths = next;
+    };
+    // Measured in the next frame – never in the same task, so nothing could ever hold the page in a loop
+    let frame = 0;
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    const observer = new ResizeObserver(later);
+    const watch = () => {
+      observer.observe(bar);
+      for (const part of bar.querySelectorAll(":scope > .part")) observer.observe(part);
+    };
+    // Groups come and go (the …'s menu takes them, a group's options expand): watch the new ones
+    const parts = new MutationObserver(() => {
+      watch();
+      later();
+    });
+    watch();
+    parts.observe(bar, { childList: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      parts.disconnect();
+    };
+  });
+  let moreButton = $state<HTMLButtonElement>();
+  let morePop = $state<HTMLDivElement>();
+  let moreOpen = $state(false);
+  let moreAt = $state({ left: 0, top: 0 });
+  /** The …'s menu at its button: below it in a row, beside it in a column – kept on the screen (`menuPlace`) */
+  const placeMore = () => {
+    if (!moreButton || !morePop) return;
+    moreAt = menuPlace(moreButton.getBoundingClientRect(), { width: morePop.offsetWidth, height: morePop.offsetHeight },
+      { width: window.innerWidth, height: window.innerHeight }, floats.vertical("tools"));
+  };
+  let moreWidthAtOpen = 0;
+  const moreToggle = (event: Event) => {
+    moreOpen = (event as ToggleEvent).newState === "open";
+    moreWidthAtOpen = window.innerWidth;
+    if (moreOpen) placeMore();
+  };
+  /** A window that changes its width moves the toolbar: the menu closes, as the groups' own menus do */
+  const moreResize = () => {
+    if (moreOpen && closesOnResize(moreWidthAtOpen, window.innerWidth)) morePop?.hidePopover();
+  };
+  // Everything fits again: the menu has nothing left to hold
+  $effect(() => {
+    if (toolbarFit === GROUP_COUNT) moreOpen = false;
+  });
+  /** The stage's menu *View settings…*: the view group's panel – from the …'s menu when the group is in there */
+  const openViewSettings = async () => {
+    if (toolbarFit <= VIEW_GROUP && morePop && !morePop.matches(":popover-open")) {
+      morePop.showPopover();
+      moreOpen = true;
+      placeMore();
+      await tick();
+    }
+    viewMenu?.open();
+  };
 
   /** The floating toolbar's room for its groups (px): its resized width, else between the Tree and the Inspector */
   const floatingRoom = (rem: number) => {
@@ -809,7 +951,8 @@
       void toggleLibrary();
       return;
     }
-    if ((event.target as HTMLElement).closest("input, textarea, select")) return;
+    // A key sent to the window or the document (no element – a plugin may dispatch one) is the page's too
+    if (event.target instanceof Element && event.target.closest("input, textarea, select")) return;
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
     const tool = TOOL_KEYS[event.key.toLowerCase()];
@@ -851,26 +994,29 @@
   };
 </script>
 
-<svelte:window onkeydown={onKey} onkeyup={onKeyUp} onblur={() => stage?.setSnapModifier(false)} />
+<svelte:window onkeydown={onKey} onkeyup={onKeyUp} onresize={moreResize} onblur={() => stage?.setSnapModifier(false)} />
 
 
-{#snippet toolbar()}
+{#snippet toolGroup(i: number)}
   {#if stage}
-    <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
-         always one row (#180, #190, #229, #308) -->
-    <div class="tools" class:vertical={floats.vertical("tools")} role="toolbar" aria-orientation={floats.vertical("tools") ? "vertical" : "horizontal"}
-      data-app-ui aria-label="Stage tools" bind:this={tools}>
+    {#if i === 0}
       <UndoRedo onhistory={() => floats.showTab("history", true)} />
+    {:else if i === 1}
       <ToolGroup label="Tool" options={TOOL_OPTIONS} value={stage.tool} expanded={expanded[0]}
         onchoose={tool => stage?.setTool(tool as StageTool)} />
+    {:else if i === 2}
       <span class="tool-group filters" data-help-name="Select filters" data-help={FILTER_HELP}>
         <ToolGroup label="Select filters" options={FILTER_OPTIONS} selected={stage.pickFilter} icon="pointer" expanded={expanded[1]}
           onchoose={kind => stage?.setPickFilter(toggleKind(stage.pickFilter, kind as PickKind))} />
       </span>
+    {:else if i === 3}
       <ToolGroup label="Render quality" options={shadingOptions} value={stage.shading} stroke={1.75}
         onchoose={mode => updatePreview({ shading: mode as ShadingMode })} />
+    {:else if i === 4}
       <GridSnapMenu />
+    {:else if i === VIEW_GROUP}
       <ViewMenu bind:this={viewMenu} />
+    {:else}
       <!-- #269: the stage runs the experience live (Unreal's Realtime) – Live off holds the entities' clock for placing; Restart is a new game -->
       <span class="tool-group live" role="group" aria-label="Live">
         <button type="button" class="icon-button" class:on={stage.live} aria-pressed={stage.live} onclick={() => stage?.setLive(!stage.live)}
@@ -881,6 +1027,34 @@
           data-help-name="Restart" data-help="A new game on the stage: nothing found, every variable cleared, the timeline empty – the scene's targets are found anew and play their reveal, as a reader meets the scene the first time.">
           <Icon name="replay" /></button>
       </span>
+    {/if}
+  {/if}
+{/snippet}
+
+{#snippet toolbar()}
+  {#if stage}
+    <!-- The tool in hand and the select filters, render quality, then grid & snap and view, one button and its panel each;
+         always one row (#180, #190, #229, #308) or one column (#315) – what does not fit goes behind the … (#342) -->
+    <div class="tools" class:vertical={floats.vertical("tools")} role="toolbar" aria-orientation={floats.vertical("tools") ? "vertical" : "horizontal"}
+      data-app-ui aria-label="Stage tools" data-end={lengthKey("end")} bind:this={tools}>
+      {#each shownGroups as i (i)}
+        <span class="part" data-length={lengthKey(i)}>{@render toolGroup(i)}</span>
+      {/each}
+      {#if hiddenGroups.length}
+        <span class="part" data-length={lengthKey("more")}>
+          <button bind:this={moreButton} type="button" class="icon-button more-button" class:open={moreOpen} popovertarget="stage-tools-more"
+            aria-label="More tools" aria-haspopup="true" aria-expanded={moreOpen} title="More tools: the ones the toolbar has no room for"
+            data-help-name="More tools" data-help="The tools the toolbar has no room for, in a menu – each works as in the toolbar. Make the Tools panel longer (or the window wider) and they come back into it; their keys work either way.">
+            <Icon name="more" /></button>
+        </span>
+        <!-- The …'s menu (top layer): the hidden groups below each other, each as in the row; their own menus open beside it -->
+        <div bind:this={morePop} id="stage-tools-more" class="more-pop" popover="auto" role="toolbar" aria-orientation="vertical" aria-label="More tools"
+          data-app-ui ontoggle={moreToggle} style:left="{moreAt.left}px" style:top="{moreAt.top}px">
+          {#each hiddenGroups as i (i)}
+            <span class="part">{@render toolGroup(i)}</span>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 {/snippet}
@@ -928,13 +1102,17 @@
   {:else if shown === "inspector" && addingEntry && scene}
     <div class="body"><NewEntryForm {experienceId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
   {:else if shown === "inspector"}
-    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} onenvironment={() => openTab("environment")} onopenscene={id => void openScene(id)} /></div>
+    <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} ontab={openTab} /></div>
   {:else if shown === "environment"}
     <div class="body"><EnvironmentPanel {stage} {experienceId} /></div>
   {:else if shown === "library"}
     <div class="body"><LibraryPanel {experienceId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
   {:else if shown === "code"}
     <div class="body code"><CodePanel {experienceId} {stage} /></div>
+  {:else if shown === "log"}
+    <div class="body"><LogPanel {stage} {experienceId} {sceneId} onopenscene={id => void openScene(id)} ontab={tab => floats.showTab(tab, true)} /></div>
+  {:else if shown === "variables"}
+    <div class="body"><StageVariables {stage} /></div>
   {/if}
 {/snippet}
 
@@ -960,7 +1138,7 @@
         <ContextMenu at={stageMenu} label="Stage" head={scene ? sceneLabel(scene) : sceneId} onclose={() => (stageMenu = null)} items={[
           { label: "+ target…", select: () => (addingTarget = true) },
           { label: "Replay the first find", select: () => stage?.replayUnlock() },
-          { label: "View settings…", select: () => viewMenu?.open() },
+          { label: "View settings…", select: () => void openViewSettings() },
         ]} />
       {/if}
     {/if}
@@ -990,9 +1168,10 @@
       <FloatingPanel {floats} {id} tab={tabBody} extra={sceneExtra} />
     {/each}
     {#if stage && stage.status === "running"}
-      <FloatingPanel {floats} id="tools" label="Stage tools">{@render toolbar()}</FloatingPanel>
+      <FloatingPanel {floats} id="tools" label="Stage tools" along={toolbarAlong}>{@render toolbar()}</FloatingPanel>
     {/if}
   <RevertPrompt />
+  <PluginGuardPrompt />
 </div>
 {/if}
 
@@ -1003,23 +1182,33 @@
   /* The render view (#89): no top bar above it */
   .workspace.render { inset: 0; }
   .workspace.holding { user-select: none; }
-  .workspace.holding .stage :global(iframe.stage-frame) { pointer-events: none; }
+  .workspace.holding .stage :global(.stage-host) { pointer-events: none; }
   .float-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .float-body.inspector { min-width: 0; }
   /* The toolbar in its floating panel: one row; the page computes the groups' widths from these sizes */
   .tools { display: flex; flex-wrap: nowrap; align-items: center; gap: .125rem; width: max-content; color: var(--text); }
   /* A column (#315): the groups below each other, a rule above each instead of beside it */
   .tools.vertical { flex-direction: column; align-items: center; width: auto; }
+  /* Each group in its part (the toolbar measures the parts, #342); a rule before each after the first */
+  .part { flex: none; display: flex; align-items: center; }
+  .tools > .part + .part { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
+  .tools.vertical > .part { flex-direction: column; }
+  .tools.vertical > .part + .part { margin: .125rem 0 0; padding: .25rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
   /* Every group stacks in a column – undo / redo / history and Live too, so the column stays one button wide */
-  .tools.vertical :global(.tool-group) { flex-direction: column; align-items: center; }
-  .tools :global(.tool-group + .tool-group) { margin-left: .125rem; padding-left: .25rem; border-left: 1px solid var(--line); }
-  .tools.vertical :global(.tool-group + .tool-group) { margin: .125rem 0 0; padding: .25rem 0 0; border-left: 0; border-top: 1px solid var(--line); }
+  .tools.vertical > .part :global(.tool-group) { flex-direction: column; align-items: center; }
+  .more-button.open { background: var(--pressed-background); color: var(--pressed-color); }
+  /* The …'s menu (#342): the hidden groups below each other, each a row as in the toolbar, a rule between them */
+  .more-pop { position: fixed; inset: auto; margin: 0; padding: .25rem; display: none; flex-direction: column; align-items: stretch;
+    border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); }
+  .more-pop:popover-open { display: flex; }
+  .more-pop > .part + .part { margin-top: .125rem; padding-top: .25rem; border-top: 1px solid var(--line); }
   .live, .filters { display: flex; gap: .125rem; }
   .live .on { color: var(--accent, currentColor); }
   .tree-body { padding: .25rem .375rem .75rem; }
   .stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
-  /* The stage frame (#234) under the toolbar and the notices; a panel drag over it stays the page's */
-  .stage :global(iframe.stage-frame) { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
+  /* The stage's layer (#340: in this page, no frame) under the toolbar and the notices; a panel drag over it stays the page's */
+  .stage :global(.stage-host) { position: absolute; inset: 0; overflow: hidden; }
+  .stage :global(.stage-host canvas) { display: block; }
   .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }

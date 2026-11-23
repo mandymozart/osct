@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "../src/api.ts";
-import { registerContentTools } from "../src/content.ts";
+import { PUBLISH_TIMING, registerContentTools } from "../src/content.ts";
 import { hintFor, PUBLISH_REFUSALS } from "../src/result.ts";
 import { fakeFetch, recorder, VIDEO_ENTITY, type Seen } from "./helpers.ts";
 
@@ -64,8 +64,21 @@ function removal(seen: Seen) {
 }
 
 /** The editor's API as the tools see it; `sources: false` = an experience without Code tab sources */
+/** A publish job of the fake API (#345): running, then done after two polls */
+let publishPolls = 0;
+const publishJob = (status: "running" | "done", done: number) => ({
+  id: "0b5c2a1e-0000-4000-8000-000000000345", experience: "osct", env: "local", status, phase: status === "done" ? "done" : "archive", build: "abcdef012345", hash: "h",
+  live: true, done, total: 10, skipped: 0, startedAt: "now", updatedAt: "now",
+  ...(status === "done" ? { result: { env: "local", store: "server", build: "abcdef012345", hash: "h", publishedAt: "now", export: { path: "exports/abcdef012345", written: true } } } : {}),
+});
+
 function editorApi(seen: Seen, { sources = true } = {}) {
   const { method, path } = seen;
+  if (method === "POST" && path === "/editor/experiences") {
+    const { id, title } = seen.body as { id: string; title: string };
+    if (id === "osct") return { status: 409, json: { error: { code: "duplicate-id", message: "There is an experience \"osct\" already – choose another slug." } } };
+    return { status: 201, json: { experience: { id, title, experience: { id, title }, initialScene: "scene-1", scenes: 1, lastPublish: null } } };
+  }
   if (path === "/editor/experiences") return { json: { experiences: [{ id: "osct", title: "Test Experience", experience: { id: "osct", title: "Test Experience", book: { author: "Someone" } }, initialScene: "s1", scenes: 2, lastPublish: null }] } };
   if (method === "GET" && path === "/editor/experiences/osct") return { json: TREE };
   if (path === "/editor/experiences/osct/entities") return { json: ENTITIES };
@@ -121,6 +134,11 @@ function editorApi(seen: Seen, { sources = true } = {}) {
   if (method === "PUT" && path === "/editor/experiences/osct/appearance") return { json: { appearance: (seen.body as any).appearance } };
   if (method === "PUT" && path === "/editor/experiences/osct/environment") return { json: { environment: (seen.body as any).environment } };
   if (method === "GET" && path === "/editor/environments") return { json: { env: "local", environments: [{ env: "local", store: "server", publish: true, url: "http://127.0.0.1:8080/api/content/local", warning: "No CDN connected – the published content is stored and served by this server only." }, { env: "staging", store: "cdn", publish: false, url: null, warning: null }] } };
+  if (method === "POST" && path === "/editor/experiences/osct/publish" && (seen.body as any).note === "long")
+    return { status: 202, json: { job: publishJob("running", 2) } };
+  if (method === "GET" && path === "/editor/experiences/osct/publish/0b5c2a1e-0000-4000-8000-000000000345")
+    return { json: { job: publishJob(++publishPolls >= 2 ? "done" : "running", publishPolls >= 2 ? 10 : 6) } };
+  if (method === "GET" && path === "/editor/experiences/osct/publish") return { json: { job: publishJob("done", 10) } };
   if (method === "POST" && path === "/editor/experiences/osct/publish")
     return (seen.body as any).env === "local"
       ? { json: { env: "local", store: "server", build: "abcdef012345", hash: "h", publishedAt: "now" } }
@@ -138,6 +156,8 @@ function editorApi(seen: Seen, { sources = true } = {}) {
     const details = { comparison: { experience: { id: "demo", title: "Demo" }, incoming: { build: "cdcdcdcdcdcd" }, draft: { basedOn: { build: "abababababab" }, edits: 3 } }, confirmation: { id: "1900000000.0123456789abcdef0123456789abcdef", expiresAt: "2030-03-17T17:46:40Z" } };
     return { status: 409, json: { error: { code: confirm ? "confirmation-void" : "confirm-import", message: confirm ? "The confirmation is void." : "Importing replaces the draft.", ...details } } };
   }
+  if (method === "POST" && path === "/editor/experiences/osct/versions/abcdef012345/activate") return { json: { env: "local", build: "abcdef012345", previous: "0123456789ab" } };
+  if (method === "POST" && path === "/editor/experiences/osct/versions/0123456789ab/activate") return { status: 409, json: { error: { code: "already-live", message: "Version 0123456789ab is live on local already." } } };
   if (path === "/editor/experiences/osct/versions") return { json: { versions: [{ env: "local", build: "abcdef012345" }] } };
   if (path.startsWith("/editor/experiences/osct/changes")) return { json: { changes: [{ kind: "entity", ref: "castle" }], limit: path } };
   if (path.startsWith("/editor/experiences/osct/assets") && method === "GET") return { json: { assets: [{ id: "a", kind: "image" }], query: path } };
@@ -167,12 +187,12 @@ describe("the content tools", () => {
   it("registers every tool of the list with a description and an input schema", () => {
     expect([...rec.tools.keys()].sort()).toEqual(
       [
-        "add_entry", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
+        "add_entry", "create_experience", "delete_asset", "delete_entry", "describe_content_model", "get_experience", "get_draft", "get_entity", "get_scene", "import_experience", "list_assets", "preview_import",
         "list_experiences", "list_changes", "list_versions", "publish", "put_experience_appearance", "put_experience_passes", "put_entity", "put_environment", "put_target", "upload_asset",
         "get_entries", "update_entry", "update_experience", "set_asset_credits", "plan_asset_names", "apply_asset_names", "rename_asset",
         "list_scenes", "add_scene", "move_scenes", "put_scene", "put_surface", "delete_scene", "group_scenes", "rename_group", "ungroup",
         "set_surface_reference",
-        "revert_change", "revert_to",
+        "revert_change", "revert_to", "publish_status", "activate_version",
       ].sort(),
     );
     for (const [name, tool] of rec.tools) {
@@ -486,7 +506,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("5.2");
+    expect(model.contentSchema).toBe("6.0");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");
@@ -755,10 +775,35 @@ describe("the content tools", () => {
     expect(seen.filter(s => s.method === "POST")).toHaveLength(0);
   });
 
+  it("publish: a job that runs on (202) is followed until it ends; when it outlasts the wait, publish_status follows it (#345)", async () => {
+    PUBLISH_TIMING.pollMs = 1;
+    publishPolls = 0;
+    const long = await rec.call("publish", { experience: "osct", note: "long" });
+    expect(long.ok).toBe(true);
+    expect(long.data).toMatchObject({ build: "abcdef012345", export: { written: true }, job: { status: "done", done: 10, total: 10 } });
+    expect(seen.filter(s => s.path.endsWith("/publish/0b5c2a1e-0000-4000-8000-000000000345"))).toHaveLength(2);
+    const waitMs = PUBLISH_TIMING.waitMs;
+    PUBLISH_TIMING.waitMs = 0;
+    publishPolls = 0;
+    const cut = await rec.call("publish", { experience: "osct", note: "long" });
+    expect(cut.data).toMatchObject({ job: { status: "running", live: true }, next: expect.stringContaining("publish_status") });
+    PUBLISH_TIMING.waitMs = waitMs;
+    const status = await rec.call("publish_status", { experience: "osct", job: "0b5c2a1e-0000-4000-8000-000000000345" });
+    expect(status.data).toMatchObject({ build: "abcdef012345", job: { status: "done" } });
+    expect((await rec.call("publish_status", { experience: "osct" })).data.job.status).toBe("done");
+  });
+
   it("the logs", async () => {
     expect((await rec.call("list_versions", { experience: "osct" })).data.versions[0].env).toBe("local");
     expect((await rec.call("list_changes", { experience: "osct", limit: 5 })).data.limit).toBe("/editor/experiences/osct/changes?limit=5");
     expect((await rec.call("list_changes", { experience: "osct" })).data.limit).toBe("/editor/experiences/osct/changes");
+  });
+
+  it("activate_version: an older build live again, the API's refusal as it is (#348)", async () => {
+    const made = await rec.call("activate_version", { experience: "osct", build: "abcdef012345" });
+    expect(made.data).toMatchObject({ build: "abcdef012345", previous: "0123456789ab", open: expect.stringContaining("/osct/") });
+    const again = await rec.call("activate_version", { experience: "osct", build: "0123456789ab" });
+    expect(again.data.error.code).toBe("already-live");
   });
 
   it("revert_change and revert_to: the plan first, written only with apply (#312)", async () => {
@@ -774,6 +819,20 @@ describe("the content tools", () => {
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/experiences/osct/changes/revert-to", body: { after: "c0" } });
     await rec.call("revert_to", { experience: "osct", after: "c0", apply: true });
     expect(seen.at(-1)?.body).toEqual({ after: "c0", apply: true });
+  });
+
+  it("create_experience: a slug and a title make an empty experience; a bad, reserved or taken slug is refused (#343)", async () => {
+    const made = await rec.call("create_experience", { slug: "new-book", title: "A New Book" });
+    expect(made.ok).toBe(true);
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/editor/experiences", body: { id: "new-book", title: "A New Book" } });
+    expect(made.data).toMatchObject({ experience: { id: "new-book" }, open: "http://localhost:5175/editor/new-book/" });
+    const count = seen.length;
+    expect((await rec.call("create_experience", { slug: "New_Book", title: "x" })).ok).toBe(false);
+    expect((await rec.call("create_experience", { slug: "editor", title: "x" })).ok).toBe(false);
+    expect(seen.length).toBe(count);
+    const taken = await rec.call("create_experience", { slug: "osct", title: "x" });
+    expect(taken.ok).toBe(false);
+    expect(taken.data.error).toMatchObject({ code: "duplicate-id" });
   });
 
   it("import_experience: a configuration, the cdn, or neither", async () => {

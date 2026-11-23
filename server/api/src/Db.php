@@ -44,7 +44,7 @@ final class Db
      * a TO b`, #319) is skipped when the old name is gone – so a new database, which the CREATE TABLEs make with the new
      * names, and one renamed already pass it. Each form is also skipped when its table is missing: on MariaDB a column
      * check of a missing table throws (`SHOW COLUMNS`). After the statements, the data steps (`Migration4`, #320;
-     * `Migration5`, #334 – every rule's condition an expression) rewrite the JSON the renames left in the old shape – again
+     * `Migration5`, #334 – every rule's condition an expression; `Migration6`, #341 – a spec's `uses.listens`) rewrite the JSON the renames left in the old shape – again
      * only what still has it.
      * @return int statements in the schema
      */
@@ -69,6 +69,7 @@ final class Db
         // The JSON half of a schema change, which SQL cannot write for both dialects (#320)
         Migration4::run();
         Migration5::$last = Migration5::run();
+        Migration6::$last = Migration6::run();
         return count($statements);
     }
 

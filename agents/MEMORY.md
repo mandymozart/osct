@@ -4,6 +4,17 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-22 – Which PDF is the book: the final preview spreads, not the litho print (#349)
+- Tilman's *very final* version is `OSCT_FULL_preview_spreads_HIGHRES.pdf` (Virginie's Dropbox "Higher Res Exports for
+  Tilman", 1 114 098 658 bytes – the same file as `osct-incoming-content/final-2026-11-19/`). `OSCT_LAST_LithographyPRINT.pdf`
+  (InDesign 2 Nov, single pages with 7.41 mm bleed) is an **older** layout: pictures moved, page 256 still has the paper
+  figure, the matter has embossed textures. Never take positions or backgrounds from the litho PDF.
+- Checked against the final: 1367 of 1368 targets on staging lie where it prints them (`p188-7` only not recognised by the
+  comparison); 133 of 135 backgrounds match. s1 and s256 had older page images (#251) – replaced with the final's pages.
+- The cover, the front and back matter and the pages next to 1 and 256 had no targets (the delivery ends at P255):
+  78 added on staging from the final's pictures, **all switched off** (Tilman), ids `<scene>-t<N>` (`front-2-t3`,
+  `back-cover-t1`), the sponsor logo and the QR code left out. Files and placements: `osct-incoming-content/2026-11-22-final-matter/`.
+
 ## Archive (read this first)
 
 Entries from before 2026-11-01 moved verbatim into `agents/archive/MEMORY-<year>-<month>.md` (#31, 2026-11-20);
@@ -18,17 +29,15 @@ Verbatim from the archived entries (the entry title and archive file in front of
   `Section`.
 **2026-10-31 – texts inside the editor: the book search in the top bar, the book in the Inspector (#237)** (`MEMORY-2026-10.md`)
 - [ ] The tutorial page's chapter 5 has no new screenshots yet (the search, the book in the Inspector, + entry): taken in
-**2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234)** (`MEMORY-2026-10.md`)
+**2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234)** (`MEMORY-2026-10.md`) – **superseded 2026-11-21 by #340** (the sandbox dropped)
 - [ ] **The reader's plugins and the session** (above): Tilman's "no sandbox in the reader" (2026-10-29) predates the
   one cookie for the site (#207), which puts an editor's or admin's session within reach of a published plugin in the
   reader. Whether that changes it is his call: sandbox the reader's scene (camera delegation, the 8th Wall files for an
   opaque origin, offline content), or serve the editor and its API from an origin of their own so the reader's pages
   never hold an editor's cookie (deploy config).
-- [ ] **WebGPU in the frame** (the aquarium's fluid): the Inspector says *WebGPU ok · particles 10k* in headless Edge
-  (its software adapter) inside the sandbox – a sandboxed frame needs no permission for it; not yet seen on a real GPU.
-- [ ] **The frame on the phone** (the S22): frame cost and the sheet's drag over the stage.
-- [ ] **A header policy for the frame** would apply before any script, not only before plugin code: it needs the
-  content bases per book – a server-side page for the frame, or deploy config.
+- [x] **WebGPU in the frame** (the aquarium's fluid): moot – the frame went with #340 (2026-11-21), the stage runs in the page.
+- [x] **The frame on the phone** (the S22): moot – no frame since #340.
+- [x] **A header policy for the frame**: moot – no frame since #340.
 **2026-10-31 – plugin labels mark only unsaved (#232); a toggle per pass and the UI principle (#233)** (`MEMORY-2026-10.md`)
 - [ ] **Follow-ups of the principle** (each needs its own issue; most need a content field = a schema MINOR):
 **2026-10-31 – plugin passes in post-processing, content schema 2.21 (#216)** (`MEMORY-2026-10.md`)
@@ -217,6 +226,365 @@ or start experience section … a page that is eventually publically available"*
 `agents/research/2026-11-22-import-export-package.md`; drafts: `agents/design/import-export.html` (8 frames). Builds on #322.
 - [ ] Tilman's decisions 1–10 (concept §5; summary in #346) – then tickets P1–P11 (§6).
 
+## 2026-11-22 – Animus XR: an XR experience provider product of Tilman's own, white label; first use case free poster XR (#347)
+
+Tilman: *"think xr experience provider platform here with free versions having certain limitations. first use case,
+via qr.viennastruggle.at I want to provide free poster xr. we can use the platform to host it."* – *"if a experience
+is free it is branded by our own brand as marketing so people create their own"* – *"maybe as provider we can use
+scutoons since it is called scutoons animus xr anyhow … xr.scutoons.com. we run our own db and cdn for this one so
+anyone hosting scutoons with us gets data delivered from there. we run on a shared hoster like staging."* – *"we might
+even have to come up with our own domain. maybe animusxr.com is fine or an equivalent"* – *"important it is a product
+provided by me, and a white label solution which i can also integrate into other products of myself."*
+- The model in the drafts: **Animus XR** is Tilman's product (white label; core scutoons-animus-xr). One DB and CDN of
+  its own on a shared hoster like staging (the "Animus XR cloud"); his products are hosts on it – `xr.scutoons.com`,
+  `qr.viennastruggle.at` (free poster XR, the first use case), `animusxr.com` – each domain a CNAME, the host picks
+  the brand. Free experiences carry the host product's brand ("made with Scutoons" / Vienna Struggle / Animus XR).
+  Clients with their own instance (Building Fictions) see no trace of it.
+- This moves STRATEGY.md ("no platform until demand", "Scutoons as the second instance") – update it once decided.
+- Mock-ups: `agents/design/white-label.html` (11 frames: overview, brand editor, reader per brand, free = host brand,
+  access, ownership and domains, QR codes, newsletters, arrival landing, plans and limits, poster XR).
+- [ ] Open (Tilman): product name and domain (`animusxr.com` or an equivalent – availability not checked); one DB for
+  all host products or one each; free limits; paid plans now or later; roles per experience; own domains per
+  experience; newsletter lists per experience; creator sign-up open or invited; moderation – each frame's "Decide"
+  note. Plus the nine decisions of `agents/research/2026-11-22-white-label-branding.md` §5.
+
+## 2026-11-22 – the experiences page: books left, a context column right; export file, make live (6.3.0, #348)
+
+- Tilman (2026-11-22, on the experiences page screenshot): *"new is more of a step by step … under the three dots under
+  each experience one can select export, replace, versions … new and import can also go into the top right menu"* – *"the
+  right side is still smart"* – *"nothing is clicked, the right side shows cards new experience and import and last worked
+  on. so we use it as quick access menu"*. Confirmed afterwards: rollback = **make live with a confirm** ("rollback is
+  nice"), Last worked on **from the server's history**.
+- Built so: a click selects (the sheet), double click / Enter opens, arrows / Esc; quick access (New, Import, Last worked
+  on – `GET /editor/recent`, one row per experience and scene, five); New step by step (Start → Name → Create); Import = New
+  with *From an export*; the sheet (Open, Export, Replace…, Versions + make live). The old `ImportForm` / `NewExperienceForm`
+  are gone – their functions are in `ImportSource` (the one source reader: File / URL / Published), `ImportCompare`,
+  `NewExperienceFlow`, `ExperienceSheet`.
+- *My calls*: **the export file is an import body** (`{ format: "osct-export", configuration, files, assetsBase?, sources }`,
+  `GET …/export/file`) – no zip: the media stay on the CDN and are named by URL, so the file is small and Import (File) reads
+  it as it is. The Code tab sources travel in it and the import saves them (`sources`) – otherwise an export of a book
+  with unpublished plugin code could not come back. The import got `rename` (the configuration becomes `{id}`'s), `title`,
+  `create` (the slug rule of `POST /editor/experiences`, one implementation) and, from the CDN, `experience` – New from an
+  export / a published version and Replace with another experience's export need them. *Published* lists the experiences
+  live on this instance's environment (the CDN base is the own environment's), not only the default.
+- **Make live** (`POST …/versions/{build}/activate`): only this instance's environment (as Publish), refused to an AI
+  connection's token (as Publish – the MCP's `activate_version` works with a session sign-in only), 409 when the build's
+  `game.config.json` is gone (purged) or its schema MAJOR is not today's. The publish log gets a row with the note *Made live
+  again – the version of …*; no new column. A build stays in the store unless `osct content purge` removes it by hand.
+- **`%3Cslug%3E`**: the form passed the literal `<slug>` through `readerPath` (which encodes); now `addressPreview` shows
+  `https://<instance>/…/` until there is a slug.
+- **CDN import server-error**: not reproduced. Staging's `preview_import` (MCP, source cdn, osct and demo) answers 200 today;
+  locally the preview of staging's CDN works with and without an existing 1376-entry draft, and staging's server code has
+  not changed in that path since 6.2.3. I could not read staging's error log (SSH was refused here). The CDN read now turns
+  any unexpected error into 502 `content-fetch-failed` with its message and logs where – if it comes back, the editor shows
+  the real cause.
+- Checked locally (SQLite API with `CONTENT_BASE_URL` = staging's CDN, read only; headless Edge): quick access, New step 1
+  and 2, the ☰ entries, a sheet with versions, the make-live confirm, Replace's source and comparison – day and night. The
+  make-live itself and Replace were exercised against the local API only.
+- [ ] Open: the tutorials page's import screenshots (`client/public/docs/tutorials/import/*.webp`, `demo/01-experiences.webp`)
+  still show the old right-column form – the text is updated, the pictures need a retake with a book on the CDN.
+- [ ] Open: `php -S` answers one request at a time – locally a source whose *assets at* points at a dead port (the 5174
+  default) waits for the connection timeout before the preview; not an issue on a real host.
+- [ ] Open (Tilman's call): make live for production from the staging editor is not offered (an instance publishes to its
+  own environment only); production's editor shows the button for production.
+
+## 2026-11-22 – Publish is one overlay: confirm, running, done; the rest behind Details (6.2.4, #345)
+
+- Tilman (2026-11-22): *"there is lot of information that is kind of useless on this dialog … i dont need to know the
+  version hash for example or transpilation warning etc. a little log hidden behind a details expandable could be nice
+  … can also be hidden behind a ctrl + l … this first dropdown dialog should be much more on point. i think it can also
+  just go into the overlay as well, as a confirmation step before it starts."* He approved the draft: three states in one
+  centered overlay over the dimmed page. Built so (`PublishButton.svelte`, words in `publish-overlay.ts` with tests):
+  **confirm** (*Publish “…” to staging?*, *Readers get this state.*, *Last published: today 07:53*), **running**
+  (*Writing the build…* → *Live for readers ✓*, *Archive n / N* bar), **done** (*Live on staging. n files new, m were
+  already there.*, Close, *Open reader*, closes itself after 2 s unless hovered or Details open), **failed** (Details
+  open), **unknown**. Details = a timestamped monospace log (target, draft build, replaced build, carried plugins, the No
+  CDN line, build written, live, archive counts, skipped, errors). The dropdown step, `publishStep` and `jobLine` are gone;
+  so is the *published <build>* / *publishing n/N* text beside the button (the overlay cannot be closed while it runs).
+- The job now names its **parts** `{ build, archive }` (kept in `state_json`, no schema change) so the editor counts the
+  archive on its own; *n files new* = `done − skipped`, *already there* = `skipped` (both were already on the job).
+- *My calls*: the confirm transpiles the saved sources when it opens – a source that does not compile is the one danger
+  line and Publish stays off (focus to Cancel); Logic errors are not checked (no cheap check exists in the editor). The No
+  CDN warning moved from the step into the log (the top bar keeps *No CDN connected*). Production's readers line is *Every
+  reader gets this state on their next start.* Opening Publish while a job of the experience runs goes straight to the
+  running state (*Started elsewhere …*). *Open reader* = `/<experience>/` on this origin (an instance serves its own
+  environment). While the overlay is open it takes every key in the capture phase: Ctrl+L toggles Details (the scene
+  page's Library key does not fire behind it), Esc cancels the confirm / closes an ended publish, Tab stays inside; focus
+  returns to the Publish button. Esc and the backdrop click never close the running state.
+- Checked locally (SQLite API with `PUBLISH_STEP_SECONDS=0`, a 106-scene experience, headless Edge): all three states in
+  day and night, the 2 s auto-close (2.2–2.4 s after Details was closed), focus back on the button. The docs site's
+  `publish.webp` is the new confirm.
+- [x] Open (Tilman's call, not in scope): **rollback** – done in 6.3.0 (#348): *make live* on the experiences page's
+  Versions, `POST …/versions/{build}/activate`.
+
+## 2026-11-22 – a publish is a job: where the 10 minutes went, what writes the rest (6.2.0, #345)
+
+- **Found** (staging's zone listing, the publish log): build b49f09610206's version folder (3 plugin modules, files.json
+  430 KB, game.config.json 793 KB) was on the zone at 07:53:03.0–.5, latest.json switched at 07:53:03.7 – then the export
+  archive: **1522 files** (1376 entries, 135 scenes, 6 plugins, 5 top-level, 1.2 MB) written one PUT after another with a
+  new TLS connection each, ~0.43 s a file, 07:53:04 → 08:03:59. The editor got 504; Tilman published again at 08:03:31
+  (same build: versions.json kept 07:53:03.7, latest.json got 08:03:30.99) and that request checked for export.json
+  before the first one wrote it, so it rewrote 1376 entries again until 08:14:54 (and never wrote its own export.json).
+  The demo is small enough to stay under the gateway. Read-only GET timing from here against the Storage API:
+  sequential 180–1180 ms a file, curl_multi over kept connections 100–400 ms a file – the zone is noisy.
+- **Decision (job design, works on plain PHP)**: `publish_jobs` row with the plan (every file to write) + state;
+  `POST` runs `PUBLISH_STEP_SECONDS` (15) in the request (done → 200 as before, else 202 `{ job }`), then
+  `fastcgi_finish_request()` + `ignore_user_abort` + no time limit where it exists (staging's FTPS host, PHP-FPM),
+  else every poll `GET …/publish/{job}` writes the next 15 s (Apache mod_php in the Docker image, the built-in server).
+  A lease (90 s, renewed per slice of 32 files) keeps one runner; a dead runner's lease runs out and the next poll goes
+  on. A job unmoved for 2 min gives way to the next publish (`abandoned`). No queue, no cron, no daemon.
+- Skip logic: version folder = one exists (never overwritten), archive with export.json = one exists, an incomplete
+  archive = `ContentStore::checksums` (one Storage API listing per folder, its `Checksum` = sha256) → only missing or
+  different files. Uploads: `ContentStore::putMany`, 16 at a time on one kept curl multi handle; a refused file is tried
+  once more alone. Order kept: game.config.json last in its folder, latest.json after the folder, export.json last.
+- The editor's Publish step (`publish-job.ts`) shows the phase and done / total, treats a 502/503/504 without the API's
+  error code (or no answer) as "lost", then looks for the experience's newest job that was not there before the click.
+  MCP `publish` waits 90 s, `publish_status` follows.
+- [ ] Open: the archive is still ~1500 PUTs for the book – expected 2–4 min with 16 at a time (not measured on staging:
+  no publish from a worker). If that stays too slow, the lever is the archive's shape (one file per entry, the
+  `osct content export` layout the CLI shares) – e.g. a single bundled file next to the folder; Tilman's call.
+- [ ] Open: after the deploy, publish osct on staging once and note the job's time (POST answer, live, done) here; check
+  that staging's FPM really continues after `fastcgi_finish_request` (the job keeps moving with the editor closed).
+- [ ] Open: staging's export archive of b49f09610206 is complete (export.json from the first publish) – nothing to repair.
+
+## 2026-11-22 – the desktop landing from the skeleton; a manifest per experience (6.2.3, #343)
+
+- Tilman (2026-11-22): *"same thing goes for the browser redirect to that landing page. i assume we can write a small
+  script we put in the skeleton and run immediately ... this is stuff we do not need the database for"*. index.html's
+  head now runs three inline scripts in order: legacy redirect → manifest link → landing decision
+  (`<html data-osct-landing>`). The body carries the static landing (declarative shadow root, `landing-html.ts` –
+  `<desktop-landing>` renders the same function) before the static splash; CSS hides one or the other.
+- *My call* for another experience's path (`/demo/`): no static landing (the static page has the default's texts and
+  images) – the splash shows until `<desktop-landing>` decides, as before.
+- Takeover: the component renders underneath, waits for its hero images and the QR code (≤ 2 s), copies the scroll
+  position, removes `#static-landing`. If it decides otherwise than the head (window resized), it removes the static page
+  and the attribute, and the splash shows. The static page is English; in another language the texts swap at takeover.
+- The design primitives' CSS moved into the import-free `styles/design-css.ts` (`DESIGN_CSS` = spinner + it) so the build
+  can inline it; `gold-button.ts` and `desktop-visitor.ts` import relatively for the same reason.
+- Tilman (2026-11-22): *"ja, ein eigenes manifest pro experience why not"* – every experience links
+  `/api/experiences/<id>/manifest.webmanifest`, the default too, set by the inline script; vite-plugin-pwa's link is taken
+  out of the built page (an `enforce: 'post'` plugin after it). The root manifest only for an address naming no
+  experience. **An install made before (id `/`) stays a separate app** beside a new one – accepted (few installs before
+  production). This resolves the 6.1.0 open item about the default app opening the experience opened last for new
+  installs; old installs keep that behaviour.
+- [ ] Open: ReaderManifest names an experience by its id until it is published (the title from the DB); an instance
+  whose default experience is not published in its editor DB gets `osct` as the installed app's name.
+
+## 2026-11-22 – every experience at its own path; legacy codes and the PWA land in the right book (6.1.0, #343)
+
+- Tilman (2026-11-22): *"mein vorschlag, wir fangen eingehende legacy qr codes ab so das ?v=bk1 auf und ?v=d1 ../osct/
+  ../demo/ verweisen. auch bei der PWA."* – *"die subdomain ist erstmal keine option"* – *"eine zweite subdomain ist erst
+  machbar nach einer whitelabel loesung"*. Later: *"so i want to also be able to add new experiences in the schema under
+  their own slug... part of that refactor"*. **Subdomains only after a white-label solution.** Production follows only
+  once Asger has set our SSH key pair.
+- He wrote `?v=`; the printed book's code is `https://osct.buildingfictions.com/?s=bk1` – the arrivals' source `s`
+  (#324). Nothing in the code read `v`; `s` is the parameter.
+- Paths: `/<experience>/…` for every experience (the default too); `/x/<experience>/…` moves to `/<experience>/…`. The
+  experience is the first segment unless it is one of the site's own paths (`RESERVED_PATHS`,
+  `shared/api/experience-paths.ts`, PHP copy `Experiences::RESERVED`, pinned by `mcp/test/php-rules.test.ts`).
+- Legacy addresses move in the client before anything loads (`redirectLegacyAddress`, `history.replaceState`): `?s=` by
+  the source map (`bk<n>` → osct, `d<n>` → demo; unknown → default), a bare `/` → the experience the browser opened last
+  (`localStorage` `osct-experience`), else the default; any other route → the default's same route. No server redirect:
+  a bare `/` needs the browser's memory, and the SW serves index.html offline anyway.
+- PWA: the build's manifest stays (`id`/`start_url` `/` – the installed app stays the same app; its `/` opens the last
+  experience). Every other experience links `/api/experiences/<id>/manifest.webmanifest` (`ReaderManifest.php`: id, start,
+  scope `/<id>/`; the title only once published) – installing from `/demo/` installs the demo.
+- New experiences: `POST /editor/experiences { id, title }` → an empty draft (one *double* scene). The id is the slug
+  (`EXPERIENCE_SLUG`: lower-case, digits, dashes) – path, store folder and editor URL in one; no rename. Imports keep the
+  wider id rule (capitals, `_`, #205) but a new one may not take a reserved path. MCP: `create_experience`.
+- The sign-in email's link carries the experience the reader asked from (`POST /auth/request { experience }`).
+- [x] (6.2.3: every experience links its own manifest, the default too – new installs start at `/<id>/`; installs from before keep this.) Open: the installed default app (scope `/`) opens the experience opened *last* – after someone read the demo in the
+  browser, the osct app's icon opens the demo. A per-experience manifest for the default too would fix it, but would
+  install as a new app beside the one installed before #343 (Tilman's call).
+- [ ] Open: a path whose first segment is no experience of the instance (`/foo/`) loads `foo`'s store and shows the
+  startup error, not the not-found page.
+
+## 2026-11-22 – listen, not hear: content schema 6.0, plugin API 4.0 (6.0.0, #341)
+
+- Tilman (2026-11-21): *"you use the word hear for events. i think it is listen"* – decided *"Komplett, inkl. API"*: every
+  word (editor, engine messages, MCP, docs, the docs site, comments, identifiers) and the plugin API's `uses.hears` →
+  `uses.listens`. Grammar: a rule *listens to* an event; the pin and the key are `listens` (no "to").
+- `uses.hears` sits in a plugin's recorded spec (`registered`), i.e. in the content → a renamed field = schema **MAJOR**
+  (RULES #10): 6.0, `OLDEST_READABLE_SCHEMA_MAJOR` 6; plugin API **4.0**; app **6.0.0** (precedent: schema 5.0 → 4.0.0,
+  schema 4.0 / API 3.0 → 3.0.0). No alias, no backward compatibility (pre-Tokyo).
+- Migration: `Migration6.php` on the deploy (5.x → 6.0, `plugins_json` / `imported_json` recorded `uses`; `--plan-6`);
+  the Code tab sources by `osct plugins listen --all` through the editor API (*mine*: not in PHP, so Tilman sees the
+  dry run first). Staging dry run 2026-11-22: 26 sources, none with `uses.hears`, one with the word in prose
+  (demo · narrative, two lines). Book content (`OSCT_CONTENT_DIR`): no plugins, nothing to change.
+- `Migration5` compared with `Editor::CONTENT_SCHEMA_MAJOR` to find "old" (4.x) experiences – with 6 it would have quoted
+  5.x set texts again; now a literal 5.
+- Left as they were: dated history (CHANGELOG sections before 6.0.0, MEMORY entries, `agents/research/`, `agents/archive/`),
+  the 5.1 row of docs/content.md's schema table (`{ hears, … }` – what 5.1 shipped).
+- [ ] After the 6.0.0 deploy to staging: `osct plugins listen --all` (without `--dry-run`, after Tilman saw the dry run),
+  then publish `osct` and `demo` again (declared modules of API 3.x are not loaded by a 6.0 app).
+
+## 2026-11-22 – the stage toolbar's … overflow (#342)
+
+Tilman (2026-11-22, on a screenshot of the toolbar cut off at the panel's edge): *"we can either fade here when there
+is too many or we add the ... dots to indicate there is more and have a context menu come out."* – the … it is.
+- **What goes**: the groups from the end (live, view, grid & snap, render quality, the filters, the tool, undo /
+  redo / history last); the … menu holds them below each other, each a row as in the toolbar. Their own menus and
+  panels open from inside it (fixed flyouts inside a top-layer popover are positioned to the screen and drawn above
+  it; `menuPlace` opens them beside, the popover says `aria-orientation="vertical"`) – nothing had to be flattened.
+- **No loop by construction**: the Tools panel asks for the toolbar's **whole** length (`FloatingPanel` `along`), so
+  the room it is given (`floats.views.tools` less `chromeOf`) never depends on what is hidden; each group's length is
+  measured where it last stood (key: orientation, finger, expansion), an estimate before. One trap met in headless
+  Edge: the … measured alone (no rule before it) is 9 px shorter than with a rule – that alternated 0 ↔ 1 groups and,
+  measured in a MutationObserver's microtask, froze the page. The … alone is no longer measured, and every measure
+  waits for the next frame.
+- The expansion of the tool and the filters still follows the estimated room (`floatingRoom`, between the Tree and the
+  Inspector); a toolbar placed elsewhere can show a group expanded with others in the … – rare, harmless.
+- [ ] The inline panel's real chrome is 1 px wider than `chromeOf` (72 vs 71 px in a row – the section's border): the
+  toolbar's last px is clipped, before #342 too; the fit takes a px of tolerance. Correct `chromeOf` sometime.
+
+## 2026-11-21 – 5.0.2: the in-page stage's follow-ups from the staging check (#340)
+
+- Found by the orchestrator on staging after 5.0.0 (its "no targets found" was its own test – a hidden browser pane that
+  paints no frames). Checked here in headless Edge against a local API with the demo and its twenty saved sources: the
+  timeline has `targetFound` for the aquarium, the key and the tally at 0.42 s, the prints and entities drawn, no
+  "No component … registered" line, 24 plugin-source requests (one per source) instead of ~190.
+- **Order**: the saved sources install before the first scene builds (`Stage.open` waits for `onStarted` →
+  `plugins.autoLoad(…, { refresh: false })`), as the frame did. **Requests**: `plugins.version` moves only when the
+  engine's `pluginRegistryRevision` moved; `plugins.savedSource` reads each saved version once. **Storage**: the stage's
+  engine switches under `osct-editor-stage-…` – the editor's page shares the reader's origin (the reader's progress
+  `osct-progress:<id>` was never written by the stage; the engine reads no storage itself).
+- Local check recipe: `server/api/config.local.php` with SQLite in `var/db/`, the demo built into the client
+  (`OSCT_CONTENT_DIR=fixtures/demo npm run content`), import via `POST …/import` with `assetsBase` 5174, the sources via
+  `PUT …/plugins/<id>`; mail codes are rate-limited (a few per hour) – set a test password in the local DB instead.
+
+## 2026-11-21 – Logic canvas: setting things off on the stage by hand (5.1.0, #334)
+
+- Tilman: *"is there a way i can manually trigger an event from the nodes to test what firing them would look like down the
+  line?"* – the proposal agreed (*"ja vorschlag ist gut"*): a box's right-click menu on the Logic canvas – an event box
+  **Fire on stage** / **Fire with a payload…** (and a ▶ on its head where a pointer hovers), a node's own `tap` box **Tap on
+  stage**, a variable box **Set on stage…**, a rule box **Run this rule**. Items: `editor/src/lib/logic/fire.ts` (pure,
+  `__tests__/fire.test.ts`); stage: `Stage.fire` / `Stage.runRule` (two additive methods, `StageCore.fire` emits through
+  `runtimeApi("stage").events`); engine: `runRuleByHand` in `behaviour.ts` (a module-level set of the rule lists on the stage,
+  each registered while built – exported from `@engine/scene`). Docs: `docs/editor.md` ("Testing on the stage"), the docs
+  site's Logic guide ("Setting things off by hand").
+- Decided (*mine*): **Run this rule** runs as if its `on` came – its **when applies** (false: "nothing ran"), no other rule
+  of that event runs; the menu's detail says *as if <event> came – its when (…) applies*. A **core event** cannot be fired
+  (the runtime refuses an `emit` of one; firing `targetFound` by hand would lie about the stage) – the item says what to do
+  instead. A node's `found` / `lost` / `unlocked` boxes are disabled too (the stage's hooks); `tap` is the reader's tap on
+  the target (`stage.tap` – every node of it hears it, so not only that node's rule).
+- Decided: an **event box of another scene** still fires – the bus is the stage's, so the open scene's rules, the
+  experience's and every plugin hear it; the detail says *<scene>'s own rules are not on the stage*. A scene's or a node's
+  **rule** of another scene is disabled (*open it to run its rules*). Read-only levels allow all of it (testing, not
+  editing); only the running stage changes, Restart resets it. The Log marks the fired event's line and the hand-run rule's
+  `behaviour` line ` · by hand` (only that first line; `parseDetail` skips it). A variable's set has no mark – it is the
+  Variables tab's write.
+- A node's rule is found on the stage by target + node name (the engine's behaviour knows no path – as Trace's matching);
+  two nodes of one name with rules in a target are refused with the reason.
+- Fixed on the way: Trace pulsed the **rule after** the one that ran – the engine numbers `behaviour` lines from 1, the
+  documents from 0 (`liveHit` takes one off now; the tests had the same mistake). The docs site's Logic guide said *Live*
+  where the toggle is *Trace*.
+- [ ] Not checked in a running editor (no local API in this session): the menus, the payload field's focus, the ▶ on hover.
+- [ ] Open: a hand-fired *tap* and a variable set carry no *by hand* mark in the Log (`targetTapped` / `varChanged` come from
+  the engine / the API) – add one if Tilman wants it.
+
+## 2026-11-21 – the stage sandbox dropped: the stage runs in the editor's page, a prompt before others' plugin code (5.0.0, #340)
+
+- **Tilman** (decided in the OSCT session after the SCUTOONS XR session relayed it): *"we can drop the sandbox. since we
+  trust the user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is
+  fine. it is a huge security risk but only to the user who is logged in and their scope."* · *"performance will
+  definitely increase."* · on the plan: *"yes please"*, *"and we can rebuild the schema. no worries"*, *"ich bin fuer
+  umbau, jetzt."*
+- **Supersedes #234** (2026-10-31, `archive/MEMORY-2026-10.md`: the stage and every plugin in an iframe without
+  `allow-same-origin`, `frameCsp`, a postMessage protocol, the registry mirrored). RULES #35 is rewritten as the guard rule.
+- **What went**: `stage/frame-host.svelte.ts`, `stage/frame-protocol.ts` (with `frameCsp`, `readFrameEvent`,
+  `FORWARDED_KEYS`, `withoutSavedSpecs` – the API's draft has dropped a saved plugin's recorded specs since 4.6.2), the
+  route `routes/stage-frame/`, the content's recorded responses (`content.snapshot`), the engine's `mirrorPluginRegistry`,
+  the `Origin: null` CORS of the dev servers and `.htaccess`'s `Access-Control-Allow-Origin: *` for `/editor/` and
+  `/assets/content/`, and their tests. `Stage` keeps its API and calls `StageCore` directly (a layer `.stage-host` first
+  in the stage's container); `stage-types.ts` keeps the shared types. Leaving the workspace empties the registry
+  (`resetPlugins`, new in the engine) – the frame used to do that by going away.
+- **The guard** (`plugin-guard.ts`, `plugin-guard.svelte.ts`, `PluginGuardPrompt.svelte`): the saver is the API's existing
+  `updatedBy` (email of `plugins.updated_by`) – no API or schema change was needed. Asked about: stored sources someone
+  else saved last, and declared modules without a stored source (imported builds – *mine*: nobody here saved them, so
+  they count as someone else's). One prompt for all, Run / Don't run; the answer in `localStorage`
+  (`osct-plugin-guard:<experience>`) per plugin and version (`updatedAt|updatedBy|size`, a declared module's URL). The
+  render view asks nobody: only what that browser answered Run for runs (a headless profile has none – a render no longer
+  shows others' plugins; open item below).
+- **Plugin API stays 3.1** (*mine*): `api` did not change; only where the code runs. A MAJOR would have refused every
+  declared module built against 3.x for nothing. The reader had the session within reach of a published plugin anyway
+  (one cookie for the site, #207).
+- [ ] **The render view and others' plugins**: `render_scene` runs in a fresh headless profile, so the guard keeps every
+  plugin someone else saved off the picture. Writes are blocked there anyway (`requestAction`); if Tilman wants the
+  render to show them, `ask: false` could run them instead of skipping – his call.
+- [ ] **Measure the stage start** on the S22 and the desktop before/after (not measured in this session: no local API run).
+- [ ] The guard's answers live in one browser: a person on a second machine is asked again. A per-user answer on the
+  server would need a table – not built (Tilman: "we can rebuild the schema" if wanted).
+
+## 2026-11-21 – Logic canvas: live feedback on the wires (#334)
+
+- Tilman: *"also do we have live feedback for the wires? when a event fire that cable should light up. or when a variable
+  changes. we can see what is actively happening then"*. The Logic panel reads the stage's timeline (`stage.events`, the
+  Log tab's lines) and lights what each **new** line touches on the level drawn – `logic/live.ts`, pure and tested
+  (`__tests__/live.test.ts`): an event lights every wire carrying it by name (into / out of its event box, plugin pins,
+  bundled scene wires and stubs) and pulses its box; `varChanged` lights the variable's sets and reads and shows the new
+  value in its box's head; a `behaviour` line pulses the rule's box (in its kind's colour) and lights its `on` wire and its
+  action wires (a scene's rule: its scene box at the group / experience levels).
+- Decided: derived edges (bundled wires between scenes, name stubs) carry the names they join (`GraphEdge.names`) – a
+  bundle's label says only *2 events*. A node's own event box (`event:<target>/<path>:tap`) is lit only by its rule's
+  `behaviour` line, never by a bus event of the same name. The payload comes as `describePayload`'s one line, so
+  `parseDetail` reads it back (values are JSON). A node's rule is matched by target, node name (from the draft) and its
+  index in the node's behaviour – the engine's note carries no path.
+- Decided: "new" is by the frame's clock (`StageEvent.t`): the panel marks the timeline as seen when it opens (no replay);
+  an emptied timeline starts again; a clock that went back (a new frame) only moves the mark. A pulse lasts 1 s
+  (`LIVE_MS`), a new firing restarts it (a pulse number keys the animation). Look: the wire's own signal colour, opaque
+  and heavier, a dash glow running once from source to target over a fading halo (class `live`, apart from the hover's
+  `lit` / `dim`); reduced motion keeps only the brighter state. **Trace** in the bar's … view settings (on by default,
+  `osct-editor-logic-trace`) turns it off – renamed from Live, which the stage's pause/play already is (4.12.1).
+- [ ] Not checked in a running editor yet (no screenshot): the travelling dash on real wires, and the cost of re-drawing
+  the canvas's nodes per pulse on a large level.
+
+## 2026-11-21 – Logic canvas: selecting and ungrouping groups, notes after the deck (content schema 5.3, #334)
+
+- Tilman: *"how to ungroup or select a group? and also we are missing notes on these graphs, for annotations."* A click on
+  a frame's head (free area; a drag is no click) selects the group's boxes, Shift adds; a right click on the head or a
+  folded pill opens the group's menu with **Ungroup** (a canvas edit `ungroup`); **Ctrl+Shift+G** ungroups the selected
+  boxes' groups (as the Scenes strip). Both group keys stop in the Logic panel – the Scenes panel's window shortcut
+  never sees them.
+- **Notes** after the SCUTOONS deck (`deck/show/src/canvas.rs` `Note { id, text, author, node }`, `NoteText` – empty
+  removes): schema 5.3 adds a canvas note's optional `box` (x, y are then the offset from the box – it moves with it),
+  `author` and `view` (a scene's canvas is shared by the scene level and its target levels: a note belongs to the level
+  it was made at – `<target>` or `<target>/<path>`; none = the canvas's own level). Edits `note`, `noteText`, and `place`
+  with `note:<id>`. Author = the signed-in person's address before the @ (the content keeps no address; the API's user has
+  no name field).
+- Decided: a note whose box goes (rule removed, a variable nothing names any more) **stays free where it last stood**
+  (`keepNotes` in apply.ts); a removed rule's later siblings keep their notes (rule box ids are numbered). Notes are
+  monochrome editor chrome (RULES #38), not signals.
+- [ ] Open: canvas `positions`, `folds` and group members are keyed by rule box ids too (`rule:door/#1`), which shift when
+  an earlier rule is removed – only notes are re-keyed so far.
+- Wire labels: a white letter outline instead of the semi-transparent backdrop (Tilman: *"the text should have a white
+  outline not a semi transparent backdrop"*), white in both themes.
+
+## 2026-11-21 – Log and Variables tabs, one unified log, surfaces only on selection, the Tree's one + (#337)
+
+Tilman decided which parts of the Inspector deserve their own tab:
+- **Log tab** (dock tab beside Inspector/Environment/Library/Code, floatable): one timeline, newest first – the stage's
+  events, the rules' behaviour/goto lines, the plugins' `api.log` lines and errors, and the **problems** (Logic errors and
+  warnings for the whole experience, plugins not on the stage) pinned above without a time. The plugin log merged into it
+  was his *"sehr gut"*; *"log in general could be unified with problems and errors, filters show only the respective
+  things"* → filter chips per kind (events, behaviour, plugin log, errors, warnings), kept per browser. *tap* lives in its
+  top bar. *Clear* empties the timed lines; the Code tab keeps its own log (a Run still empties that one only).
+- **Variables tab**: the live vars (scope, type, value control, delete), *set* by hand, *reset* (`StageVariables.svelte`).
+- The scene Inspector keeps **one line** at its level ("3 vars · 12 events") with links that open the two tabs.
+- *"some sections in a tab should be default collapsed otherwise these lists get hard to navigate"*: the Log's problems
+  start closed to their counts and first problem, the timeline open; the Variables tab has a section per scope (the
+  scene's open), *set* closed – every closed section's summary says what is in it.
+- **Surfaces leave the scene Inspector** (the `SurfaceList` section is gone): the Tree's Surfaces level adds (selects the
+  new surface, so its Inspector opens), reorders (menu, Alt ↑ ↓) and removes (menu *Remove surface…*, Delete – the
+  confirmation is the surface Inspector's); the surface Inspector shows only when a surface is selected or just created.
+- **The Tree's footer** (*+ target · + entry*) became **one + (add)** with a typeahead menu like the Logic panel's: surfaces,
+  target…, entry…, and every node type (built-in and the plugins'), nodes greyed out without a selected target.
+
+How: the plugins' lines carry the frame's clock (`t`) and the scene clock (`at`) like the events, so the Log merges them
+(`stage/log-entries.ts`); the experience's logic is built once in `logic-content.svelte.ts` for the Logic panel and the
+Log's problems; a problem's click asks the Logic panel for its box (`logicFocus`). Open: the docs site's screenshots
+(`vars.webp`, the tutorials' door scene) still show the old *vars and events* section – retake them with the next
+screenshot round.
+
 ## 2026-11-21 – A documentation site for users at /docs/ (#336)
 
 Tilman: *"i would love to have a route docs/ … a documentation that can work properly to figure out how stuff works in
@@ -234,6 +602,13 @@ system works and mcp as well"*.
 - **Styled like the editor** (Tilman, the same day: *"can we please style the docs in the way the creator and deck editor
   are styled?"*): the editor's monochrome palette with day and night, system type, square corners, small-capital labels
   (`docs.css`) – not the reader's black and gold, which the first draft took from the long walkthrough.
+- **Reference pages are generated, never typed** (Tilman, the same day: *"the apis should have reference pages. otherwise
+  it is hard to find a specific one"*, *"generated whenever anything in the apis updates"*): the plugin API from
+  `plugin-api.d.ts` (in the run of `npm run plugin-api`), the MCP tools and the content model from the server's own
+  definitions (`npm run docs-reference` in `mcp/`); Checks fails on a stale page. The hand-written API pages stay as
+  the guides. A page of prose is never generated, a list of members never written.
+- **The search has no index file**: `docs.js` reads the listed pages on first use (headings and table rows with ids).
+  An index built by a script would be one more thing to regenerate; the pages are small.
 - The folder is `guide/`, not `editor/`: `/docs/editor/…` would read like the editor app's own address.
 - The editor's account menu has *Documentation* (opens `/docs/` in a new tab).
 - Screenshots: the local editor on the demo, re-imported from `…/osct/staging/demo` (build e04673e65644) into the local
@@ -1131,7 +1506,7 @@ button gave way to the design's gold × in the header (#291).
   in the draft's text.
 - **The schema number**: the appearance work in the main checkout (uncommitted on 2026-11-14) also calls itself 2.27 –
   whichever lands second takes 2.28 (table row in docs/content.md, the history comment, `npm run schema:lock`).
-- [ ] The built-in browser pane blocks the local stage frame (`ERR_BLOCKED_BY_CLIENT`); the stage was checked in Chrome.
+- [x] The built-in browser pane blocks the local stage frame (`ERR_BLOCKED_BY_CLIENT`); the stage was checked in Chrome. (Moot since #340: no frame.)
 - [ ] The import script for the sculptures (#256): upload mesh + maps, place the node turned 90° at a scale from the
   model's size (both examples sit well at 0.15) – planned for 2026-11-15.
 - [ ] Not tested on a phone: the swap while scanning, and `auto` on iOS.
@@ -1152,7 +1527,7 @@ button gave way to the design's gold × in the header (#291).
   edit since the page was opened (kept per subject in `baselines.ts`, lost with a reload). Not a removal (RULES #1):
   the way back stays, one step deep.
 - Decided by the session, **for Tilman to confirm**:
-  - [ ] RULES #35 said no message from the stage frame makes the page call the API. A gizmo drag is such a message, and
+  - [x] (Moot since #340, 2026-11-21: no stage frame, no messages.) RULES #35 said no message from the stage frame makes the page call the API. A gizmo drag is such a message, and
     it saves itself now. Narrowed instead of dropped: only a placement (numbers) of the node the page selected, and a
     placement handle's move while that target's placement is open. The alternative: gizmo drags stay live-only until
     the next edit in the page.
@@ -1318,7 +1693,8 @@ button gave way to the design's gold × in the header (#291).
 
 - **Tilman (2026-10-31):** *"Auf der Leser-Seite sollen die Plugins auf jeden Fall auf der Seite laufen."* The reader
   keeps running book plugins in its own page on purpose – no sandbox for the reader. The editor's stage and its plugins
-  are sandboxed since 1.58.0 (#234); that question is closed.
+  are sandboxed since 1.58.0 (#234); that question is closed. *(Superseded 2026-11-21, #340: the editor's sandbox is
+  dropped too – a prompt before others' plugin code instead.)*
 - **#241 shipped (1.62.0), but `Toggle.svelte` is still a pill that reads *on* / *off*** – the button look Tilman
   objected to. #243: a real switch (track and knob, `role="switch"`), modelled on the reader's `<gold-switch>`.
 - **Cost (#242):** the #241 cloud worker reported it ran on **overage** (the 7-day limit was full) although cloud
@@ -1333,7 +1709,7 @@ button gave way to the design's gold × in the header (#291).
 - 2026-10-31 – docs: one owner per topic (#218) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – shared/ tidied in one schema MINOR (2.24, #214) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – content editing: entries, the book, the onboarding; Markdown and variables (#223) → `archive/MEMORY-2026-10.md`
-- 2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234) → `archive/MEMORY-2026-10.md`
+- 2026-10-31 – plugin code in a sandbox: the editor's stage in an opaque-origin frame (#234) → `archive/MEMORY-2026-10.md` – superseded by #340 (2026-11-21)
 - 2026-10-31 – plugin labels mark only unsaved (#232); a toggle per pass and the UI principle (#233) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – the trial report names the phone model (#235) → `archive/MEMORY-2026-10.md`
 - 2026-10-31 – a MINOR never breaks an older app (#220); rules per package (#221) → `archive/MEMORY-2026-10.md`

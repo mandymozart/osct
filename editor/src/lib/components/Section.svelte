@@ -32,18 +32,18 @@
   }
   let { id, label, open = true, summary, help, enabled, onenabled, enabledLabel, nested = false, aside, children }: Props = $props();
 
-  const isOpen = $derived(sections.isOpen(id, open));
+  const isOpen = $derived(sections.isOpen(id, open, nested));
   const head = $derived(!isOpen && summary ? `${label} · ${summary}` : label);
   const switchable = $derived(enabled !== undefined && !!onenabled);
   /** Switching on opens the section: what was switched on is what the author fills next (the printed book's author) */
   const switchTo = (on: boolean) => {
-    if (on) sections.setOpen(id, true);
+    if (on) sections.setOpen(id, true, nested);
     onenabled?.(on);
   };
 </script>
 
 <div class="section" class:closed={!isOpen} class:nested class:off={switchable && !enabled} data-section={id}>
-  <button type="button" class="head" aria-expanded={isOpen} data-help={help} data-help-name={label} onclick={() => sections.toggle(id, open)}>
+  <button type="button" class="head" aria-expanded={isOpen} data-help={help} data-help-name={label} onclick={() => sections.toggle(id, open, nested)}>
     <Icon name={isOpen ? "down" : "next"} size=".875rem" />
     <span class="section-label">{head}</span>
   </button>

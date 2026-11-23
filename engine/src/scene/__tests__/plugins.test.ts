@@ -230,13 +230,13 @@ describe("loadPlugins", () => {
       if (url.includes("broken")) throw new Error("404");
       return { register: (api: PluginApi) => api.registerComponent("spin", SPIN, () => ({})) };
     };
-    const plugins = [{ id: "fx", src: "/p/fx/plugin.js", api: "3.0" }, { id: "broken", src: "/p/broken/plugin.js", api: "3.0" }, { id: "old", src: "/p/old/plugin.js", api: "1.8" }];
+    const plugins = [{ id: "fx", src: "/p/fx/plugin.js", api: "4.0" }, { id: "broken", src: "/p/broken/plugin.js", api: "4.0" }, { id: "old", src: "/p/old/plugin.js", api: "3.1" }];
     await loadPlugins(plugins, importer);
     await loadPlugins(plugins, importer);
     expect(imported).toEqual(["/p/fx/plugin.js", "/p/broken/plugin.js", "/p/broken/plugin.js"]);
     expect(installedPlugins()).toEqual(["fx"]);
     expect(error).toHaveBeenCalledWith(expect.stringContaining("broken"), expect.any(Error));
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("plugin API 1.8"));
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("plugin API 3.1"));
   });
 
   it("leaves a plugin the editor installed from its own source (#269): the content's module of that id is not installed over it", async () => {

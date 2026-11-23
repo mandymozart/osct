@@ -59,7 +59,7 @@ final class Logic
             }
             if (!is_string($rule->on ?? null)) $fail("$at.on must be an event's name.");
             if (!$own && in_array($rule->on, self::NODE_EVENTS, true)) {
-                $fail("$at.on: $rule->on is a node's own event – a $home's rule hears the bus (a scene event or a core event such as targetFound).");
+                $fail("$at.on: $rule->on is a node's own event – a $home's rule listens to the bus (a scene event or a core event such as targetFound).");
             }
             if (property_exists($rule, 'when') && !is_string($rule->when)) {
                 $fail("$at.when must be an expression (hasKey && tries > 2) – the object form is gone since content schema 5.0.");
@@ -140,7 +140,8 @@ final class Logic
 
     /**
      * A canvas `{ groups?, notes?, folds?, exposed?, positions? }` (`exposed`: box id → port ids, schema 5.1; `positions`: box
-     * id → `{ x, y }`, a group's `colour` `#rrggbb` and `folded`, schema 5.2); 400 `$code`
+     * id → `{ x, y }`, a group's `colour` `#rrggbb` and `folded`, schema 5.2; a note's `author`, `box` and `view`, schema 5.3);
+     * 400 `$code`
      */
     public static function canvas(mixed $canvas, string $path, string $code): void
     {
@@ -173,10 +174,12 @@ final class Logic
                         && (!property_exists($item, 'colour') || (is_string($item->colour) && preg_match('/^#[0-9a-fA-F]{6}$/', $item->colour) === 1))
                         && (!property_exists($item, 'folded') || is_bool($item->folded)),
                     'notes' => $item instanceof stdClass && is_string($item->id ?? null) && $item->id !== '' && is_string($item->text ?? null)
-                        && (is_int($item->x ?? null) || is_float($item->x ?? null)) && (is_int($item->y ?? null) || is_float($item->y ?? null)),
+                        && (is_int($item->x ?? null) || is_float($item->x ?? null)) && (is_int($item->y ?? null) || is_float($item->y ?? null))
+                        && array_diff(array_keys(get_object_vars($item)), ['id', 'text', 'x', 'y', 'author', 'box', 'view']) === []
+                        && array_filter(['author', 'box', 'view'], static fn($k) => property_exists($item, $k) && (!is_string($item->$k) || $item->$k === '')) === [],
                     default => is_string($item) && $item !== '',
                 };
-                if (!$ok) $fail("{$path}.{$key}[$i] must be " . ['groups' => '{ id, label, members, colour?: #rrggbb, folded?: true | false }', 'notes' => '{ id, text, x, y }', 'folds' => 'a node id'][$key] . '.');
+                if (!$ok) $fail("{$path}.{$key}[$i] must be " . ['groups' => '{ id, label, members, colour?: #rrggbb, folded?: true | false }', 'notes' => '{ id, text, x, y, author?, box?, view? }', 'folds' => 'a node id'][$key] . '.');
             }
         }
     }

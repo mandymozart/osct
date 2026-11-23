@@ -27,7 +27,7 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
   it("an event into a rule's on writes the event's name into on – the bus stays by name", () => {
     const result = ok(apply({ op: "connect", from: ["event:bellRang", "out"], to: ["rule:door/#0", "on"] }, content, scene));
     expect(doorRules(result.content)[0].on).toBe("bellRang");
-    expect(result.words).toMatch(/rule 1 now hears bellRang \(was found\) – by name/);
+    expect(result.words).toMatch(/rule 1 now listens to bellRang \(was found\) – by name/);
     expect(result.changed.map(c => c.target)).toEqual(["door"]);
     // Round trip: the new documents project the wire with its home
     const view = project(result.content, scene);
@@ -38,7 +38,7 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
     const view = project(content, scene);
     const own = view.nodes.find(n => n.id === "event:door/:found")!;
     expect(refused(apply({ op: "connect", from: [own.id, "out"], to: ["rule:bell/#0", "on"] }, content, scene))).toMatch(/own event/);
-    expect(refused(apply({ op: "connect", from: [own.id, "out"], to: ["rule:door/#0", "on"] }, content, scene))).toMatch(/hears found already/);
+    expect(refused(apply({ op: "connect", from: [own.id, "out"], to: ["rule:door/#0", "on"] }, content, scene))).toMatch(/listens to found already/);
   });
 
   it("a variable into when adds a term to its condition; one already read is refused", () => {
@@ -72,10 +72,10 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
 
   it("refuses what the grammar does not allow, with a reason", () => {
     const at = (from: [string, string], to: [string, string], context: Context = scene) => refused(apply({ op: "connect", from, to }, content, context));
-    expect(at(["var:hasKey", "get"], ["rule:door/#0", "on"])).toMatch(/on hears an event – not a variable/);
+    expect(at(["var:hasKey", "get"], ["rule:door/#0", "on"])).toMatch(/on listens to an event – not a variable/);
     expect(at(["event:bellRang", "out"], ["rule:door/#0", "when"])).toMatch(/when reads a variable – not an event/);
     expect(at(["rule:bell/#0", "do"], ["node:door/1", "in"])).toMatch(/not under/);
-    expect(at(["event:openDoor", "out"], ["plugin:narrative", "hears"])).toMatch(/Code tab/);
+    expect(at(["event:openDoor", "out"], ["plugin:narrative", "listens"])).toMatch(/Code tab/);
     expect(at(["var:hasKey", "get"], ["event:openDoor", "in"])).toMatch(/no such connection/);
     expect(at(["far:target:cover/key", "sets"], ["var:hasKey", "set"])).toMatch(/elsewhere/);
     expect(at(["event:bellRang", "out"], ["rule:door/#0", "on"], { level: "group", group: "ch1" })).toMatch(/read-only/);
@@ -84,7 +84,7 @@ describe("apply: connect follows the grammar (#334 L-T4)", () => {
 });
 
 describe("apply: disconnect (#334 L-T4)", () => {
-  it("a condition's or an action's wire removes it; a cut on leaves the rule hearing nothing, with a problem", () => {
+  it("a condition's or an action's wire removes it; a cut on leaves the rule listening to nothing, with a problem", () => {
     const view = project(content, scene);
     const when = view.edges.find(e => e.home?.part === "when" && e.to[0] === "rule:door/#1")!;
     const result = ok(apply({ op: "disconnect", edge: when.id }, content, scene));
@@ -95,15 +95,15 @@ describe("apply: disconnect (#334 L-T4)", () => {
     const on = view.edges.find(e => e.home?.part === "on" && e.to[0] === "rule:door/#2")!;
     const cut = ok(apply({ op: "disconnect", edge: on.id }, content, scene));
     expect(doorRules(cut.content)[2].on).toBe("");
-    expect(cut.words).toMatch(/hears nothing until you wire an event to its on/);
-    expect(cut.problems.some(p => /rule 3 hears nothing – wire an event to its on/.test(p.message))).toBe(true);
+    expect(cut.words).toMatch(/listens to nothing until you wire an event to its on/);
+    expect(cut.problems.some(p => /rule 3 listens to nothing – wire an event to its on/.test(p.message))).toBe(true);
     const after = project(cut.content, scene);
     expect(after.edges.some(e => e.to[0] === "rule:door/#2" && e.to[1] === "on")).toBe(false);
-    expect(after.nodes.find(n => n.id === "rule:door/#2")?.problem).toMatch(/hears nothing/);
+    expect(after.nodes.find(n => n.id === "rule:door/#2")?.problem).toMatch(/listens to nothing/);
     // Wiring an event to it again
     const event = after.nodes.find(n => n.kind === "event" && n.label === "found")!;
     const again = apply({ op: "connect", from: [event.id, "out"], to: ["rule:door/#2", "on"] }, cut.content, scene);
-    expect(ok(again).words).toMatch(/now hears found(?! \(was)/);
+    expect(ok(again).words).toMatch(/now listens to found(?! \(was)/);
   });
 
   it("a wire that joins by name removes the name from the listening side here, and says so", () => {
@@ -116,11 +116,11 @@ describe("apply: disconnect (#334 L-T4)", () => {
     // The other scene's document is untouched
     expect(result.changed.map(c => c.target)).toEqual(["door"]);
     const openDoor = view.stubs.find(s => s.label.startsWith("openDoor"))!;
-    expect(refused(apply({ op: "disconnect", edge: openDoor.edge.id }, content, scene))).toMatch(/heard in Epilogue – the listening side is there/);
+    expect(refused(apply({ op: "disconnect", edge: openDoor.edge.id }, content, scene))).toMatch(/listened to in Epilogue – the listening side is there/);
     const keyRattled = view.stubs.find(s => s.label.startsWith("keyRattled"))!;
-    const unheard = ok(apply({ op: "disconnect", edge: keyRattled.edge.id }, content, scene));
-    expect(unheard.words).toMatch(/no longer hears keyRattled – it hears nothing until you wire an event to its on\. The wire joined by name/);
-    expect(unheard.changed.map(c => c.target)).toEqual(["bell"]);
+    const cut = ok(apply({ op: "disconnect", edge: keyRattled.edge.id }, content, scene));
+    expect(cut.words).toMatch(/no longer listens to keyRattled – it listens to nothing until you wire an event to its on\. The wire joined by name/);
+    expect(cut.changed.map(c => c.target)).toEqual(["bell"]);
     const plugin = view.edges.find(e => e.from[0] === "plugin:narrative")!;
     expect(refused(apply({ op: "disconnect", edge: plugin.id }, content, scene))).toMatch(/Code tab/);
   });
@@ -167,8 +167,8 @@ describe("apply: rules, conditions and actions by their home (#334 L-T4)", () =>
 
   it("runs problems after each op and leaves the input untouched", () => {
     const before = JSON.stringify(content);
-    const result = ok(apply({ op: "addAction", home: rule(0, "do"), action: { action: "emit", event: "nobodyHears" } }, content, scene));
-    expect(result.problems.some(p => p.message === "nobodyHears is emitted, but nothing in the experience hears it")).toBe(true);
+    const result = ok(apply({ op: "addAction", home: rule(0, "do"), action: { action: "emit", event: "nobodyListens" } }, content, scene));
+    expect(result.problems.some(p => p.message === "nobodyListens is emitted, but nothing in the experience listens to it")).toBe(true);
     expect(JSON.stringify(content)).toBe(before);
   });
 
@@ -222,7 +222,7 @@ describe("which node types fit here (#334 L-T4)", () => {
     // Without a rule: every type is offered – an action or a condition makes a new rule on the place's first event (#334)
     const none = addChoices({ ...a, rule: null });
     expect(none.filter(c => c.disabled).map(c => c.label)).toEqual(["node", "plugin", "scene", "group"]);
-    expect([...new Set(none.map(c => c.group))]).toEqual(["Events – a new rule on door hears it", "Conditions – a new rule on found", "Actions – a new rule on found", "Not added here"]);
+    expect([...new Set(none.map(c => c.group))]).toEqual(["Events – a new rule on door listens to it", "Conditions – a new rule on found", "Actions – a new rule on found", "Not added here"]);
     const hint = none.find(c => c.label === "show hint")!;
     expect(hint.op).toEqual({ op: "addRule", at: { doc: "entity", target: "door", path: [] }, do: [{ action: "show", node: "hint" }] });
     expect(hint).toMatchObject({ signal: "address", type: "action" });
@@ -237,17 +237,35 @@ describe("which node types fit here (#334 L-T4)", () => {
 });
 
 describe("which ports take a dragged wire (#334)", () => {
-  it("a plugin's bus ports never do – they come from its code's uses", () => {
-    const epilogue: Context = { level: "scene", scene: "epilogue" };
-    const view = project(content, epilogue);
+  it("a plugin's pins do (emits, listens – the wire changes the rule); what it reads, sets and drives are rows, no ports (#334)", () => {
+    const view = project(content, scene);
     const plugin = view.nodes.find(n => n.kind === "plugin")!;
-    expect(plugin).toBeTruthy();
+    expect(plugin.ports.map(p => p.id)).toEqual(["listens", "emits"]);
+    expect(plugin.bus).toEqual({ emits: ["doorOpened"], listens: ["openDoor"] });
+    // A variable's get never reaches the plugin: its reads is a row, not an inlet
     const variable = view.nodes.find(n => n.kind === "variable")!;
-    const takes = takesWire(content, epilogue, [variable.id, "get"], "out");
-    expect(takes.has(plugin.id)).toBe(false);
-    // A rule's when does take it
-    expect([...takes.values()].some(ports => ports.has("when"))).toBe(true);
-    expect(takesWire(content, epilogue, [plugin.id, "emits"], "out").size).toBe(0);
+    expect(takesWire(content, scene, [variable.id, "get"], "out").has(plugin.id)).toBe(false);
+    // Its emits reaches a rule's on – the rule listens to its event
+    const ons = takesWire(content, scene, [plugin.id, "emits"], "out");
+    expect([...ons.values()].every(ports => [...ports].every(p => p === "on"))).toBe(true);
+    expect(ons.has("rule:door/#0")).toBe(true);
+    const received = ok(apply({ op: "connect", from: [plugin.id, "emits"], to: ["rule:door/#0", "on"] }, content, scene));
+    expect(doorRules(received.content)[0].on).toBe("doorOpened");
+    // A rule's do reaches its listens to – the rule emits what it listens to
+    const emitted = ok(apply({ op: "connect", from: ["rule:door/#0", "do"], to: [plugin.id, "listens"] }, content, scene));
+    expect(doorRules(emitted.content)[0].do.at(-1)).toEqual({ action: "emit", event: "openDoor" });
+    expect(refused(apply({ op: "connect", from: ["rule:door/#0", "do"], to: [plugin.id, "listens"], event: "nope" }, content, scene))).toMatch(/listens to openDoor – not nope/);
+    // An event box into it is still its code's
+    expect(refused(apply({ op: "connect", from: ["event:openDoor", "out"], to: [plugin.id, "listens"] }, content, scene))).toMatch(/Code tab/);
+    // A wire let go on the canvas from its pins: a rule listening to, a rule emitting – each op applies
+    const a = { content, context: scene, place: { doc: "entity" as const, target: "door", path: [] }, rule: null };
+    const fromEmits = wireChoices(a, { node: plugin, port: "emits", dir: "out" });
+    expect(fromEmits.map(c => c.op)).toContainEqual({ op: "addRule", at: { doc: "entity", target: "door", path: [] }, on: "doorOpened" });
+    const intoListens = wireChoices(a, { node: plugin, port: "listens", dir: "in" });
+    expect(intoListens[0].op).toMatchObject({ op: "addRule", do: [{ action: "emit", event: "openDoor" }] });
+    for (const c of [...fromEmits, ...intoListens].filter(c => c.op)) expect(apply(c.op!, content, scene).ok, c.label).toBe(true);
+    // Its rows make nothing
+    expect(wireChoices(a, { node: plugin, port: "reads", dir: "in" }).every(c => !c.op)).toBe(true);
   });
 });
 
@@ -263,7 +281,7 @@ describe("a wire let go on the empty canvas (#334)", () => {
     for (const c of choices.filter(c => c.op)) expect(apply(c.op!, content, scene).ok, c.label).toBe(true);
   });
 
-  it("from an event's outlet: a rule hearing it, on the selected node and on the scene – pinned where it was let go", () => {
+  it("from an event's outlet: a rule listening to it, on the selected node and on the scene – pinned where it was let go", () => {
     const choices = wireChoices(a, { node: box("event:bellRang"), port: "out", dir: "out" });
     expect(choices.map(c => c.op)).toEqual([
       { op: "addRule", at: place, on: "bellRang" }, { op: "addRule", at: { doc: "scene", scene: "door" }, on: "bellRang" },
@@ -276,7 +294,7 @@ describe("a wire let go on the empty canvas (#334)", () => {
     expect(result.canvas).toHaveLength(1);
   });
 
-  it("from a rule's on and when: an event to hear, a condition to read", () => {
+  it("from a rule's on and when: an event to listen to, a condition to read", () => {
     const on = wireChoices(a, { node: box("rule:door/#0"), port: "on", dir: "in" });
     const bell = on.find(c => c.label === "bellRang")!;
     expect(doorRules(ok(apply(bell.op!, content, scene)).content)[0].on).toBe("bellRang");

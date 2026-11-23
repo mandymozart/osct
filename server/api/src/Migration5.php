@@ -68,11 +68,11 @@ final class Migration5
             $report['rows'][$table] = ($report['rows'][$table] ?? 0) + 1;
         };
         $experiences = Db::run('SELECT id, experience_json, content_schema FROM experiences')->fetchAll();
-        // The experiences still of 4.x (or older): only their set values are texts of the old kind (B2) – after the run
+        // The experiences still of 4.x (or older – a literal 5: 6.0 is Migration6's, #341): only their set values are texts of the old kind (B2) – after the run
         // they are 5.0, so a second run never quotes a text again
         $old = [];
         foreach ($experiences as $row) {
-            if ((int) explode('.', (string) $row['content_schema'])[0] < Editor::CONTENT_SCHEMA_MAJOR) $old[(string) $row['id']] = true;
+            if ((int) explode('.', (string) $row['content_schema'])[0] < 5) $old[(string) $row['id']] = true;
         }
         /** The set values' types per old experience: name → [types, scopes] */
         $seen = [];

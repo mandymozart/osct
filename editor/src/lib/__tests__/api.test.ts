@@ -173,7 +173,7 @@ describe("api() – the cookie session (#207)", () => {
     await expect(api("GET", "/editor/experiences")).rejects.toMatchObject({ status: 502, code: "unknown", message: "502 Bad Gateway" });
   });
 
-  it("a 401 while signed in ends the session: it is forgotten and the session hears it", async () => {
+  it("a 401 while signed in ends the session: it is forgotten and the session listens to it", async () => {
     fetchMock.mockResolvedValueOnce(unauthorized());
     await expect(api("GET", "/editor/experiences/osct")).rejects.toMatchObject({ status: 401 });
     expect(getSession()).toBeNull();

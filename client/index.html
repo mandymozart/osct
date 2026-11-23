@@ -2,11 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!-- First: an address without an experience moves to its experience before anything loads (#343, vite.config.js) -->
+    <!--osct:legacy-redirect-->
+    <!-- Then: the manifest of the experience the address names – an install installs that experience (#343, vite.config.js) -->
+    <!--osct:manifest-link-->
+    <!-- Then: a computer gets the desktop landing at once – <html data-osct-landing> (#343, vite.config.js) -->
+    <!--osct:landing-decision-->
     <title>Onion Skin and Crocodile Tears - Kevin Bray (buildingfictions)</title>
     <meta name="description" content="Augmented reality companion to Kévin Bray's book Onion Skin &amp; Crocodile Tears (Building Fictions): point your phone at the pages to reveal videos, texts and references." />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
-    <!-- PWA (manifest link added by vite-plugin-pwa): home screen on iOS – name, icon, black status bar -->
+    <!-- PWA (the manifest link: the inline script above; vite-plugin-pwa's own link is taken out): home screen on iOS – name, icon, black status bar -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="%OSCT_APP_TITLE%" />
@@ -26,6 +32,8 @@
     <!-- Scanning indicator, toggled by the AR scene while no target is found – styles/gold-spinner.css -->
     <div id="osct-scanning" class="gold-scanning hidden" aria-hidden="true"></div>
     <reader-app id="reader-app"></reader-app>
+    <!-- Static landing: the desktop landing page for a computer, written at build time (vite.config.js → src/components/desktop-landing/landing-html.ts) -->
+    <!--osct:static-landing-->
     <!-- Static splash: the first onboarding step, written at build time (vite.config.js → src/utils/static-splash-html.ts) -->
     <!--osct:static-splash-->
   </body>

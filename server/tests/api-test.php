@@ -400,6 +400,11 @@ try {
     $statuses = [];
     for ($i = 0; $i < 7; $i++) [$statuses[]] = call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com']);
     check($statuses === array_fill(0, 7, 202), 'a limit of -1 is off: seven requests in a row pass (local testing)');
+    // #343: the email's link opens the experience the reader asked from; a reserved or bad one is left out
+    call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com', 'experience' => 'demo']);
+    check(str_contains(lastMail($mailLog)['text'], '/demo/about?login='), '#343: the sign-in link opens the experience the reader asked from (/demo/about?login=…)');
+    call($openApi, 'POST', '/auth/request', ['email' => 'open@example.com', 'experience' => 'editor']);
+    check(preg_match('#https?://[^/]+/about\?login=#', lastMail($mailLog)['text']) === 1, '… one of the site\'s own paths is left out (/about?login=…)');
     $zeroApi = startApi(database('zero') + ['LOGIN_MAX_PER_EMAIL_HOUR' => '0'] + $settings);
     [$status, $data] = call($zeroApi, 'POST', '/auth/request', ['email' => 'zero@example.com']);
     check($status === 429 && $data['error']['code'] === 'too-many-requests', 'a limit of 0 allows nothing (#83)');
@@ -627,7 +632,7 @@ try {
 
     echo "editor: import\n";
     $configuration = [
-        'version' => ['version' => '1.9.0', 'timestamp' => '2026-01-01T00:00:00.000Z', 'hash' => str_repeat('ab', 32), 'schema' => '5.0'],
+        'version' => ['version' => '1.9.0', 'timestamp' => '2026-01-01T00:00:00.000Z', 'hash' => str_repeat('ab', 32), 'schema' => '6.0'],
         'experience' => ['id' => 'osct', 'title' => 'Test Experience', 'book' => ['author' => 'Someone', 'publisher' => 'Building Fictions']],
         'initialScene' => 's1',
         'scenes' => [
@@ -680,6 +685,47 @@ try {
     $badId['experience']['id'] = 'My Experience';
     [$status, $data] = importing($api, 'osct', $editor, json_encode(['configuration' => $badId, 'files' => $files], $flags));
     check($status === 400 && $data['error']['code'] === 'invalid-id', '#204: an experience.id that is no id → 400 invalid-id');
+    // #343: an experience's id is its path in the reader – none of the site's own paths
+    $reserved = $configuration;
+    $reserved['experience']['id'] = 'Editor';
+    [$status, $data] = importing($api, 'Editor', $editor, json_encode(['configuration' => $reserved, 'files' => $files], $flags));
+    check($status === 400 && $data['error']['code'] === 'reserved-slug' && ($data['error']['slug'] ?? null) === 'Editor', '#343: a new experience imported as one of the site\'s own paths (Editor) → 400 reserved-slug');
+
+    echo "editor: a new, empty experience under its own slug (#343)\n";
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'new-book', 'title' => ' A New Book '], $editor);
+    check($status === 201 && $data['experience']['id'] === 'new-book' && $data['experience']['title'] === 'A New Book' && $data['experience']['scenes'] === 1
+        && $data['experience']['initialScene'] === 'scene-1' && $data['experience']['lastPublish'] === null && $data['experience']['live'] === [], 'POST /editor/experiences → 201 an empty draft with one scene, not published');
+    [$status, $tree] = call($api, 'GET', '/editor/experiences/new-book', null, $editor);
+    check($status === 200 && count($tree['scenes']) === 1 && $tree['scenes'][0]['entries'] === [] && count($tree['scenes'][0]['surfaces']) === 1, '… its tree: one scene (a double page), no entries');
+    [$status, $manifest] = call($api, 'GET', '/editor/experiences/new-book/draft/latest.json', null, $editor);
+    check($status === 200 && preg_match('/^[0-9a-f]{12}$/', $manifest['build'] ?? '') === 1, '… and a draft that builds');
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'new-book', 'title' => 'Again'], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', 'the same slug again → 409 duplicate-id');
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'osct', 'title' => 'Again'], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', 'an imported experience\'s id → 409 duplicate-id');
+    foreach (['editor', 'api', 'docs', 'scene', 'entry', 'x', 'assets', 'workbox-abc'] as $slug) {
+        [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => $slug, 'title' => 'Mine'], $editor);
+        check($status === 400 && $data['error']['code'] === 'reserved-slug', "the site's own path /$slug/ → 400 reserved-slug");
+    }
+    foreach (['New-Book', 'new_book', '-new', 'a b', '', str_repeat('a', 65)] as $slug) {
+        [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => $slug, 'title' => 'Mine'], $editor);
+        check($status === 400 && $data['error']['code'] === 'invalid-slug', "a slug that is no slug ($slug) → 400 invalid-slug");
+    }
+    [$status, $data] = call($api, 'POST', '/editor/experiences', ['id' => 'untitled', 'title' => '  '], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-title', 'no title → 400 invalid-title');
+    [$status] = call($api, 'POST', '/editor/experiences', ['id' => 'by-a-reader', 'title' => 'Mine'], $session);
+    check($status === 403, 'a reader can\'t make one → 403');
+    // The experience's web app manifest (#343, ReaderManifest): its path; the title only once published
+    [$status, $data] = call($api, 'GET', '/experiences/new-book/manifest.webmanifest');
+    check($status === 200 && $data['id'] === '/new-book/' && $data['start_url'] === '/new-book/' && $data['scope'] === '/new-book/' && $data['name'] === 'new-book'
+        && $data['display'] === 'standalone' && count($data['icons']) === 3, 'GET /experiences/{id}/manifest.webmanifest: id, start and scope /<id>/ – a draft\'s title is not given away');
+    [$status] = call($api, 'GET', '/experiences/editor/manifest.webmanifest');
+    check($status === 404, '… none for one of the site\'s own paths');
+    // The rest of the run knows one experience: the new one goes again (the API has no removal of an experience)
+    $pdo = connect('test');
+    foreach (['scenes', 'changes'] as $table) $pdo->exec("DELETE FROM $table WHERE experience_id = 'new-book'");
+    $pdo->exec("DELETE FROM experiences WHERE id = 'new-book'");
+    $pdo = null;
 
     echo "editor: tree, entities\n";
     [$status, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
@@ -696,7 +742,7 @@ try {
     echo "editor: draft\n";
     [$status, $manifest, $headers] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json?t=1', null, $editor);
     check($status === 200 && preg_match('/^[0-9a-f]{12}$/', $manifest['build']) === 1 && strlen($manifest['hash']) === 64 && str_starts_with($manifest['hash'], $manifest['build'])
-        && $manifest['schema'] === '5.0' && $manifest['version'] === $appVersion && isset($manifest['activatedAt']), 'draft latest.json is a content manifest');
+        && $manifest['schema'] === '6.0' && $manifest['version'] === $appVersion && isset($manifest['activatedAt']), 'draft latest.json is a content manifest');
     check(in_array('Cache-Control: no-store', $headers, true), 'the draft is never cached');
     $withToken = stream_context_create(['http' => ['header' => "Authorization: Bearer $editor"]]);
     $rawDraft = (string) file_get_contents("$api/editor/experiences/osct/draft/{$manifest['build']}/game.config.json", false, $withToken);
@@ -765,7 +811,7 @@ try {
     check($status === 200 && $first['env'] === 'local' && preg_match('/^[0-9a-f]{12}$/', $first['build']) === 1 && str_starts_with($first['hash'], $first['build']) && isset($first['publishedAt']), 'publish → env, build, hash');
     check(is_file("$storeDir/local/osct/{$first['build']}/game.config.json") && is_file("$storeDir/local/osct/{$first['build']}/files.json") && is_file("$storeDir/local/osct/latest.json") && is_file("$storeDir/local/osct/versions.json"), 'the version folder, versions.json and latest.json are in the store dir');
     [$status, $data, $headers] = call($api, 'GET', '/content/local/osct/latest.json');
-    check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '5.0' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
+    check($status === 200 && $data['build'] === $first['build'] && $data['hash'] === $first['hash'] && $data['schema'] === '6.0' && $data['version'] === $appVersion && isset($data['activatedAt']), 'GET /content/local/latest.json serves the manifest (no token needed)');
     check(in_array('Cache-Control: no-cache', $headers, true), 'latest.json is revalidated');
     [$status, $data, $headers] = call($api, 'GET', "/content/local/osct/{$first['build']}/game.config.json");
     check($status === 200 && $data['version']['hash'] === $first['hash'] && $data['entities']['castle']['params']['scale'] === 2, 'the published game.config.json is the draft');
@@ -826,6 +872,9 @@ try {
     [, $data] = call($api, 'GET', '/editor/experiences', null, $editor);
     check($data['experiences'][0]['live'] === [['env' => 'local', 'build' => $second['build'], 'since' => $data['experiences'][0]['live'][0]['since'] ?? null]] && is_string($data['experiences'][0]['live'][0]['since']), 'the experience list: the experience is live on local, with its build and since when');
     check($data['environments'] === [], 'the experience list names no environment: every store could be read');
+    [$status, $published] = call($api, 'GET', '/experiences/osct/manifest.webmanifest');
+    check($status === 200 && $published['name'] === $configuration['experience']['title'] && $published['id'] === '/osct/'
+        && str_contains($published['description'], $configuration['experience']['book']['author']), "#343: a published experience's manifest carries its title and its book's author");
     $manifest = json_decode((string) file_get_contents("$storeDir/local/osct/latest.json"), true);
     $withExperience = file_get_contents("$storeDir/local/osct/latest.json");
     unset($manifest['experience']);
@@ -913,7 +962,7 @@ try {
     [, $draftManifest] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
     $byUrl = array_column($export['files'] ?? [], null, 'url');
     check($status === 200 && $export['experience'] === 'osct' && $export['source'] === ['kind' => 'draft'] && $export['build'] === $draftManifest['build'] && $export['hash'] === $draftManifest['hash']
-        && $export['schema'] === '5.0' && $export['appVersion'] === $appVersion && $export['configuration']['experience']['id'] === 'osct' && $export['configuration']['version']['hash'] === $export['hash'],
+        && $export['schema'] === '6.0' && $export['appVersion'] === $appVersion && $export['configuration']['experience']['id'] === 'osct' && $export['configuration']['version']['hash'] === $export['hash'],
         'export: the draft\'s configuration with its build and hash, as the draft endpoints assemble it');
     check(($byUrl['/assets/content/entries/racoon/racoon.glb'] ?? null) === ['url' => '/assets/content/entries/racoon/racoon.glb', 'path' => '/assets/content/entries/racoon/racoon.glb', 'origin' => 'import', 'size' => 1234, 'sha256' => null, 'v' => 'abcdef012345'],
         'export: a file of the import with its size and v from files.json (no full sha256 recorded)');
@@ -961,7 +1010,7 @@ try {
     echo "editor: import with a version comparison before it overwrites (#183)\n";
     $raw = fn(array $body) => call($api, 'POST', '/editor/experiences/osct/import', null, $editor, 'http://localhost:5173', json_encode($body, $flags));
     $incoming = $configuration;
-    $incoming['version'] = ['version' => '1.42.0', 'timestamp' => '2026-10-30T08:00:00.000Z', 'hash' => str_repeat('cd', 32), 'schema' => '5.1'];
+    $incoming['version'] = ['version' => '1.42.0', 'timestamp' => '2026-10-30T08:00:00.000Z', 'hash' => str_repeat('cd', 32), 'schema' => '6.0'];
     [, $before] = call($api, 'GET', '/editor/experiences/osct/entities', null, $editor);
     [$status, $data] = $raw(['configuration' => $incoming, 'files' => $files]);
     $comparison = $data['error']['comparison'] ?? [];
@@ -969,7 +1018,7 @@ try {
     check($status === 409 && $data['error']['code'] === 'confirm-import' && preg_match('/^\d{10}\.[0-9a-f]{32}$/', $confirmation['id'] ?? '') === 1 && strtotime($confirmation['expiresAt'] ?? '') > time(),
         'an import over an existing experience → 409 confirm-import with a confirmation id that expires');
     check(($comparison['experience'] ?? null) === ['id' => 'osct', 'title' => 'Test Experience'] && $comparison['incoming']['build'] === 'cdcdcdcdcdcd' && $comparison['incoming']['date'] === '2026-10-30T08:00:00.000Z'
-        && $comparison['incoming']['appVersion'] === '1.42.0' && $comparison['incoming']['schema'] === '5.1' && $comparison['incoming']['source'] === 'configuration' && !isset($comparison['incoming']['digest']),
+        && $comparison['incoming']['appVersion'] === '1.42.0' && $comparison['incoming']['schema'] === '6.0' && $comparison['incoming']['source'] === 'configuration' && !isset($comparison['incoming']['digest']),
         'the comparison: the incoming build, its date, app and schema version');
     $basedOn = $comparison['draft']['basedOn'] ?? [];
     check(($basedOn['build'] ?? null) === 'abababababab' && $basedOn['date'] === '2026-01-01T00:00:00.000Z' && $basedOn['appVersion'] === '1.9.0' && $basedOn['importedBy'] === 'author@example.com' && is_string($basedOn['importedAt']),
@@ -1062,6 +1111,105 @@ try {
     file_put_contents("$storeDir/local/osct/latest.json", $withBuild);
     check($status === 502 && $data['error']['code'] === 'content-fetch-failed' && $data['error']['url'] === "$api/content/local/osct/latest.json" && str_contains($data['error']['message'], 'names no content version'),
         'a latest.json that names no build → 502 with the URL');
+
+    echo "editor: the experiences page's flows – from the CDN, an export file, make live, recent places (#348)\n";
+    // The CDN of another experience into a new slug: the source's store is read, the configuration becomes the new one's
+    [$status, $data] = $preview($cdnApi, ['source' => 'cdn', 'experience' => 'osct', 'into' => 'osct-copy']);
+    check($status === 200 && $data['incoming']['experience'] === 'osct-copy' && $data['existing'] === null && $data['contentBase'] === "$api/content/local/osct",
+        'preview of the CDN into another experience (into): the source\'s store, the incoming id is the target\'s, nothing to replace');
+    [$status, $data] = call($cdnApi, 'POST', '/editor/experiences/osct-copy/import', ['source' => 'cdn', 'experience' => 'osct'], $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-configuration', 'without rename the published osct cannot become osct-copy → 400');
+    foreach ([['Bad_Slug', 400, 'invalid-slug'], ['editor', 400, 'reserved-slug'], ['osct', 409, 'duplicate-id']] as [$slug, $want, $code]) {
+        [$status, $data] = call($cdnApi, 'POST', "/editor/experiences/$slug/import", ['source' => 'cdn', 'experience' => 'osct', 'rename' => true, 'create' => true], $editor);
+        check($status === $want && ($data['error']['code'] ?? null) === $code, "create: $slug → $want $code (the slug rule of POST /editor/experiences)");
+    }
+    [$status, $data] = call($cdnApi, 'POST', '/editor/experiences/osct-copy/import', ['source' => 'cdn', 'experience' => 'osct', 'rename' => true, 'create' => true, 'title' => 'The copy'], $editor);
+    check($status === 200 && $data['experience']['id'] === 'osct-copy' && $data['experience']['title'] === 'The copy' && $data['experience']['experience']['id'] === 'osct-copy'
+        && $data['imported']['source'] === 'cdn' && $data['imported']['from'] === "$api/content/local/osct/{$latest['build']}",
+        'import of the published osct as a new experience osct-copy (create, rename, title): its own id and title, the source\'s version folder as assets base');
+    [$status, $data] = call($cdnApi, 'POST', '/editor/experiences/osct-copy/import', ['source' => 'cdn', 'experience' => 'osct', 'rename' => true, 'create' => true], $editor);
+    check($status === 409 && $data['error']['code'] === 'duplicate-id', '… a second create of the same slug → 409 duplicate-id');
+
+    // The export file: an import body as it is – exported, then imported back (round trip)
+    $tintSource = 'export default function register(api) { api.registerLayer("tint", { params: {} }); }';
+    call($api, 'PUT', '/editor/experiences/osct-copy/plugins/tint', ['source' => $tintSource], $editor);
+    $context = stream_context_create(['http' => ['header' => "Authorization: Bearer $editor", 'ignore_errors' => true]]);
+    $raw = (string) file_get_contents("$api/editor/experiences/osct-copy/export/file", false, $context);
+    $disposition = implode("\n", array_filter($http_response_header, static fn(string $h): bool => stripos($h, 'content-disposition:') === 0));
+    $file = json_decode($raw, true);
+    [, $m] = call($api, 'GET', '/editor/experiences/osct-copy/draft/latest.json', null, $editor);
+    check(($file['format'] ?? null) === 'osct-export' && $file['formatVersion'] === 1 && $file['experience'] === 'osct-copy' && $file['build'] === $m['build']
+        && $file['source'] === ['kind' => 'draft'] && is_array($file['configuration']['entries'] ?? null) && is_array($file['files']) && !isset($file['assetsBase'])
+        && in_array(['id' => 'tint', 'source' => $tintSource], $file['sources'], true)
+        && str_contains($disposition, "attachment; filename=\"osct-copy-{$m['build']}.osct.json\""),
+        'export file of the draft: format, experience, build, the configuration, files.json, the Code tab sources – as a download');
+    $back = $file;
+    unset($back['format'], $back['formatVersion']);
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct-back/import', $back + ['rename' => true, 'create' => true], $editor);
+    [, $mBack] = call($api, 'GET', '/editor/experiences/osct-back/draft/latest.json', null, $editor);
+    [, $configBack] = call($api, 'GET', "/editor/experiences/osct-back/draft/{$mBack['build']}/game.config.json", null, $editor);
+    [, $configOwn] = call($api, 'GET', "/editor/experiences/osct-copy/draft/{$m['build']}/game.config.json", null, $editor);
+    [, $plugins] = call($api, 'GET', '/editor/experiences/osct-back/plugins', null, $editor);
+    unset($configBack['version'], $configOwn['version'], $configBack['experience']['id'], $configOwn['experience']['id']);
+    check($status === 200 && $data['counts']['plugins'] === count($file['sources']) && $configBack == $configOwn && in_array('tint', array_column($plugins['plugins'], 'id'), true),
+        'round trip: the export file of osct-copy imported as osct-back gives the same configuration (but its id) and brings the Code tab sources');
+    // Back over the experience itself: the comparison counts what comes in against the draft and names replaced sources
+    $changed = $back;
+    $changed['sources'] = [['id' => 'tint', 'source' => '// another text']];
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct-copy/import', $changed, $editor);
+    $counts = $data['error']['comparison']['counts'] ?? null;
+    check($status === 409 && $data['error']['code'] === 'confirm-import' && $counts['incoming']['scenes'] === $counts['draft']['scenes'] && $counts['incoming']['plugins'] === 1
+        && $counts['draft']['plugins'] >= 1 && $counts['sourcesReplaced'] === ['tint'], 'the comparison counts scenes … plugins each side and names the sources the import replaces');
+    [$status, $data] = call($api, 'GET', '/editor/experiences/osct/export/file?build=nope', null, $editor);
+    check($status === 400 && $data['error']['code'] === 'invalid-build', 'export file of a build that is none → 400');
+    $raw = (string) file_get_contents("$api/editor/experiences/osct/export/file?build={$first['build']}", false, $context);
+    $file = json_decode($raw, true);
+    check(($file['build'] ?? null) === $first['build'] && $file['source']['kind'] === 'published' && $file['assetsBase'] === "$api/content/local/osct/{$first['build']}",
+        'export file of a published build: its configuration, its version folder as the assets base (its plugins\' modules are there)');
+
+    // Make live: an older build of this instance's environment becomes current again
+    [, $before] = call($api, 'GET', '/content/local/osct/latest.json');
+    $logBefore = count(call($api, 'GET', '/editor/experiences/osct/versions', null, $editor)[1]['versions']);
+    $older = $before['build'] === $first['build'] ? $second['build'] : $first['build'];
+    [, $draftBefore] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/$older/activate", null, $editor);
+    [, $after] = call($api, 'GET', '/content/local/osct/latest.json');
+    [, $versions] = call($api, 'GET', '/content/local/osct/versions.json');
+    [, $log] = call($api, 'GET', '/editor/experiences/osct/versions', null, $editor);
+    $currentNow = array_values(array_filter($versions, static fn(array $v): bool => $v['retiredAt'] === null));
+    check($status === 200 && $data['build'] === $older && $data['previous'] === $before['build'] && $after['build'] === $older && $after['experience'] === 'osct'
+        && count($currentNow) === 1 && $currentNow[0]['build'] === $older && count($log['versions']) === $logBefore + 1 && $log['versions'][0]['build'] === $older
+        && str_starts_with((string) $log['versions'][0]['note'], 'Made live again – the version of ') && $log['versions'][0]['publishedBy'] === 'author@example.com',
+        'make live: latest.json and versions.json name the older build again, the publish log has a row for it (who, a note)');
+    [, $draftAfter] = call($api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $editor);
+    check($draftAfter['build'] === $draftBefore['build'] && is_dir("$storeDir/local/osct/{$before['build']}"), '… the draft untouched, the other build kept in the store');
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/$older/activate", null, $editor);
+    check($status === 409 && $data['error']['code'] === 'already-live', 'the live build again → 409 already-live');
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/versions/ffffffffffff/activate', null, $editor);
+    check($status === 404 && $data['error']['code'] === 'unknown-build', 'a build the publish log does not name → 404 unknown-build');
+    [$status] = call($api, 'POST', "/editor/experiences/osct/versions/{$before['build']}/activate", null, $chief);
+    check($status === 403, 'make live: editors only');
+    rename("$storeDir/local/osct/{$before['build']}/game.config.json", "$storeDir/local/osct/{$before['build']}/game.config.json.away");
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/{$before['build']}/activate", null, $editor);
+    rename("$storeDir/local/osct/{$before['build']}/game.config.json.away", "$storeDir/local/osct/{$before['build']}/game.config.json");
+    check($status === 409 && $data['error']['code'] === 'build-missing', 'a build the store no longer has (purged) → 409 build-missing, nothing switched');
+    [$status, $data] = call($api, 'POST', "/editor/experiences/osct/versions/{$before['build']}/activate", null, $editor);
+    [, $restored] = call($api, 'GET', '/content/local/osct/latest.json');
+    check($status === 200 && $restored['build'] === $before['build'], 'and back: the build that was live before is live again');
+
+    // Recent places: the newest changes across the experiences, each with its scene
+    [$status, $data] = call($api, 'GET', '/editor/recent?limit=5', null, $editor);
+    $tint = $data['changes'][0] ?? [];
+    check($status === 200 && count($data['changes']) === 5 && $tint['experience'] === 'osct-back' && $tint['kind'] === 'plugin' && $tint['scene'] === null && $tint['user'] === 'author@example.com'
+        && is_string($tint['experienceTitle']) && is_string($tint['at']), 'recent: newest first, across experiences – a plugin is on no scene');
+    $entryId = $configuration['entries'][0]['id'];
+    call($api, 'PUT', "/editor/experiences/osct-copy/entries/$entryId", ['body' => 'Seen on the experiences page.'], $editor);
+    [, $data] = call($api, 'GET', '/editor/recent?limit=1', null, $editor);
+    $row = $data['changes'][0] ?? [];
+    check(($row['experience'] ?? null) === 'osct-copy' && $row['kind'] === 'entry' && $row['ref'] === $entryId && $row['scene'] === $configuration['entries'][0]['scene'] && is_string($row['entry']),
+        'recent: an entry\'s change names its scene and the entry\'s title');
+    [$status] = call($api, 'GET', '/editor/recent', null, $chief);
+    check($status === 403, 'recent: editors only');
     echo "editor: assets base\n";
     $base = 'https://cdn.example/osct/staging/0123456789ab';
     [$status] = importing($api, 'osct', $editor, json_encode(['configuration' => $configuration, 'files' => $files, 'assetsBase' => "$base/"], $flags));
@@ -1850,6 +1998,9 @@ try {
     $oldConfig['version']['schema'] = '4.3';
     [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $oldConfig], $editor);
     check($status === 400 && $data['error']['code'] === 'invalid-configuration' && str_contains($data['error']['message'], 'convert:5'), 'a 4.x configuration → 400, convert it');
+    $oldConfig['version']['schema'] = '5.3';
+    [$status, $data] = call($api, 'POST', '/editor/import/preview', ['configuration' => $oldConfig], $editor);
+    check($status === 400 && str_contains($data['error']['message'], 'osct plugins listen'), 'a 5.x configuration → 400, its plugin sources rewritten first (#341)');
 
     echo "editor: scenes – add, change, move, group, remove (content schema 3.0, #319)\n";
     $sceneList = static function () use ($api, $editor): array {
@@ -2193,7 +2344,9 @@ try {
     [, $draftNow] = $draftOf();
     $logicScene = (string) $draftNow['scenes'][0]['id'];
     $sceneLogic = ['rules' => [['on' => 'groupTapped', 'when' => 'tapped && !shown', 'do' => [['show' => 'target:racoon/caption'], ['goto' => "scene:$logicScene"]]]],
-        'canvas' => ['notes' => [['id' => 'n1', 'text' => 'A note', 'x' => 1, 'y' => 2.5]], 'folds' => ['rule:0'], 'exposed' => ['node:racoon/0' => ['src', 'p:hum.volume']],
+        'canvas' => ['notes' => [['id' => 'n1', 'text' => 'A note', 'x' => 1, 'y' => 2.5],
+            // Schema 5.3 (#334): a note beside a box, with its author, in a target's view
+            ['id' => 'note-2', 'text' => 'Why this waits', 'x' => 240, 'y' => 0, 'author' => 'tilman', 'box' => 'rule:0', 'view' => 'racoon']], 'folds' => ['rule:0'], 'exposed' => ['node:racoon/0' => ['src', 'p:hum.volume']],
             // Schema 5.2 (#334 L-T7): pinned boxes, a group's colour and fold
             'positions' => ['rule:0' => ['x' => 16, 'y' => -32]], 'groups' => [['id' => 'group-1', 'label' => 'group 1', 'members' => ['rule:0'], 'colour' => '#5fb3ff', 'folded' => true]]]];
     [$status, $data] = call($api, 'PUT', "/editor/experiences/osct/scenes/$logicScene", ['logic' => $sceneLogic], $editor);
@@ -2204,7 +2357,9 @@ try {
         [['rules' => [['on' => 'ping', 'do' => ['hide' => 'caption']]]], 'by address', 'a node named without an address'],
         [['rules' => [['on' => 'ping', 'when' => ['hasKey' => true], 'do' => ['goto' => 'scene:s1']]]], 'expression', 'the object form of a condition'],
         [['rules' => [['on' => 'ping', 'do' => ['goto' => 'cover']]]], 'scene:<id>', 'a goto that is no scene address'],
-        [['rules' => [], 'canvas' => ['notes' => [['id' => 'n']]]], '{ id, text, x, y }', 'a note without its text and place'],
+        [['rules' => [], 'canvas' => ['notes' => [['id' => 'n']]]], '{ id, text, x, y, author?, box?, view? }', 'a note without its text and place'],
+        [['rules' => [], 'canvas' => ['notes' => [['id' => 'n', 'text' => '', 'x' => 0, 'y' => 0, 'box' => '']]]], 'author?, box?, view?', 'a note beside no box (schema 5.3)'],
+        [['rules' => [], 'canvas' => ['notes' => [['id' => 'n', 'text' => '', 'x' => 0, 'y' => 0, 'colour' => '#fff']]]], 'author?, box?, view?', 'a note with an unknown field (schema 5.3)'],
         [['rules' => [], 'view' => 1], 'unknown field of logic', 'a field beside rules and canvas'],
         [['rules' => [], 'canvas' => ['exposed' => ['node:racoon/0' => ['', 2]]]], 'list of port ids', 'exposed ports that are no port ids (schema 5.1)'],
         [['rules' => [], 'canvas' => ['positions' => ['rule:0' => ['x' => '1', 'y' => 2]]]], 'must be { x, y }', 'a pinned box without a numeric place (schema 5.2)'],
@@ -2492,6 +2647,96 @@ try {
     $versions = json_decode((string) @file_get_contents("$bunnyDir/osct/osct/staging/osct/versions.json"), true);
     check(($latest['build'] ?? null) === $data['build'] && count($versions ?? []) === 1 && $versions[0]['build'] === $data['build'] && $versions[0]['retiredAt'] === null, 'latest.json and versions.json on the zone');
     check(($latest['experience'] ?? null) === 'osct' && ($versions[0]['experience'] ?? null) === 'osct', 'the zone\'s latest.json and versions.json name the experience');
+    echo "editor: publish as a job – only what the zone does not hold, the switch after the folder (#345)\n";
+    // The same zone through a test double that logs every request
+    $storageLog = "$tmp/storage.log";
+    $loggedPort = freePort();
+    $processes[] = proc_open([PHP_BINARY, '-S', "127.0.0.1:$loggedPort", __DIR__ . '/fake-storage.php'], $testLog, $pipes, __DIR__, ['STORAGE_DIR' => $bunnyDir, 'STORAGE_KEY' => 'zone-key', 'STORAGE_LOG' => $storageLog] + getenv());
+    for ($i = 0; $i < 50 && !@fsockopen('127.0.0.1', $loggedPort); $i++) usleep(100000);
+    $logged = ['BUNNY_STORAGE_ENDPOINT' => "http://127.0.0.1:$loggedPort"] + $bunny;
+    $requests = function () use ($storageLog): array {
+        $lines = is_file($storageLog) ? file($storageLog, FILE_IGNORE_NEW_LINES) : [];
+        @unlink($storageLog);
+        return $lines;
+    };
+    $putsOf = fn(array $lines): array => array_values(array_filter($lines, fn(string $line) => str_starts_with($line, 'PUT ')));
+    $fast = startApi(['ENV' => 'staging'] + $logged + $settings);
+    $stepped = startApi(['ENV' => 'staging', 'PUBLISH_STEP_SECONDS' => '0'] + $logged + $settings);
+    $zone = "$bunnyDir/osct/osct/staging/osct";
+
+    $requests();
+    [$status, $again] = call($fast, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    $seen = $requests();
+    check($status === 200 && ($again['job']['status'] ?? null) === 'done' && $again['export']['written'] === false && $again['job']['done'] === $again['job']['total']
+        && $again['job']['skipped'] === $again['job']['total'] - 2 && count($seen) === 5 && count($putsOf($seen)) === 2,
+        'a build the zone has: 5 requests (folder check, versions.json read and write, latest.json, archive check), every file skipped – ' . count($seen) . ' requests');
+
+    // An archive a cut-off publish left incomplete: only what is missing or different is written, export.json last
+    $archiveDir = "$zone/exports/{$again['build']}";
+    unlink("$archiveDir/export.json");
+    unlink("$archiveDir/EXPORT.md");
+    file_put_contents("$archiveDir/experience.yaml", "changed: true\n");
+    [$status, $repaired] = call($fast, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    $puts = $putsOf($requests());
+    $archivePuts = array_values(array_filter($puts, fn(string $line) => str_contains($line, '/exports/')));
+    check($status === 200 && $repaired['export']['written'] === true && count($archivePuts) === 3 && str_ends_with((string) end($archivePuts), '/export.json')
+        && $repaired['job']['skipped'] === $repaired['job']['total'] - 5 && !str_contains((string) file_get_contents("$archiveDir/experience.yaml"), 'changed'),
+        'an incomplete archive: one listing per folder, only the 3 missing or changed files written, export.json last – ' . implode(', ', array_map(fn($l) => basename($l), $archivePuts)));
+
+    // A short step (PUBLISH_STEP_SECONDS 0): the POST answers 202 while the job runs, every poll writes the next slice
+    call($fast, 'PUT', '/editor/experiences/osct', ['title' => 'Test Experience (job)'], $editor);
+    [$status, $started] = call($stepped, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging', 'note' => 'stepped'], $editor);
+    $job = $started['job'] ?? [];
+    check($status === 202 && ($job['status'] ?? null) === 'running' && $job['total'] > 3 && $job['done'] < $job['total'] && !isset($started['build']) && preg_match('/^[0-9a-f]{12}$/', $job['build']) === 1,
+        'a publish that does not end within the step → 202 { job }: running, done / total, its build – no outcome yet');
+    check(($job['parts']['build'] ?? 0) >= 2 && ($job['parts']['archive'] ?? 0) > 0 && $job['parts']['build'] + 2 + $job['parts']['archive'] === $job['total'],
+        'the job names its parts: the files of the version folder and of the export archive – total = build + 2 (the switch) + archive');
+    check((json_decode((string) file_get_contents("$zone/latest.json"), true)['build'] ?? null) !== $job['build'], 'latest.json is not switched while the version folder is written');
+    [$status, $data] = call($stepped, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    check($status === 409 && $data['error']['code'] === 'publish-running' && ($data['error']['job']['id'] ?? null) === $job['id'], 'a second publish while one runs → 409 publish-running with that job');
+    [$status, $data] = call($stepped, 'GET', '/editor/experiences/osct/publish', null, $editor);
+    check($status === 200 && ($data['job']['id'] ?? null) === $job['id'], 'GET …/publish: the experience\'s newest job (where the editor finds a publish whose answer it missed)');
+    $polls = 0;
+    $progress = [];
+    do {
+        [$status, $data] = call($stepped, 'GET', "/editor/experiences/osct/publish/{$job['id']}", null, $editor);
+        $progress[] = $data['job']['done'] ?? -1;
+        $polls++;
+    } while ($status === 200 && ($data['job']['status'] ?? null) === 'running' && $polls < 300);
+    $final = $data['job'] ?? [];
+    $sorted = $progress;
+    sort($sorted);
+    check(($final['status'] ?? null) === 'done' && $final['phase'] === 'done' && $final['done'] === $final['total'] && $polls > 2 && $progress === $sorted
+        && $final['result']['build'] === $job['build'] && $final['result']['store'] === 'cdn' && $final['result']['export']['written'] === true && is_string($final['result']['publishedAt']),
+        "every poll writes the next slice and reports done / total ($polls polls); done: the outcome the POST answers when it ends in time");
+    $puts = $putsOf($requests());
+    $at = function (string $suffix) use ($puts): int {
+        foreach ($puts as $i => $line) if (str_ends_with($line, $suffix)) return $i;
+        return -1;
+    };
+    check((json_decode((string) file_get_contents("$zone/latest.json"), true)['build'] ?? null) === $job['build'] && $at("/{$job['build']}/game.config.json") >= 0
+        && $at("/{$job['build']}/game.config.json") < $at('/osct/latest.json') && $at('/osct/latest.json') < $at("/exports/{$job['build']}/export.json")
+        && $at("/exports/{$job['build']}/export.json") === count($puts) - 1,
+        'the order: the version folder (game.config.json last), then versions.json and latest.json, the archive last – its export.json the very last');
+    [, $data] = call($fast, 'GET', '/editor/experiences/osct/versions', null, $editor);
+    check($data['versions'][0]['build'] === $job['build'] && $data['versions'][0]['note'] === 'stepped' && $data['versions'][0]['publishedBy'] === 'author@example.com', 'the publish log has the job\'s publish, its note and who started it');
+    [$status, $data] = call($stepped, 'GET', '/editor/experiences/osct/publish/00000000-0000-4000-8000-000000000000', null, $editor);
+    check($status === 404 && $data['error']['code'] === 'unknown-job', 'an unknown job → 404 unknown-job');
+    [$status, $data] = call($stepped, 'GET', "/editor/experiences/demo/publish/{$job['id']}", null, $editor);
+    check($status === 404 && $data['error']['code'] === 'unknown-job', 'a job is read through its own experience only');
+
+    // A job no one continued (a closed editor on a host without fastcgi_finish_request) gives way to the next publish
+    call($fast, 'PUT', '/editor/experiences/osct', ['title' => 'Test Experience (left)'], $editor);
+    [$status, $left] = call($stepped, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    $pdo = connect('test');
+    $pdo->prepare('UPDATE publish_jobs SET updated_at = updated_at - 600000 WHERE id = ?')->execute([$left['job']['id'] ?? '']);
+    $pdo = null;
+    [$status, $taken] = call($fast, 'POST', '/editor/experiences/osct/publish', ['env' => 'staging'], $editor);
+    [, $data] = call($fast, 'GET', "/editor/experiences/osct/publish/{$left['job']['id']}", null, $editor);
+    check($status === 200 && $taken['build'] === $left['job']['build'] && ($data['job']['status'] ?? null) === 'failed' && $data['job']['error']['code'] === 'abandoned',
+        'a job no one moved for 2 minutes is abandoned: the next publish runs (and writes what it left)');
+    call($fast, 'PUT', '/editor/experiences/osct', ['title' => 'Test Experience'], $editor);
+    $requests();
     [, $data] = call($bunnyApi, 'GET', '/editor/experiences', null, $editor);
     check(in_array('staging', array_column(array_column($data['experiences'], null, 'id')['osct']['live'], 'env'), true), 'the experience list reads the zone: live on staging');
     [$status] = call($bunnyApi, 'GET', '/content/staging/osct/latest.json');
@@ -2713,6 +2958,8 @@ try {
         [$status, $data] = call($api, 'POST', '/editor/experiences/osct/publish', ['env' => $env], $aiToken);
         check($status === 403 && $data['error']['code'] === 'not-for-ai', "a token cannot publish to $env → 403 not-for-ai");
     }
+    [$status, $data] = call($api, 'POST', '/editor/experiences/osct/versions/0123456789ab/activate', null, $aiToken);
+    check($status === 403 && $data['error']['code'] === 'not-for-ai', 'a token cannot make a version live → 403 not-for-ai (#348)');
     $refused = [
         ['GET', '/user/tokens', null], ['POST', '/user/tokens', ['name' => 'Another']], ['POST', "/user/tokens/{$made['apiToken']['id']}/renew", null],
         ['DELETE', "/user/tokens/{$made['apiToken']['id']}", null], ['PUT', '/user/password', ['password' => 'from the robot']], ['DELETE', '/user', null],
@@ -3041,8 +3288,8 @@ try {
     $experience = json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'osct'")->fetchColumn(), true);
     check($experience === ['id' => 'osct', 'title' => 'Onion Skin', 'book' => ['author' => 'Kévin Bray', 'publisher' => 'Building Fictions'], 'passes' => []],
         'the experience: author and publisher in book (after the title), no sourceOfTruth');
-    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '5.2'
-        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (5.2) now, an older one stays refused');
+    check($v3Db->query("SELECT content_schema FROM experiences WHERE id = 'osct'")->fetchColumn() === '6.0'
+        && $v3Db->query("SELECT content_schema FROM experiences WHERE id = 'wall'")->fetchColumn() === '2.26', 'a 3.0 experience is of the current schema (6.0) now, an older one stays refused');
     check(json_decode($v3Db->query("SELECT experience_json FROM experiences WHERE id = 'wall'")->fetchColumn(), true) === ['id' => 'wall', 'title' => 'A wall', 'book' => ['author' => 'Nobody']],
         'an experience without a publisher: book { author }');
     $sign = json_decode($v3Db->query("SELECT data_json FROM entities WHERE ref = 'sign'")->fetchColumn(), true);
@@ -3075,7 +3322,7 @@ try {
     check($status === 200 && $data['experience']['experience']['book']['author'] === 'Kévin Bray' && count($data['scenes']) === 1 && $data['scenes'][0]['entries'][0]['id'] === 'e1',
         'the migrated experience opens in the editor');
     [$status, $manifest] = call($v3Api, 'GET', '/editor/experiences/osct/draft/latest.json', null, $v3Session);
-    check($status === 200 && $manifest['schema'] === '5.2', 'its draft is of the current content schema (5.2)');
+    check($status === 200 && $manifest['schema'] === '6.0', 'its draft is of the current content schema (6.0)');
     [$status] = call($v3Api, 'GET', '/editor/experiences/wall', null, $v3Session);
     check($status === 409, 'the 2.x experience stays refused (409 old-schema)');
     [$status] = call($oldApi, 'PUT', '/user/password', ['password' => 'a new password'], $oldToken);
@@ -3114,6 +3361,11 @@ try {
     $v5Db->exec("INSERT INTO entities (experience_id, ref, position, type, data_json) VALUES ('four', 'plain', 1, 'text', " . $j(['type' => 'text', 'assets' => [], 'text' => 'when: never']) . ")");
     $v5Db->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c5', 'four', 'entity', 'door', 'null', " . $j($node) . ", 8)");
     $v5Db->exec("INSERT INTO changes (id, experience_id, kind, ref, before_json, after_json, created_at) VALUES ('c6', 'four', 'plugin', 'p', 'null', " . $j('{"on":"x","when":{"a":1}}') . ", 9)");
+    // Content schema 6.0 (#341): a 5.x experience whose declared plugin recorded uses.hears, and a source that says it
+    $hum = ['description' => '', 'params' => new stdClass(), 'uses' => ['hears' => ['doorOpened'], 'sets' => ['hummed']]];
+    $v5Db->exec("INSERT INTO experiences (id, title, experience_json, initial_scene, files_json, content_schema, plugins_json, created_at, updated_at)
+        VALUES ('five', 'Five', " . $j(['id' => 'five', 'title' => 'Five']) . ", 's1', '{}', '5.2', " . $j([['id' => 'audio', 'src' => '/a.js', 'api' => '3.1', 'registered' => ['components' => ['hum' => $hum]]]]) . ", '2026-01-01 00:00:00', '2026-01-01 00:00:00')");
+    $v5Db->exec("INSERT INTO plugins (experience_id, id, source, created_at, updated_at) VALUES ('five', 'audio', " . $v5Db->quote('export const register = api => api.registerComponent("hum", { uses: { hears: ["doorOpened"] } }, () => {});') . ", 1, 1)");
     $v5Db = null;
     $snapshot5 = static function () use ($mysql): array {
         $db = connect('v5');
@@ -3121,11 +3373,11 @@ try {
         foreach (['experiences', 'scenes', 'entities', 'changes'] as $table) $rows[$table] = $db->query("SELECT * FROM $table ORDER BY 1, 2")->fetchAll(PDO::FETCH_ASSOC);
         return $rows;
     };
-    $planOf = static function () use ($v5Settings, $root): array {
+    $planOf = static function (string $flag = '--plan-5') use ($v5Settings, $root): array {
         $env = getenv();
         foreach ($v5Settings as $key => $value) $env["OSCT_$key"] = $value;
         $env['OSCT_CONFIG_FILE'] = '/nonexistent';
-        $run = proc_open([PHP_BINARY, "$root/deploy/migrate.php", '--plan-5'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root, $env);
+        $run = proc_open([PHP_BINARY, "$root/deploy/migrate.php", $flag], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root, $env);
         $out = stream_get_contents($pipes[1]);
         proc_close($run);
         return json_decode((string) $out, true) ?? ['out' => $out];
@@ -3138,6 +3390,9 @@ try {
         'the dry run (migrate.php --plan-5) counts rows per table, the schema, the conditions, the approximate and unconvertible ones');
     check($plan['sets'] === 4 && $plan['variables'] === ['four' => ['mood' => 'string', 'tries' => 'number']] && $plan['conflicts'] === ['four: flag – boolean, string'],
         'the dry run names the set texts it quotes, the variables it declares and the conflicts (B2, B7)');
+    $plan6 = $planOf('--plan-6');
+    check(($plan6['schema'] ?? null) === 1 && $plan6['uses'] === ['five' => 1] && $plan6['sources'] === ['five/audio'],
+        'the dry run of 6.0 (migrate.php --plan-6): the 5.x experience, its recorded uses.hears, the source that still says it (#341)');
     check($snapshot5() === $before5, 'the dry run writes nothing');
     $v5Api = startApi($v5Settings + $settings);
     file_get_contents("$v5Api/admin/migrate", false, $context);
@@ -3145,8 +3400,12 @@ try {
     $door = json_decode((string) $first5['entities'][0]['data_json'], true);
     check($door['children'][0]['components'][0] === $expected, 'every condition in a node tree an expression: == / != / && / ||, texts quoted, not set → a truth test, no tests → none, a text kept, an unwritable one kept');
     check($first5['entities'][1]['data_json'] === $before5['entities'][1]['data_json'], 'a row without a rule is not touched');
-    check($first5['experiences'][0]['content_schema'] === '5.2', 'a 4.x experience is of the current schema (5.2) now');
-    check(json_decode((string) $first5['experiences'][0]['experience_json'], true)['variables'] === ['mood' => ['type' => 'string', 'scope' => 'stage'], 'tries' => ['type' => 'number']],
+    $byId5 = array_column($first5['experiences'], null, 'id');
+    check($byId5['four']['content_schema'] === '6.0', 'a 4.x experience is of the current schema (6.0) now');
+    $five = $byId5['five'];
+    check($five['content_schema'] === '6.0' && json_decode((string) $five['plugins_json'], true)[0]['registered']['components']['hum']['uses'] === ['listens' => ['doorOpened'], 'sets' => ['hummed']],
+        'a 5.x experience is 6.0, the recorded uses.hears of its declared plugin is uses.listens (#341)');
+    check(json_decode((string) $byId5['four']['experience_json'], true)['variables'] === ['mood' => ['type' => 'string', 'scope' => 'stage'], 'tries' => ['type' => 'number']],
         'its variables declared from their sets: a type, the scope when every set names the same one; a conflict not declared');
     $changes5 = array_column($first5['changes'], null, 'id');
     check(json_decode((string) $changes5['c5']['after_json'], true)['children'][0]['components'][0] === $expected && $changes5['c6']['after_json'] === $before5['changes'][1]['after_json'],
@@ -3155,6 +3414,8 @@ try {
     check($snapshot5() === $first5, 'migrated twice: the second run changes nothing');
     $plan = $planOf();
     check($plan['rules'] === 0 && $plan['sets'] === 0 && $plan['rows'] === [] && $plan['schema'] === 0 && count($plan['unconvertible']) === 2, 'the dry run after it: nothing left to convert, the unwritable ones still listed');
+    $plan6 = $planOf('--plan-6');
+    check($plan6['schema'] === 0 && $plan6['uses'] === [] && $plan6['sources'] === ['five/audio'], 'the 6.0 dry run after it: nothing left, the source still listed for osct plugins listen');
 
     echo "logout, delete\n";
     [$status] = call($api, 'POST', '/auth/logout', null, $secondSession);

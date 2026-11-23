@@ -29,7 +29,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const PLACE = { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 };
 /** A cover and a double page – the delivery adds the scene 2–3 and fills 30–31 */
 const CONFIGURATION = {
-  version: { version: '1.0.0', timestamp: '2026-11-21T00:00:00Z', hash: 'cd'.repeat(32), schema: '5.0' },
+  version: { version: '1.0.0', timestamp: '2026-11-21T00:00:00Z', hash: 'cd'.repeat(32), schema: '6.0' },
   experience: { id: 'osct', title: 'Delivery Test' },
   initialScene: 's1',
   scenes: [

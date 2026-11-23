@@ -95,6 +95,31 @@ export const expandedGroups = (groups: readonly GroupShape[], available: number,
 };
 
 /**
+ * A group's length along the toolbar (px) before it was ever measured where it stands (#342): its buttons and the gaps
+ * between them, and before it the rule and the gap (the first group: the toolbar's own padding and border instead).
+ * The same in a row and in a column – the buttons are square.
+ */
+export const groupLength = (buttons: number, first: boolean, m: ToolbarMetrics, tight = false): number =>
+  buttons * m.button + (tight ? 0 : Math.max(0, buttons - 1) * m.gap) + (first ? m.chrome / 2 : m.gap + m.rule);
+
+/**
+ * How many of the toolbar's groups stay in it (#342) – the rest go behind its **…** button, into its menu. `lengths`:
+ * each group's length along the toolbar in order (px, the rule and the gap before it included); `room`: the toolbar's
+ * room along (px, its padding and border at the end already taken off); `more`: the … button's length (its rule
+ * included). All of them fit: all stay, no …. Else as many as fit in order with the … after them – none when not even
+ * the first fits beside it. The answer depends only on the lengths and the room, never on what is hidden now, so it
+ * cannot flicker.
+ */
+export const fittingGroups = (lengths: readonly number[], room: number, more: number): number => {
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  if (total <= room) return lengths.length;
+  let used = more;
+  let n = 0;
+  while (n < lengths.length && used + lengths[n] <= room) used += lengths[n++];
+  return n;
+};
+
+/**
  * Where a toolbar group's panel puts the focus when it opens: on its first control when the keyboard opened it (↓ / ↑
  * on the button), else on the panel itself – focusing a number field on a phone brings up the keyboard, which resizes
  * the window and would close the panel again at once.

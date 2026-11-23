@@ -16,6 +16,7 @@
   import { goto } from "$app/navigation";
   import type { Point } from "#lib/context-menu.js";
   import { openFloats } from "#lib/components/floats.svelte.js";
+  import { experiencesMenu } from "#lib/experiences-menu.svelte.js";
 
   /**
    * The editor's one top bar (every page, drawn by the layout): the breadcrumb `Experiences › experience › scene` at the left, the
@@ -57,7 +58,13 @@
     const box = menuButton?.getBoundingClientRect();
     menuAt = box ? { x: box.right, y: box.bottom + 4 } : { x: window.innerWidth, y: 40 };
   };
+  /** On the experiences page the menu also starts a new experience or an import (#348) */
+  const onExperiencesPage = $derived(!experienceId && !isAdminRoute && session.isEditor);
   const menuItems = $derived<MenuItem[]>([
+    ...(onExperiencesPage ? [
+      { label: "New experience…", icon: "plus" as const, help: "Make a new experience step by step in the column: empty, or from an export.", select: () => experiencesMenu.ask("new") },
+      { label: "Import…", icon: "download" as const, help: "Bring an experience in as a new one: an export file, a URL or a published version.", select: () => experiencesMenu.ask("import") },
+    ] : []),
     ...(session.isAdmin && !isAdminRoute ? [{ label: "Admin", icon: "settings" as const, help: "The instance's users and AI connections.", select: () => void goto(resolve("admin/")) }] : []),
     // The documentation site ships with the reader at the site's root (client/public/docs/), outside the editor's base
     { label: "Documentation", icon: "info" as const, help: "How the editor works – the guide, tutorials and the API. Opens in a new tab.", select: () => void window.open("/docs/", "_blank", "noopener") },

@@ -32,16 +32,20 @@ final class ExportArchive
     private const KNOWN_ENTRY = ['id', 'category', 'title', 'scene', 'surface', 'body', 'author', 'image', 'imageLevels', 'caption', 'media', 'tags', 'target'];
     private const KNOWN_TARGET = ['id', 'imageSrc', 'entity', 'place', 'enabled', 'recognition', 'recognitionOff'];
 
+    /** The file whose presence marks an archive as complete (written last) */
+    public const COMPLETE = self::RECORD;
+
     /**
-     * Writes the archive of a published build into its store (`$data`: `Export::ofPublish`), unless it is there already.
+     * The archive of a published build (`$data`: `Export::ofPublish`): its folder `exports/<build>` and its files below it
+     * in write order – export.json last, it marks the archive as complete. Nothing is written: a publish writes them
+     * through its job (`PublishJob`, #345) unless the folder's export.json is there – files the store holds are skipped.
      * @param array<string, mixed> $data
-     * @return array{path: string, written: bool}
+     * @return array{folder: string, files: list<array{0: string, 1: string, 2: string}>}
      */
-    public static function write(ContentStore $store, array $data, string $env, string $writtenBy = 'publish'): array
+    public static function files(array $data, string $env, string $writtenBy = 'publish'): array
     {
         $build = (string) $data['build'];
         $folder = self::FOLDER . "/$build";
-        if ($store->exists("$folder/" . self::RECORD)) return ['path' => $folder, 'written' => false];
         $plan = self::plan($data);
         $files = [];
         foreach ($plan['downloads'] as $at => $planned) {
@@ -73,11 +77,12 @@ final class ExportArchive
             'builds' => self::builds(array_column($files, 'url'), Config::title(), (string) $data['experience'], ['env' => $env, 'build' => $build]),
             'problems' => $plan['problems'],
         ];
-        foreach ($plan['texts'] as $at => $text) $store->put("$folder/$at", $text, str_ends_with((string) $at, '.ts') ? 'text/plain' : 'text/yaml');
-        $store->put("$folder/" . self::MARKER, self::marker($data, $record), 'text/markdown');
+        $files = [];
+        foreach ($plan['texts'] as $at => $text) $files[] = [(string) $at, $text, str_ends_with((string) $at, '.ts') ? 'text/plain' : 'text/yaml'];
+        $files[] = [self::MARKER, self::marker($data, $record), 'text/markdown'];
         // Last: export.json marks the archive as complete
-        $store->put("$folder/" . self::RECORD, Editor::encode($record, true) . "\n");
-        return ['path' => $folder, 'written' => true];
+        $files[] = [self::RECORD, Editor::encode($record, true) . "\n", 'application/json'];
+        return ['folder' => $folder, 'files' => $files];
     }
 
     /**

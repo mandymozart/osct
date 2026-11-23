@@ -103,11 +103,11 @@ const published = (build: string, files: ExperienceExport['files'], exportedAt =
   source: { kind: 'published', env: 'staging', publishedAt: exportedAt, publishedBy: 'someone@example.com' },
   build,
   hash: build.padEnd(64, '0'),
-  schema: '5.0',
+  schema: '6.0',
   appVersion: '4.4.0',
   exportedAt,
   configuration: {
-    version: { version: '4.4.0', schema: '5.0', hash: build.padEnd(64, '0') },
+    version: { version: '4.4.0', schema: '6.0', hash: build.padEnd(64, '0') },
     experience: { id: 'osct', title: 'OSCT' },
     initialScene: 's1',
     scenes: [{ id: 's1', label: 'One', surfaces: [{ id: 'page', widthMm: 100, heightMm: 100, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
@@ -168,12 +168,12 @@ describe('the export archive – in the store', () => {
     const now = Date.parse('2026-12-31T00:00:00.000Z');
     const at = (days: number) => new Date(now - days * day).toISOString();
     const version = (build: string, retired: number | null): ContentVersion =>
-      ({ build, hash: build, schema: '5.0', version: '4.4.0', uploadedAt: at(200), activatedAt: at(200), retiredAt: retired === null ? null : at(retired) });
+      ({ build, hash: build, schema: '6.0', version: '4.4.0', uploadedAt: at(200), activatedAt: at(200), retiredAt: retired === null ? null : at(retired) });
     const folder = (name: string) => ({ path: `${root}/${name}`, size: 0, isDirectory: true, checksum: null });
     const builds = ['000000000011', '000000000022', '000000000033', '000000000044', '000000000055'];
     const state: StoreState = {
       root,
-      current: { build: '000000000055', hash: '000000000055', schema: '5.0', version: '4.4.0', activatedAt: at(1) },
+      current: { build: '000000000055', hash: '000000000055', schema: '6.0', version: '4.4.0', activatedAt: at(1) },
       versions: [...builds.slice(0, 4).map(build => version(build, 100)), version('000000000055', null)],
       listing: [...builds.map(folder), folder(ARCHIVE_FOLDER)],
     };

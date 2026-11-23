@@ -65,16 +65,16 @@ with SQLite and the local content store:
    `http://127.0.0.1:8080/api/admin/editors`.
 4. The editor: `cd editor && npm install && npm run dev` → http://localhost:5175/editor/ (its `/api` is proxied to
    the dev API). Sign in: the code is in the mail log.
-5. **Import an experience…** → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
-   configuration), *assets at* `http://localhost:5174` → Import. The experience appears with its scenes.
+5. **New** (the + card) → *From an export* → *URL* `http://localhost:5174/src/game.config.json` (the reader's dev server serves its bundled
+   configuration), *assets at* `http://localhost:5174` → Next → the slug `demo` → Create. The experience opens with its scenes.
 6. Open *The key*: the stage shows the scene's targets with their entities, the key is found and unlocked – the
-   **Inspector** shows the scene (selected when the workspace opens), and its *vars and events* has the timeline of
-   the finds. *tap* → *The key* takes it: its **behaviour** rule (#88, select the key to see it in the Inspector) plays
+   **Inspector** shows the scene (selected when the workspace opens), and the **Log** tab (its *log* link) has the
+   timeline of the finds. *tap* → *The key* takes it: its **behaviour** rule (#88, select the key to see it in the Inspector) plays
    the model's clip `rattle`, sets `hasKey` (experience, boolean, true) and emits `keyRattled` – in the timeline (newest
    first) the rule's `behaviour` line sits under the events it caused. Walk with › to *The door*: its rules hide the
    hint and emit `openDoor`, the `door` plugin lifts and turns the door, `stage · doorOpen = true`, the lamp on the right
    page shows. Switch a target off and on with the tree's eye (lost, found again), *Replay the first find* in the
-   stage's right-click menu plays it again, *reset* in the scene's *vars and events* starts a new game – on *The door*
+   stage's right-click menu plays it again, *reset* in the **Variables** tab starts a new game – on *The door*
    the hint shows then; *set* `hasKey` (experience, true), switch the door off and on, and it opens without a visit to the
    key's page. Open *The switch* and click the entity on the stage: the next scene shows; its *post-processing* holds
    *scanLines* switched off – the toggle in the pass's head turns the lines on. The **Code** tab lists the twenty
@@ -84,7 +84,7 @@ with SQLite and the local content store:
    `local · this server`, the local API's own environment. With the fixture: open *Studio A – models* the same way.
 7. The reader reads the published version when it is started with
    `VITE_CONTENT_BASE_URL=http://127.0.0.1:8080/api/content/local` and `VITE_EXPERIENCE=osct` (the fixture's id;
-   `<base>/osct/latest.json` names the new build – another experience opens at `/x/<experience>/`).
+   `<base>/osct/latest.json` names the new build – every experience opens at its own path, `/osct/`, `/demo/`, #343).
 
 **For the people who use the editor** there is a documentation site at `/docs/` – the editor guide, tutorials for editors
 and admins and the API pages ([docs-site](docs-site.md), #336); this file stays the developers' account of the editor.
@@ -96,7 +96,7 @@ experience (#148) and tour the editor's tools, with screenshots of the editor (`
 `demo/`, `tools/`).
 
 On staging the same flow runs against the CDN: `CONTENT_STORE=bunny` with the storage zone's credentials in the
-`staging` GitHub environment ([deploy](deploy.md)); *Import an experience… → the CDN* takes the current version, publishing
+`staging` GitHub environment ([deploy](deploy.md)); *Import → Published* takes an experience's current version, publishing
 (to `staging · CDN`) writes a new one, and the staging reader sees it on its next start.
 
 **The demo experience on staging** lives in the staging database like the book (#322 decision (b), as in SCUTOONS):
@@ -106,42 +106,74 @@ get ("A store per experience" below). `fixtures/demo` is its committed export �
 again (`osct content export --experience demo --from draft --out ../fixtures/demo --force` against the staging API,
 [content](content.md) "Export") and commit. The workflow *Demo book* (`.github/workflows/demo.yml`) only builds that
 export as a check; it no longer syncs (that competed with the editor's Publish). A fresh instance gets the demo by
-*Import an experience… → URL* with the store's base URL, or from the folder. On a phone, the staging reader opens it at `https://osct.porschuetz.de/x/demo/`
+*Import → URL* with the store's base URL, or from the folder. On a phone, the staging reader opens it at `https://osct.porschuetz.de/demo/`
 ([content on the CDN](content-cdn.md)).
 
 ## Experiences, import and publish
 
 ### The Experiences page
 
-`/editor/`: the instance's experiences – under each, where it is live (below) – and *Import an experience…*: the CDN's current
-version, a `game.config.json` by URL or file, or a **content base URL** – an experience's CDN folder with `latest.json`, e.g.
-`…/osct/staging/demo` –
-whose current version is taken; *assets at* = where its `/assets/content/…` paths resolve (for a content base the
-version's folder) – every draft and publish points there, no media is copied. Under the experiences: **AI connections** and
-the MCP guide ([below](#ai-connections)).
+`/editor/` (#153, #348 – `editor/src/routes/(app)/+page.svelte`, the words and rules in `editor/src/lib/experiences-page.ts`):
+**the books** on the left, **a context column** on the right.
+
+- **The books**: each experience as its cover (title, author, where it is live – below) with a **···** under it, and a
+  dashed **+** card (*New*) at the end. A click **selects** a book (outlined) and its sheet opens in the column; a double
+  click or **Enter** opens it in the editor. The arrows move the selection (↑ ↓ a row), Home / End the first / last, **Esc**
+  clears it. The cards are buttons with `aria-pressed`; the column is a region named after what it shows. Under the
+  books: **AI connections** and the MCP guide ([below](#ai-connections)).
+- **Nothing selected → quick access** (`QuickAccess.svelte`): the cards **New experience** (empty, step by step) and
+  **Import** (file, URL or published), and **Last worked on** – the newest places across the instance's experiences from the
+  server's change history (`GET /editor/recent` – [server](server.md#recent-places)): book · scene (· the entry, or the panel)
+  · when · who (when not you; an AI connection's name in brackets). One row per experience and scene, five rows; a click
+  opens that scene, a change on no scene (a plugin, a file, the environment) opens its panel (`?tab=code` …) on the first scene.
+- **New experience** (`NewExperienceFlow.svelte`; from the card, the + card or the ☰ menu's *New experience…*): **1 Start**
+  – *Empty* (one scene, nothing on it: `POST /editor/experiences` – [server](server.md#new-experiences)) or *From an export*
+  (the source below); **2 Name** – the title (an export's own until one is typed) and the **slug**: the experience's id, its
+  address in the reader shown whole – `https://<instance>/<slug>/`, nothing but `https://<instance>/…/` while there is no
+  slug (#348: the preview used to show `%3Cslug%3E`) – and the folder of its content on the CDN. It is proposed from the
+  title until one is typed and checked as the API does (`editor/src/lib/new-experience.ts`: lower-case letters, digits and
+  dashes, none of the site's own paths, no experience of that id yet); *Fixed once published – printed codes depend on it.*
+  **3 Create** makes it and opens it in the editor – from an export the import goes to the new slug (`rename`, `create`,
+  `title` – the API checks the slug as for an empty one).
+- **The source of an import** (`ImportSource.svelte`, the one place the editor reads one – New *From an export*, a book's
+  *Replace…*; the ☰ menu's *Import…* opens New with *From an export* chosen): **File** – an **export file** (below) or a bare
+  `game.config.json`; **URL** – a `game.config.json`, or a **content base URL** (an experience's CDN folder with `latest.json`,
+  e.g. `…/osct/staging/demo`) whose current version is taken; **Published** – the current version of an experience live on
+  this instance's environment, read by the server from its own store on the CDN. *assets at* = where a bare configuration's
+  `/assets/content/…` paths resolve (a content base and an export file bring their own) – every draft and publish points
+  there, no media is copied.
+- **A book's sheet** (`ExperienceSheet.svelte`; a click or its ···): title, author, the reader address; **Open** (primary);
+  **Export** – the draft as one file `<id>-<build>.osct.json` (`GET …/export/file` – [server](server.md#export-file)): its
+  configuration, its files' list and the Code tab's plugin sources, the import body Import reads back (here or on another
+  instance); the media stay where they are. **Replace…** step by step: the source, then the comparison below (`ImportCompare.svelte`
+  – the build, scenes, entries, targets, shared entities and plugin sources each side, the edits since the import that are
+  lost, plugin code the export replaces), then *Replace the draft*; *Readers keep the live version until you publish.*
+  **Versions**: the publish log (when, environment, who, its note), the live mark on what each environment's readers get, and
+  **make live** on every older build of this instance's own environment – after the confirm *Make the version of <time>
+  live on staging again? Readers get it on their next start. The draft is not changed.* (`POST …/versions/{build}/activate` –
+  [server](server.md#make-a-version-live-again)). Builds are kept in the store, so any of them can come back; the log gets a
+  row *Made live again*.
+- The **☰ menu** on the experiences page has *New experience…* and *Import…* (`experiences-menu.svelte.ts`).
 
 ### Import: what comes in
 
-Before the comparison, the form shows what an import would bring in (#182, `POST /api/editor/import/preview` –
+Before the comparison, the source step shows what an import would bring in (#182, `POST /api/editor/import/preview` –
 [server](server.md#import-preview)): *From* (the content base), the build with when it was built and became current on
 the CDN, the app and content schema version, the **one experience** in it (title · id) and what it holds (scenes, entries,
-targets, shared entities), and where its media resolve (*Assets at*). The button says it: *Import 1 experience: The Demo
-(build 7457f0c…)*. *The CDN* reads it at once (the server knows the content base), a URL once typing pauses (the browser
+targets, shared entities), and where its media resolve (*Assets at*). *Published* reads it at once (the server knows the content base), a URL once typing pauses (the browser
 reads the content base's `latest.json` or the `game.config.json`, the server checks it), a file when it is chosen; the
-import then sends exactly what was previewed. The experience's id is the configuration's `experience.id` – no id field and no
-browser prompt (a configuration without one is refused by the import anyway). When a draft with that id is here, the
-form says so first – *A draft of “The Demo Experience” (demo) is already here – importing replaces it.*, how many of its
-edits since its import are lost (unpublished, unless the draft as it is now is live) and where it is live; the
-comparison below follows on the button. A source that cannot be read – the CDN offline, no `latest.json`, one that
-names no build – shows the error with the URL and *Try again*.
+import then sends exactly what was previewed. The import goes to the experience the flow names – the new slug, or the
+selected book for *Replace…* (`rename`: the configuration's `experience.id` becomes that one's, so another experience's
+export or published version can be brought in under it). A source that cannot be read – the CDN offline, no `latest.json`,
+one that names no build – shows the error with the URL and *Try again*.
 
 ### Import: the version comparison
 
-Importing replaces an experience's draft, so over an experience that exists the form shows a **comparison** first and imports only
-when the person confirms there (#183): the incoming build against the build the draft is based on – its id, when it was
+Importing replaces an experience's draft, so over an experience that exists *Replace…* shows a **comparison** first and imports only
+when the person confirms there (#183, #348): the incoming build against the build the draft is based on – its id, when it was
 built, the app and the content schema version that built it (differences in bold) –, who imported the draft's base and
 when, the draft's **edits since that import** (their number, the newest five from the change log – who, what, when; an
-AI connection's edits name it) and whether the draft as it is now is live anywhere. **Replace the draft** (or *Import
+AI connection's edits name it), what each side holds (scenes, entries, targets, shared entities, plugin sources – the plugin code an export replaces is named) and whether the draft as it is now is live anywhere. **Replace the draft** (or *Import
 again* when the same build comes in and nothing was edited) imports; *Cancel* goes back to the form. The comparison is
 the API's first step (409 `confirm-import`), the button sends its confirmation – when the draft changed meanwhile, the
 form shows the new comparison and says so. Importing from any environment stays open.
@@ -154,13 +186,37 @@ choice of environment: next to **Publish** (the experience page's bar) the targe
 (a connected CDN has priority) or `local · this server` / `staging · this server` (the directory store of an instance
 without a CDN, [server, "One environment per instance"](server.md#one-environment-per-instance)) – and where the experience
 is live (*live on staging, production* or *draft only*). Wherever this server is the target, a short *No CDN connected*
-stands next to it (its help in the Info view has the whole line). **Publish** opens a step in the page – no browser
-dialog – that names the experience, its build now, the target and the build of it it replaces there (*Replaces build … of
-“Test Experience” on staging*, or *“Test Experience” is not published on staging yet.*), says on production that every
-reader of the experience gets it, and where this server is the target:
-*No CDN connected – the published content is stored and served by this server only. Readers load from here without
-edge caching; heavy media goes through this server. Back up the content store.* Its button publishes; *Cancel* or
-Escape closes it. Another environment is published from its own editor (the API refuses it, 403 `other-environment`).
+stands next to it (its help in the Info view has the whole line). Another environment is published from its own editor
+(the API refuses it, 403 `other-environment`).
+
+**Publish** opens one overlay in the middle of the dimmed page (#345, Tilman 2026-11-22: *"this first dropdown dialog
+should be much more on point"*; `PublishButton.svelte`, its words in `publish-overlay.ts`) – no browser dialog. Three states:
+
+1. **Confirm** – *Publish “Test Experience” to staging?* and *Last published: today 07:53* (local time, from where the
+   experience is live; *Not published on staging yet.* before the first). Warnings only when they matter, set apart by
+   white space, no dividers: the logic's problems for the whole experience as the Log tab lists them (*2 warnings in the
+   logic* and the first one; errors in red, and the button says **Publish anyway** – they never block); a saved Code
+   tab source that does not compile is one danger line and **Publish** stays off (the sources are transpiled when the
+   overlay opens). **Publish** or **Cancel**; Esc or a click beside the overlay cancels – in this state only.
+2. **Running** – *Publishing…*, then *Writing the build…* until latest.json names the build, from then *Live for readers
+   ✓*; the export archive's count as a bar with *Archive 412 / 1522* (the bar runs without a count before that – the
+   job's `parts` tell the archive's files from the build's, [server, "Publish jobs"](server.md#publish-jobs)), and *Keep
+   this page open until it is done.* No Cancel; leaving the page (a reload, closing the tab, another page of the editor)
+   asks first – on a host where the server cannot write on after its answer, the editor's polls write the rest.
+3. **Done** – *Published*, *Live on staging. 3 files new, 1524 were already there.* (the job's done and skipped counts),
+   **Close** and *Open reader* (`/<experience>/` on this instance – it serves its own environment). It closes itself after
+   2 s unless the pointer is over it or the log is shown. **Failed**: *Publish failed* with the server's message and
+   code. A gateway that gives up on the request (502/503/504 without the API's answer, no answer) is no failure:
+   the overlay finds the publish's job (the experience's newest, one that was not there before the click) and follows it;
+   only when none turns up does it say *Publish outcome unknown* – never *504*.
+
+**The log** shows only on **Ctrl+L** while the overlay is open – no visible toggle (Tilman, 2026-11-22: *"not intended
+to be visible to everybody"*; the Library's key stays with the overlay). It is a small log with a time per line: what used to be on the step – the target with its backend, the draft's build, the build it
+replaces, *6 plugins transpiled, not type-checked*, the No CDN line – then every change the polls bring: *build written (3
+files)*, *live on staging*, *archive 412/1522*, files already on the store, *export archive written*, errors. The overlay
+keeps the keyboard while it is open (no key reaches the page; Tab stays inside) and gives the focus back to the Publish
+button when it closes. Opening Publish while a publish of the experience runs (another tab, after a reload) follows that one
+at once, and a second publish while one runs follows the running one (409 `publish-running`).
 
 ### A store per experience
 
@@ -168,7 +224,8 @@ Every experience has a content store of its own in each environment (`<title>/<e
 `…/<experience>/<build>/` – [content on the CDN](content-cdn.md), #87; until then an environment served one experience and
 publishing another asked to replace it, #143). So several experiences are published on one installation – any experience
 can publish to staging and production, and a publish only ever replaces that experience's previous build. Readers open
-the instance's default experience at `/` and another one at `/x/<experience>/`.
+every experience at its own path, `/<experience>/` (#343) – `/` opens the experience the browser opened last, else the
+instance's default.
 
 - **Where an experience is live.** The Experiences overview shows under each experience *live on staging · build … · since …* (one line per
   environment that serves a build of it) or *draft only*; next to Publish the experience page shows the same in short. An
@@ -257,11 +314,11 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
   save's answer never writes over it. *Undo edits* takes the entry back. What keeps the save back is listed under the
   form (the API's checks before it is asked) and named in the top bar.
 - **The preview** is the reader's renderer (`shared/text/entry-text.ts` `renderEntryText`) – the same Markdown, the same
-  escaping. On the stage the variables have their current values: the page's mirror of the stage frame's `vars` (#234 –
-  data from the frame, never code), read innermost scope first like `api.vars.get`. Under the preview the variables the
+  escaping. On the stage the variables have their current values: the stage's `vars`, read innermost scope first like
+  `api.vars.get`. Under the preview the variables the
   text reads are listed with their value and scope (or *not set*), and every construct that does not parse is named
   (`exprMessage`).
-- **+ entry** in the tree (beside *+ target*, #237) makes an entry without a printed image on the scene – read in the
+- **entry…** in the Tree footer's **+ add** menu (#237, #337) makes an entry without a printed image on the scene – read in the
   reader's list only, like a glossary term: title, category and access page (one of the scene's pages, `NewEntryForm`,
   `POST …/entries` without `target`); its form opens in the Inspector. On the stage the variables have their values; an
   entry found with the [experience search](#the-experience-search) opens the same way.
@@ -338,7 +395,7 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
 
 ### Universal tabs (#318)
 
-Every content of the workspace's panels is a **tab** – Tree, Inspector, Environment, Library, Code, Scenes, Info,
+Every content of the workspace's panels is a **tab** – Tree, Inspector, Environment, Library, Code, Log, Variables, Scenes, Info,
 History, Logic (`SCENE_TABS` in the page: id, name, icon, what it is for, its **home** panel) – and any tab can live in
 any panel. A panel's head shows its tabs (words, or icons in a panel too narrow for them: `wordTabs` counts the tabs);
 the pure part is `components/float-tabs.ts` (tested in `lib/__tests__/float-tabs.test.ts`), the state lives in `Floats`
@@ -446,7 +503,7 @@ Every save is a row of the change log (docs/server.md "Reverting saved changes")
 The **Logic** panel (the `nodes` icon; closed at first – the top bar's panels menu opens it) shows the experience's logic
 as a graph, from the draft (and the stage's live trees of the open scene), **one level at a time** (#334, `agents/research/2026-11-20-logic-nodes-shared-concept.md`
 §6): the **experience** (the groups, the scenes, the plugins, the variables set for the experience or the session and the
-core events the rules hear), a **group** (its scenes and what joins them), a **scene** and one target's **entity**. A
+core events the rules listen to), a **group** (its scenes and what joins them), a **scene** and one target's **entity**. A
 scene shows the **events** (a node's own `found` / `lost` / `tap` / `unlocked`, scene events, core events – pills), the
 **rules** of its `behaviour` components, the **variables** they read and set (dashed), the **nodes** they play, pause,
 stop, show or hide (filled) and the **plugins** on its nodes or touching its rules' names (a double frame). What a
@@ -482,21 +539,63 @@ Under the graph, the **issues bar** (#334, the SCUTOONS deck's Problems list and
 `logic/issues.ts`): the **problems** across the experience as one quiet line – a mark, the counts in the deck's words
 (*1 error · 2 warnings*) and, closed, the first issue truncated. A click opens the list (the state is remembered per
 browser session, `sessionStorage`); a row is one line: the mark, the box's name and the short words the box does not
-already say (*keyRattled · emitted, nothing hears it*; the whole sentence is its tooltip); errors first. A click on a row
+already say (*keyRattled · emitted, nothing listens to it*; the whole sentence is its tooltip); errors first. A click on a row
 marks its box on the canvas (the search's flash) and, for a scene's problem listed at the group or experience level, opens
 the scene's level first. **Errors** – something broken: a node an action names that is not there, a goto to a missing
 scene, a type the rule refuses – have the error colour (a filled dot, the box's red border); **warnings** – it never does
-anything: a variable read that nothing sets, an event heard that nothing emits, an event emitted that nothing hears, a
-rule that hears nothing – stay grey (a hollow ring, the box's border dashed; RULES #38). While a plugin's code is unknown
+anything: a variable read that nothing sets, an event listened to that nothing emits, an event emitted that nothing listens to, a
+rule that listens to nothing – stay grey (a hollow ring, the box's border dashed; RULES #38). While a plugin's code is unknown
 only the names a plugin could not set or emit are said. The level logic is pure and tested (`lib/logic/__tests__/`:
 `project`, `navigation` – the URL, enter, back, stubs, follow, search; `apply` – every op, its refusals, the by-name
 cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems; `canvas` – the
-signal table, the cards, pins, groups and their ops). Not yet: lighting up what fires while the stage runs, notes on the
-canvas.
+signal table, the cards, pins, groups and their ops; `live` – the live feedback below).
+
+**Live feedback** (#334, Tilman 2026-11-21: *"when a event fire that cable should light up. or when a variable changes"*):
+while the stage runs, the canvas shows what happens on it. The panel reads the stage's timeline (`stage.events` – the Log
+tab's lines) and matches each **new** line to the level drawn (`logic/live.ts`, pure: `liveIndex` maps event names,
+variable names and rules to wire and box ids once per flow; `liveHit` per line):
+
+- **An event** (a core event – `targetFound`, `sceneChanged` …, a plugin's, a rule's emit): every wire that carries it –
+  into its event box (a rule's emit, a plugin's `emits`, a node's declared event pin) and out of it (the rules' `on`, a
+  plugin's `listens`), a bundled wire between scenes or a stub that names it (a derived edge carries its `names`) – and the
+  event box. A node's own `found` / `tap` box is no bus event: its rule's line lights it.
+- **`varChanged`** (the variable's name in its payload): the wires into the variable (sets) and out of it (the conditions'
+  reads), a bundled wire or a stub that names it; its box pulses and shows the new value in its head (`= true`).
+- **`behaviour`** (a rule ran – its target and node's name, or its scene, and its index): the rule's box pulses in its
+  kind's colour, with the wire into its `on` and every wire out of its actions; at the group and experience levels a
+  scene's rule pulses its scene's box.
+
+A lit wire is drawn in its own signal colour, fully opaque and heavier, a glow running once along it from source to target
+over a halo that fades in about a second (`LogicWire`, class `live` – apart from the pointer's `lit` / `dim`); a box's
+border pulses once (`LogicBox`). Another firing starts the pulse again. With `prefers-reduced-motion` only the brighter,
+thicker state shows, without movement. Only lines new since the panel opened count – the history is never replayed; Clear
+in the Log tab starts again. **Trace** in the bar's **…** view settings (beside **Follow**) turns it off (on by default, kept in `localStorage`
+`osct-editor-logic-trace`).
+The engine numbers a rule from 1 in its `behaviour` line (`rule 1`), the documents from 0 – `liveHit` takes one off (5.1.0;
+before, Trace pulsed the rule after the one that ran).
+
+**Testing on the stage** (#334, Tilman 2026-11-21: *"is there a way i can manually trigger an event from the nodes to test
+what firing them would look like down the line?"*): a box's right-click menu sets things off on the **running** stage –
+the items come from `logic/fire.ts` (`stageItems`, pure and tested), the panel asks the stage:
+
+| Box | Item | What it does |
+|---|---|---|
+| A bus event | **Fire on stage**, **Fire with a payload…** | `Stage.fire(event, payload)` → `StageCore.fire`: the plugin API's `emit` as the stage (`runtimeApi("stage")`) – the open scene's and the experience's rules that listen to it run, every plugin listens to it. The payload is typed in the menu's field as `key: value` pairs (commas, new lines or ` · ` between them; each value JSON where it reads as JSON, else the text – `parsePayload`). On a hover-capable device a **▶** on the box's head fires it at once (CSS `@media (hover: hover)`). |
+| A core event (`targetFound`, `varChanged`, `sceneChanged` …) | disabled | The engine emits it (the runtime refuses an `emit`): find or tap a target, set a variable – a rule on it runs with *Run this rule*. |
+| A node's own `tap` | **Tap on stage** | `Stage.tap(target)` – the reader's tap: every node of the target listens to `tap`, the plugins `targetTapped`. Only while the target is found. `found`, `lost`, `unlocked` are the stage's hooks – disabled, run the rule instead. |
+| A variable | **Set on stage…** | A value by its type (`logicTypes`): a boolean picks true / false, a number, integer or text is typed (`parseValue`); written with `Stage.setVar` as the Variables tab writes it (`varChanged`). Its scope: the stage's scope of it, else the declared one, else the scope its rules set it in, else `scene`. |
+| A rule | **Run this rule** | `Stage.runRule(home, index)` → the engine's `runRuleByHand` (`behaviour.ts`): the rule's actions as if its `on` came – **its when applies** (false: nothing runs, the panel says so), no other rule of that event runs. A node's rule is found by its target and its node's name (the engine knows no path): two nodes of one name with rules in a target are refused. |
+
+The Log marks the line of a fired event and of a rule run by hand ` · by hand` (only the first line of that name – not
+what it set off; `parseDetail` skips it, so Trace lights it as any line). Only the running stage changes, never the draft;
+**Restart** on the stage resets it. Read-only levels allow it (a test, not an edit). Disabled with the reason while the
+stage does not run (`status` ≠ `running`), for a scene's or a node's rule whose scene is not on the stage, and for a node's
+`tap` there. An event box at another scene's level still fires – the bus is the stage's, so the open scene's rules, the
+experience's and the plugins listen to it, and the item's detail says that scene's own rules are not on the stage.
 
 **Scene and experience rules, goto** (content schema 5.0, #334 L-T5b): a scene's own rules (`scene.logic`) are boxes of
 its scene level (*scene rule 1*, a click selects the scene – its rules are in its Inspector), the experience's
-(`experience.logic`) boxes of the experience level (*experience rule 1*, a click selects the experience). They hear the bus
+(`experience.logic`) boxes of the experience level (*experience rule 1*, a click selects the experience). They listen to the bus
 (a scene event or a core event – never a node's own `found` / `tap`), and their node actions reach a node by address
 (`target:<id>/<name>`): a scene rule's wire runs to the node box of its own scene; an experience rule's to the box of the
 scene that holds the target (the experience level shows no nodes). A **goto** (`scene:<id>`) is a dash-dot wire (signal
@@ -515,7 +614,7 @@ new trees, the changed rule lists and what happened in words, or a refusal with 
 op). The rule grammar is the Inspector's (`behaviour-edit.ts`); nothing is written another way, and every expression an op
 writes is type-checked first (B8).
 
-- **Connect** – a drag from a port to a port: an event's outlet into a rule's **on** makes the rule hear that event (the
+- **Connect** – a drag from a port to a port: an event's outlet into a rule's **on** makes the rule listen to that event (the
   name is written into `on` – the bus stays by name, L6; a node's own `found` / `tap` … only for its own node's rules); a
   variable into **when** appends a term to the condition with `&&` – a true / false (or untyped) variable its name, any
   other `name == <its declared default, else a typed placeholder: 0, "">` (the words say so: change the value in the
@@ -529,10 +628,10 @@ writes is type-checked first (B8).
   `&&` / `||` chain (`hasKey && tries > 2` → `hasKey`; the variable alone → *always*) – a variable deeper in the
   expression is refused with *edit the condition in the Inspector*; an action's wire (a goto's stub too) the action; on a
   selected rule the rule. Cutting a
-  rule's **on** leaves it empty: the rule hears nothing, and the panel lists it as a problem (*Door · rule 3 hears nothing –
+  rule's **on** leaves it empty: the rule listens to nothing, and the panel lists it as a problem (*Door · rule 3 listens to nothing –
   wire an event to its on*) until an event is wired to it again (3.21.1). A wire that only **joins by name** (`home: null`:
   a stub *hasKey ← set in Cover*, *keyRattled ← emitted in Cover*) removes the name from the listening side here – the rules
-  of this level no longer read or hear it – and the words say that it is still set or emitted there; one whose listening
+  of this level no longer read or listen to it – and the words say that it is still set or emitted there; one whose listening
   side is another scene or a plugin's code, and a derived goto between scenes, are refused with the reason. Delete and
   Backspace in the panel never reach the workspace.
 - **The menu** – a right click on the empty canvas, the panel's **+**, or a node type dragged from the Library's **Nodes**:
@@ -541,12 +640,12 @@ writes is type-checked first (B8).
   from the Library) – where it goes is the breadcrumb's. Each row is one line: the thing chosen on the left (`keyRattled`,
   `when hasKey`, `goto 3–4`, `set hasKey = true`), its type on the right as the legend draws it (the signal's pin and
   colour – `SignalPin.svelte`, the legend's own – and a word: event, condition, action, node rule …); the detail is the
-  row's tooltip. An **event** makes a new rule hearing it on the selected node (picked on the canvas or in the tree; on a
+  row's tooltip. An **event** makes a new rule listening to it on the selected node (picked on the canvas or in the tree; on a
   target's level its own; on the scene level with no node selected the scene's own, on the experience level the
   experience's – they offer bus events only). An **action** (play / pause / stop / show / hide a named node of the rule's
   subtree or, for a scene rule, an address of its scene's targets; set a variable to a typed value; emit an event; **goto**
   a scene) or a **condition** term goes to the rule selected on the canvas – and with **no rule selected** to a **new
-  rule** on the same place that hears its first event (`firstEvent`: a node's rule `found` – the target is seen –, a
+  rule** on the same place that listens to its first event (`firstEvent`: a node's rule `found` – the target is seen –, a
   scene's or the experience's `sceneChanged` – the scene opens; the header says which, e.g. *Actions – a new rule on
   found*); wire another event to its on to change it. Only what cannot be made on the canvas stays a grey line: a node
   (the tree), a plugin (Code), a scene or a group (Scenes); on the experience level the node verbs (pick the node in the
@@ -556,8 +655,8 @@ writes is type-checked first (B8).
   and *Delete the rule*; on a wire *Disconnect*.
 - **A wire let go on the empty canvas** (over no pin, #334) opens the same menu at the drop point, listing what can be
   made **and wired to that port** – by the rules of the strict connect (`wireChoices`): from a rule's **+** an action
-  (to that rule), back from its **on** an event to hear (`setEvent`), from its **when** a condition; from an event's outlet
-  a new rule hearing it (on the selected node and on the scene); back from an event's inlet a new rule emitting it (not a
+  (to that rule), back from its **on** an event to listen to (`setEvent`), from its **when** a condition; from an event's outlet
+  a new rule listening to it (on the selected node and on the scene); back from an event's inlet a new rule emitting it (not a
   core event); from a variable a new rule reading it, back from its *set* one setting it; from a node's verb inlet a new
   rule acting on it (its own rule, or the scene's by address); at the experience level from a scene's *arrives* a goto.
   A value inlet no rule action writes yet (a parameter, a file) is a grey line with the reason. The new box – the rule,
@@ -568,9 +667,17 @@ writes is type-checked first (B8).
   on them; Delete removes the selected wires, then the selected rules from the last one up, in one go (a node, an event
   or a variable stays). Panning moves to the **middle button**, **Space + drag** and the wheel or the trackpad. Copy and
   paste are graph fragments (L-T16), not here yet.
-- **A plugin's ports** (hears, emits, reads, sets, goto, arrives, drives) are drawn from its code's declared uses: they are
-  read-only – an outline pin, never lit as a taker while a wire is dragged (`takesWire`), and a click (or a wire let go
-  on one) opens the plugin in the Code tab instead of a refusal.
+- **A plugin's pins and rows** (#334, Tilman 2026-11-21: *"ja nur anzeige ist gut"*): only a port whose other end is an
+  editable document stays a pin. **emits** (outlet) into a rule's **on**: the rule listens to one of the plugin's events;
+  a rule's **do** into **listens** (inlet): the rule emits one of the events the plugin listens to (no core event). With several
+  events a small menu picks one (the op's `event`); a wire let go on the empty canvas offers a new rule per event. What
+  the code **reads**, **sets** and **drives** (a component, node type or material it registered) are **display rows** –
+  plain text under a thin divider (*reads hasKey, scene*, *sets doorOpen*, *drives spin*), no pins – each name joined to
+  its box by a fine dotted **reference line** (`View.refs`, muted, 1px, dash `2 4`): not a wire – not selectable, not
+  deletable, not counted when hovering lights a box's wires, and no op names it. The layout places along the references
+  as along wires, and the card's height counts the rows. A click on a row (the box) opens the plugin in the Code tab. A
+  plugin component on a node shows no bus ports (its ports are its spec's: file, parameters, verbs, events), so nothing
+  changes there.
 - **After each op** its trees go to the stage as the Inspector's edits do (`stage.override`): live at once, saved by the
   autosave (`tree-autosave.ts`, held while a rule is incomplete), a step in History that undo reverts. A scene's or the
   experience's rules go to `logic-edit.svelte.ts`, which saves them by themselves (`PUT …/scenes/{sid}` `{ logic }`,
@@ -606,12 +713,15 @@ choice of what a box previews is L-T15).
   fade; one let go where it does not fit says why under the bar – *volume takes a number 0–1, not a text (mood)*. No
   conversion but whole number → number. **A wire still needs a field to land in** (L1): a rule's do (its **+** or an
   action's outlet) into an **action inlet** writes that verb on the node (re-aimed into another verb's inlet, the action
-  takes that verb); a node's **event outlet** into a rule's **on** makes the rule hear that event by name; a **parameter
+  takes that verb); a node's **event outlet** into a rule's **on** makes the rule listen to that event by name; a **parameter
   inlet** is drawn and typed, but no rule action sets a component's parameter yet – the wire is refused with that reason
   (*set it in the Inspector*); a **file inlet** waits for file nodes on the canvas (L-T12).
 - **A plugin's bus use** is what its specs declare (`uses`, `events` – recorded in `registered`, schema 5.1); a plugin box
   says *plugin · declared*. Only for a plugin that declares nothing is its source read (`plugin-code.ts`, the regex reading
   of `api.events.on("x")` and the like).
+- **A wire's word** (Tilman, 2026-11-21: *"values on wires need an outline so they stick out more"*): in its signal's
+  colour, weight 500, on a chip of the canvas's background with a ring of it round the letters – it reads where wires
+  cross, day and night.
 
 **The deck's canvas** (content schema 5.2, #334 L-T7 / L-T8 – Tilman: *"free placement on canvas. and grouping like we
 have in the scutoons deck. also adopt the node styles we already established in the deck. including the coloring."*):
@@ -642,10 +752,29 @@ have in the scutoons deck. also adopt the node styles we already established in 
   boxes were; their wires to the rest end on the pill, the ones between them are hidden; its chevron (or a double-click)
   opens it again. Groups are kept per canvas: the scene's (its scene and entity levels) or the experience's; the group level
   has none.
-- Each of these is a canvas op (`place`, `tidy`, `fold`, `group`, `renameGroup`, `groupColour`, `foldGroup` – `apply.ts`),
-  saved with the level's rules like the exposed ports (`logicEdit.setCanvas`), so History lists it and Undo takes it back.
-  A box's right-click menu has *Fold to its head*, *Group this box* (or the selection) and, while it is pinned, *Tidy the
-  level*.
+- **Selecting and ungrouping a group** (#334, Tilman 2026-11-21: *"how to ungroup or select a group?"*): a **click on the
+  frame's head** – its free area, not the chevron, the swatch or the name, and not the end of a drag – selects the group's
+  boxes, **Shift** adds them to the selection; then Delete, Ctrl+G and a drag act on them as on any selection. A **right
+  click on the head** (or on a folded group's pill) opens the group's menu: *Select its boxes*, *Rename…*, *Next colour*,
+  *Fold to one pill* / *Open the group* and **Ungroup** (the `ungroup` edit – its boxes stay where they are; an empty name
+  still removes the group too). **Ctrl+Shift+G** ungroups the groups of the selected boxes, as in the Scenes strip. Where
+  the level is not editable, the menu's items are greyed with the reason.
+- **Notes** (#334, schema 5.3 – the SCUTOONS deck's notes; Tilman 2026-11-21: *"we are missing notes on these graphs, for
+  annotations"*): a note is an annotation on the canvas, **no logic** – no ports, no wires; the issues, the layout and Tidy
+  never see it. *Add note* on the empty canvas's right-click menu puts one there; on a box's right-click menu **beside the
+  box** (it moves with it, joined by a fine dotted line, and a second note on the same box stands below the first); **N**
+  with the pointer over the canvas puts one at the pointer. A new note opens for typing: **Ctrl+Enter** or leaving the field
+  keeps the text, **Esc** goes back, an empty text removes the note; a double-click edits it again. Its **author** is the
+  signed-in person (their address's name – the content keeps no address), small and muted under the text. Notes are
+  monochrome cards (RULES #38 – editor chrome, not a signal), selected (a click, the selection box) and dragged like boxes;
+  **Delete** removes the selected notes with the rest of the selection. A note's right-click menu: *Edit the note*,
+  *Delete the note*. When a rule (or a variable nothing names any more) goes, the note beside it **stays as a free note**
+  where it last stood; the notes beside a removed rule's later siblings follow their rules. A note belongs to the level it
+  was made at: a scene's canvas keeps its target levels' notes with their `view` (`door`, `door/0.1`).
+- Each of these is a canvas op (`place` – a note's key `note:<id>` –, `tidy`, `fold`, `group`, `renameGroup`, `groupColour`,
+  `foldGroup`, `ungroup`, `note`, `noteText` – `apply.ts`), saved with the level's rules like the exposed ports
+  (`logicEdit.setCanvas`), so History lists it and Undo takes it back. A box's right-click menu has *Fold to its head*,
+  *Group this box* (or the selection), *Add note* and, while it is pinned, *Tidy the level*.
 
 ### The experience search
 
@@ -684,8 +813,9 @@ says what its tap does. Entries and nodes fold; the column collapses to its bar 
 toggled there, it starts collapsed in a window under 64rem – a tablet in portrait gives the panel its 25rem and the
 stage the rest, #172). With a finger the rows are the touch control height, the chevrons and the eye as tall as the row
 (#171). Under the scene row the **Surfaces** level (#314): the scene's surfaces (label · side), a tap selects one
-(the Inspector shows it, the stage highlights it), its **+** adds a page, a wall or a custom one, Alt ↑ ↓ and a row's menu
-reorder. A surface row with targets placed on it shows their count and unfolds (folded at first) to **its targets** (by
+(the Inspector shows it, the stage highlights it), its **+** adds a page, a wall or a custom one and selects it (the surface
+Inspector opens at once), Alt ↑ ↓ and a row's menu reorder, the menu's *Remove surface…* and Delete ask in the surface's
+Inspector (#337). A surface row with targets placed on it shows their count and unfolds (folded at first) to **its targets** (by
 their entry's title; a tap selects the target). **Moving a target to another surface**: drag its row onto another
 surface's row (the row under the pointer is framed; with a finger, drag its icon) or its menu's *Move to …*
 (`moveTargetToSurface` in `surface-actions.ts`, written at once with `PUT …/targets/{id}`, the stage built again). The
@@ -694,7 +824,18 @@ place in mm** (from the new surface's top left corner) where it fits there wholl
 surface – made smaller first, its aspect kept, when it is wider or taller than the surface. A place without a height
 counts with the stage's height from the image.
 
-- **+ target** at the end of the tree opens the form for a new target on the scene: title, page, the printed image
+- **The Tree's footer** (#339, as in Photoshop's layers panel) stays at the panel's foot while the tree scrolls: **+ add**
+  (below), and for the selected row **duplicate** (`duplicateNode` in `tree.ts`: the node with its children right after it,
+  the copy's names numbered free – door → door 2 –, its ids dropped), **group** (`groupNode`: into a new group in its place;
+  the root grouped becomes the group's child) and **remove** (as Delete).
+- **+ add** in the Tree's footer (#337, `tree-add.ts`, the Logic panel's typeahead menu `LogicMenu.svelte`): one menu
+  of everything the scene can get – a **surface** (double page, single page, wall, custom: added and selected), **target…**
+  and **entry…** (their forms, below), and a **node** of every type (the built-in group, model, video, image, text,
+  light, then the experience's plugins' types). A node goes onto the selected target, the selected entry's target or the
+  selected node's – the target's root without AR content, else where the Inspector's *+ node* puts it (`node-add.svelte.ts`
+  hands the type to `EntityPanel`); a type that takes a file asks for it in the Library first; without a target the nodes
+  are greyed out with the reason. Typing filters, ↑ ↓ and Enter choose; what was added is selected.
+- **target…** in the **+ add** menu in the Tree's footer opens the form for a new target on the scene: title, page, the printed image
   (*Library…* or *Upload…*), **what appears on the page** (none, model, video, image, text, group or light, with its file
   or line), the **entry category** (where the reader's consultation menu lists it – it follows what appears, a video
   makes a Videos entry, until set by hand; #165), and where it is printed (surface, x / y, width in mm) – the API makes
@@ -752,7 +893,8 @@ Info view.
 
 The **mock stage** (`editor/src/lib/stage/mock-stage.ts`) draws the scene at the desk in the same three.js scene as the
 entities; the **mock tracker** reports its targets as found, and the editor simulates the game around the scene. It runs
-in a sandboxed frame ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-234)).
+in the editor's own page with the experience's plugins – after a prompt for code someone else saved ([The stage in the
+page and the plugin guard](#the-stage-in-the-page-and-the-plugin-guard-340)).
 
 ### The desk, the scene and the printed images
 
@@ -795,8 +937,8 @@ The editor simulates the game around the scene (`stage/stage-core.svelte.ts`): w
 "camera" sees (the tree's eyes), which were found for the first time (the unlock animation plays once per target,
 *Replay the first find* in the stage's right-click menu plays it again), and the reader's progress for the experience's
 plugins (`stage/progress.ts` – the engine's `api.progress` and the `experience` scope of its variables, alive while the
-workspace is open). Nothing of the reader's store, progress or routes is involved. The scene's *vars and events*
-drive and show the narrative ([Vars and events](#vars-and-events)).
+workspace is open). Nothing of the reader's store, progress or routes is involved. The **Variables** and
+**Log** tabs drive and show the narrative ([Variables and Log](#variables-and-log)).
 
 ### The stage toolbar
 
@@ -845,6 +987,19 @@ between its buttons (a number field or a select keeps its own keys), Esc closes 
 Tab out of it or a tap outside closes it; every control has the touch height with a finger and its help in the Info
 view. All of it are preview settings, stored in this browser (`stage/preview.ts`), never in the content; the Info view
 shows each button's tooltip.
+
+**What does not fit goes behind the …** (#342, Tilman 2026-11-22): when the Tools panel is shorter than its groups –
+a narrow window, the panel resized, or a column along a short stage – the groups that do not fit leave the toolbar from
+the end (live first, then view, grid & snap, …) and a **…** button (*More tools*) takes their place at its end. Its menu
+(top layer, below the … in a row, beside it in a column, kept on the screen) holds them below each other, each a row
+working exactly as in the toolbar: a tool group's menu, grid & snap's and view's panels open from inside it, beside it;
+a tap outside or Esc closes it, a window that changes its width too. The stage menu's *View settings…* opens the menu
+first when view is in it. Nothing is cut off; the keys (Q W E R S, Ctrl+Z …) work either way. How it decides
+(`fittingGroups` in `lib/tool-groups.ts`): the page measures each group's length along the toolbar where it last stood
+in it (an estimate from its buttons before that, `groupLength`), per orientation, finger and expansion; the Tools panel
+asks for the toolbar's whole length (every group in it – `FloatingPanel`'s `along`), so the room it is given never
+depends on what is hidden, and as many groups as fit stay in order with the … after them. Measured a frame after a
+change (ResizeObserver, MutationObserver), so it cannot loop or flicker.
 
 ### Camera and view settings
 
@@ -1013,61 +1168,66 @@ points); dark grey, orange while selected, drawn through everything, never in th
 (`editor/src/lib/stage/light-helper.ts`). A click on the bulb picks the light. The HDRI dims only the scene's own
 lights; a light node keeps the author's intensity in every shading.
 
-### The stage frame: plugins in a sandbox (#234)
+### The stage in the page and the plugin guard (#340)
 
-An experience's plugins are code any editor of the experience can write, and the stage runs it – the draft's plugins and the Code
-tab's **Run**. So the stage does not run in the editor's page: it runs in an **iframe sandboxed with `allow-scripts`
-only** – no `allow-same-origin` – at the editor's own route `/editor/stage-frame/` (`editor/src/routes/stage-frame/`,
-outside the `(app)` routes with their sign-in gate). Its origin is **opaque**: plugin code there has no cookie and no
-storage of the editor's (`document.cookie`, `localStorage` throw), cannot reach into the page (`parent.document` is
-another origin's), and a request to the API carries no session – an opaque origin is another site, so the browser
-withholds the `SameSite=Strict` cookie, and CORS refuses a credentialed read. The CSRF token and every API call stay in
-the page.
+The stage runs **in the editor's own page** (5.0, Tilman 2026-11-21, #340: *"we can drop the sandbox. since we trust the
+user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is fine. it is
+a huge security risk but only to the user who is logged in and their scope."* · *"performance will definitely
+increase."*). From 1.58.0 to 4.x it ran in a sandboxed iframe (#234: no `allow-same-origin`, its own Content Security
+Policy, a postMessage protocol, the draft copied in as text, the plugin registry mirrored back as specs); all of that is
+gone.
 
-- **The page's side** (`stage/stage.svelte.ts`, `Stage`): puts the frame first into the stage's container, under the
-  toolbar and the notices, and keeps the API the panels used before – the overrides (`overrides`, `treeOf`, `editTree`,
-  `removeNode`: the page's own), the selection, the gizmo's and the pick's modes, the environment, the ghost, the
-  narrative (`setVar`, `tap`, `replayUnlock`, `resetNarrative`), the eyedropper (`sampleColor`) – sent to the frame;
-  what reads the frame (`sampleColor`, `setVar`, `tap`) answers a promise. It mirrors what the frame
-  reports: the state, the variables and the timeline, the layout of the targets (`pageFormat`, `placeOf`,
-  `printedPlace`), the model nodes' timelines (`timeline`), and the **plugin registry as specs** – the engine's
-  `pluginRegistrySnapshot` in the frame, `mirrorPluginRegistry` here, so the Inspector, *add pass*, the texture rows and
-  *make it code* read the engine's registries as before while no plugin code runs in the page.
-- **The frame's side** (`stage/frame-host.svelte.ts` with `stage/stage-core.svelte.ts`, the stage itself): reads the
-  draft from the text the page sends (the page fetched it with its session; the frame never asks the API), loads the
-  draft's plugins and runs the Code tab's modules (`stage/plugin-run.ts`), and answers the page's requests. It
-  accepts requests only from its parent at the editor's origin and posts its events only there.
-- **The protocol** (`stage/frame-protocol.ts`): requests with an id and their replies, events with a name and their
-  data. The page acts only on events whose shape it checked (`readFrameEvent`). Since edits save themselves (#259),
-  **two events reach the draft**, both numbers only, both for what the person has open in the page: a gizmo drag's
-  placement (three vectors) – taken only for the node the page itself selected, the one the gizmo sits on – which the
-  page writes into its own live tree, and a placement handle's move (surface, x, y, width) while the selected target's
-  placement rows are open. Nothing else does: a pick selects, a key the frame forwards is one of the page's shortcuts
-  (`FORWARDED_KEYS`: Shift, Ctrl, ← →, W E R, Delete, Escape – Delete removes the node the page selected, which is
-  saved like every edit). Publish stays the person's click in the page.
-- **The frame's policy**: before the draft and its plugins load, the frame takes a Content Security Policy
-  (`frameCsp`, as a `<meta>` – it names the experience's content bases, which only the draft knows, so no static header can
-  say it): its own scripts and the editor's static files under `/editor/`, the Library's files under
-  `/api/content/`, the experience's content under `<content base>/assets/content/`,
-  `blob:` (the Code tab's module) and `data:` – every source with its path, never `'self'`, so no request reaches the
-  rest of the API. On a CDN instance the uploads lie in no content base: the frame admits **the experience's own Library
-  folder** (`…/assets/<experience>/`, the experience's `libraryBase` – a file uploaded and picked for a node shows at once, before
-  any saved row names it, #258) and the folders of other experiences' uploads the draft names, for files and requests, never
-  for scripts; other content builds the draft still names only for images and media. Nothing may be framed, posted or
-  opened; no worker. A draft whose files move to another base gets a new frame (a policy cannot widen).
-- **Serving it**: the opaque frame loads the editor's module scripts and static files with `Origin: null`, so they are
-  served with `Access-Control-Allow-Origin: *` – `client/public/.htaccess` for `/editor/` and `/assets/content/`, the
-  editor's and the reader's dev servers allow `null` (`server.cors`). The Library's media already allow any origin
-  (`ContentStore::serve`); the content CDN answers CORS for the reader anyway.
-- **What it costs**: on a desktop (headless Edge, 1280 × 800) the stage renders at the same 60 fps with the same
-  main-thread time per frame as in the page (≈ 1.25 ms on *The switch*, ≈ 1.5 ms on *The key*).
-- **What it does not do**: plugin code can still send what it sees – the draft, which its author can read anyway –
-  away by navigating its own frame, and it can post stage events (a placement, a pick, a forwarded key): with them it
-  can move the node the person has selected, or the target whose placement is open, in this experience's draft – visible on
-  the stage, taken back with *Undo edits* – and nothing more; it cannot publish, write anything else or read anything
-  of the session. In the editor a plugin
-  reaches only the content and the Library (`api.loadText`), no other origin. **The reader runs plugins in its own
-  page** – not sandboxed yet ([server](server.md#sessions-cookies-and-csrf) "What the cookie does not do").
+- **`stage/stage.svelte.ts`** (`Stage`, the workspace's side) keeps the API the panels use – the overrides
+  (`overrides`, `treeOf`, `editTree`, `removeNode`: the page's own), the selection, the gizmo's and the pick's modes, the
+  environment, the ghost, the narrative (`setVar`, `tap`, `replayUnlock`, `resetNarrative`), the Live switch, the
+  eyedropper (`sampleColor`), the model nodes' timelines (`timeline`) – and calls **`stage/stage-core.svelte.ts`**
+  (`StageCore`, the stage itself) directly. The stage's state (`status`, `found`, `vars`, `events`, `tool`, …) is the
+  core's own reactive state. The core draws into a layer of its own (`.stage-host`) first in the stage's container, under
+  the toolbar and the notices; the page's shortcuts, the Info view's help and the eyedropper see the pointer and the keys
+  directly – nothing is forwarded.
+- **The draft** is the one the page loaded (`content.svelte.ts`; the engine's content runtime is one per page) – the
+  stage reads it directly, nothing is recorded or replayed. **The plugin registry is the page's**: the Inspector, *add
+  pass*, the texture rows and *make it code* read it as the stage fills it; a publish declares what ran
+  (`pluginRegistrySnapshot`). A gizmo drag writes the placement of the node the page selected into the page's live tree –
+  a drag of any other node is not taken.
+- **Plugins**: the draft's declared modules load with the scene; the Code tab's saved sources load when the stage starts
+  (`plugins.autoLoad`) and **Run** installs a module in the same registry (`stage/plugin-run.ts`). A saved source's id is
+  marked before the first scene opens (`Stage.keptPlugins` → `keepPlugin`), so its compiled module – maybe built against
+  an older plugin API – never loads over it; the API's draft leaves such a declaration's recorded specs out (4.6.2).
+- **The plugins' lines** (`api.log`, the engine's `[plugins]` lines, what a plugin module threw that nobody caught – a
+  `blob:` module of the Code tab or a declared module's URL) go to the Code tab's log and the Log tab while the stage lives.
+- **Storage**: the stage is on the reader's origin now, so the engine's switches for it live under
+  `osct-editor-stage-…` (`storage.ts` `deviceStorage`) – never the reader's `osct-…` keys or its progress record. The
+  panels read the plugin registry again only when its revision moved (`pluginRegistryRevision`), not on every edit.
+- **Leaving the workspace** disposes the stage and empties the plugin registry (`resetPlugins` – the next experience
+  starts with none of this one's code, as a new page would); the draft's recorded specs are adopted again.
+- **What plugin code can do now**: it runs with the signed-in editor's session – `fetch("/api/…")` carries the cookie,
+  so it reads whatever that person may (the draft, the experience's data, an admin's users), and `GET /api/user` answers
+  the session's CSRF token, so it can write what the person may write too. Treat it as
+  **the person's own rights in the plugin's hands**: scoped to the signed-in user, accepted by Tilman. Hence the guard.
+
+#### The plugin guard
+
+Before the stage starts (`[experience]/[scene]/+page.svelte` → `pluginGuard.check`; `plugin-guard.ts`,
+`plugin-guard.svelte.ts`), the workspace looks at the experience's plugin code: every **stored source someone other than
+the signed-in editor saved last** (the API's `updatedBy` – the email of `plugins.updated_by`), and every **declared module
+without a stored source** (it came with an imported content build; nobody here saved it). If any of them has no answer
+yet, a small prompt (`PluginGuardPrompt.svelte`) asks once – *Run plugin code by ben?* (the local part of the address;
+*Run plugin code you did not save?* when several people or an imported module are listed) with each plugin and who saved
+it last – **Run** or **Don't run**, for all of them; Esc is Don't run. The person's own last-saved code runs without
+asking.
+
+- **The answer is kept in this browser** (`localStorage` `osct-plugin-guard:<experience>`) per plugin and **source
+  version** – the save's time, its author and its size; a declared module's URL (a new content build is another). A new
+  save by someone else asks again; answers for older versions are dropped.
+- **Don't run**: those plugins stay off the stage – a saved source is not auto-loaded (`plugins.declined`; the Code tab's
+  status line says *not loaded: ben saved it last and you chose Don't run – Run in the Code tab runs it now*), a declared
+  module is not loaded (`keepPlugin`), and the Log tab has a line per plugin. **Run** in the Code tab still runs one: the
+  person's own click on code they can read.
+- **The render view** (`?render`, the MCP's `render_scene` – nobody to ask) runs every plugin without asking (Tilman,
+  2026-11-22): it writes nothing, so a plugin there cannot act with anyone's rights; nothing is kept.
+- Code saved through the MCP with a person's token is saved *by that person* (`updated_by`): their own browser runs it
+  without asking.
 
 ## The panels
 
@@ -1219,7 +1379,7 @@ its scenes stay in place).
 
 ### Inspector: a surface (#314, #319)
 
-A surface selected (the Surface tool's click, the Tree's Surfaces level, an id in the scene's surfaces – the selection's
+A surface selected (the Surface tool's click, a row of the Tree's Surfaces level, a surface just added with its + – the selection's
 `surface` level, scene and surface id) shows `SurfaceView.svelte`: the crumb *scene › surface*; its **label** as printed,
 its **format** (double page 460 × 320, single page 230 × 320, wall 2000 × 1500 mm – a choice sets the size; *custom* is
 any other size, either way round counts – `formatOf`, `presetSize`), its **size** (W × H mm, free) and its place in the
@@ -1230,7 +1390,9 @@ scene's order (↑ ↓); the **targets lying outside** the surface at its size a
 *shown* and *snap* each toolbar / on / off, *spacing*, *subdivide*; *reset to the toolbar's*); the **reference image** (editor-only, never in the content – Library… with
 the Library as a picker, Upload…, the fit cover / contain / stretch, remove; `PUT …/scenes/{id}/surfaces/{surface}/reference`
 through `scenes.putReference`, which reads the references again – `scenes.references`, the stage's source too); *remove
-surface* with the same confirmation as the list. Every field saves itself with the scene's whole list. The History
+surface* after a confirmation that names the targets and entries lying on it (they fall back to the scene's first surface;
+its reference image goes too) – the Tree's *Remove surface…* and Delete on a surface row select the surface and ask here
+(`surface-removal.svelte.ts`, #337). Every field saves itself with the scene's whole list. The History
 calls a reference's change *Reference image · scene · surface* (*image replaced*, a fit changed, removed) and files it
 under its scene; the Library's usage line says *reference image of scene · surface*.
 
@@ -1243,23 +1405,25 @@ moves the entry) and, in a scene of several surfaces, its surface (`EntryData.su
 
 With the scene selected the Inspector shows `SceneView.svelte` (#227, #229 – the Stage tab's sections, moved there):
 
-- *scene* and *surfaces* (#307 phase 3a, `SceneSection.svelte`): the scene's **label** (what the reader's switcher and
-  lists show; empty: its id), its **group** (or *self*), its targets of 10 and **arrange in a row**; then the
-  **surfaces** (#314, `SurfaceList.svelte`): each with its **label** as printed, its id (a click selects the surface –
-  the Inspector above), its size; ↑ ↓ reorder, ✕ removes after a confirmation that names the targets and entries lying
-  on it (they fall back to the scene's first surface; its reference image goes too), *+ surface* adds a **double** page
-  (460 × 320 mm, one surface) or a **single** page (230 × 320 mm) flat right beside the others, a **wall** (2000 × 1500 mm,
-  standing ahead behind the flat surfaces, `rx` 90) or a **custom** one (300 × 300 mm) and selects it. Each field saves
-  itself (`PUT …/scenes/{id}` – the whole list, places included). The Tree's Surfaces level and the selected surface run
-  the same edits (`surface-actions.ts`, rules in `surface-edit.ts`).
-- *post-processing* (the scene's own, `PUT …/scenes/{id}` with `passes`), *appearance* and *vars and events* – closed on
-  a first visit (#193), below.
+- *scene* (#307 phase 3a, `SceneSection.svelte`): the scene's **label** (what the reader's switcher and lists show;
+  empty: its id), its **group** (or *self*), its targets switched on of 10 (the switched-off ones next to it, not counted – #349) and **arrange in a row**. The scene's **surfaces** are not
+  listed here (#337): they are the Tree's Surfaces level – a row selects one and the Inspector shows it (above); its **+**
+  adds a **double** page (460 × 320 mm, one surface) or a **single** page (230 × 320 mm) flat right beside the others, a
+  **wall** (2000 × 1500 mm, standing ahead behind the flat surfaces, `rx` 90) or a **custom** one (300 × 300 mm) and
+  selects it, so its Inspector opens at once; a row's menu (or Alt ↑ ↓) reorders, *Remove surface…* (or Delete) asks in
+  the surface's Inspector. Each edit writes the scene's whole list (`PUT …/scenes/{id}`, places included) through
+  `surface-actions.ts` (rules in `surface-edit.ts`).
+- *post-processing* (the scene's own, `PUT …/scenes/{id}` with `passes`) and *appearance* – closed on a first visit
+  (#193), below.
 - *rules* (content schema 5.0, #334 L-T5b, `LogicRules.svelte`): the scene's own rules – live while it is open – in the
   rule list of a node's behaviour, with the differences of [the experience's rules](#inspector-the-experience): a named
   event only, a node of **this scene's** targets by address (`target:door/hint`), goto. Each edit saves itself
   (`PUT …/scenes/{id}` with `logic`, the canvas kept); open while the scene has rules. A rule that is not complete yet (an
   event, a node or a scene not picked) is listed under the rules in red and holds the save (the top bar says so), as a
   node's behaviour holds its tree's.
+- *narrative* (#337): one line – how many variables and events the stage has (`3 vars · 12 events`,
+  `narrativeSummary`) – with the links *variables* and *log*, which show the [Variables and Log](#variables-and-log) tabs,
+  where that work happens.
 
 #### Post-processing
 
@@ -1329,31 +1493,52 @@ names no look). A collapsible section per moment, each closed on a first visit:
   The stage plays it at once; the rows are written like any component's (`components.N.look`, `components.N.duration`),
   so `put_entity`, the YAML and the Code tab set the same values.
 
-#### Vars and events
+### Variables and Log
 
-The scene's last section: the narrative of an experience like the demo ([plugins](plugins.md) "Across nodes and pages"),
-driven from the tree's eyes and from here (#88; `stage/event-log.ts`, `stage/narrative.ts`):
+The narrative of an experience like the demo ([plugins](plugins.md) "Across nodes and pages") is driven from the tree's
+eyes and two tabs of the workspace (#88, #337; `stage/event-log.ts`, `stage/narrative.ts`, `stage/log-entries.ts`) – both
+in the Inspector's panel at first, floatable like every tab; the scene Inspector's *narrative* line opens them.
 
-- **tap** – a button per printed target of the scene (its entry's title): the reader's tap without aiming at the
-  entity – the entity's `onTap` (a plugin component's, the `animation` component's `playOn: tap`, a `behaviour`'s tap
-  rules) and the event `targetTapped`, through the engine's own tap path (`SceneInspection.tap`). Only a found target
-  with AR content takes a tap; the others are greyed out.
+Long lists are sections that close (Tilman, 2026-11-21: closed by default where a list gets long), each with a summary
+that still tells what is in it.
+
+**Variables** (`StageVariables.svelte`) – a section per scope (scene, stage, session, experience; closed: the count and the
+first names), the scene's open at first, *set* closed:
+
 - **vars** – the plugins' variables, a row each: the name, its scope and type (`experience · boolean`), and the value as the
   type's control – *false / true*, a ScrubNumber (committed when you let go or press Enter), a text field – and × to
   delete it. **set** below sets one by hand: a name, the scope (scene, stage, session, experience – the plugin API's four),
   the type and the value. Both write through the plugin API (`api.vars.set` with the panel as the plugin), so the
-  plugins hear `varChanged` as from a plugin and a branch can be tested without playing up to it; the API's refusal (a
+  plugins listen to `varChanged` as from a plugin and a branch can be tested without playing up to it; the API's refusal (a
   name that is not camelCase) shows next to *reset*. **reset** starts a new game (every variable cleared, nothing
   unlocked, the timeline emptied, the scene found anew).
-- **events** – the timeline, newest first: the time since the scene opened (`4.25 s`, `1:05.3`; a *reset* starts it
-  again), the event (found, lost, unlocked, tapped, sceneChanged, varChanged, arState once per change, the plugins'
-  own) and its payload; the last 100 are kept. A **behaviour** line is a rule of a `behaviour` component that ran
-  (#88): the target, the node's name, the rule's number, its event and what it did (`play rattle · set hasKey = true
-  (experience) · emit keyRattled`) – the log's own line, not an event of the stage (plugins never hear it); the events its
-  actions caused follow above it. A scene's or the experience's rule names its home instead (`home: "scene" · scene:
-  "door" · rule: 0 …`). A **goto** line is a rule asking for another scene (`ArSceneOptions.navigate`): the stage stays
-  on its scene – following it would leave the author's open scene behind – and the line's link (*open Epilogue*) opens
-  that scene as the Scenes panel does. **clear** empties it.
+
+**Log** (`LogPanel.svelte`) – one timeline, newest first, with filter chips:
+
+- **tap** (its top bar) – a button per printed target of the scene (its entry's title): the reader's tap without aiming
+  at the entity – the entity's `onTap` (a plugin component's, the `animation` component's `playOn: tap`, a `behaviour`'s
+  tap rules) and the event `targetTapped`, through the engine's own tap path (`SceneInspection.tap`) – what follows shows
+  below. Only a found target with AR content takes a tap; the others are greyed out.
+- **show** – the chips *events*, *behaviour*, *plugin log*, *errors*, *warnings*, each with its count: only the kinds
+  picked show (kept in this browser, `osct-editor-log-filter`). **clear** empties the timeline (the stage's events and
+  the plugins' lines; the Code tab keeps its own log).
+- **problems** – pinned above the timeline, without a time, a section closed at first to its counts and the first problem
+  (`1 error · 2 warnings – …`): the Logic issues of the whole experience (errors and
+  warnings, `experienceProblems` – the Logic panel's issues bar at the experience level; the experience's logic is built
+  once in `logic-content.svelte.ts` for both) and the stored plugins that are not on the stage (`plugins.failed()`: a
+  build that failed, a load that hung). A Logic issue's click opens the Logic panel at its box (`logicFocus`), a plugin's
+  opens it in the Code tab.
+- **events** – the time since the scene opened (`4.25 s`, `1:05.3`; a *reset* starts it again), the event (found, lost,
+  unlocked, tapped, sceneChanged, varChanged, arState once per change, the plugins' own) and its payload; the last 100
+  are kept.
+- **behaviour** – a rule of a `behaviour` component that ran (#88): the target, the node's name, the rule's number, its
+  event and what it did (`play rattle · set hasKey = true (experience) · emit keyRattled`) – the log's own line, not an
+  event of the stage (plugins never listen to it); the events its actions caused follow above it. A scene's or the
+  experience's rule names its home instead (`home: "scene" · scene: "door" · rule: 0 …`). A **goto** line is a rule
+  asking for another scene (`ArSceneOptions.navigate`): the stage stays on its scene – following it would leave the
+  author's open scene behind – and the line's link (*open Epilogue*) opens that scene as the Scenes panel does.
+- **plugin log** – the plugins' `api.log` lines and their errors on the stage (each with the timeline's clocks, so it
+  sits among the events; a plugin the guard kept off says so here; `plugins.journal`, the last 100 – a Run does not empty it).
 
 ### Environment
 
@@ -1544,22 +1729,24 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   three's own types, so completion, hover documentation and type errors inline are the build's; Tab indents,
   Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day / night tokens. **Download** gives the plugin's
   folder as a zip (`index.ts`, `plugin-api.d.ts`, a `tsconfig.json`).
-- **The saved sources are part of the live stage** (#269): every frame that starts – the workspace opens, the frame
-  loads again – gets each stored source by itself (`plugins.autoLoad`): the text last run in this page if there is one,
-  else the saved one, transpiled and installed one after the other, then the scene built once – as soon as the frame
-  answers, so a scene that does not build keeps no code from loading. A source stored under the id of a plugin the
+- **The saved sources are part of the live stage** (#269): every stage that starts – the workspace opens – gets each
+  stored source the guard did not keep off by itself (#340, [The plugin guard](#the-plugin-guard), `plugins.autoLoad`):
+  the text last run in this page if there is one, else the saved one, transpiled and installed one after the other –
+  **before the first scene builds** (5.0.2: its nodes find what the code registers; every open waits for it), and each
+  saved version is read once (`plugins.savedSource`, shared with the Logic view and the Log tab). A source stored under the id of a plugin the
   content declares wins over its compiled module (`keepPlugin`: the engine does not install that module over it).
   **Save** runs the saved text too. So the looks, components and node types of the experience's code are known to the pickers and the
   Inspector without a Run, on every visit. A line under the picker says what of the open plugin runs on the stage:
   *the saved version*, *edits not saved* (a Run), *failed* with the error – what ran before stays registered – or *not
   loaded*; another stored source that is not on the stage is named below it. A picker whose value no plugin registers
   says why instead of *unknown*: *loading the experience's code…*, *not loaded – reveal failed*, or *unknown – no plugin
-  registers it*. **The way out of a hang**: a source the frame does not answer for within 10 s stops the auto-load
+  registers it*. **The way out of a hang**: a source whose module does not settle within 10 s stops the auto-load
   (the rest wait), and its mark stays in this browser (`osct-code-autoload:<experience>`), so the next open skips it and
-  says so – fix it, then Run it by hand.
+  says so – fix it, then Run it by hand. Code that blocks the page (an endless loop) blocks the whole editor (#340); the
+  mark is what gets the next open past it.
 - **Run** tries the open text, saved or not: it transpiles the TypeScript in the browser (sucrase, types erased – no type check, that is the build's half);
-  the stage frame imports the module and installs it in the stage's registry under the plugin's id (a second Run
-  replaces the first) – the code runs there, never in the editor's page ([The stage frame](#the-stage-frame-plugins-in-a-sandbox-234)) –,
+  the stage imports the module and installs it in the stage's registry under the plugin's id (a second Run
+  replaces the first) – in the editor's page, with the person's session ([The stage in the page](#the-stage-in-the-page-and-the-plugin-guard-340)) –,
   then builds the scene again: a material layer tints the video at once, a component shows under *add component* in
   the Inspector, a pass under *add pass*. Errors show under the editor and as a marker on their line (a transpile
   error, a plugin that imports a module – plugins import nothing, three.js is `api.three` – an invalid spec, an
@@ -1632,15 +1819,15 @@ design tokens):
 |---|---|---|
 | The engine | `engine/src/` | `content/` (loader, accessors, `contentUrl`), `scene/` (`ArScene`, entities, trackers), `types/`, `utils/`; compiled by the app that imports it (`@engine/*`) |
 | The reader's scene | `client/src/components/ar-bridges/ar/index.ts` | `createReaderScene()`: the engine with the 8th Wall tracker (`engine/src/scene/xr8-tracker.ts`), where its files are served, the dev flag and the reader's graphics options ([tracking](tracking.md) "What the app gives the engine") |
-| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the page's side of the stage frame, #234), `frame-host.svelte.ts` and `frame-protocol.ts` (the frame's side and the messages, the frame's policy), `plugin-run.ts` (Run's half in the frame), `stage-core.svelte.ts` (the stage in the frame: the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the scene's timeline, variables and tap buttons in the Inspector) |
+| The editor's stage | `editor/src/lib/stage/` | `stage.svelte.ts` (the workspace's `Stage`, in the page since #340), `stage-types.ts` (what the stage and the panels share), `plugin-run.ts` (Run's half: import and install), `stage-core.svelte.ts` (the stage itself: the simulation, owns the gizmo; gives the engine the dev flag and the device storage like the reader), `gizmo.ts` (TransformControls, hover), `mock-tracker.ts`, `mock-stage.ts` (+ `plywood.ts`, `linoleum.ts`, `oak.ts`, the desk tops' drawn looks), `preview.ts` (view, orbit, pan, sky, the desk's top, shake, origin, grid and snap, hidden targets; `viewSummary`), `stage-layout.ts`, `progress.ts` (the simulated progress), `event-log.ts` and `narrative.ts` (the scene's timeline, variables and tap buttons in the Inspector) |
 | The demo's key model | `editor/tools/key-model.mjs` | the demo experience's animated key (`fixtures/demo/entries/key/key.glb`, 7 KB, one clip `rattle`) written as glTF binary by a Node script – no Blender; `node editor/tools/key-model.mjs` regenerates it, a test checks the committed file is the script's |
 | Draft and session | `editor/src/lib/content.svelte.ts`, `session.svelte.ts`, `api.ts` | the draft through the engine's loader (`baseUrl` = the draft endpoint, `assetsBase` = the import's), the token for its requests |
 | The API layer | `editor/src/lib/api.ts`, `storage.ts`; `shared/api/` | every call through one `request` (the session cookie and the CSRF token on writes – #207, a 401 that ends the session, the API's errors as `ApiError` with their details); the answers typed once with the MCP server (`shared/api/editor.ts`); `getExperience` reads an experience's tree once for the stage, the environment and the top bar and reads it again after any write to the experience (`fresh` for the experience page); `errorText` the one error line; the two-step confirmations through `confirmationStep` (`shared/api/errors.ts`); the settings in localStorage through `storage.ts` (`osct-…` keys, blocked storage tolerated) |
-| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes; `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308), the tabs' arrangement in `float-tabs.ts` (#318); the rows from the contract; the rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts` (a condition and a set value in `components/ExpressionField.svelte`), a scene's and the experience's rules in `LogicRules.svelte` with `logic-edit.svelte.ts` (their saves), the variables in `VariablesEditor.svelte` with `variables-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), a tile's drag onto the tree and the rename rule in `library-drag.ts` / `library-drag.svelte.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` (#239, #334) with its canvas `LogicCanvas.svelte` / `LogicBox.svelte` (`@xyflow/svelte`, lazy) and the pure logic model in `lib/logic/` (`project.ts`, `navigation.ts`, `flow.ts`, `layout.ts`, the ops in `apply.ts`, what fits in `palette.ts`), its menu `LogicMenu.svelte`, the Library's `LibraryNodes.svelte` and their drag in `logic-drag.svelte.ts` |
+| Panels and controls | `editor/src/lib/panels/`, `components/`, `values.ts` | Tree, the Inspector (`EntityPanel` with `SceneView` and `EntryForm`; the tabs in `panel-tabs.ts`), Library, Code, Environment, Passes, the Log (`LogPanel`, its lines in `stage/log-entries.ts`) and the Variables (`StageVariables`) tabs (#337); `ScrubNumber`, `Segmented`, `Toggle`, `Section`, `Icon`, `FileField`, the toolbar's `ToolGroup` and `ToolMenu` (`GridSnapMenu`, `ViewMenu`); the floating panels `FloatingPanel` with `floats.ts` (placement, pure) and `floats.svelte.ts` (a workspace's set, the panels menu) (#308), the tabs' arrangement in `float-tabs.ts` (#318); the rows from the contract; the rule editor `BehaviourRules.svelte` with its logic in `behaviour-edit.ts` (a condition and a set value in `components/ExpressionField.svelte`), a scene's and the experience's rules in `LogicRules.svelte` with `logic-edit.svelte.ts` (their saves), the variables in `VariablesEditor.svelte` with `variables-edit.ts`; the Library's filters and picks in `library-pick.ts`, its scope, groups and sort in `library-scope.ts` (`AssetTile`, `AssetDetails`, #330), a tile's drag onto the tree and the rename rule in `library-drag.ts` / `library-drag.svelte.ts`, its code files in `library-code.ts` (`CodeFiles`, `CodePreview`), the new target's choices in `new-target.ts`; the tree's rows and their selection in `tree-rows.ts`, a selected entry's form in `EntryForm.svelte` (its logic in `entry-edit.ts`, its words outside the form in `entry-view.ts`), the scene section's in `scene-view.ts` (#227); the Logic panel `LogicPanel.svelte` (#239, #334) with its canvas `LogicCanvas.svelte` / `LogicBox.svelte` (`@xyflow/svelte`, lazy) and the pure logic model in `lib/logic/` (`project.ts`, `navigation.ts`, `flow.ts`, `layout.ts`, the ops in `apply.ts`, what fits in `palette.ts`), its menu `LogicMenu.svelte`, the Library's `LibraryNodes.svelte` and their drag in `logic-drag.svelte.ts` |
 | The experience's texts and search | `editor/src/lib/ExperienceSearch.svelte`, `experience-search.ts`, `ExperienceTexts.svelte`, `experience-texts.ts`, `panels/ExperiencePanel.svelte`, `panels/NewEntryForm.svelte`, `entries.svelte.ts` | [Texts](#texts-entries-and-the-experience), [The experience search](#the-experience-search), [Inspector: the experience](#inspector-the-experience) |
-| The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` in the stage frame, rebuild), the plugins' log |
+| The Code tab's plugins | `editor/src/lib/plugins.svelte.ts`, `plugins/compile.ts`, `stage/plugin-run.ts` | the stored sources, Run (transpile with sucrase in the page; import and `installPlugin` on the stage, rebuild), the plugins' log; `plugin-guard.ts`, `plugin-guard.svelte.ts`, `components/PluginGuardPrompt.svelte` – the prompt before others' code (#340) |
 | The Code tab's editor | `editor/src/lib/plugins/monaco.ts`, `code-editor.ts`, `plugin-api.d.ts`; `editor/tools/plugin-api/` | Monaco (a lazy chunk, its workers bundled by Vite), the keys, theme and download; `plugin-api.d.ts` generated from `engine/src/scene/plugins.ts` by `npm run plugin-api` (the build runs it; Checks fails when the checked-in file differs) |
-| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `admin/`; `stage-frame/` – the stage frame's document, outside the gate |
+| Routes | `editor/src/routes/` | `(app)/` – the editor behind its sign-in gate (`+layout.svelte`): `+page` (sign-in, experiences, import), `[experience]/`, `[experience]/[scene]/`, `admin/` |
 | The API | `server/api/src/Experiences.php`, `ContentVersion.php`, `ContentStore.php`, `Editor.php`, `Plugins.php`, `ExperienceTexts.php` | [server](server.md) "Editor data", "Plugin sources", "Texts" |
 | Book layout import | `scripts/layout/extract-layout.py` | sheets and printed geometry from the designed PDFs |
 

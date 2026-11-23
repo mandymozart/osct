@@ -6,7 +6,7 @@
   import { autosave } from "#lib/autosave.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
-  import { groupScenes, runCounts, sceneName, sceneSpan, targetsOf } from "#lib/scene-strip.js";
+  import { groupScenes, runCounts, sceneName, sceneSpan, targetsOf, targetsOff } from "#lib/scene-strip.js";
   import { errorText } from "#lib/api.js";
   import { GROUP_WINDOW_TARGETS } from "@shared/api/editor";
 
@@ -91,7 +91,7 @@
     {#each members as scene (scene.id)}
       <div class="row">
         <button type="button" class="text-link label scene" onclick={() => void goto(resolve(`${experienceId}/${scene.id}/`))}>{sceneName(scene)}</button>
-        <span class="value">{targetsOf(scene)} targets</span></div>
+        <span class="value">{targetsOf(scene)} targets{#if targetsOff(scene)}<span class="muted"> · {targetsOff(scene)} off</span>{/if}</span></div>
     {/each}
     <div class="row">
       <span class="label"></span>

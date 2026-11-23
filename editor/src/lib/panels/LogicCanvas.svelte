@@ -1,16 +1,26 @@
 <script lang="ts" module>
   /** A gesture's target on the canvas: a box, a wire (by the view's edge id) or the empty canvas */
-  export type CanvasTarget = { kind: "box"; box: import("#lib/logic/flow.js").FlowBox } | { kind: "wire"; edge: string; label: string } | { kind: "pane" };
+  export type CanvasTarget =
+    | { kind: "box"; box: import("#lib/logic/flow.js").FlowBox }
+    | { kind: "wire"; edge: string; label: string }
+    | { kind: "pane" }
+    /** A group's frame head (#334) */
+    | { kind: "group"; group: string }
+    /** A note (schema 5.3) */
+    | { kind: "note"; note: import("#lib/logic/flow.js").FlowNote };
 </script>
 
 <script lang="ts">
   import { SelectionMode, SvelteFlow, type Edge, type Node } from "@xyflow/svelte";
   import LogicViewControls from "./LogicViewControls.svelte";
   import "@xyflow/svelte/dist/base.css";
-  import { frameOf, type Flow, type FlowBox } from "#lib/logic/flow.js";
+  import { NOTE_NODE, frameOf, type Flow, type FlowBox, type FlowNote } from "#lib/logic/flow.js";
   import { GRID } from "#lib/logic/signals.js";
+  import type { LiveState } from "#lib/logic/live.js";
   import LogicBox, { type LogicBoxData } from "./LogicBox.svelte";
   import LogicFrame, { type LogicFrameData } from "./LogicFrame.svelte";
+  import LogicNote, { type LogicNoteData } from "./LogicNote.svelte";
+  import LogicRef from "./LogicRef.svelte";
   import LogicWire from "./LogicWire.svelte";
 
   /**
@@ -37,12 +47,30 @@
    * **Selecting** (the deck's way, #334): a drag on the empty canvas draws a selection box – every box and wire it touches is
    * selected, Shift adds to what was – so Group (Ctrl+G) and Delete act on them; panning is the middle button, Space + drag,
    * and the wheel or the trackpad. Stubs and folded groups' pills are never selected.
+   *
+   * **References** (#334): a plugin's display rows (what its code reads, sets, drives) join their boxes by fine dotted lines
+   * (`LogicRef`) – no wire: they take no pointer, are never selected or deleted and light nothing on hover.
+   *
+   * **Groups** (#334): a click on a frame's head (not its chevron, swatch or name – and not a drag) selects the group's boxes,
+   * Shift adds them; a right click on the head reports `onmenu` with the group. The panel selects a group's boxes from its
+   * menu through `selectBoxes`.
+   *
+   * **Notes** (schema 5.3, `LogicNote`): cards of the level's notes, no logic – they are selected (a click, the selection
+   * box; `onselect` names them `note:<id>`) and dragged like boxes (their place goes out through `onplace` as `note:<id>`:
+   * a free note's place, a note beside a box its offset from it), and follow their box while it is dragged; a dotted line
+   * joins a note to its box (`LogicRef`). Its text is edited in place (`onnoteedit`).
+   *
+   * **Live feedback** (#334, `logic/live.ts`): `live` names the wires and boxes the stage's newest lines lit – a lit wire
+   * gets the class `live` and its pulse's number (`LogicWire` draws the travelling glow, again from the start for a new
+   * number), a lit box its pulse and a variable's new value (`LogicBox`). Distinct from the pointer's `lit` / `dim`.
    */
   let {
-    flow, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onwiredrop, onexpose, onplace, onfold,
-    ongroupfold, ongroupcolour, ongrouprename,
+    flow, live = null, level, selected, flash, editable, onpick, onenter, canconnect, onconnect, onselect, onmenu, takesfrom, onrefused, onwiredrop, onexpose, onplace, onfold,
+    fireable, onfire, ongroupfold, ongroupcolour, ongrouprename, onnoteedit,
   }: {
     flow: Flow;
+    /** What the stage lit just now (the panel's live feedback); null: nothing */
+    live?: LiveState | null;
     /** The level's key: a new level fits the view again */
     level: string;
     selected: (box: FlowBox) => boolean;
@@ -65,6 +93,10 @@
     onwiredrop?: (from: [string, string], dir: "in" | "out", at: { x: number; y: number }, flowAt: { x: number; y: number } | null) => void;
     /** A box's +: show one of its hidden ports */
     onexpose: (box: FlowBox, at: { x: number; y: number }) => void;
+    /** An event box whose ▶ fires it on the stage now (#334); none: no ▶ */
+    fireable?: (box: FlowBox) => boolean;
+    /** A box's ▶: fire its event on the stage */
+    onfire?: (box: FlowBox) => void;
     /** Boxes dragged and let go: where they are now (box id → its place) */
     onplace: (positions: Record<string, { x: number; y: number }>) => void;
     /** A box's chevron: fold it to its head or open it (a folded group's pill: open the group) */
@@ -72,7 +104,19 @@
     ongroupfold: (group: string, folded: boolean) => void;
     ongroupcolour: (group: string) => void;
     ongrouprename: (group: string, label: string) => void;
+    /** A note's new text (empty removes it) */
+    onnoteedit: (note: string, text: string) => void;
   } = $props();
+
+  /** Select these boxes, as a click would (`add`: to what is selected) – the group menu's Select boxes */
+  export function selectBoxes(ids: string[], add = false) {
+    if (!editable) return;
+    choose(add ? [...new Set([...chosen.nodes, ...ids])] : ids, add ? [...chosen.edges] : []);
+  }
+  /** A screen point on the flow (null before the flow is up) – N adds a note at the pointer */
+  export function flowPoint(at: { x: number; y: number }): { x: number; y: number } | null {
+    return toFlow?.(at) ?? null;
+  }
 
   /** While a wire is dragged: the handles that take it, by box */
   let dragging = $state.raw<Map<string, Set<string>> | null>(null);
@@ -90,8 +134,8 @@
     void level;
     hovered = null;
   });
-  const nodeTypes = { logic: LogicBox, frame: LogicFrame };
-  const edgeTypes = { logic: LogicWire };
+  const nodeTypes = { logic: LogicBox, frame: LogicFrame, note: LogicNote };
+  const edgeTypes = { logic: LogicWire, ref: LogicRef };
 
   // A box hovered on the level before (it went away under the pointer) lights nothing here
   // A box with no wire lights nothing and dims nothing; the hovered box itself is never dimmed
@@ -124,7 +168,16 @@
     const frames: Node<LogicFrameData>[] = flow.groups.filter(g => !g.folded).map(group => ({
       id: `${FRAME}${group.id}`, type: "frame", position: { x: group.x, y: group.y }, zIndex: -1, draggable: editable, dragHandle: ".frame-head",
       selectable: false, connectable: false, focusable: false,
-      data: { group, w: group.w, h: group.h, editable, onfold: ongroupfold, oncolour: ongroupcolour, onrename: ongrouprename },
+      data: {
+        group, w: group.w, h: group.h, editable, onfold: ongroupfold, oncolour: ongroupcolour, onrename: ongrouprename,
+        onselect: (id: string, add: boolean) => selectBoxes(flow.groups.find(g => g.id === id)?.members ?? [], add),
+        onmenu: (id: string, at: { x: number; y: number }) => onmenu(at, { kind: "group", group: id }),
+      },
+    }));
+    const notes: Node<LogicNoteData>[] = flow.notes.map(note => ({
+      id: `${NOTE_NODE}${note.id}`, type: "note", position: { x: note.x, y: note.y }, draggable: editable, selectable: editable, connectable: false,
+      selected: chosen.nodes.has(`${NOTE_NODE}${note.id}`),
+      data: { note, selected: chosen.nodes.has(`${NOTE_NODE}${note.id}`), editable, onedit: onnoteedit },
     }));
     const boxes: Node<LogicBoxData>[] = flow.boxes.map(box => ({
       id: box.id, type: "logic", position: { x: box.x, y: box.y }, draggable: editable && !box.stub, dragHandle: ".drag-head",
@@ -132,16 +185,26 @@
       selected: chosen.nodes.has(box.id),
       data: {
         box, selected: selected(box), flash: flash === box.id, dim: !!lit && !lit.has(box.id), hover: hovered === box.id, never: neverBox.has(box.id), editable,
-        takes: dragging ? dragging.get(box.id) ?? NONE : null, onpick, onenter, onexpose, onfold,
+        takes: dragging ? dragging.get(box.id) ?? NONE : null, live: live?.boxes.get(box.id) ?? null, onpick, onenter, onexpose, onfold,
+        fire: fireable?.(box) ?? false, onfire,
       },
     }));
-    nodes = [...frames, ...boxes];
-    edges = flow.wires.map(w => ({
+    nodes = [...frames, ...boxes, ...notes];
+    edges = flow.wires.map((w): Edge => ({
       id: w.id, type: "logic", source: w.source, target: w.target, sourceHandle: w.sourcePort, targetHandle: w.targetPort, label: w.never ? `${w.label} · never fires` : w.label,
-      selectable: editable, focusable: editable, selected: chosen.edges.has(w.id), data: { edge: w.edge, deck: w.deck, never: w.never },
-      class: ["logic-wire", `sig-${w.deck}`, w.never && "never", w.back && "back", lit && (lit.has(w.source) && lit.has(w.target) && (w.source === hovered || w.target === hovered) ? "lit" : "dim")].filter(Boolean).join(" "),
-    }));
+      selectable: editable, focusable: editable, selected: chosen.edges.has(w.id), data: { edge: w.edge, deck: w.deck, never: w.never, live: live?.wires.get(w.id)?.n ?? 0 },
+      class: ["logic-wire", `sig-${w.deck}`, w.never && "never", w.back && "back", live?.wires.has(w.id) && "live", lit && (lit.has(w.source) && lit.has(w.target) && (w.source === hovered || w.target === hovered) ? "lit" : "dim")].filter(Boolean).join(" "),
+    })).concat(flow.refs.map((r): Edge => ({
+      // A display row's reference (#334): drawn under the wires, never selected, deleted or lit – not a wire
+      id: r.id, type: "ref", source: r.source, target: r.target, sourceHandle: r.sourceHandle, targetHandle: r.targetHandle,
+      selectable: false, focusable: false, deletable: false, zIndex: -1, class: "logic-ref",
+    }))).concat(flow.notes.flatMap((n): Edge[] => (n.link ? [{
+      // A note beside its box (schema 5.3): a dotted line like a reference – not a wire
+      id: `note-link:${n.id}`, type: "ref", source: `${NOTE_NODE}${n.id}`, target: n.link.target, sourceHandle: n.link.sourceHandle, targetHandle: n.link.targetHandle,
+      selectable: false, focusable: false, deletable: false, zIndex: -1, class: "logic-ref",
+    }] : [])));
   });
+  const noteOf = (node: Node): FlowNote | null => (node.type === "note" ? (node.data as LogicNoteData).note : null);
 
   // ── Placing: a box or a frame dragged by its head ──
   /** Where the boxes were when the drag started */
@@ -176,13 +239,21 @@
     }
     return places;
   };
-  /** While dragging: a frame's or a pill's boxes follow it, a frame follows its boxes; a selected box not carried stays */
+  /** Where a box is now while dragging: moved by its frame, or carried itself (a box, a pill) – undefined: it stays */
+  const boxNow = (id: string, places: Map<string, { x: number; y: number }>, dragged: Node[]) =>
+    places.get(id) ?? (carried.has(id) ? dragged.find(n => n.id === id)?.position : undefined);
+  /** While dragging: a frame's or a pill's boxes follow it, a frame follows its boxes, a note its box; a selected box not carried stays */
   const drag = (dragged: Node[]) => {
     const places = placesNow(dragged);
     const sizeOf = new Map(flow.boxes.map(b => [b.id, b]));
     const at = (id: string) => places.get(id) ?? starts.get(id) ?? { x: 0, y: 0 };
     nodes = nodes.map(node => {
       if (carried.has(node.id)) return node;
+      const note = noteOf(node);
+      if (note) {
+        const box = note.link && note.offset ? boxNow(note.link.target, places, dragged) : undefined;
+        return box ? { ...node, position: { x: box.x + note.offset!.x, y: box.y + note.offset!.y } } : node;
+      }
       if (node.type === "frame") {
         const group = (node.data as LogicFrameData).group;
         if (!group.members.some(id => places.has(id))) return node;
@@ -200,6 +271,15 @@
     for (const [id, place] of places) {
       const start = starts.get(id);
       if (start && (start.x !== place.x || start.y !== place.y)) positions[id] = place;
+    }
+    // A carried note: a free one's place, one beside a box its offset from where the box is now
+    for (const node of dragged.filter(n => carried.has(n.id))) {
+      const note = noteOf(node);
+      if (!note) continue;
+      const box = note.link ? boxNow(note.link.target, places, dragged) ?? starts.get(`node|${note.link.target}`) : undefined;
+      const place = box ? { x: node.position.x - box.x, y: node.position.y - box.y } : { ...node.position };
+      const was = note.offset ?? { x: note.x, y: note.y };
+      if (place.x !== was.x || place.y !== was.y) positions[node.id] = place;
     }
     starts = new Map();
     carried = new Set();
@@ -237,8 +317,8 @@
       onselectionstart={() => { boxing = { before: { nodes: [...chosen.nodes], edges: [...chosen.edges] }, nodes: [], edges: [] }; }}
       onselectionchange={({ nodes: inBox, edges: wiresInBox }) => {
         if (!boxing) return;
-        boxing.nodes = inBox.filter(n => n.type === "logic" && n.selectable !== false).map(n => n.id);
-        boxing.edges = wiresInBox.map(e => e.id);
+        boxing.nodes = inBox.filter(n => (n.type === "logic" || n.type === "note") && n.selectable !== false).map(n => n.id);
+        boxing.edges = wiresInBox.filter(e => wireOf(e.id)).map(e => e.id);
       }}
       onselectionend={event => {
         const box = boxing;
@@ -275,14 +355,24 @@
       onnodedragstop={({ nodes: dragged }) => dragStop(dragged)}
       onbeforedelete={async () => false}
       onnodeclick={({ node, event }) => {
+        if (noteOf(node)) {
+          if (editable) choose(event.shiftKey ? [...chosen.nodes, node.id] : [node.id], event.shiftKey ? [...chosen.edges] : []);
+          return;
+        }
         const box = boxOf(node);
         if (!box) return;
         if (editable && !box.stub && !box.pill) choose(event.shiftKey ? [...chosen.nodes, node.id] : [node.id], event.shiftKey ? [...chosen.edges] : []);
         onpick(box);
       }}
-      onedgeclick={({ edge, event }) => { if (editable) choose(event.shiftKey ? [...chosen.nodes] : [], event.shiftKey ? [...chosen.edges, edge.id] : [edge.id]); }}
+      onedgeclick={({ edge, event }) => { if (editable && wireOf(edge.id)) choose(event.shiftKey ? [...chosen.nodes] : [], event.shiftKey ? [...chosen.edges, edge.id] : [edge.id]); }}
       onpaneclick={() => choose([], [])}
-      onnodecontextmenu={({ node, event }) => { event.preventDefault(); const box = boxOf(node); onmenu(point(event), box ? { kind: "box", box } : { kind: "pane" }); }}
+      onnodecontextmenu={({ node, event }) => {
+        event.preventDefault();
+        const box = boxOf(node);
+        const note = noteOf(node);
+        const at = point(event);
+        onmenu(at, box ? { kind: "box", box } : note ? { kind: "note", note } : { kind: "pane" }, toFlow?.(at));
+      }}
       onedgecontextmenu={({ edge, event }) => { event.preventDefault(); const w = wireOf(edge.id); if (w) onmenu(point(event), { kind: "wire", edge: w.edge, label: w.label }); }}
       onpanecontextmenu={({ event }) => { event.preventDefault(); const at = point(event); onmenu(at, { kind: "pane" }, toFlow?.(at)); }}
       onnodepointerenter={({ node }) => { if (!moving && node.type === "logic") hovered = node.id; }} onnodepointerleave={({ node }) => { if (hovered === node.id) hovered = null; }}>
@@ -292,10 +382,18 @@
 </div>
 
 <style>
-  .flow { position: relative; flex: 1; min-height: 8rem; }
+  /* The canvas runs to the panel's sides (and its foot, when nothing lies below) and fades out on all four sides over 1rem instead of stopping in a gap;
+     the fade lies on the zoom layer, not on the panel with the view controls, so they stay crisp */
+  .flow { position: relative; flex: 1; min-height: 8rem; margin: 0 -.5rem; --edge-fade: 1rem; }
+  .flow:last-child { margin-bottom: -.5rem; }
+  .flow :global(.svelte-flow__zoom) {
+    mask-image: linear-gradient(to right, transparent, #000 var(--edge-fade), #000 calc(100% - var(--edge-fade)), transparent),
+      linear-gradient(to bottom, transparent, #000 var(--edge-fade), #000 calc(100% - var(--edge-fade)), transparent);
+    mask-composite: intersect;
+  }
   .flow :global(.svelte-flow) {
     --xy-background-color: transparent; --xy-edge-stroke: var(--muted); --xy-edge-stroke-width: 1.4; --xy-handle-background-color: var(--surface);
-    --xy-edge-label-background-color: var(--surface); --xy-edge-label-color: var(--muted); --xy-controls-button-background-color: var(--surface);
+    --xy-edge-label-background-color: transparent; --xy-edge-label-color: var(--muted); --xy-controls-button-background-color: var(--surface);
     --xy-controls-button-background-color-hover: var(--hover-background); --xy-controls-button-color: var(--text); --xy-controls-button-border-color: var(--line);
     --xy-connectionline-stroke-default: var(--text); --xy-connectionline-stroke-width-default: 1.5;
     font-family: var(--font);
@@ -305,7 +403,19 @@
   .flow :global(.svelte-flow__node-frame) { cursor: default; pointer-events: none; }
   .flow :global(.logic-wire.lit path.svelte-flow__edge-path) { stroke-width: 2.5px !important; stroke-opacity: 1 !important; }
   .flow :global(.logic-wire.dim) { opacity: .45; }
-  .flow :global(.svelte-flow__edge-label) { font-size: .625rem; padding: 0 .125rem; border-radius: .25rem; }
+  /* Live feedback (#334): a wire the stage just lit is drawn fully opaque and heavier, easing back when it ends */
+  .flow :global(.logic-wire path.svelte-flow__edge-path) { transition: stroke-width .4s ease-out, stroke-opacity .4s ease-out; }
+  .flow :global(.logic-wire.live path.svelte-flow__edge-path) { stroke-width: 2.75px !important; stroke-opacity: 1 !important; transition: none; }
+  .flow :global(.logic-wire.live.dim) { opacity: 1; }
+  /* A wire's word: in its signal's colour, a little heavier, its letters outlined in white so it reads over crossing wires –
+     no box behind it (Tilman, 2026-11-21: "the text should have a white outline not a semi transparent backdrop"), white
+     in day and night alike */
+  .flow :global(.svelte-flow__edge-label) {
+    font-size: .625rem; font-weight: 500; padding: 0 .25rem; color: var(--wire-label, var(--text)); background: none;
+    --h: var(--wire-halo-ink, var(--wire-halo));
+    text-shadow: .6px 0 0 var(--h), -.6px 0 0 var(--h), 0 .6px 0 var(--h), 0 -.6px 0 var(--h), .6px .6px 0 var(--h), -.6px -.6px 0 var(--h), .6px -.6px 0 var(--h), -.6px .6px 0 var(--h);
+  }
+  .flow :global(.svelte-flow__edge.logic-ref) { pointer-events: none; }
   /* While a wire is dragged: the inlets that would take it are drawn heavy */
   .flow :global(.svelte-flow__handle.connectingto.valid) { outline: 2px solid var(--text); }
   .flow.editable :global(.svelte-flow__edge) { cursor: pointer; }

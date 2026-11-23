@@ -7,6 +7,426 @@ are the same for the app, the content build, the server and the MCP server. What
 Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that apply). Versions before
 1.1.2 are in the git history.
 
+
+## 6.3.2 – 2026-11-22
+
+### Fixed
+- **Target counts leave switched-off targets out** (#349): the scene's *targets N of 10*, the scene cards' count and a
+  group's targets against its loading window counted every target, so a scene with many switched-off targets (the front
+  and back matter's, all off) showed *13 of 10* and a ⚠. They now count the switched-on ones – as the reader tracks them
+  and the server's delivery check counts them (RULES #3) – and show the switched-off ones next to it (*· 13 off*).
+
+## 6.3.1 – 2026-11-22
+
+### Fixed
+- **The Experiences page: a click on a book opens it again** (Tilman, 2026-11-22, #348: *"primary action on the
+  experience should still be to open the right experience. the ... were supposed to reveal the other options"*): the
+  cover (or Enter) opens the editor; only its **···** shows the sheet on the right (Export, Replace…, Versions) and closes
+  it again. The arrows move the focus; an open sheet follows.
+
+## 6.3.0 – 2026-11-22
+
+### Changed
+- **The Experiences page: the books on the left, a context column on the right** (Tilman, 2026-11-22, #348: *"new is more
+  of a step by step … under the three dots under each experience one can select export, replace, versions … nothing is
+  clicked, the right side shows cards new experience and import and last worked on. so we use it as quick access menu"*):
+  each experience's cover with a **···** under it and a dashed **+** card; its **···** selects a book (outlined; a click on the cover opens it – 6.3.1) and the
+  column shows its **sheet** – a double click or Enter opens it in the editor, the arrows move the selection, Esc clears it.
+  With nothing selected the column is **quick access**: *New experience*, *Import* and **Last worked on** – the newest
+  places across the instance's experiences from the server's change history (book · scene · entry or panel · when · who),
+  a click opens that place. *Connect an AI agent* stays under the books, more compact.
+- **New experience goes step by step** in the column: *Start* (Empty – one scene – or From an export: a file, a URL or a
+  published version), *Name* (the title and the address, the whole reader address shown; *Fixed once published – printed
+  codes depend on it.*), *Create* – then the editor opens it. **Import** (quick access, the ☰ menu's *Import…*) is New with
+  *From an export* chosen. The old right-column forms are gone; their sources (URL, file, the CDN – now *Published*, any
+  experience live on this instance), the preview, the comparison and the confirm live in the new flows.
+
+### Added
+- **A book's sheet**: title, author, reader address, **Open**, **Export** (the draft as one `.osct.json` file – its
+  configuration, files' list and plugin code: the import body Import reads back), **Replace…** step by step (source →
+  the comparison, now with scenes, entries, targets, shared entities and plugin sources each side → *Replace the draft*;
+  readers keep the live version until the next publish) and **Versions**: the publish log, which build is live per
+  environment, and **make live** for an older build of this instance's environment after a confirm (*Make the version of
+  … live on staging again? Readers get it on their next start. The draft is not changed.*).
+- API: `GET /editor/experiences/{id}/export/file[?build=]` (the export file), `POST /editor/experiences/{id}/versions/{build}/activate`
+  (make live: versions.json, latest.json, a publish log row – refused to an AI connection's token), `GET /editor/recent`
+  (the newest changes across the experiences with their scene); the import takes `rename`, `title`, `create`, `sources`
+  and, from the CDN, `experience`; the preview `into`. MCP: `activate_version`. The ☰ menu on the experiences page has
+  *New experience…* and *Import…*.
+
+### Fixed
+- **The reader address while the slug is empty** showed `https://…/%3Cslug%3E/`: now `https://<instance>/…/` until there
+  is a slug, then the whole address.
+- **Import from the CDN answered *Something went wrong on the server. (server-error)***: not reproduced (staging's preview
+  answers today, locally against staging's CDN too); anything unexpected while reading the CDN now answers 502
+  `content-fetch-failed` with what failed, and the error log has where – never the bare server-error.
+
+## 6.2.5 – 2026-11-22
+
+### Changed
+- **The Publish overlay says less** (Tilman, 2026-11-22, #345): no *Readers get this state.* line; white space instead
+  of dividers; the log has no visible *Details* toggle any more – it shows only on **Ctrl+L** (*"not intended to be
+  visible to everybody"*), also in the confirm, and no longer opens by itself when a publish fails.
+
+### Added
+- **The confirm names the logic's problems** (#345): the whole experience's errors and warnings as the Log tab lists them
+  – *2 warnings in the logic* and the first one; with errors (red) the button says **Publish anyway**. They never block.
+
+## 6.2.4 – 2026-11-22
+
+### Changed
+- **Publish asks in one overlay, on point, and shows the rest only on request** (Tilman, 2026-11-22, #345: *"there is lot
+  of information that is kind of useless on this dialog … a little log hidden behind a details expandable could be nice
+  … this first dropdown dialog should be much more on point. i think it can also just go into the overlay as well, as a
+  confirmation step before it starts"*): the dropdown step under the top bar is gone; the publish button opens one
+  centered overlay over the dimmed page with three states – *Publish “…” to staging?* (what readers get, *Last
+  published: today 07:53*, a danger line only when a saved plugin source does not compile; Esc or a click beside it
+  cancels), *Publishing…* (*Writing the build…* → *Live for readers ✓*, the export archive as a bar with *Archive 412 /
+  1522*, no Cancel, leaving the page asks first) and *Published* (*Live on staging. 3 files new, 1524 were already
+  there.*, Close, *Open reader*; it closes itself after 2 s unless the pointer is over it or Details is open) – or
+  *Publish failed* with the message. Build hashes, the replaced build, the transpiled plugins, the No CDN line and every
+  step with its time are in a collapsed **Details** log (**Ctrl+L** while the overlay is open). Its words:
+  `editor/src/lib/publish-overlay.ts` (tested); the old step's `publishStep` and `jobLine` are gone.
+- A publish job names its **parts** (`{ build, archive }` – the files of the version folder and of the export archive),
+  so the editor counts the archive on its own (`GET …/publish/{job}`, docs/server.md).
+
+## 6.2.3 – 2026-11-22
+
+### Changed
+- **A computer sees the landing page at once, not the phone's splash** (Tilman, 2026-11-22, #343: *"same thing goes for
+  the browser redirect to that landing page ... write a small script we put in the skeleton and run immediately"*): an
+  inline script in index.html's head, after the legacy redirect, decides as `<desktop-landing>` does (computer, not
+  skipped in this tab – `components/desktop-landing/landing-decision-html.ts`, a test keeps both equal) and marks
+  `<html data-osct-landing>`; the landing page itself is written into index.html at build time (`landing-html.ts`, the
+  component renders the same markup) from the build's content – title in the gold gradient, the Mark, the scattered
+  target images, the QR card, the three steps, the shop, the footer – in a declarative shadow root. "Open the app here"
+  works before the bundle. `<desktop-landing>` renders underneath when the bundle arrives and removes the static page
+  once its images and the QR code are there, keeping the scroll position – no flash. Another experience's path
+  (`/demo/`) keeps the splash until the component decides; phones, tablets and the installed app are unchanged.
+- **Every experience links its own web app manifest, the default too** (Tilman, 2026-11-22: *"ja, ein eigenes manifest
+  pro experience why not"*): `/api/experiences/<id>/manifest.webmanifest` (id, start and scope `/<id>/`) is linked by an
+  inline script in the head before the browser reads a manifest (`utils/manifest-link-html.ts`); vite-plugin-pwa's
+  link to the build's `/manifest.webmanifest` is taken out of the page, which keeps that manifest only for an address
+  naming no experience. Installing from `/osct/` now installs osct at `/osct/`; an app installed before (id `/`) stays a
+  separate app.
+## 6.2.2 – 2026-11-22
+
+### Changed
+- **A running publish covers the page and asks before you leave** (Tilman, 2026-11-22, #345): the Publish step becomes
+  an overlay in the middle of the dimmed page with the phase and a progress bar (an indeterminate one until the first
+  count), Cancel and Esc wait until it is done, and a reload, closing the tab or another page of the editor asks first –
+  on a host where the server cannot write on after its answer, the editor's polls write the rest.
+
+## 6.2.1 – 2026-11-22
+
+### Changed
+- **Old codes and links move to their book before the app loads** (Tilman, 2026-11-22, #343): the redirect of 6.1.0
+  (`/?s=bk1` → `/osct/`, `/?s=d1` → `/demo/`, `/scene/…` → `/osct/scene/…`, `/x/demo/…` → `/demo/…`, a bare `/` → the
+  book opened last) is now an inline script first in index.html's head (`utils/legacy-redirect-html.ts`, written in at
+  build time from `shared/api/experience-paths.ts` – no database, no bundle); the app's own redirect stays behind it.
+## 6.2.0 – 2026-11-22
+
+**A publish is a job – fast, and honest about how it goes** (Tilman, 2026-11-22, #345: publishing the osct book to
+staging answered *504 (unknown)* while it wrote on for 11 minutes).
+
+### Fixed
+- **Publish no longer writes for minutes while the editor shows 504.** The time went into the build's export archive:
+  1522 small files, one PUT after another over a new connection each (~0.43 s a file); the version itself was on the
+  CDN within a second. A publish now writes only what the store does not have (one check per folder, one listing per
+  folder of an incomplete archive – files with the same checksum are skipped), 16 uploads at a time over kept
+  connections, `latest.json` still only after the whole version folder and `export.json` last.
+- A gateway's timeout is never shown as a failed publish: the Publish step finds the publish's job and follows it; only
+  when none turns up does it say the outcome is unknown.
+
+### Changed
+- **`POST …/publish` answers 202 `{ job }` when it does not end within `PUBLISH_STEP_SECONDS` (15)** – done in time, it
+  answers the outcome as before (with `job`). `GET …/publish/{job}` reports the job (phase, done / total files, `live`,
+  the outcome or the error) and, where nothing runs on after an answer (Apache mod_php), writes its next part;
+  `GET …/publish` = the experience's newest job. Under PHP-FPM the request writes on after its answer. 409
+  `publish-running` while a publish of the experience runs. New table `publish_jobs` (the deploy's migration adds it).
+- The Publish step shows where the publish is – *Writing build …*, *Live on staging … – writing the export archive,
+  n / N files* – with a progress bar, follows a publish that already runs, and keeps going when it is closed.
+- MCP: `publish` follows the job up to 90 s; the new tool **`publish_status`** follows it after that.
+
+## 6.1.0 – 2026-11-22
+
+**Every experience at its own path** (Tilman, 2026-11-22, #343: *"wir fangen eingehende legacy qr codes ab so das ?v=bk1
+… und ?v=d1 ../osct/ ../demo/ verweisen. auch bei der PWA."* – *"so i want to also be able to add new experiences … under
+their own slug"*). Subdomains only after a white-label solution.
+
+### Changed
+- **The reader opens every experience at `/<experience>/…`** – `/osct/`, `/osct/scene/s1`, `/demo/entry/…` – the
+  instance's default too; the app writes the prefix into every link. `/x/<experience>/…` (#87) moves to `/<experience>/…`.
+- **Codes and links without an experience land in the right book** before anything loads: the printed book's
+  `/?s=bk1` → `/osct/`, `/?s=d1` → `/demo/` (the source map in `shared/api/experience-paths.ts`; an unknown source → the
+  default experience), the arrival still counted once with its source; `/scene/…`, `/entry/…`, `/about` (with or without
+  `?osct=`) → the same route of the default experience; a bare `/` → the experience this browser opened last, else the
+  default.
+- **The installed app**: its `/` opens the experience opened last; another experience than the default links its own
+  web app manifest (`/api/experiences/<id>/manifest.webmanifest` – id, start and scope `/<id>/`), so installing from
+  `/demo/` installs the demo. The page's title and description follow the experience.
+- The admin's *A new code* writes `https://<instance>/<experience>/<route>?s=<source>` and lets you choose the
+  experience; the desktop landing page's QR code opens the experience it is shown for; the sign-in email's link opens the
+  experience the reader asked from.
+
+### Added
+- **New experience** on the editor's Experiences page: a title and a **slug** make an empty draft with one scene; the
+  slug is the experience's id, its reader address (shown as it is typed) and its content folder, checked against the
+  site's own paths and the experiences there, and fixed once published. `POST /editor/experiences { id, title }`, the
+  MCP's `create_experience`.
+- **Reserved paths**: an experience's id is never one of the site's own top-level paths (`editor`, `api`, `docs`,
+  `assets`, `scene`, `entry`, `x`, …) – the API refuses a new one (400 `reserved-slug`), by import too.
+- `GET /api/experiences/{id}/manifest.webmanifest`.
+
+## 6.0.0 – 2026-11-22
+
+**Content schema 6.0 and plugin API 4.0 – a MAJOR** (Tilman, 2026-11-21, #341: *"you use the word hear for events. i
+think it is listen"* – the whole way, including the API): a 5.x app refuses 6.0 content and a 6.0 app refuses 5.x
+(`OLDEST_READABLE_SCHEMA_MAJOR` 6) and every plugin built against plugin API 3.x. Content migrates: the server's rows by
+`Migration6` on the deploy (dry run: `php server/deploy/migrate.php --plan-6`), the stored plugin sources with
+`osct plugins listen` (dry run first); every published experience is published again afterwards.
+
+### Changed
+- **A rule listens to an event – it no longer "hears" it**, everywhere you read it: the Logic canvas (a plugin's pin
+  *listens*, the issue *emitted, nothing listens to it*, *listened to, nothing emits it*, *rule 3 listens to nothing*),
+  the menus, help texts, the Log and the wires' words, the engine's and the API's messages, the MCP server's
+  descriptions and guides, the documentation site and `docs/`.
+- **Plugin API 4.0**: a spec's bus use is `uses: { listens, emits, reads, sets }` (was `hears`); the Code tab's types
+  and the API reference follow. A spec with `hears` is refused as an unknown field.
+- **Content schema 6.0**: a plugin's recorded spec carries `uses.listens`.
+- The reader reads progress format 6 – the MAJOR's format, format 5's shape: nobody's progress is lost.
+
+### Added
+- **`osct plugins listen`** (`--dir <content folder>`, `--experience <id>` or `--all` through the editor API,
+  `--dry-run`): rewrites stored plugin sources – `uses.hears` → `uses.listens`, *hear* → *listen to* in comments and
+  strings – and prints the changed lines per experience and plugin.
+- **`Migration6`** (the deploy's `Db::migrate`): 5.x experiences become 6.0, the declared plugins' recorded `uses.hears`
+  become `uses.listens`; `migrate.php --plan-6` is its dry run and lists the plugin sources that still say "hear".
+
+### Fixed
+- `Migration5` treats only 4.x experiences as old (it compared with the current MAJOR, which would have quoted a 5.x
+  experience's set texts again once the MAJOR went up).
+
+## 5.2.0 – 2026-11-22
+
+### Added
+- **The stage toolbar's … menu** (Tilman, 2026-11-22, #342): when the Tools panel has no room for all its groups – a
+  narrow window, a resized panel, a column on a short stage – the ones that do not fit move behind a **…** at its end
+  instead of being cut off. Its menu holds them, each working as in the toolbar (their own menus and panels open from
+  inside it); the keys work either way.
+
+## 5.1.1 – 2026-11-22
+
+### Changed
+- **The render view runs every plugin** (Tilman, 2026-11-22, #340): `render_scene`'s view has nobody to answer the
+  guard's prompt, and it writes nothing – so a plugin there cannot act with anyone's rights; pictures now show the
+  plugins someone else saved too.
+
+## 5.1.0 – 2026-11-21
+
+### Added
+- **Set things off on the stage from the Logic canvas** (Tilman, 2026-11-21, #334): right-click an event's box and
+  *Fire on stage* (or *Fire with a payload…*, typed as `key: value` pairs; with a mouse, the ▶ on its head) – the rules
+  that hear it run and the plugins hear it, as if a plugin had sent it. A variable's box *Set on stage…* takes a value by
+  its type; a rule's box *Run this rule* runs its actions as if its event had come (its condition still applies); a node's
+  *tap* box taps its target. The Log marks these lines *by hand* and Trace lights the wires. Only the running stage
+  changes, never the draft – Restart resets it; it works on read-only levels too.
+
+### Fixed
+- **Trace pulses the rule that ran**, not the one after it (the engine counts rules from 1).
+
+## 5.0.2 – 2026-11-21
+
+### Fixed
+- **The first scene builds with the experience's code** (#340): the editor's stage installs the Code tab's saved
+  sources before it builds its first scene, so the scene's nodes find the components, node types, materials and looks
+  they name – no "No component … registered" lines and no rebuild right after (the stage frame did it in that order
+  too). Every open of a scene waits for it.
+- **One request per plugin source**: the panels read the plugin registry again only when it really changed (the
+  engine's `pluginRegistryRevision`), and a saved source is read once per saved version for the auto-load, the Logic
+  view and the Log tab together – on staging a scene page asked for every source about fifteen times.
+- **The stage keeps out of the reader's storage**: in the editor's page it is on the reader's origin, so the engine's
+  switches for the stage are stored under `osct-editor-stage-…`, never the reader's `osct-…` keys.
+- A key sent to the window or the document (no element) no longer throws in the workspace's and the Library's
+  shortcuts (`e.target.closest is not a function`).
+
+## 5.0.1 – 2026-11-21
+
+### Changed
+- **The Logic canvas fades out on all four sides, over 1rem** (Tilman, 2026-11-21, #334): faster than 4.9.3's 1.5rem,
+  and now at the top too.
+- **A wire's word gets a ring that contrasts with it, thinner** (Tilman, 2026-11-21, #334): dark round the night's bright
+  inks, white round the day's dark ones and round the event's ink (`--wire-halo`); the ring is 0.6px instead of 1px with
+  a glow.
+
+## 5.0.0 – 2026-11-21
+
+### Removed
+- **The editor's stage sandbox** (Tilman, 2026-11-21, #340: *"we can drop the sandbox. since we trust the user, thats why
+  we gave them access to the api. if we got plugins that need to change db game state, that is fine. it is a huge security
+  risk but only to the user who is logged in and their scope."* · *"performance will definitely increase."*): the stage
+  and the experience's plugins no longer run in an iframe without `allow-same-origin` (#234, since 1.58.0). Gone with it:
+  the route `/editor/stage-frame/`, the frame's Content Security Policy, the postMessage protocol and its checks, the
+  forwarded keys, the draft recorded and replayed into the frame, the plugin registry mirrored back into the page
+  (`mirrorPluginRegistry`), the dev servers' `Origin: null` CORS and the site's `Access-Control-Allow-Origin: *` for
+  `/editor/` and `/assets/content/`. Every feature of the stage stays.
+
+### Changed
+- **The stage runs in the editor's own page**: the workspace calls the stage directly – the draft it already loaded, one
+  plugin registry, picks, the gizmo, snapping, the eyedropper, the keyboard and the Info view's help without a boundary
+  in between, and no copy of the editor started a second time for the frame. Leaving the workspace empties the plugin
+  registry (`resetPlugins`), so the next experience starts with none of this one's code.
+- **Plugins in the editor act with the signed-in editor's session**: a plugin may use the page's `fetch` – read and change
+  what the person who opens the experience may (the draft, the data, the game state). That is a risk, scoped to that
+  person; docs/plugins.md "Where it runs" says so plainly. The plugin API stays 3.1 (`api` did not change). MAJOR: the
+  editor's security model changed, no backward compatibility before the Tokyo release.
+- The reader's stored progress is format 5 (the app's MAJOR, RULES #10) – the same shape as format 4, read without a
+  notice; the reader's plugin loading is unchanged.
+
+### Added
+- **A prompt before others' plugin code**: before the stage runs plugin code that someone other than the signed-in editor
+  saved last – or a module that came with an imported content build – the editor asks once: *Run plugin code by ben?*,
+  each plugin with who saved it last (the API's `updatedBy`), **Run** or **Don't run**. The answer is kept in this browser
+  per experience and source version, so a new save by someone else asks again; *Don't run* keeps those plugins off the
+  stage and the Code tab and the Log tab say why (Run in the Code tab still runs one). The person's own code runs without
+  asking. The render view asks nobody and runs only what was answered Run before.
+
+## 4.12.2 – 2026-11-21
+
+### Fixed
+- **The Logic view's … settings open under their button** (#334): in a narrow panel the … wraps to the bar's second
+  row, and the settings opened left of it, outside the panel; they now open from the button's left edge, kept on the
+  screen.
+
+## 4.12.1 – 2026-11-21
+
+### Changed
+- **The Logic view's settings sit in a … menu** (Tilman, 2026-11-21, #334): *Follow* and the live feedback's switch are
+  settings of the view, not actions, so they left the bar for its **…** view settings. The live feedback's switch is
+  now **Trace** – *Live* is the stage's pause / play, a different thing.
+
+## 4.12.0 – 2026-11-21
+
+### Added
+- **Live feedback on the Logic canvas** (Tilman, 2026-11-21, #334: *"when a event fire that cable should light up. or when
+  a variable changes. we can see what is actively happening then"*): while the stage runs, a wire that carries an event
+  lights up in its colour when the event fires – a glow runs along it from where it comes from to where it goes – and the
+  event's box pulses; when a variable changes, its wires light up and its box shows the new value for a moment; a rule
+  that ran pulses with the wires out of its actions. Only what happens after the panel opened shows; another firing starts
+  the pulse again; with reduced motion the wires only brighten. The bar's **Live** switch turns it off (on by default,
+  remembered in this browser).
+
+## 4.11.1 – 2026-11-21
+
+### Fixed
+- **An event wire's word reads again** (#334): the event signal is near white at night, so in 4.11.0's white ring its
+  word ("hears", "emits", "on") was a white blot; it now takes the event's day ink, dark in both themes.
+
+## 4.11.0 – 2026-11-21
+
+### Added
+- **Notes on the Logic canvas** (Tilman, 2026-11-21, #334: *"we are missing notes on these graphs, for annotations"*),
+  as in the SCUTOONS deck: right-click the empty canvas and *Add note*, or press **N** with the pointer over the canvas;
+  *Add note* on a box's right-click menu puts the note beside the box – it moves with the box, joined by a dotted line.
+  A new note opens for typing (Ctrl+Enter or clicking elsewhere keeps it, Esc goes back, a double-click edits it again)
+  and shows who wrote it. Notes are plain grey cards, no logic: select and drag them like boxes, Delete removes them – an
+  empty note goes too. When the rule beside a note is removed, the note stays where it was, as a free note.
+- **Selecting and ungrouping a group** (Tilman, 2026-11-21, #334: *"how to ungroup or select a group?"*): a click on a
+  group's head selects its boxes (Shift adds them), so Delete, Ctrl+G or a drag act on them. A right click on the head – or
+  on a folded group's pill – opens the group's menu: select its boxes, rename, next colour, fold or open, and **Ungroup**.
+  **Ctrl+Shift+G** ungroups the groups of the selected boxes, as in the Scenes strip; the boxes stay where they are.
+
+### Changed
+- **Content schema 5.3**: a Logic canvas note may stand beside a box and carry its author and the level it belongs to
+  (docs/content.md). Authoring data only – readers never get the canvas, so an older app is not touched.
+- **Wire labels** on the Logic canvas have a white outline round their letters instead of a semi-transparent box behind
+  them (Tilman, 2026-11-21: *"the text should have a white outline not a semi transparent backdrop"*) – in day and night.
+- Ctrl+G and Ctrl+Shift+G in the Logic panel no longer also reach the Scenes panel's shortcuts.
+
+## 4.10.1 – 2026-11-21
+
+### Added
+- **The Tree's footer, as in Photoshop's layers panel** (Tilman, 2026-11-21, #339): it stays at the panel's foot however
+  far the tree scrolls – **+ add** (the menu of everything the scene can get, #337) and, for the selected row,
+  **duplicate** (the node with its children right after it; the copy's names get a free number – door → door 2 – since
+  rules address nodes by name), **group** (the node into a new group in its place; it stays where it is on the stage) and
+  **remove** (as Delete: a node at once, an entry and a surface after their confirmation).
+
+## 4.10.0 – 2026-11-21
+
+### Added
+- **A Log tab** in the editor (Tilman, 2026-11-21, #337), beside Inspector, Environment, Library and Code and floatable
+  like them: one timeline of what happens on the stage, newest first – the stage's events, the rules that ran
+  (*behaviour*, *goto* with its *open* link), and the plugins' `api.log` lines and errors, each with the time since the
+  scene opened. Above it, the **problems**: the Logic panel's errors and warnings for the whole experience and the plugins
+  that are not on the stage – a click goes to the box in the Logic panel or the plugin in the Code tab; closed at first to
+  their counts and the first problem. **Chips** show only the kinds you pick (remembered in this browser), *clear*
+  empties the timeline, and *tap* in its top bar taps a target so you see what follows.
+- **A Variables tab**: the plugins' live variables, a section per scope (the scene's open), each with its type, a control
+  for its value and delete; *set* one by hand (closed at first); *reset* for a new game.
+- **One + in the tree** opens a menu of everything the scene can get – a double page, a single page, a wall, a custom
+  surface, a target or an entry (their forms), and a node of every type (group, model, video, image, text, light and the
+  plugins' types) onto the selected target or node; type to filter. What you add is selected, so the Inspector shows it
+  at once; a node without a selected target is greyed out with the reason, a model, video or image asks for its file.
+
+### Changed
+- The scene's Inspector keeps a **one-line summary** of the narrative (*3 vars · 12 events*) with links to the Variables
+  and Log tabs instead of the *vars and events* section.
+- **Surfaces leave the scene's Inspector**: the tree's Surfaces level adds them (the new surface is selected and its
+  Inspector opens), reorders them (its menu, Alt ↑ ↓) and removes them (its menu's *Remove surface…* or Delete – the
+  surface's Inspector asks first). The surface Inspector shows only while a surface is selected.
+- The tree's *+ target* and *+ entry* became items of the one + menu. The Code tab keeps its own log.
+
+## 4.9.4 – 2026-11-21
+
+### Changed
+- **The colour fields' eyedropper picks anywhere on the screen** (Tilman, 2026-11-21, #338): where the browser has an
+  EyeDropper (Chrome, Edge) it takes any pixel – the stage, the editor's panels, another window; every colour field has
+  it, not only those with a stage pick. Where the browser has none (Firefox, Safari) the stage's own picker stays.
+- **Nested sections start closed on every visit** (#338): a look's moments (reveal, found, lost) and the passes keep
+  their open state only while the editor is open, so the long lists inside a section start short.
+
+## 4.9.3 – 2026-11-21
+
+### Fixed
+- **The Logic canvas's edge fade now shows** (#334): 4.9.2 put the mask on a layer this xyflow version does not
+  have (`svelte-flow__renderer`); it now lies on `svelte-flow__zoom`.
+
+## 4.9.2 – 2026-11-21
+
+### Changed
+- **The Logic canvas fades out at the panel's edges** instead of stopping in a gap before them (Tilman, 2026-11-21,
+  #334): the canvas runs to the panel's sides (and its foot when no issues bar lies below) and boxes and wires fade out
+  over the last 1.5rem; the view controls stay crisp.
+
+## 4.9.1 – 2026-11-21
+
+### Added
+- **Reference pages for the APIs** on the documentation site (Tilman, 2026-11-21, #336), generated from the code:
+  the **plugin API reference** (every member of `api`, the events, variables, progress and scene, the parameter
+  builders, the specs, the contexts and hooks, with signatures – from the types the Code tab uses), the **MCP tools
+  reference** (all 53 tools with their parameters – from the server's own tool definitions) and the **content model
+  reference** (scenes, entries, targets, node types, placement, components and the rules' grammar, filters, passes and
+  looks with every parameter's range and default – what `describe_content_model` answers).
+- **Search** on the documentation site: a field at the top of the sidebar (`/` focuses it) finds pages, sections and
+  every row of the reference pages – `registerPass`, `put_target`, `bloom`.
+
+### Changed
+- The reference pages follow the APIs: `npm run plugin-api` in `editor/` writes the plugin API's page with the
+  declaration file, `npm run docs-reference` in `mcp/` writes the tools' and the content model's, and the Checks
+  workflow fails when a committed page is not what its generator gives.
+
+## 4.9.0 – 2026-11-21
+
+### Changed
+- Logic view: a plugin box keeps only the pins a wire can change – **emits** into a rule's on (the rule hears its event)
+  and a rule's do into **hears** (the rule emits what it hears; several events: a menu picks one). What its code reads,
+  sets and drives are plain display rows under a divider (*reads hasKey*, *sets doorOpen*, *drives spin*), each joined to
+  its box by a fine dotted reference line – not a wire, not selectable or deletable; a click opens the plugin in the Code
+  tab. The add menu and the dragged-wire lighting follow; the layout and card height count the rows (#334).
+- Logic view: a wire's word has an outline in the canvas's background, its signal's colour and a heavier weight, so it
+  reads where wires cross – day and night (#334).
+
 ## 4.8.1 – 2026-11-21
 
 ### Added

@@ -42,6 +42,8 @@
    * canvas's nodes, ports and wires only. One table: `lib/logic/signals.ts` (a test keeps these equal to it).
    */
   --signal-event: #22271e;
+  /* The ring round a wire's word (#334): white round the day's dark inks, dark round the night's bright ones */
+  --wire-halo: #ffffff;
   --signal-control: #2f9e4a;
   --signal-audio: #0089a8;
   --signal-picture: #3a63c9;
@@ -79,6 +81,8 @@
     --pick: #8f8f8f;
     --warn: var(--danger);
     --signal-event: #f3f3f0;
+    /* The ring round a wire's word (#334): white round the day's dark inks, dark round the night's bright ones */
+    --wire-halo: #141414;
     --signal-control: #46d36a;
     --signal-audio: #19b8d8;
     --signal-picture: #6f9bff;
@@ -108,6 +112,8 @@
   --pick: #8f8f8f;
   --warn: var(--danger);
   --signal-event: #f3f3f0;
+  /* The ring round a wire's word (#334): white round the day's dark inks, dark round the night's bright ones */
+  --wire-halo: #141414;
   --signal-control: #46d36a;
   --signal-audio: #19b8d8;
   --signal-picture: #6f9bff;

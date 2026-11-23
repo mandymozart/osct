@@ -120,6 +120,99 @@ final class ContentStore
         }
     }
 
+    /**
+     * Writes several files below the store (#345): on the storage zone `$concurrency` uploads at a time over one curl
+     * multi handle (its connections are kept for the next call – no TLS handshake per file), where curl is missing one
+     * after another; a file the zone did not take is tried once more on its own (`put`), and that failure is the call's.
+     * In the directory one after another. Order is not kept: what must come last is written by a later call.
+     * @param list<array{0: string, 1: string, 2: string}> $files [path, data, mime]
+     */
+    public function putMany(array $files, int $concurrency = 8): void
+    {
+        if ($this->kind !== 'bunny' || !function_exists('curl_multi_init') || count($files) < 2) {
+            foreach ($files as [$path, $data, $mime]) $this->put($path, $data, $mime);
+            return;
+        }
+        self::$multi ??= curl_multi_init();
+        $multi = self::$multi;
+        $queue = $files;
+        $running = [];
+        $failed = [];
+        $add = function () use (&$queue, &$running, $multi): void {
+            [$path, $data, $mime] = array_shift($queue);
+            $handle = curl_init($this->url($path));
+            curl_setopt_array($handle, [
+                CURLOPT_CUSTOMREQUEST => 'PUT', CURLOPT_POSTFIELDS => $data, CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 60,
+                CURLOPT_HTTPHEADER => ['AccessKey: ' . Config::get('BUNNY_STORAGE_PASSWORD'), "Content-Type: $mime",
+                    'Checksum: ' . strtoupper(hash('sha256', $data)), 'Expect:'],
+            ]);
+            curl_multi_add_handle($multi, $handle);
+            $running[(int) $handle] = [$handle, [$path, $data, $mime]];
+        };
+        while ($queue && count($running) < max(1, $concurrency)) $add();
+        while ($running) {
+            curl_multi_exec($multi, $active);
+            while ($info = curl_multi_info_read($multi)) {
+                $handle = $info['handle'];
+                [, $file] = $running[(int) $handle];
+                $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+                if ($info['result'] !== CURLE_OK || $status !== 201) {
+                    error_log("[osct] content store: PUT {$this->root}/{$file[0]} answered " . ($status ?: curl_error($handle)) . ' – trying again');
+                    $failed[] = $file;
+                }
+                curl_multi_remove_handle($multi, $handle);
+                curl_close($handle);
+                unset($running[(int) $handle]);
+                if ($queue) $add();
+            }
+            if ($running && $active) curl_multi_select($multi, 1.0);
+        }
+        foreach ($failed as [$path, $data, $mime]) $this->put($path, $data, $mime);
+    }
+
+    /** The storage zone's multi handle, kept for the request: its connections serve every `putMany` */
+    private static ?CurlMultiHandle $multi = null;
+
+    /**
+     * Every file below a folder of the store, path below the folder → sha256 (lower case) – one listing per folder on the
+     * storage zone (its listing carries each file's checksum), so a publish learns what is there without a request per
+     * file. A folder that is not there: [].
+     * @return array<string, string>
+     */
+    public function checksums(string $folder): array
+    {
+        $folder = trim($folder, '/');
+        $found = [];
+        if ($this->kind !== 'bunny') {
+            $base = self::dir() . "/{$this->root}/$folder";
+            if (!is_dir($base)) return [];
+            $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS));
+            foreach ($files as $file) {
+                if (!$file->isFile() || str_ends_with($file->getFilename(), '.tmp')) continue;
+                $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($base) + 1));
+                $found[$relative] = (string) hash_file('sha256', $file->getPathname());
+            }
+            ksort($found);
+            return $found;
+        }
+        $walk = function (string $below) use (&$walk, &$found, $folder): void {
+            [$status, $body] = $this->request('GET', ($folder === '' ? '' : "$folder/") . ($below === '' ? '' : "$below/"), null, [200, 404], ['Accept: application/json']);
+            if ($status === 404) return;
+            $list = json_decode($body, true);
+            if (!is_array($list)) return;
+            foreach ($list as $item) {
+                if (!is_array($item) || !is_string($item['ObjectName'] ?? null)) continue;
+                $path = ($below === '' ? '' : "$below/") . $item['ObjectName'];
+                if (!empty($item['IsDirectory'])) $walk($path);
+                elseif (is_string($item['Checksum'] ?? null)) $found[$path] = strtolower($item['Checksum']);
+            }
+        };
+        $walk('');
+        ksort($found);
+        return $found;
+    }
+
     /** A file below the store, null when there is none */
     public function get(string $path): ?string
     {

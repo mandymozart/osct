@@ -262,7 +262,7 @@ npm run osct -- content sync --env staging</code></pre>
     </li>
     <li>
       <h3>Import the experience <span class="who">editor</span></h3>
-      <p>Open the editor, sign in, <b>Import an experience</b>, source <b>the CDN</b>: the form shows the experience and the build it found, and the button names them – <b>Import 1 experience: …</b>. The current version becomes the draft: its scenes, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the scene cards show their sheets. The other ways in – a URL or a file – are in <a href="#bringing-in">Bringing an experience in</a>.</p>
+      <p>Open the editor, sign in, <b>Import</b> (the quick access on the right), source <b>Published</b>: the column shows the experience and the build it found; <b>Next</b>, give it its title and address, <b>Create</b>. The current version becomes the draft: its scenes, entries and targets as rows in the database, every file still served from the CDN. With a layout on the CDN the scene cards show their sheets. The other ways in – a URL or a file – are in <a href="#bringing-in">Bringing an experience in</a>.</p>
     </li>
     <li>
       <h3>Edit and save <span class="who">editor</span></h3>
@@ -298,7 +298,7 @@ npm run osct -- content sync --env staging</code></pre>
   <p>An experience gets into an instance's editor by an <b>import</b>. The import reads a <b>game configuration</b> – <code>game.config.json</code>, what the content build makes from the content folder – and turns it into the experience's draft: scenes, entries, targets and AR nodes as rows in the database. One file is enough. The images, videos and models are not in it: they stay where they are, and the draft points at them.</p>
 
   <h3 class="sec" id="import-empty">An empty instance</h3>
-  <p>A new instance has no book. The Experiences page says so, names the three ways in and links to this chapter. The form <b>Import an experience</b> sits beside the list (under it on a phone). Under the experiences, <b>Connect an AI agent</b> gives you one prompt to paste into Claude, Codex, OpenCode, Cursor or any other MCP client – a fresh token in it – and the agent sets itself up; <b>Existing connections</b> lists the tokens to renew or revoke. The agent then saves drafts as you, and publishing stays your button.</p>
+  <p>A new instance has no book. The Experiences page says so, names the three ways in and links to this chapter. <b>New experience</b> and <b>Import</b> sit in the column beside the list (under it on a phone) – step by step, see the <a href="/docs/guide/experiences/">Experiences guide</a>. Under the experiences, <b>Connect an AI agent</b> gives you one prompt to paste into Claude, Codex, OpenCode, Cursor or any other MCP client – a fresh token in it – and the agent sets itself up; <b>Existing connections</b> lists the tokens to renew or revoke. The agent then saves drafts as you, and publishing stays your button.</p>
   <figure class="shot">
     <img src="/docs/tutorials/import/01-empty.webp" width="1280" height="800" loading="lazy" alt="The editor's Experiences page with no experience: the text No experience yet, import one with Import an experience – the CDN, a URL or a file, and the link How to bring an experience in; on the right the Import an experience form with the source the CDN selected and the Import button; the Info view names the CDN source.">
     <figcaption>No experience yet. On an instance the form starts on <b>the CDN</b>, and its fields are empty.</figcaption>
@@ -380,7 +380,7 @@ npm run osct -- content status --env staging</code></pre>
   <ol class="steps">
     <li>
       <h3>Import it into the editor <span class="who">editor</span></h3>
-      <p><b>Import an experience</b>, source <b>URL</b>, and the base URL <code>https://buildingfictions.b-cdn.net/demo</code>. That is enough: the form reads <code>latest.json</code> and fills in <em>assets at</em> itself. <b>Import</b>, and <em>The Demo</em> appears next to the other books.</p>
+      <p><b>Import</b>, source <b>URL</b>, and the base URL <code>https://buildingfictions.b-cdn.net/demo</code>. That is enough: the column reads <code>latest.json</code> and uses its version folder for the media. <b>Next</b>, the address <code>demo</code>, <b>Create</b>, and <em>The Demo</em> appears next to the other books.</p>
     </li>
     <li>
       <h3>Read it on a phone <span class="who">phone</span></h3>
@@ -420,7 +420,7 @@ npm run osct -- content status --env staging</code></pre>
   <p>The cover is a scene of the format <em>cover</em>: the stage shows the closed book. The <em>seal</em> is an image. Its two layers come from plugins: <code>tint</code> colours it towards the experience's gold, <code>pulse</code> makes it breathe.</p>
 
   <h4>1–2 · The key</h4>
-  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>animation</code> says how the model's clip <code>rattle</code> plays: once, and never by itself. The <code>behaviour</code> holds one rule, made without code: <em>on tap</em> it plays <code>rattle</code>, sets the experience variable <code>hasKey</code> – kept with the reader's progress – and sends the event <code>keyRattled</code>. To tap it without aiming, select the scene – its row at the top of the tree – and use <b>tap</b> in the Inspector's <b>vars and events</b>.</p>
+  <p>The <em>key</em> is a model with three components. <code>spin</code> turns it around its own axis. <code>animation</code> says how the model's clip <code>rattle</code> plays: once, and never by itself. The <code>behaviour</code> holds one rule, made without code: <em>on tap</em> it plays <code>rattle</code>, sets the experience variable <code>hasKey</code> – kept with the reader's progress – and sends the event <code>keyRattled</code>. To tap it without aiming, use <b>tap</b> in the <b>Log</b> tab.</p>
   <p>The <em>tally</em> is a group with a text. Its <code>tally</code> component draws "n of N pages found" and updates it on every new find, on any scene.</p>
   <figure class="shot">
     <img src="/docs/tutorials/demo/03-key-entity.webp" width="1280" height="800" loading="lazy" alt="The key scene in the editor, close to the left page: the brass key stands upright on its printed image, selected; the Inspector's breadcrumb reads key › model, then its components – spin with speed 40 °/s and axis y, animation with the model's timeline, the clip rattle and plays on never, and behaviour with rule 1: tap pressed, + condition, do play rattle on this node, then set hasKey true in the experience scope, then emit keyRattled, + action and + rule.">
@@ -428,7 +428,7 @@ npm run osct -- content status --env staging</code></pre>
   </figure>
 
   <h4>3–4 · The door</h4>
-  <p>The <em>door</em> is a group with two children, named <em>door</em> and <em>hint</em>: the door model and a hint, "Tap the key on page 1". Its <code>behaviour</code> decides: when the page is found the hint shows; found with <code>hasKey</code>, the hint hides and the event <code>openDoor</code> goes out. The <code>door</code> component – plugin code – hears it: the door lifts and turns, the variable <code>doorOpen</code> is set and the event <code>doorOpened</code> goes out.</p>
+  <p>The <em>door</em> is a group with two children, named <em>door</em> and <em>hint</em>: the door model and a hint, "Tap the key on page 1". Its <code>behaviour</code> decides: when the page is found the hint shows; found with <code>hasKey</code>, the hint hides and the event <code>openDoor</code> goes out. The <code>door</code> component – plugin code – listens to it: the door lifts and turns, the variable <code>doorOpen</code> is set and the event <code>doorOpened</code> goes out.</p>
   <p>The <em>lamp</em> is a video with a chroma key and a <code>pulse</code> layer. Its <code>lamp</code> component keeps it hidden until <code>doorOpen</code> is set.</p>
   <figure class="shot">
     <img src="/docs/tutorials/demo/04-door-entity.webp" width="1280" height="800" loading="lazy" alt="The door scene: the door group selected on the left page, closed, with the hint text under it; the Inspector's breadcrumb reads door › group, then the group's placement and the door component with the rows lift 0.35 and seconds 1.2; the Info view explains lift.">
@@ -451,7 +451,7 @@ npm run osct -- content status --env staging</code></pre>
   <h3 class="sec" id="demo-story">The story across the pages</h3>
   <p>The editor can play the story without a phone. Try it:</p>
   <ol>
-    <li>Open <b>1–2 · The key</b>. The Inspector shows the scene; open <b>vars and events</b> and press <b>reset</b>: a new game.</li>
+    <li>Open <b>1–2 · The key</b>. Open the <b>Variables</b> tab and press <b>reset</b>: a new game.</li>
     <li>Press <b>tap</b> → <b>The key</b>. The key rattles and <code>hasKey</code> appears as an <em>experience</em> variable; the timeline shows the rule that ran.</li>
     <li>Press <kbd>›</kbd> to go to <b>3–4 · The door</b>. The door lifts, <code>doorOpen</code> is set and the lamp lights.</li>
   </ol>
@@ -468,7 +468,7 @@ npm run osct -- content status --env staging</code></pre>
     <li><b>+ condition</b> – a variable, <em>=</em> or <em>≠</em>, and a value: <code>true</code>, <code>false</code>, a number or a text; empty means "not set". With two or more, choose <em>all</em> or <em>any</em>.</li>
     <li><b>+ action…</b> – in order: <em>play</em>, <em>pause</em> or <em>stop</em> a clip of a model (the clips come from the model), <em>show</em> or <em>hide</em> a node (this node or a named child), <em>set</em> a variable with its scope, <em>emit</em> an event.</li>
   </ul>
-  <p>Every change runs on the stage at once – select the scene, press <b>tap</b> in its <b>vars and events</b> and watch. The timeline marks each rule that ran with a <em>behaviour</em> line: which rule, on which event, and what it did. A rule that is not finished yet – an empty name, no event – is listed in red and <b>Save</b> waits. A rule decides; what it cannot do, like moving the door over time, is plugin code that hears the rule's event.</p>
+  <p>Every change runs on the stage at once – select the scene, press <b>tap</b> in its <b>vars and events</b> and watch. The timeline marks each rule that ran with a <em>behaviour</em> line: which rule, on which event, and what it did. A rule that is not finished yet – an empty name, no event – is listed in red and <b>Save</b> waits. A rule decides; what it cannot do, like moving the door over time, is plugin code that listens to the rule's event.</p>
   <figure class="shot">
     <img src="/docs/tutorials/demo/12-behaviour.webp" width="1280" height="800" loading="lazy" alt="The key scene after a tap, the key turned in its rattle: the Stage panel's vars and events with the tap buttons The key, The aquarium and The tally, hasKey true as an experience boolean, and the timeline newest first – at 3.04 s targetTapped key, keyRattled, varChanged hasKey experience true, and behaviour with target key, rule 1, on tap, do play rattle · set hasKey = true (experience) · emit keyRattled; below them the finds at 0.91 s.">
     <figcaption>The key tapped from the scene's vars and events. Read the timeline from the bottom up: the <em>behaviour</em> line of the key's rule, then what it did – <code>varChanged</code> for <code>hasKey</code> and the event <code>keyRattled</code> – and on top <code>targetTapped</code>, which the stage reports once the tap's work is done.</figcaption>
@@ -477,7 +477,7 @@ npm run osct -- content status --env staging</code></pre>
   <h3 class="sec" id="demo-component">How a component works</h3>
   <p>A component is a few lines of TypeScript in a plugin. The <b>Code</b> tab shows the experience's plugins in a real code editor, with completion and type errors. Pick <em>narrative</em>: it holds <code>door</code> and <code>lamp</code>.</p>
   <pre><code>api.registerComponent("door", {
-  description: "Opens the door (the first child) when it hears openDoor for its target: …",
+  description: "Opens the door (the first child) when it listens to openDoor for its target: …",
   nodeTypes: ["group"],
   params: {
     lift:    { kind: "number", default: 0.35, min: 0, max: 2, step: 0.05, … },
@@ -584,7 +584,7 @@ npm run osct -- content status --env staging</code></pre>
   </figure>
 
   <h3 class="sec" id="tools-new-target">A new target</h3>
-  <p><b>+ target</b> at the end of the tree opens the form for a new target on the scene. It keeps two choices apart: <b>what appears on the page</b> – none, model, video, image, text, group or light, with its file – and the <b>entry category</b>, where the reader's consultation menu lists the entry. The category follows what appears – a video makes a video entry, everything else a glossary term – until you set it by hand. Below them, where it is printed: the surface, x and y, and the width in millimetres; the stage shows a ghost of the image there, with handles to drag.</p>
+  <p><b>target…</b> in the <b>+ add</b> menu at the end of the tree opens the form for a new target on the scene. It keeps two choices apart: <b>what appears on the page</b> – none, model, video, image, text, group or light, with its file – and the <b>entry category</b>, where the reader's consultation menu lists the entry. The category follows what appears – a video makes a video entry, everything else a glossary term – until you set it by hand. Below them, where it is printed: the surface, x and y, and the width in millimetres; the stage shows a ghost of the image there, with handles to drag.</p>
   <figure class="shot">
     <img src="/docs/tutorials/tools/05-new-target.webp" width="1280" height="800" loading="lazy" alt="The new target form on the switch scene: title, page 5 or 6, the image with Library… and Upload…; What appears on the page with video pressed and its file; Entry category with video pressed; Printed on the page with the surface left, x 40 mm, y 60 mm and width 80 mm, and Create target; the Info view explains What appears on the page.">
     <figcaption><em>video</em> chosen under <b>What appears on the page</b>: the <b>Entry category</b> followed it to <em>video</em>.</figcaption>
@@ -726,7 +726,7 @@ npm run osct -- content status --env staging</code></pre>
 
   <h3 class="sec" id="texts-entries">Finding and adding entries</h3>
   <p>The search in the top bar finds things in the whole book: entries by their title or text, scenes by their title or a page number, targets and named nodes – accents and case do not matter. The hits are grouped by kind, each with its scene and page. Choose one with ↑ ↓ and Enter, or a click: the editor goes to that scene and selects it, an entry with its form in the Inspector. <b>/</b> or <b>Ctrl+K</b> puts the cursor in the search; on a phone the search is the magnifier in the top bar.</p>
-  <p><b>+ entry</b> in the tree, next to <b>+ target</b>, makes an entry without a printed image on the scene – a glossary term only read in the list: its title, category and page, then its form opens.</p>
+  <p><b>entry…</b> in the tree's <b>+ add</b> menu makes an entry without a printed image on the scene – a glossary term only read in the list: its title, category and page, then its form opens.</p>
 
   <h3 class="sec" id="texts-experience">The experience</h3>
   <p>The ⚙ after the experience's name in the top bar selects the experience: the Inspector shows its title and its <b>printed book</b> – the reader's splash, home page and onboarding show them. The printed book has a switch in its head: on, the experience accompanies a printed book and the section holds its author and publisher; off, it is no book – a wall, a room, an exhibition – and the reader shows neither. Switching a saved book off asks first, because it removes author and publisher from the draft. Every experience adds and removes scenes. The onboarding itself – the steps a reader goes through on the first start – is part of the app, translated with it; it is not edited in the editor.</p>

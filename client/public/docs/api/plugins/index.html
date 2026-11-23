@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Plugin API – OSCT docs</title>
-  <meta name="description" content="Reference of the OSCT plugin API 3.1: the register functions, specs and parameters, hooks, events and variables, files, feedback buffers, the sandbox and shipping.">
+  <meta name="description" content="Reference of the OSCT plugin API 3.1: the register functions, specs and parameters, hooks, events and variables, files, feedback buffers, where it runs and shipping.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/docs/docs.css">
@@ -17,7 +17,7 @@
   <h1>Plugin API</h1>
   <p class="lead">A plugin is one TypeScript file that exports <code>register(api)</code>. It adds things the content can then use by name: components, node types, materials, textures, passes and looks.</p>
   <nav id="toc" aria-label="On this page"></nav>
-  <p>Write and try plugins in the <a href="/docs/guide/code/">Code tab</a>. This page describes plugin API 3.1.</p>
+  <p>Write and try plugins in the <a href="/docs/guide/code/">Code tab</a>. This page describes plugin API 3.1 and how its parts fit together. Every member with its signature is in the <a href="/docs/api/plugins/reference/">Plugin API reference</a>.</p>
 
   <h2 id="shape">The shape</h2>
   <pre><code>import type { PluginApi } from "osct-plugin-api";
@@ -89,7 +89,7 @@
   <h2 id="bus">Events, variables, progress</h2>
   <div class="table"><table>
     <tr><th>Part</th><th>What</th></tr>
-    <tr><td><code>api.events</code></td><td class="wrap"><code>on(name, payload =&gt; …)</code> returns the unsubscribe; <code>emit(name, payload?)</code> sends a scene event. Core events (<code>targetFound</code>, <code>targetLost</code>, <code>targetUnlocked</code>, <code>targetTapped</code>, <code>sceneChanged</code>, <code>arState</code>, <code>varChanged</code>) can be heard, never emitted.</td></tr>
+    <tr><td><code>api.events</code></td><td class="wrap"><code>on(name, payload =&gt; …)</code> returns the unsubscribe; <code>emit(name, payload?)</code> sends a scene event. Core events (<code>targetFound</code>, <code>targetLost</code>, <code>targetUnlocked</code>, <code>targetTapped</code>, <code>sceneChanged</code>, <code>arState</code>, <code>varChanged</code>) can be listened to, never emitted.</td></tr>
     <tr><td><code>api.vars</code></td><td class="wrap"><code>set(name, value, scope?)</code>, <code>get(name, scope?)</code>, <code>on(name, (value, previous, scope) =&gt; …)</code>, <code>all(scope)</code>. Scopes: <code>scene</code> (default), <code>stage</code>, <code>session</code>, <code>experience</code>. Values are strings, numbers or booleans; <code>null</code> deletes.</td></tr>
     <tr><td><code>api.progress</code></td><td class="wrap">Read-only: <code>unlocked(targetId)</code>, <code>consulted(entryId)</code>, <code>completion(sceneId?)</code> (0–1), <code>counts(sceneId?)</code>.</td></tr>
     <tr><td><code>api.scene</code></td><td class="wrap"><code>current</code> (id, label, group, surfaces, targets) and <code>get(id)</code>.</td></tr>
@@ -109,7 +109,7 @@
     params: { volume: p.number({ min: 0, max: 1, default: 0.6, description: "How loud." }) },
     actions: ["play", "pause"],                          // rule verbs it answers
     events: ["ended"],                                   // scene events it emits
-    uses: { hears: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus
+    uses: { listens: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus
   }, ({ emit }) => ({
     onAction: action => { /* "play" | "pause" */ },
     onTap: () => emit("ended"),
@@ -117,7 +117,7 @@
   <ul>
     <li><code>actions</code>: any of <code>play</code>, <code>pause</code>, <code>stop</code>, <code>show</code>, <code>hide</code>. A rule's <code>play: lamp</code> then reaches <code>onAction("play")</code>.</li>
     <li><code>events</code>: sent with the context's <code>emit</code>. An event the spec does not declare is not sent.</li>
-    <li><code>uses</code>: <code>hears</code>, <code>emits</code>, <code>reads</code>, <code>sets</code>, by name.</li>
+    <li><code>uses</code>: <code>listens</code>, <code>emits</code>, <code>reads</code>, <code>sets</code>, by name.</li>
   </ul>
 
   <h2 id="files">Files</h2>
@@ -149,8 +149,8 @@
   <h2 id="feedback">Feedback buffers</h2>
   <p>For pictures that need their own last frame (a fluid, ink): <code>api.feedback({ width, height, fragment, uniforms?, channels?, type? })</code> runs your fragment shader once per frame into its own render target. Put its <code>uniform</code> into your material. <code>api.shadertoy(source)</code> turns a Shadertoy pass (<code>mainImage</code>) into such a fragment.</p>
 
-  <h2 id="sandbox">Where it runs</h2>
-  <p>In the editor, plugins run in a sandboxed frame. There a plugin <b>cannot</b>: use the session or make API calls as you, read cookies or storage, reach the editor's page, load from other sites, start a worker, or show <code>alert</code> / <code>confirm</code>. It <b>can</b> use everything on this page and the experience's files. The reader app runs published plugins in its own page.</p>
+  <h2 id="where-it-runs">Where it runs</h2>
+  <p>In the editor, plugins run in the editor's own page (since 5.0). A plugin <b>can</b> use the page's <code>fetch</code> with the session of the editor who has the experience open – read and change what that person may, the draft, the data, the game state. That is a risk: plugin code runs with the rights of whoever opens the experience. So the editor asks first – <i>Run plugin code by …?</i> – before it runs code someone else saved last; the answer is kept per experience and source version, and <i>Don't run</i> leaves those plugins off the stage. Your own last-saved code runs without asking. The reader app runs published plugins in its own page.</p>
 
   <h2 id="shipping">Shipping</h2>
   <ul>

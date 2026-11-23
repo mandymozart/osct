@@ -56,7 +56,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 
 | | | |
 |---|---|---|
-| `POST /auth/request` | `{ email, language?, options? }` | 202 `{ requestId, expiresAt }` – sends the email; `options` = `{ buildingfictions: bool }`, the one update option (news from Building Fictions, #325; opt-in, off when missing) |
+| `POST /auth/request` | `{ email, language?, options?, experience? }` | 202 `{ requestId, expiresAt }` – sends the email; `options` = `{ buildingfictions: bool }`, the one update option (news from Building Fictions, #325; opt-in, off when missing) | `experience` (#343): the email's link opens `/<experience>/about?login=…` – the experience the reader asked from (one of the site's own paths or no id: left out, the default's `/about`).
 | `POST /auth/verify` | `{ token }` or `{ requestId, code }`, `session?` | `{ session, user, created }` – with `"session": "cookie"` (a browser) `{ csrfToken, user, created }` and the session cookie instead ([Sessions](#sessions-cookies-and-csrf)) |
 | `POST /auth/password` | `{ email, password, session? }` | `{ session, user, created: false }` – a browser the same as above; 401 `invalid-credentials` (also for unknown addresses and users without a password) |
 | `POST /auth/logout` | | 204 – this device only; a cookie session needs its CSRF token like any write, and the cookie is cleared |
@@ -68,6 +68,7 @@ server/db-dumps/                 the dumps it keeps (not committed)
 | `/user/tokens` | | the [AI connections](#ai-connections)' tokens |
 | `GET /progress/{experienceId}` | | `{ record, updatedAt }` (both null if nothing is stored) |
 | `PUT /progress/{experienceId}` | `{ record, baseUpdatedAt }` | `{ updatedAt }`; 409 `conflict` + stored record when another device saved in between |
+| `GET /experiences/{id}/manifest.webmanifest` | | the web app manifest of the experience at `/{id}/` in the reader (#343, `ReaderManifest.php`, no sign-in): `id`, `start_url` and `scope` `/{id}/`, the build's colours and icons; `name` and `description` from the experience once it has been published (a draft's title is not given away – the id stands in); 404 for one of the site's own paths. The reader links it for every experience but the build's default ([content-cdn](content-cdn.md#the-installed-app-pwa)) |
 | `GET /health` | | `{ status, version, env, db }` – `version` = `src/Version.php`, the same number as the app (RULES #10); `env` = the instance's environment (`ENV`, [Configuration](#configuration)) |
 | `/admin/*` | | the [Admin API](#admin-api): roles, users, the newsletter CSV, migrate |
 
@@ -76,17 +77,23 @@ without a token, 403 `forbidden` for a reader. `{id}` is the experience, ids and
 
 | | | |
 |---|---|---|
+| `POST /editor/experiences` | `{ id, title }` | 201 `{ experience }` (the list's fields) – **a new, empty experience** (#343, [New experiences](#new-experiences)): a draft with one scene (a double page), nothing on it. 400 `invalid-slug`, `reserved-slug` (one of the site's own paths), `invalid-title` (1–200 characters); 409 `duplicate-id` |
 | `GET /editor/experiences` | | `{ experiences: [{ id, title, experience, initialScene, schema, assetsBase, libraryBase, importedHash, scenes, createdAt, updatedAt, lastPublish, live }], environments }` – `libraryBase` = the public folder of the experience's uploads (`…/assets/<id>/`, every Library file's URL lies below it; "" where the instance has no public URL for stored files); `lastPublish` `{ env, build, at }` or null; `live` = the environments serving the experience `[{ env, build, since }]` (empty: draft only, the tree's `experience` has it too); `environments` = what each environment serves `[{ env, experience, build, since }]` (`experience` null when it cannot be told), `{ env, error }` when its store cannot be read – only environments that serve something |
 | `GET /editor/environments` | | `{ env, environments: [{ env, store, publish, url, warning }] }` – this instance's environment (`ENV`, the only one it publishes to) first, then `staging` and `production` (`local` only where `ENV` is local); `store` = `cdn` (the storage zone) or `server` (the directory store this API serves); `publish` true for the own one only; `url` = where readers load it; `warning` = the line the editor shows wherever the directory store is the publish target, else null – [One environment per instance](#one-environment-per-instance) |
-| `POST /editor/import/preview` | `{ configuration, files?, assetsBase? }` or `{ source: "cdn" }` (the import's body) | `{ source, contentBase, manifest, incoming, counts, existing }` – what that import would bring in, **nothing imported** ([Import preview](#import-preview)). The import's access (AI connections too); 400 as the import (`invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id` – also for a configuration without `experience.id` or with one that is no id, `no-content-base`); it answers for the configuration's own `experience.id`, the id the import is then called with; 413 `body-too-large`; 502 `content-fetch-failed` with the failing `url` |
-| `POST /editor/experiences/{id}/import` | `{ configuration, files?, assetsBase?, confirm? }` or `{ source: "cdn", confirm? }` | `{ experience, counts, draft: { build, hash }, imported }` – replaces the experience's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json` – without it `<assetsBase>/files.json` is fetched (optional: a base without one, the reader's dev server, leaves no imported files in the Library; #244), `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `CONTENT_BASE_URL`; `imported` = what the draft is now based on. **Over an experience that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). The configuration's `experience.id` must be `{id}` (the rows go under `{id}`, the configuration keeps its `experience`, and a publish names both): another id is 400 `invalid-configuration` naming both (#204). 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` (with the failing `url`) |
+| `POST /editor/import/preview` | `{ configuration, files?, assetsBase?, sources? }` or `{ source: "cdn", experience? }` (the import's body), either with `into?` | `{ source, contentBase, manifest, incoming, counts, existing }` – what that import would bring in, **nothing imported** ([Import preview](#import-preview)). The import's access (AI connections too); 400 as the import (`invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id` – also for a configuration without `experience.id` or with one that is no id, `no-content-base`); it answers for the configuration's own `experience.id`, the id the import is then called with – or for `into` (#348: the import goes there with `rename`); 413 `body-too-large`; 502 `content-fetch-failed` with the failing `url` |
+| `POST /editor/experiences/{id}/import` | `{ configuration, files?, assetsBase?, sources?, confirm? }` or `{ source: "cdn", experience?, confirm? }`, either with `rename?`, `title?`, `create?` (#348) | `{ experience, counts, draft: { build, hash }, imported }` – replaces the experience's rows from a game configuration (one transaction; the logs stay). `files` = its `files.json` – without it `<assetsBase>/files.json` is fetched (optional: a base without one, the reader's dev server, leaves no imported files in the Library; #244), `assetsBase` = where its `/assets/content/…` paths resolve (the CDN's `<base>/<build>`); `source: "cdn"` fetches the current version of `experience` (default `{id}`) in its store below `CONTENT_BASE_URL`; `sources` = Code tab sources `[{ id, source }]` (an [export file](#export-file) carries them) saved with the rows, each a change; `rename: true` = the configuration becomes `{id}`'s (its `experience.id` is set to `{id}` – another experience's export or published version); `title` (1–200) replaces its title; `create: true` = a new experience only, checked as `POST /editor/experiences` (400 `invalid-slug` / `reserved-slug`, 409 `duplicate-id`); `imported` = what the draft is now based on. **Over an experience that exists, two steps** ([Import with a version comparison](#import-with-a-version-comparison)): without `confirm` 409 `confirm-import` with `comparison` and `confirmation` `{ id, expiresAt }`, nothing written; with `confirm` the import; a confirmation that is expired, someone else's or outdated 409 `confirmation-void` (a new comparison with it). The configuration's `experience.id` must be `{id}` (the rows go under `{id}`, the configuration keeps its `experience`, and a publish names both): another id is 400 `invalid-configuration` naming both (#204) – unless `rename`. 400 `invalid-configuration`, `invalid-entity`, `unknown-entity`, `invalid-id`, `no-content-base`; 413 `body-too-large` (`EDITOR_MAX_BYTES`); 502 `content-fetch-failed` (with the failing `url`) |
 | `GET /editor/experiences/{id}` | | `{ experience, scenes: [{ …SceneData, entries: [{ id, category, title, scene, surface?, target }] }], groups }` – the tree ([Scenes](#scenes)); `target` = the entry's TargetData (id, imageSrc, place, entity inline or `{ ref }`) or null. An experience of content schema 2.x answers 409 `old-schema` |
 | `GET /editor/experiences/{id}/entities` | | `{ entities: { ref: EntityData } }` – the shared entities |
 | `PUT /editor/experiences/{id}/entities/{ref}` | `EntityData` | `{ ref, entity }` – saves (or adds) a shared entity; records a change. 400 `invalid-entity`: no object, `type` not one of the contract's entity types (nor a plugin's, in an experience with plugins – "Plugin sources"), no `assets` list |
 | `PUT /editor/experiences/{id}/targets/{targetId}` | `{ entity }` or `{ ref }` | `{ target }` – the target's entity: inline (`entity`, null removes it) or a shared one (`ref`, 400 `unknown-entity` when there is none); records a change. 404 for an unknown target |
 | `GET /editor/experiences/{id}/draft/latest.json` · `…/draft/{build}/game.config.json` · `…/draft/{build}/files.json` | | the draft as a content version, assembled from the rows on every call (`Cache-Control: no-store`); the engine's loader reads it like the CDN, its `fetchFn` sending the session cookie. The build in the path is not checked against the current draft – an edit between the two requests is no error |
-| `POST /editor/experiences/{id}/publish` | `{ env, note?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, export }` – writes the assembled version to the experience's own store in `env` (#87: `<title>/<env>/<id>/` on the zone, `<env>/<id>/` in the directory store – a publish never touches another experience), which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log; then the build's **export archive** `exports/<build>/` in the same store unless it is there (`export` = `{ path, written, error? }` – a failure is reported here and in the error log, the publish stands; [Export](#export)). `store` = where it went (`cdn` or `server`). 400 `invalid-env` (no environment name); 502 `content-store-failed` |
+| `POST /editor/experiences/{id}/publish` | `{ env, note?, plugins? }` – `plugins` = the Code tab's saved sources as the editor transpiled them, `[{ id, code, api, registered? }]` (#78: each id a saved source of the experience, else 400 `invalid-plugins`; written into the version as `assets/content/plugins/<id>/plugin-<hash>.js` and declared; `registered` kept only when it names the types the source registers) | `{ env, store, build, hash, publishedAt, export }` – writes the assembled version to the experience's own store in `env` (#87: `<title>/<env>/<id>/` on the zone, `<env>/<id>/` in the directory store – a publish never touches another experience), which must be this instance's own environment (`ENV`; another one: **403 `other-environment`** with `env`, the own one): `<build>/game.config.json` and `files.json` (unless that build is there already – a version folder is never overwritten), then `versions.json` (the previous current version retired), then `latest.json` (both name the experience); a row in the publish log; then the build's **export archive** `exports/<build>/` in the same store unless it is there (`export` = `{ path, written, error? }` – a failure is reported here and in the error log, the publish stands; [Export](#export)). `store` = where it went (`cdn` or `server`). The writing is a **job** ([Publish jobs](#publish-jobs), #345): when it ends within `PUBLISH_STEP_SECONDS` the answer is 200 with the outcome and `job`; else **202 `{ job }`** and the job runs on. 400 `invalid-env` (no environment name); 409 `publish-running` (a publish of the experience runs – its `job`); 502 `content-store-failed` (with `job`) |
+| `GET /editor/experiences/{id}/publish/{job}` | | `{ job }` – the job's `status` (`running` / `done` / `failed`), `phase` (`version` → `switch` → `archive` → `done`), `build`, `hash`, `live` (latest.json names the build), `done` / `total` files, `skipped` (on the store already), `parts` `{ build, archive }` (the files of the version folder and of the export archive: `total` = build + 2 for the switch + archive – the editor counts the archive with it), `startedAt`, `updatedAt`, `result` (done: the publish's answer) or `error` `{ code, message, status }` (failed; `abandoned`: no one continued it). A running job first runs on for `PUBLISH_STEP_SECONDS` unless another request runs it. 404 `unknown-job` (not a job of this experience) |
+| `GET /editor/experiences/{id}/publish` | | `{ job }` – the experience's newest job (null: none kept – ended jobs are kept 14 days); a running one runs on like a poll. Where the editor finds a publish whose start answer a gateway swallowed |
 | `GET /editor/experiences/{id}/versions` | | `{ versions: [{ id, env, build, hash, publishedBy, publishedAt, note }] }` – the publish log, newest first |
+| `POST /editor/experiences/{id}/versions/{build}/activate` | | `{ env, build, hash, activatedAt, previous, version }` – **make live** (#348, [Make a version live again](#make-a-version-live-again)): an older build of this instance's environment is current again; 403 `not-for-ai`, 404 `unknown-build`, 409 `already-live` / `publish-running` / `build-missing` / `unreadable-schema` |
+| `GET /editor/experiences/{id}/export/file[?build=]` | | the draft (or a published build) as one JSON file to download (#348, [Export file](#export-file)) – an import body as it is |
+| `GET /editor/recent?limit=` | | `{ changes: [{ experience, experienceTitle, kind, ref, scene, sceneLabel, entry, user, token, at }] }` – the newest changes across the instance's experiences (#348, [Recent places](#recent-places)); default 40, at most 200 |
 | `GET /editor/experiences/{id}/export[?build=]` | | `{ experience, source, build, hash, schema, appVersion, exportedAt, configuration, files, unknown, layout, plugins, credits }` – everything an export of the experience needs: the draft, or with `build` a published version from the content store ([Export](#export)). 400 `invalid-build`, 404 `unknown-build` (not in this experience's publish log), 404 `build-missing` (logged, but the store has no readable configuration) |
 | `GET /editor/experiences/{id}/changes?limit=` | | `{ changes: [{ id, kind, ref, before, after, user, token, createdAt, set, reverts, delivery, notRevertable }] }` – newest first; `kind` `entity` (ref = the entity) or `target` (ref = the target id, before/after = the whole target) – and `entry`, `scene`, `order`, `groups`, `reference`, `environment`, `passes`, `appearance`, `experience`, `plugin`, `asset` (a Library file a removal deleted), `migration` (#319); a removed row has `after: null`; `token` = the name of the AI connection a save came through, null for the editor; `set` / `reverts` for a revert's changes, `delivery` the delivery that wrote it ([Deliveries](#deliveries)) and `notRevertable` – [Reverting saved changes](#reverting-saved-changes); `limit` default 50, at most 500 |
 | `GET /editor/experiences/{id}/deliveries?limit=` | | `{ deliveries: [{ id, name, source, counts, user, token, createdAt, changes }] }` – the applied deliveries, newest first (a comparison leaves no row); `changes` = how many changes of the log name it, `token` the AI connection it came through; `limit` default 50, at most 500 – [Deliveries](#deliveries) |
@@ -138,18 +145,18 @@ an experience's plugin in the editor, anything injected – can read the session
   reads them), gives it a new token, sets that as the cookie and answers `{ user, csrfToken }`; the old token stops
   working at once. The client then deletes the stored token; a refused one (401) means signing in as usual; unreachable,
   it waits for the next start. The endpoint goes once those browsers have had their chance (MEMORY open item).
-- **What the cookie does not do – and the editor's sandbox does.** The cookie stops the session from being **read and
+- **What the cookie does not do.** The cookie stops the session from being **read and
   carried off**. It does not, by itself, separate code that runs on the site's own pages from the session: such code is
   in the same origin and could make requests that go with the cookie while the page is open – and read the CSRF token
   from `GET /user` like the app does.
-  - **The editor** (#234, Tilman 2026-10-31: *"Make editors safe, please. Sandbox."*): experience plugins – the draft's and the
-    Code tab's Run – run only in the **stage frame**, an iframe sandboxed without `allow-same-origin`
-    ([editor](editor.md) "The stage frame"). Its origin is opaque, so for plugin code `document.cookie` and
-    `localStorage` throw, the page is another origin, a request to the API is a cross-site request without the
-    `SameSite=Strict` cookie (and CORS sends this API no credentials anyway), and the frame's Content Security Policy
-    lets it reach the content and the Library's files (`/api/content/…`, public) but no other path of the API. The CSRF
-    token never leaves the page; nothing the frame sends makes the page call the API. RULES #35.
-  - **The reader** is not sandboxed (Tilman, 2026-10-29: the review before a release is the protection): a published
+  - **The editor** (5.0, #340, Tilman 2026-11-21: *"we can drop the sandbox. since we trust the user, thats why we gave
+    them access to the api. … it is a huge security risk but only to the user who is logged in and their scope."*):
+    experience plugins – the draft's and the Code tab's – run in the editor's own page, with the signed-in editor's
+    session; they can read and write what that person may. The stage frame of #234 (an iframe sandboxed without
+    `allow-same-origin`, 1.58.0 to 4.x) is gone. What stays is a **guard**: plugin code someone other than the signed-in
+    editor saved last runs only after a prompt that names who saved it, kept per experience and source version
+    ([editor](editor.md) "The plugin guard"). RULES #35.
+  - **The reader** runs plugins in its page too (Tilman, 2026-10-29: the review before a release is the protection): a published
     experience's plugins run in the reader's page, with the reader's session – and since the cookie is one for the site, with
     the session of an editor or admin who opens the reader in the same browser. A published plugin is compiled by the content build from a source an editor stored and reaches readers only
     through a person's publish, but it is code of the same kind. The reader's scene in a frame needs the camera
@@ -263,6 +270,12 @@ How many people come to the app from each printed QR code or link (#324, `Arriva
 (last page) is **`?s=bk1`**, the desktop landing page's own code `?s=lp1`; any other code counts as soon as it is used,
 so a new flyer or poster needs only its own source in its address.
 
+Every experience is at its own path in the reader (#343): a new code names it – `https://<instance>/<experience>/…?s=fl1`
+(the admin's *A new code*). A code without one (printed before) opens the experience its source maps to – `bk1` → `osct`
+(forever, RULES #39), `d1` → `demo`, any other the instance's default (`SOURCE_EXPERIENCES`,
+`shared/api/experience-paths.ts`; the reader moves the address before it counts – [pages](pages.md#links)). The count
+is the same either way: the source, once.
+
 - The reader (`client/src/services/ArrivalService.ts`) reads `s` at startup, takes it out of the address (a reload or a
   shared link does not count again) and sends **`POST /arrivals { source, device, first }`** → 204, without the cookie
   (`credentials: "omit"`, so no CSRF and no session): `device` is `phone`, `tablet` or `desktop` from the user agent,
@@ -300,6 +313,9 @@ The editor's keys:
   no limit** (`Config::limit`; 0 allows nothing), for local testing (`config.local.php.example`) – the same for
   `LOGIN_MAX_ATTEMPTS` (5 wrong codes) and `PASSWORD_MAX_FAILS_PER_EMAIL_HOUR` / `PASSWORD_MAX_FAILS_PER_IP_HOUR`
   (10 / 30). Tilman: "-1 ist besser als Limit für aus" (#83).
+- `PUBLISH_STEP_SECONDS` (`15`): how long a publish writes in its POST and in each poll before it answers ([Publish
+  jobs](#publish-jobs)) – keep it well below the gateway's timeout and PHP's `max_execution_time`; `0` = one slice per
+  request (the API test).
 - `CONTENT_STORE` (`local`): where the publishes and uploads go – `local` = the content store's folder (the directory
   store), `bunny` = the storage zone. A connected CDN has priority: with `bunny` every environment goes there except
   `local`, which always stays in the folder.
@@ -434,6 +450,67 @@ the files, the CLI downloads them. Rights: those of the draft (an editor). Typed
 - `credits` – every credit line of the Library by file URL (#277); the configuration's own `credits` carries only those of
   the files it uses.
 
+### Export file
+
+`GET /editor/experiences/{id}/export/file[?build=]` (#348, `Export::file`, the editor sheet's *Export*) answers the experience
+as one JSON file to download (`Content-Disposition: attachment; filename="<id>-<build>.osct.json"`): `{ format: "osct-export",
+formatVersion: 1, experience, title, build, appVersion, exportedAt, source, configuration, files, assetsBase?, sources }` – the
+draft (`ContentVersion::assemble`, its paths below the assets base as the draft endpoints give them) or a published build
+(`data`, with its version folder as `assetsBase`: its plugins' modules are content paths there), its `files.json` and the Code
+tab's sources `[{ id, source }]`. **It is an import body as it is**: `POST …/import` (and the editor's Import → File) takes
+`configuration`, `files`, `assetsBase` and `sources` from it – with `rename` under another id, so an export becomes a new
+experience or replaces another's draft. The media are not in it: the configuration names them by URL, so the file stays small
+and the import points at the same files (a file deleted from the CDN since is gone for the import too). Typed as `ExportDownload`
+in `shared/api/editor.ts`. The round trip (export, import as another id: the same configuration but its id, the sources) is
+in the API test.
+
+### Make a version live again
+
+`POST /editor/experiences/{id}/versions/{build}/activate` (#348, `Versions::activate`, the sheet's *make live*, the MCP's
+`activate_version`): `{build}` – a build the publish log names for this experience in **this instance's environment** (`ENV`) –
+is what readers get again, on their next start. Builds are immutable and stay in the store (a publish never deletes one; only
+`osct content purge` does, by hand), so the switch is the publish's own: `versions.json` (`ContentStore::activate` – the
+previous current version retired, this build current again from now), then `latest.json`, and a row in the publish log with
+the note `Made live again – the version of <its first publish>` and who did it. The draft is not touched. 404 `unknown-build`
+(not in this environment's publish log); 409 `already-live`, `publish-running` (a publish of the experience is writing – its
+`job`), `build-missing` (the store no longer has its `game.config.json` – purged; nothing switched), `unreadable-schema` (a
+content schema MAJOR today's reader cannot read); 403 `not-for-ai` – readers are reached only by a person, as with Publish.
+
+### Recent places
+
+`GET /editor/recent?limit=` (#348, `Versions::recent`, the experiences page's *Last worked on*): the newest rows of the change
+log across the instance's experiences, newest first, each with `experienceTitle` and the **scene** it is on – a scene's own
+change (and its reference images', ref `<scene>/<surface>`), an entry's, a target's entry's – with `sceneLabel` and, for an
+entry or a target, the entry's title (`entry`); null for what is no scene's (the experience's settings, a plugin, a file, a
+shared entity) and for a scene deleted since. `user`, `token` (an AI connection's name) and `at` as in the change log. The
+editor keeps one row per experience and scene.
+
+### Publish jobs
+
+A publish of a big experience writes for minutes (the osct book: 1529 files, mostly its export archive – [Content and
+CDN](content-cdn.md) "How a publish writes"); no gateway waits that long, and an answer that never comes (504) must not
+stand for a publish that runs on (#345, Tilman 2026-11-22). So `POST …/publish` checks the draft as before (every 4xx
+stays an answer of the POST), then writes what it will write into a row of **`publish_jobs`** (`plan_json`: the version
+folder's files, the export archive's files; emptied when the job ends) and runs it for at most **`PUBLISH_STEP_SECONDS`**
+(15) – done in that time, it answers 200 with the outcome as before (a small experience, the tests); else 202 `{ job }`.
+What runs the rest depends on the host, and both are plain PHP – no queue, no daemon, no cron:
+
+- **PHP-FPM** (staging's FTPS host): `fastcgi_finish_request()` sends the 202, the same request writes on with
+  `ignore_user_abort(true)` and no time limit. The gateway has its answer within the step.
+- **Apache mod_php** (the Docker image), the built-in server: nothing runs after an answer, so every **poll**
+  (`GET …/publish/{job}`) writes the next `PUBLISH_STEP_SECONDS` and answers the progress; the editor polls every 1.5 s.
+
+One runner at a time: a run takes a lease (`lease_until`, 90 s, renewed after every slice of 32 files) and a poll that
+finds it taken only reads. A runner that dies (an FPM worker killed by `request_terminate_timeout`, a closed editor on
+mod_php) leaves the lease to run out; the next poll goes on from the last saved slice. Each step is safe to repeat: a
+file written twice is the same file, the switch writes the same `latest.json`. A job no one moved for 2 minutes gives way
+to the next publish of the experience (`failed`, `abandoned`); that publish writes what it left (the archive's listing
+skips what is there). Failures: in the version folder or the switch the job fails with the store's error (502
+`content-store-failed` – nothing went live, or the switch is repeated by the next publish); in the archive the publish
+stands and `export.error` says why (as before). The editor (`editor/src/lib/publish-job.ts`) shows the phase and done /
+total, the real outcome, and after a gateway error on the POST it looks for the experience's new job
+(`GET …/publish`) instead of reporting a failure; the MCP's `publish` waits up to 90 s, then `publish_status` follows.
+
 ### One environment per instance
 
 An instance publishes to **its own environment only** (`ENV`, #183): a local development API to `local`, staging to
@@ -446,6 +523,22 @@ of an instance without a CDN – the answer carries the warning the editor shows
 step: *"No CDN connected – the published content is stored and served by this server only. Readers load from here
 without edge caching; heavy media goes through this server. Back up the content store."* (`ContentStore::SERVER_WARNING`).
 `local` appears only where `ENV` is local; the experience list reads what is live on the instance's environments the same way.
+
+### New experiences
+
+`POST /editor/experiences { id, title }` (#343, the editor's *New experience*, the MCP's `create_experience`) makes an
+empty experience: its draft holds one scene (`scene-1`, the *double* preset, `New scene`) and nothing on it, no import
+record. **The id is its slug** – one identifier for its reader address `https://<instance>/<id>/`, its content store's
+folder (`<title>/<env>/<id>/`) and the editor's `/editor/<id>/`: lower-case letters, digits and dashes, a letter or digit
+first, at most 64 (`Experiences::SLUG`, `shared/api/experience-paths.ts` `EXPERIENCE_SLUG`). It is chosen once – there is
+no rename: once the experience is published, printed QR codes and shared links depend on it.
+
+The site's own top-level paths are never an experience's id (`Experiences::RESERVED` = `RESERVED_PATHS` in
+`shared/api/experience-paths.ts`, compared lower-case; `mcp/test/php-rules.test.ts` pins the copy): the reader's routes
+(`scene`, `entry`, `entries`, `tutorial`, `about`, `info`, `credits`, …), `x` (the old prefix), `editor`, `admin`, `api`,
+`docs`, `mcp`, `assets`, the service worker and manifest files, the dev server's paths and a few kept free. A new
+experience by import is checked the same way (400 `reserved-slug`); an import keeps the wider id rule otherwise
+(capitals, `_` – experiences imported before #343).
 
 ### Import preview
 
@@ -460,12 +553,13 @@ to the instance's `EXPERIENCE` – none of either: 400 `invalid-experience`), it
   what its `latest.json` says (null for a configuration: a form that read a content base itself fills them in);
 - `incoming` – as in the comparison below (`experience`, `title`, `build`, `hash`, `date`, `appVersion`, `schema`, `source`,
   `from`); the experience's id comes from the configuration (`experience.id`), so the CDN needs no id from the person;
-- `counts` `{ scenes, entries, targets, entities }`;
+- `counts` `{ scenes, entries, targets, entities, plugins? }` (`plugins`: the Code tab sources the body carries);
 - `existing` – the comparison the import would answer for the draft of that id (below, without a confirmation), null
   for a new experience.
 
 A content base that cannot be read, or whose `latest.json` names no build, answers 502 `content-fetch-failed` with the
-`url` that failed. The import itself does not depend on a preview: it reads the source again, and over an experience that
+`url` that failed; anything else that goes wrong while reading the CDN answers 502 `content-fetch-failed` with what failed
+(the error log has where) – never the bare `server-error` (#348). The import itself does not depend on a preview: it reads the source again, and over an experience that
 exists its own comparison and confirmation decide.
 
 ### Import with a version comparison
@@ -480,7 +574,9 @@ alike (the shared [confirmation](#confirmations), as a removal's):
    (the same fields plus `importedAt`, `importedBy`; recorded in `experiences.imported_json` by every import, null for an experience
    imported before that column existed), its edits since that import (the change log after it: their number and the newest ten `{ kind, ref, user,
    token, at }`), its build now and where it is live (`current` = that environment serves the draft as it is); `same` =
-   the same build comes in – and `confirmation` `{ id, expiresAt }`.
+   the same build comes in; `counts` `{ incoming, draft, sourcesReplaced }` (#348) – scenes, entries, targets, shared entities
+   and Code tab sources each side (the incoming side's sources: the draft's after the import – it keeps its own and adds or
+   replaces those the body carries) and the ids whose code the import replaces – and `confirmation` `{ id, expiresAt }`.
 2. **Confirm.** The same import with `confirm: <id>` replaces the draft. The id lasts 10 minutes and is bound to the
    person (and the AI connection), the incoming content and the draft as it was compared (its import, its last change,
    its rows' state): anything that changed meanwhile, another person, or an expired id answer 409 `confirmation-void`
@@ -666,8 +762,8 @@ Renditions (1x / 2x / 3x, 480p / 720p / 1080p) and transcoding stay with the con
 
 The editor's **Code** tab ([editor](editor.md)) keeps the TypeScript of an experience's plugins in the `plugins` table
 (`Plugins.php`): one row per plugin id (`experience_id`, `id`, `source`, who, when), at most 256 KB each, every save a
-change (`kind: plugin`, the source before and after). They are the editor's sandbox: the editor transpiles and runs
-them on its own stage, and nothing of them reaches a publish. The compiled plugins an experience has come in with the
+change (`kind: plugin`, the source before and after). The editor transpiles and runs them on its own stage (in its page,
+with the person's session – `updatedBy`, who saved a source last, is what the editor's plugin guard asks about, #340). The compiled plugins an experience has come in with the
 import – the configuration's `plugins` list (content schema 2.4: `{ id, src, api }`, 2.14: `registered`, what each
 plugin registered – written by the content build only) is kept in `experiences.plugins_json` and assembled back after
 `tutorial`, its `src` below the assets base like every other content path. What the compiled plugins register is
@@ -783,7 +879,7 @@ build's `rowPlaces`).
 | `PUT /editor/experiences/{id}/scenes/{sid}/surfaces/{surfaceId}/reference` | `{ url?: string \| null, fit?, name? }` | `{ scene, surface, reference, changed }` – [a surface's reference image](#surface-reference-images) |
 | `PUT /editor/experiences/{id}/environment` | `{ environment: { world, onionSky, worldSrc?, skySrc? } \| null }` | `{ environment }` – the experience's world and onion sky (`experience.environment`, content schema 2.8; the world model and the sky image as references 2.10); `null` removes it – the default applies. A change `environment` in the log. 400 `invalid-environment`; 404 |
 | `PUT /editor/experiences/{id}/passes` | `{ passes: [{ type, …parameters }] \| null }` | `{ passes }` – the experience's post-processing (`experience.passes`), the master every scene without a list of its own shows; `null` removes it. Checked as a scene's list (a built-in `type` or a plugin's pass, scalar parameters); a change `passes` in the log. 400 `invalid-passes`; 404 |
-| `PUT /editor/experiences/{id}/logic` | `{ logic: { rules, canvas? } \| null }` | `{ logic }` – the experience's rules (`experience.logic`, content schema 5.0, #334): rules in the behaviour's grammar that hear the bus (no node event), name nodes by address `target:<targetId>/<node name>` and go to `scene:<id>`; `canvas` (`{ groups?, notes?, folds? }`) is the Logic view's authoring data – the draft and the export carry it, a publish leaves it out. `Logic::check` checks the shapes: a rule `{ on, when?, do }` with a text `on` (empty allowed – the Logic view lists it), a text `when` (the object form of 4.x is refused; the expression's syntax is the TypeScript guard's), one known verb per action. A node's behaviour (`PUT …/entities/{ref}`, `…/targets/{id}`) is checked the same way. `null` removes the field. A change `logic`, revertable like the other experience-wide kinds. 400 `invalid-logic`; 404 |
+| `PUT /editor/experiences/{id}/logic` | `{ logic: { rules, canvas? } \| null }` | `{ logic }` – the experience's rules (`experience.logic`, content schema 5.0, #334): rules in the behaviour's grammar that listen to the bus (no node event), name nodes by address `target:<targetId>/<node name>` and go to `scene:<id>`; `canvas` (`{ groups?, notes?, folds? }`) is the Logic view's authoring data – the draft and the export carry it, a publish leaves it out. `Logic::check` checks the shapes: a rule `{ on, when?, do }` with a text `on` (empty allowed – the Logic view lists it), a text `when` (the object form of 4.x is refused; the expression's syntax is the TypeScript guard's), one known verb per action. A node's behaviour (`PUT …/entities/{ref}`, `…/targets/{id}`) is checked the same way. `null` removes the field. A change `logic`, revertable like the other experience-wide kinds. 400 `invalid-logic`; 404 |
 | `PUT /editor/experiences/{id}/variables` | `{ variables: { name: { type, scope?, default? } } \| null }` | `{ variables }` – the rules' typed variables (`experience.variables`, content schema 5.0, #334 B7): `type` number / integer / boolean / string, `scope` one of the variable scopes, `default` of the type (an integer for a number is fine). Whether the rules fit them is the TypeScript guard's and the editor's to say. `null` removes the field. A change `variables`, revertable. 400 `invalid-variables`; 404 |
 | `PUT /editor/experiences/{id}/appearance` | `{ appearance: { reveal?, found?, lost? } \| null }` | `{ appearance }` – how the experience's entities appear (`experience.appearance`, content schema 2.29, #265): a look `{ type, …parameters }` per moment (`Experiences::MOMENTS`), a built-in `type` or a plugin's look, scalar parameters (their ranges are the guard's). The whole appearance is replaced; `null`, or one without a moment, removes the field – the default look plays everywhere. A change `appearance` in the log. 400 `invalid-appearance`; 404 |
 
@@ -838,6 +934,17 @@ to 5.0), `rules` (conditions converted), `sets` (set texts quoted), `variables` 
 and writes nothing, no schema statement runs. After a migration `migrate.php` prints one line with the counts. Published
 versions in the content store are not rewritten: a 5.0 app refuses a 4.x version, so every experience is published again
 after the deploy.
+
+**Content schema 6.0 (#341, plugin API 4.0): listen, not hear**, on the next deploy (`Db::migrate` runs `Migration6.php`
+after `Migration5`). A 5.x experience's `content_schema` becomes 6.0 (a 4.x one becomes 6.0 in `Migration5` already); in
+`experiences.plugins_json` (the declared plugins) and `imported_json` every recorded `uses: { hears }` becomes
+`uses: { listens }` (the JSON is walked). Idempotent. The Code tab's sources (`plugins.source`) are **not** rewritten here:
+`osct plugins listen --all --dry-run` (scripts/, `OSCT_API_URL`, `OSCT_EDITOR_TOKEN`) prints per experience and plugin the
+lines it would change, and without `--dry-run` stores them back through the editor API (a change each in History) – after
+the deploy, since a 5.x editor's guard does not know `uses.listens`. **Dry run**: `php server/deploy/migrate.php --plan-6`
+prints `schema` (experiences going to 6.0), `uses` (experience → specs renamed) and `sources` (`experience/plugin` whose
+source still says "hear"). Declared modules were built against plugin API 3.x – a 6.0 app does not load them – and a 6.0
+app refuses a 5.x version: every experience is published again after the migration.
 
 #### Ids without leading zeros (#63)
 

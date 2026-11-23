@@ -6,7 +6,7 @@
   import { scenes } from "#lib/scenes.svelte.js";
   import {
     bandDrop, dropAtEnd, dropMark, dropOver, gridSpan, pickModeOf, pickScenes, planDrop, runCounts, sceneName, stepScene, stripKey, stripRuns,
-    targetsOf, type Drop, type MoveRequest,
+    targetsOf, targetsOff, type Drop, type MoveRequest,
   } from "#lib/scene-strip.js";
   import { previewParts } from "#lib/surface-preview.js";
   import { PAGE_MM } from "#lib/surface-edit.js";
@@ -205,7 +205,7 @@
       <span class="th">
         {#if picture}<SurfacesPreview parts={picture.parts} ratio={picture.ratio} labels />{/if}
       </span>
-      <span class="n"><b>{sceneName(scene)}</b><span class="count" aria-label="{targets} targets"><Icon name="target" size="1em" stroke={2} />{targets}</span></span>
+      <span class="n"><b>{sceneName(scene)}</b><span class="count" aria-label="{targets} targets switched on{targetsOff(scene) ? `, ${targetsOff(scene)} off` : ``}" title="{targets} switched on{targetsOff(scene) ? ` · ${targetsOff(scene)} off` : ``}"><Icon name="target" size="1em" stroke={2} />{targets}</span></span>
     </button>
   </div>
 {/snippet}

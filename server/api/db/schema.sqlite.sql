@@ -361,3 +361,27 @@ CREATE TABLE IF NOT EXISTS deliveries (
 );
 CREATE INDEX IF NOT EXISTS deliveries_experience ON deliveries (experience_id, created_at);
 ALTER TABLE changes ADD COLUMN delivery_id TEXT NULL DEFAULT NULL;
+
+-- Publish jobs (#345, PublishJob.php) – see schema.mysql.sql
+CREATE TABLE IF NOT EXISTS publish_jobs (
+  id TEXT NOT NULL PRIMARY KEY,
+  experience_id TEXT NOT NULL REFERENCES experiences (id) ON DELETE CASCADE,
+  env TEXT NOT NULL,
+  user_id TEXT NULL DEFAULT NULL,
+  note TEXT NULL,
+  status TEXT NOT NULL,
+  phase TEXT NOT NULL,
+  build TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  done INTEGER NOT NULL DEFAULT 0,
+  total INTEGER NOT NULL DEFAULT 0,
+  skipped INTEGER NOT NULL DEFAULT 0,
+  plan_json TEXT NOT NULL,
+  state_json TEXT NOT NULL,
+  error_code TEXT NULL DEFAULT NULL,
+  error_message TEXT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  lease_until INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS publish_jobs_experience ON publish_jobs (experience_id, env, created_at);

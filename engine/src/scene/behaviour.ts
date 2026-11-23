@@ -95,7 +95,38 @@ interface CompiledRule {
   when: Expr | null | "bad";
 }
 
-/** A list of rules on a host: `setRules` subscribes their bus events, `run` fires an event's matching rules */
+/**
+ * Where a list of rules lives on the stage, as the editor names it to run one of them by hand (#334): a node's behaviour
+ * (its target and its node's name – "" for a node without one), the open scene's logic, the experience's
+ */
+export type RuleHome = { targetId: string; node: string } | { home: "scene"; scene: string } | { home: "experience" };
+
+/** What running a rule by hand did: it ran; its condition was false (nothing ran); no such rule on the stage */
+export type HandRun = "ran" | "held" | "missing";
+
+/** The rule lists on the stage now (each one while it is built): `runRuleByHand` finds a rule by its home */
+const onStage = new Set<{ home: () => RuleHome; one: (index: number) => HandRun }>();
+
+const sameHome = (a: RuleHome, b: RuleHome): boolean =>
+  "targetId" in a ? "targetId" in b && a.targetId === b.targetId && a.node === b.node
+    : "targetId" in b ? false : a.home === b.home && (a.home === "experience" || (b.home === "scene" && a.scene === b.scene));
+
+/**
+ * Run one rule of a list on the stage as if its event had come (the editor's *Run this rule*, #334): its condition applies,
+ * its actions run as the event's would (the log listens to `behaviour`, an `emit` reaches the bus), no other rule of that event
+ * runs. `rule`: its index in its list (0 = the first). The first list of that home that has it answers.
+ */
+export const runRuleByHand = (home: RuleHome, rule: number): HandRun => {
+  let result: HandRun = "missing";
+  for (const list of onStage) {
+    if (!sameHome(list.home(), home)) continue;
+    result = list.one(rule);
+    if (result !== "missing") break;
+  }
+  return result;
+};
+
+/** A list of rules on a host: `setRules` subscribes their bus events, `run` fires an event's matching rules, `one` one rule by hand */
 const ruleRunner = (host: RuleHost) => {
   let rules: CompiledRule[] = [];
   let unsubscribe: Array<() => void> = [];
@@ -121,7 +152,7 @@ const ruleRunner = (host: RuleHost) => {
       case "play": case "pause": case "stop": {
         const found = lookup(action.node, action.action);
         if (!found) return;
-        // A plugin part of the node that declares the verb hears it (schema 5.1); the node's own clip plays as well
+        // A plugin part of the node that declares the verb listens to it (schema 5.1); the node's own clip plays as well
         const answered = found.act?.(action.action) ?? false;
         const timeline = found.timeline;
         if (!timeline) {
@@ -176,8 +207,18 @@ const ruleRunner = (host: RuleHost) => {
     return result.ok && isTruthy(result.value);
   };
 
-  const run = (event: string) => {
-    const matched = rules.filter(compiled => compiled.rule.on === event && holds(compiled));
+  const run = (event: string) => fire(rules.filter(compiled => compiled.rule.on === event && holds(compiled)), event);
+
+  /** One rule by hand (the editor's *Run this rule*, #334): as if its `on` came – its condition applies, no other rule runs */
+  const one = (index: number): HandRun => {
+    const compiled = rules.find(c => c.index === index);
+    if (!compiled) return "missing";
+    if (!holds(compiled)) return "held";
+    fire([compiled], compiled.rule.on);
+    return "ran";
+  };
+
+  const fire = (matched: CompiledRule[], event: string) => {
     if (!matched.length) return;
     if (depth >= MAX_DEPTH) return warn(`rules set off rules more than ${MAX_DEPTH} events deep – "${event}" stopped there`);
     depth++;
@@ -215,15 +256,15 @@ const ruleRunner = (host: RuleHost) => {
       }
       return { rule, index, when: parsed.expr };
     });
-    // An empty `on` hears nothing (the editor's Logic view lists it as a problem)
+    // An empty `on` listens to nothing (the editor's Logic view lists it as a problem)
     const events = [...new Set(next.map(rule => rule.on).filter(event => event && !host.own(event)))];
     unsubscribe = events.map(event => host.api.events.on(event, () => run(event)));
   };
 
-  return { setRules, run, dispose };
+  return { setRules, run, one, dispose };
 };
 
-/** The behaviour of a node (null when it carries none): its rules hear the node's hooks and the bus */
+/** The behaviour of a node (null when it carries none): its rules listen to the node's hooks and the bus */
 export const applyBehaviour = (context: BehaviourContext): BehaviourInstance | null => {
   const component = behaviourOf(context.node);
   if (!component) return null;
@@ -251,13 +292,18 @@ export const applyBehaviour = (context: BehaviourContext): BehaviourInstance | n
     runner.setRules(behaviourRules(behaviourOf(node)));
   };
   listen(context.node);
+  const entry = { home: (): RuleHome => ({ targetId: target.id, node: ownName }), one: runner.one };
+  onStage.add(entry);
 
   return {
     onFound: () => runner.run("found"),
     onLost: () => runner.run("lost"),
     onTap: () => runner.run("tap"),
     onUnlocked: () => runner.run("unlocked"),
-    dispose: runner.dispose,
+    dispose: () => {
+      onStage.delete(entry);
+      runner.dispose();
+    },
     tune: node => {
       if (!behaviourOf(node)) return false;
       listen(node);
@@ -283,7 +329,7 @@ export interface LogicContext {
 export interface LogicInstance {
   /**
    * The scene opened and its nodes are built: the rules on `sceneChanged` run (the bus delivered it before the nodes
-   * existed, so these rules hear it from here)
+   * existed, so these rules listen to it from here)
    */
   opened(): void;
   /** Other rules in place (the content changed) */
@@ -291,7 +337,7 @@ export interface LogicInstance {
   dispose(): void;
 }
 
-/** A scene's or the experience's rules: they hear the bus and name nodes by address (`target:<targetId>/<node name>`) */
+/** A scene's or the experience's rules: they listen to the bus and name nodes by address (`target:<targetId>/<node name>`) */
 export const applyLogic = (rules: readonly BehaviourRule[], context: LogicContext): LogicInstance => {
   const label = context.home === "scene" ? `scene ${context.sceneId ?? ""}`.trim() : "experience";
   const runner = ruleRunner({
@@ -307,9 +353,15 @@ export const applyLogic = (rules: readonly BehaviourRule[], context: LogicContex
     own: event => event === "sceneChanged" || isBehaviourNodeEvent(event),
   });
   runner.setRules(rules);
+  const home: RuleHome = context.home === "scene" ? { home: "scene", scene: context.sceneId ?? "" } : { home: "experience" };
+  const entry = { home: () => home, one: runner.one };
+  onStage.add(entry);
   return {
     opened: () => runner.run("sceneChanged"),
     tune: next => runner.setRules(next),
-    dispose: runner.dispose,
+    dispose: () => {
+      onStage.delete(entry);
+      runner.dispose();
+    },
   };
 };

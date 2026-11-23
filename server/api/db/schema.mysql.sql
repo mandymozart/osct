@@ -423,3 +423,31 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
   CONSTRAINT `deliveries_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ALTER TABLE `changes` ADD COLUMN `delivery_id` CHAR(36) NULL DEFAULT NULL;
+
+-- Publish jobs (#345, PublishJob.php): a publish runs as a job – the POST starts it, polls of GET …/publish/{job} report
+-- its progress and drive what is left where nothing runs on after the answer (Apache mod_php). `plan_json` = every file
+-- the publish writes (emptied when the job ends), `state_json` = where it is (files still to write, the archive's outcome)
+CREATE TABLE IF NOT EXISTS `publish_jobs` (
+  `id` CHAR(36) NOT NULL,
+  `experience_id` VARCHAR(64) NOT NULL,
+  `env` VARCHAR(32) NOT NULL,
+  `user_id` CHAR(36) NULL DEFAULT NULL,
+  `note` TEXT NULL,
+  `status` VARCHAR(16) NOT NULL,
+  `phase` VARCHAR(16) NOT NULL,
+  `build` CHAR(12) NOT NULL,
+  `hash` CHAR(64) NOT NULL,
+  `done` INT NOT NULL DEFAULT 0,
+  `total` INT NOT NULL DEFAULT 0,
+  `skipped` INT NOT NULL DEFAULT 0,
+  `plan_json` LONGTEXT NOT NULL,
+  `state_json` MEDIUMTEXT NOT NULL,
+  `error_code` VARCHAR(64) NULL DEFAULT NULL,
+  `error_message` TEXT NULL,
+  `created_at` BIGINT NOT NULL,
+  `updated_at` BIGINT NOT NULL,
+  `lease_until` BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `publish_jobs_experience` (`experience_id`, `env`, `created_at`),
+  CONSTRAINT `publish_jobs_experience_fk` FOREIGN KEY (`experience_id`) REFERENCES `experiences` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

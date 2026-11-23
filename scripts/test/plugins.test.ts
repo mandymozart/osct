@@ -338,7 +338,7 @@ export const register = (api: PluginApi): void => {
     params: { volume: p.number({ min: 0, max: 1, default: 0.5, slider: [0, 0.8], description: "How loud." }), voice: p.choice(["low", "high"], { description: "Voice." }) },
     actions: ["play", "pause"],
     events: ["ended"],
-    uses: { hears: ["doorOpened"], sets: ["hummed"] },
+    uses: { listens: ["doorOpened"], sets: ["hummed"] },
   }, ({ params, emit }) => {
     const loud: number = params.volume;
     const voice: "low" | "high" = params.voice;
@@ -359,7 +359,7 @@ export const register = (api: PluginApi): void => {
         volume: { kind: 'number', default: 0.5, min: 0, max: 1, slider: [0, 0.8], description: 'How loud.' },
         voice: { kind: 'choice', options: ['low', 'high'], default: 'low', description: 'Voice.' },
       },
-      actions: ['play', 'pause'], events: ['ended'], uses: { hears: ['doorOpened'], sets: ['hummed'] },
+      actions: ['play', 'pause'], events: ['ended'], uses: { listens: ['doorOpened'], sets: ['hummed'] },
     });
     expect(registered.passes!.scan).toEqual({ description: 'Scan lines.', params: { lines: { kind: 'number', default: 200, min: 10, max: 800, step: 1, integer: true, description: 'How many.' } }, uses: { reads: ['mood'] } });
     // An undeclared event is a type error in the build; a verb no node answers a spec error

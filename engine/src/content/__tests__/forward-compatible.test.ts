@@ -20,7 +20,7 @@ import { ErrorCode } from "../../types/index";
 /** What a 2.19 app knew: the behaviour component, plugin API 1.5, no plugin passes in `passes` lists */
 const APP_2_19: KnownFeatures = {
   ...currentFeatures(),
-  schema: "5.19",
+  schema: "6.19",
   components: ["animation", "behaviour"],
   passes: ["bloom", "vignette", "grade"],
   passFields: ["type"],
@@ -29,12 +29,12 @@ const APP_2_19: KnownFeatures = {
   pluginKinds: ["components", "nodeTypes", "materials"],
 };
 /** What a 2.21 app knew: everything but a pass's `enabled` (#233) */
-const APP_2_21: KnownFeatures = { ...currentFeatures(), schema: "5.21", passFields: ["type"] };
+const APP_2_21: KnownFeatures = { ...currentFeatures(), schema: "6.21", passFields: ["type"] };
 /** A 2.18 app: no behaviour component */
-const APP_2_18: KnownFeatures = { ...APP_2_19, schema: "5.18", components: ["animation"] };
+const APP_2_18: KnownFeatures = { ...APP_2_19, schema: "6.18", components: ["animation"] };
 /** A 2.16 app: no parameter kind `texture`, no materials of plugins */
 const APP_2_16: KnownFeatures = {
-  ...APP_2_18, schema: "5.16", pluginApi: "1.3", paramKinds: PARAM_KINDS.filter(kind => kind !== "texture"), pluginKinds: ["components", "nodeTypes"],
+  ...APP_2_18, schema: "6.16", pluginApi: "1.3", paramKinds: PARAM_KINDS.filter(kind => kind !== "texture"), pluginKinds: ["components", "nodeTypes"],
 };
 
 const RIPPLE = { description: "Rings on water (a feedback buffer).", src: "none", params: { speed: { kind: "number", default: 1, min: 0, max: 4, description: "How fast." } } };
@@ -42,7 +42,7 @@ const GRAIN = { description: "Film grain.", params: { amount: { kind: "number", 
 const moss = () => ({ description: "Moss.", params: { look: { kind: "texture", default: "", description: "The picture." }, tone: { kind: "color", default: "#336633", description: "Its colour." } } });
 
 /** A book of schema 2.21: everything its plugin uses is recorded (`registered`), so a type outside that is nobody's */
-const book2_21 = (schema = "5.21", node: Record<string, unknown> = {}) => ({
+const book2_21 = (schema = "6.21", node: Record<string, unknown> = {}) => ({
   version: { version: "1.54.3", timestamp: "2026-10-31T00:00:00.000Z", hash: "abc123", schema },
   experience: { id: "b", title: "B", book: { author: "A" } },
   initialScene: "s1",
@@ -120,7 +120,7 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
 
   it("a 2.17 book in a 2.16 app: a recorded texture parameter, its value and the plugin's material are skipped", () => {
     const raw = {
-      ...book2_21("5.17", { material: { type: "moss", params: { tone: "#225522" } }, components: [{ type: "mossy", look: "/assets/content/m.jpg", tone: "#112211" }] }),
+      ...book2_21("6.17", { material: { type: "moss", params: { tone: "#225522" } }, components: [{ type: "mossy", look: "/assets/content/m.jpg", tone: "#112211" }] }),
       plugins: [{ id: "moss", src: "/assets/content/plugins/moss/plugin.js", api: "1.4", registered: { components: { mossy: moss() }, materials: { moss: moss() }, nodeTypes: { ripple: RIPPLE } } }],
       scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
     };
@@ -137,10 +137,10 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
   });
 
   it("a 2.28 book in a 2.27 app: a recorded model parameter and its value are skipped, the component stays (#263)", () => {
-    const app2_27: KnownFeatures = { ...currentFeatures(), schema: "5.27", pluginApi: "1.6", paramKinds: PARAM_KINDS.filter(kind => kind !== "model") };
+    const app2_27: KnownFeatures = { ...currentFeatures(), schema: "6.27", pluginApi: "1.6", paramKinds: PARAM_KINDS.filter(kind => kind !== "model") };
     const paper = { description: "Paper.", params: { sheet: { kind: "model", default: "", description: "The sheet." }, tone: { kind: "color", default: "#ffffff", description: "Its colour." } } };
     const raw = {
-      ...book2_21("5.28", { components: [{ type: "paper", sheet: "/assets/content/entries/a/sheet.glb", tone: "#eeeeee" }] }),
+      ...book2_21("6.28", { components: [{ type: "paper", sheet: "/assets/content/entries/a/sheet.glb", tone: "#eeeeee" }] }),
       plugins: [{ id: "paper", src: "/assets/content/plugins/paper/plugin.js", api: "1.7", registered: { components: { paper }, nodeTypes: { ripple: RIPPLE } } }],
       scenes: [{ id: "s1", label: "1–2", surfaces: [{ id: 'surface', widthMm: 460, heightMm: 320, place: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 } }] }],
     };
@@ -190,7 +190,7 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
   it("a pass that is off (schema 2.22) in a 2.21 app: the field is skipped, the pass runs – this app keeps it off", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const raw = {
-      ...book2_21("5.22"), entries: [], entities: {},
+      ...book2_21("6.22"), entries: [], entities: {},
       experience: { id: "b", title: "B", book: { author: "A" }, passes: [{ type: "vignette", enabled: false, strength: 0.4 }] },
     };
     const { config, skipped } = skipUnknownFeatures(raw, APP_2_21);
@@ -216,7 +216,7 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
   });
 
   it("a broken shape and a wrong type for a known field are still refused", () => {
-    const refused = (node: Record<string, unknown>) => problemsOf(skipUnknownFeatures(book2_21("5.21", node), APP_2_19).config);
+    const refused = (node: Record<string, unknown>) => problemsOf(skipUnknownFeatures(book2_21("6.21", node), APP_2_19).config);
     expect(refused({ components: "nope" })).toEqual(["entities.fx.components: expected a list of components"]);
     expect(refused({ components: [{ type: 3 }] })).toEqual(['entities.fx.components[0].type: "3" is not one of animation, reveal, found, lost, behaviour']);
     expect(refused({ params: { speed: "fast" } })).toEqual(["entities.fx.params.speed: expected a number from 0 to 4, got \"fast\""]);
@@ -237,11 +237,11 @@ describe("forward compatibility: a newer MINOR read by an older app", () => {
     expect(error?.details?.[0]).toMatch(/update the app/);
     expect(getScenes()).toEqual([]);
     // An older app refuses a MAJOR above its own the same way
-    expect(await loadGameConfiguration({ bundled: async () => book2_21("6.0"), knownFeatures: APP_2_19 })).toMatchObject({ code: ErrorCode.NOT_SUPPORTED });
+    expect(await loadGameConfiguration({ bundled: async () => book2_21("7.0"), knownFeatures: APP_2_19 })).toMatchObject({ code: ErrorCode.NOT_SUPPORTED });
   });
 
   it("a scene's and the experience's logic (schema 5.0): an unknown action or field is skipped like a behaviour's", () => {
-    const raw = book2_21("5.99");
+    const raw = book2_21("6.99");
     const config = {
       ...raw,
       experience: { ...raw.experience, logic: { rules: [{ on: "chapterDone", do: [{ goto: "scene:s1" }, { teleport: "x" }] }], canvas: { folds: [] }, view: 1 } },

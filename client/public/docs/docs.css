@@ -119,3 +119,39 @@ ol.steps > li > :last-child { margin-bottom: 0; }
   .beside > figure { max-width: 25rem; }
   h1 { font-size: 1.5rem; }
 }
+
+/* The search: a field under the home link; while it holds a query its hits stand in the place of the page list */
+#search { display: block; width: 100%; height: 2rem; margin: 0 0 .5rem; padding: 0 .5rem; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 0; }
+#search:focus { outline: none; border-color: var(--text); }
+#search-results { list-style: none; margin: 0 0 1rem; padding: 0; max-width: none; }
+#search-results li { margin: 0; border-bottom: 1px solid var(--line); }
+#search-results a { display: block; padding: .4rem .5rem; margin: 0 -.5rem; text-decoration: none; }
+#search-results a b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+#search-results a b.code { font-family: var(--mono); font-size: .88em; }
+#search-results a span { display: block; color: var(--muted); font-size: .8rem; line-height: 1.35; overflow-wrap: anywhere; }
+#search-results a.picked { background: var(--selected); }
+#search-results .none { padding: .4rem 0; color: var(--muted); border: 0; }
+#nav.searching .groups { display: none; }
+
+/* Reference pages (generated): wide tables of members, tools and parameters; the row a link or the search names is marked */
+main.reference { max-width: 72rem; }
+main.reference h3 { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+main.reference h3 code, main.reference h4 code { font-size: 1em; background: none; border: 0; padding: 0; }
+main.reference h4 { font-size: .95rem; font-weight: 600; margin: 1.5rem 0 .4rem; }
+main.reference p { max-width: 90ch; }
+main.reference td code.sig { display: inline-block; margin-bottom: .2rem; background: none; border: 0; padding: 0; color: var(--muted); }
+main.reference td:first-child code { background: none; border: 0; padding: 0; font-weight: 600; }
+main.reference details { margin: 0 0 1rem; max-width: 90ch; }
+main.reference summary { cursor: pointer; color: var(--muted); font-size: .86rem; }
+main.reference details p { margin: .5rem 0 0; font-size: .93rem; }
+tr:target td, h2:target, h3:target, h4:target { background: var(--selected); }
+[id] { scroll-margin-top: 1rem; }
+
+@media (hover: hover) {
+  #search-results a:hover { background: var(--hover); }
+}
+@media (max-width: 56rem) {
+  #search, #search-results { display: none; }
+  #nav.open #search { display: block; margin-top: .75rem; }
+  #nav.open #search-results:not([hidden]) { display: block; }
+}

@@ -1,4 +1,5 @@
-import { BREAKPOINT_TABLET } from "@/constants";
+// Relative, not "@/constants": the inline landing decision in index.html is built from this file too (#343)
+import { BREAKPOINT_TABLET } from "../../constants";
 
 /** Where this browser tab remembers that the visitor chose to open the app on the computer anyway */
 export const LANDING_SKIPPED_KEY = "osct-desktop-landing-skipped";

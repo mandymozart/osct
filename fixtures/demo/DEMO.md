@@ -29,7 +29,7 @@ and `lifts` (the looks `fadeCode` and `printLiftCode`, the experience's *found* 
 **The behaviour** (#88): the key and the door carry `behaviour` rules – no code. The key's rule (*on tap*) plays the
 model's clip `rattle`, sets `hasKey` in the experience scope and emits `keyRattled`; the door's rules show its `hint` child
 when the page is found and, found with `hasKey`, hide it and emit `openDoor` – which the `door` component of
-`plugins/narrative` hears to lift and turn the door (what a rule cannot do). The Inspector edits the rules, the scene's
+`plugins/narrative` listens to lift and turn the door (what a rule cannot do). The Inspector edits the rules, the scene's
 timeline in it marks each rule that ran.
 
 **The aquarium** (page 2, *The key*'s right page, above the tally – #188): the entry `aquarium` with a target of its own
@@ -120,10 +120,10 @@ docs/plugins.md and `agents/research/2026-10-30-demo-book.md`. Most assets are t
 animation clip, `rattle`, which its behaviour plays on a tap (the `animation` component says how: once) – written by `editor/tools/key-model.mjs`
 (`node editor/tools/key-model.mjs` writes it; a changed key is uploaded in the editor and the demo exported again – the export holds it as the build optimised it).
 
-In the editor, the Inspector's *vars and events* (the scene selected) drives the narrative by hand: **tap** taps a found target without
-aiming at it (the key rattles and is taken, the switch changes its scene), the variables are editable and **set** adds
+In the editor, the **Log** and **Variables** tabs drive the narrative by hand: the Log's **tap** taps a found target without
+aiming at it (the key rattles and is taken, the switch changes its scene), the Variables tab's variables are editable and **set** adds
 one through the plugin API (`hasKey` true in the experience scope, then the door's page switched off and on, opens the door
-without the key's page), and the timeline lists every event with the time since the scene opened.
+without the key's page), and the Log's timeline lists every event with the time since the scene opened.
 
 Next to it, `fixtures/content/` stays the **test fixture** – the tests and CI build that one. The demo is free to
 change with every idea.

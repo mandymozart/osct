@@ -28,7 +28,7 @@
 
   <h2 id="homes">Where rules live</h2>
   <div class="table"><table>
-    <tr><th>Home</th><th>Alive</th><th>Hears</th><th>Acts on</th></tr>
+    <tr><th>Home</th><th>Alive</th><th>Listens to</th><th>Acts on</th></tr>
     <tr><td>A node's <code>behaviour</code> component</td><td class="wrap">while its scene is open</td><td class="wrap">its own node's events, and the bus</td><td class="wrap">its own node, or a node below it by name</td></tr>
     <tr><td>A scene (<code>logic</code>)</td><td class="wrap">while the scene is open</td><td class="wrap">the bus only</td><td class="wrap">nodes of its own targets, by address</td></tr>
     <tr><td>The experience (<code>logic</code>)</td><td class="wrap">the whole session, across scenes</td><td class="wrap">the bus only</td><td class="wrap">any target's nodes, by address</td></tr>
@@ -39,10 +39,10 @@
   <div class="table"><table>
     <tr><th>Kind</th><th>Names</th><th>Notes</th></tr>
     <tr><td>A node's own</td><td class="wrap"><code>found</code>, <code>lost</code>, <code>tap</code>, <code>unlocked</code></td><td class="wrap">Its page found, lost, its AR content tapped, the page's first find. Only for rules on a node.</td></tr>
-    <tr><td>Core events</td><td class="wrap"><code>targetFound</code>, <code>targetLost</code>, <code>targetUnlocked</code>, <code>targetTapped</code>, <code>sceneChanged</code>, <code>arState</code>, <code>varChanged</code></td><td class="wrap">The engine sends them on the bus. You can hear them, never emit them.</td></tr>
-    <tr><td>Scene events</td><td class="wrap">any camelCase name: <code>doorOpened</code></td><td class="wrap">Yours. A rule's <code>emit</code> or a plugin sends them; rules and plugins hear them by name.</td></tr>
+    <tr><td>Core events</td><td class="wrap"><code>targetFound</code>, <code>targetLost</code>, <code>targetUnlocked</code>, <code>targetTapped</code>, <code>sceneChanged</code>, <code>arState</code>, <code>varChanged</code></td><td class="wrap">The engine sends them on the bus. You can listen to them, never emit them.</td></tr>
+    <tr><td>Scene events</td><td class="wrap">any camelCase name: <code>doorOpened</code></td><td class="wrap">Yours. A rule's <code>emit</code> or a plugin sends them; rules and plugins listen to them by name.</td></tr>
   </table></div>
-  <div class="note"><p><b>Events do not cross scenes.</b> Only the open scene's nodes and rules exist. Carry state across scenes in a variable, or hear the event in an experience rule or a plugin, which live for the whole session.</p></div>
+  <div class="note"><p><b>Events do not cross scenes.</b> Only the open scene's nodes and rules exist. Carry state across scenes in a variable, or listen to the event in an experience rule or a plugin, which live for the whole session.</p></div>
 
   <h2 id="actions">Actions</h2>
   <div class="table"><table>
@@ -101,7 +101,7 @@
   <h2 id="order">How rules run</h2>
   <ul>
     <li>On one event, every rule's condition is read <b>first</b>; then the rules that matched run in order. So two rules can toggle a variable without undoing each other.</li>
-    <li>An <code>emit</code> sets off the rules that hear it at once. A chain deeper than 8 events is cut.</li>
+    <li>An <code>emit</code> sets off the rules that listen to it at once. A chain deeper than 8 events is cut.</li>
     <li>An action that cannot run (a node or clip that is not there) is logged, and the next one runs.</li>
   </ul>
 
@@ -116,8 +116,11 @@
   </table></div>
   <p>So a rule can set off code and code can set off rules, by name. See <a href="/docs/api/plugins/#bus">events and variables in the Plugin API</a>.</p>
 
+  <h2 id="reference">Reference</h2>
+  <p>The rules' grammar as the content model has it – the events, the actions, the scopes, the variable types, the addresses – is in the <a href="/docs/api/content/#components-behaviour-2">content model reference</a> (<a href="/docs/api/content/#logic">a scene's and the experience's rules</a>). What plugin code gets of the same bus: <a href="/docs/api/plugins/reference/#events">api.events</a> and <a href="/docs/api/plugins/reference/#vars">api.vars</a>.</p>
+
   <h2 id="testing">Testing</h2>
-  <p>Select the scene and open <b>vars and events</b>: tap a target, change a variable, and read the timeline. Every rule that ran has a <b>behaviour</b> line with what it did. The <a href="/docs/guide/logic/">Logic panel</a> lists problems such as an event nothing emits.</p>
+  <p>Open the <b>Log</b> tab: tap a target and read the timeline; change a variable in the <b>Variables</b> tab. Every rule that ran has a <b>behaviour</b> line with what it did. The <a href="/docs/guide/logic/">Logic panel</a> lists problems such as an event nothing emits.</p>
   <footer id="pager"></footer>
 </main>
 </body>

@@ -2,19 +2,19 @@
   import { onMount, tick, untrack, type Component } from "svelte";
   import { page } from "$app/state";
   import { replaceState } from "$app/navigation";
-  import { getPlugins } from "@engine/content/game-config";
-  import type { PluginData } from "@engine/types";
   import Icon from "#lib/components/Icon.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import { content } from "#lib/content.svelte.js";
-  import { plugins } from "#lib/plugins.svelte.js";
+  import { session } from "#lib/session.svelte.js";
   import { selection } from "#lib/selection.svelte.js";
-  import { getPlugin } from "#lib/api.js";
-  import { declaredUses } from "@engine/types";
-  import { pluginCodeUses, type PluginUses } from "#lib/logic/plugin-code.js";
-  import { project, type LogicContent } from "#lib/logic/project.js";
-  import { flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
+  import { logicContent, logicFocus } from "#lib/logic-content.svelte.js";
+  import { logicTypes, project, type LogicContent } from "#lib/logic/project.js";
+  import { NOT_RUNNING, parsePayload, parseValue, stageItems, type StageAction, type StageItem } from "#lib/logic/fire.js";
+  import { describePayload } from "#lib/stage/event-log.js";
+  import { NOTE_NODE, flowOf, handleId, type FlowBox } from "#lib/logic/flow.js";
   import { DECK_SIGNALS } from "#lib/logic/signals.js";
+  import { addHit, emptyLive, freshLines, liveHit, liveIndex, markSeen, nodeNames, prune, LIVE_MS, type LiveState } from "#lib/logic/live.js";
+  import { readStored, writeStored } from "#lib/storage.js";
   import { issueRows, issueSummary, issuesOpen, type IssueRow } from "#lib/logic/issues.js";
   import type { LogicCanvas } from "@engine/types";
   import {
@@ -55,8 +55,11 @@
    *   its words – or why it was refused – show for a moment under the bar. A scene's and the experience's rules (content
    *   schema 5.0, L-T5b) go to `logicEdit`, which saves them; the experience level edits the experience's own rules only,
    *   the group level is read-only.
-   * - What a plugin hears, emits, reads and sets is what its specs declare (schema 5.1, `declaredUses`); only for a plugin
+   * - What a plugin listens to, emits, reads and sets is what its specs declare (schema 5.1, `declaredUses`); only for a plugin
    *   that declares nothing it is read from its source (stored, else the compiled module).
+   *   On its box (#334, Tilman 2026-11-21) only `emits` and `listens` are pins – a wire to a rule's on, or from a rule's do,
+   *   changes the rule (several events: a menu picks one); what it reads, sets and drives are display rows with dotted
+   *   reference lines, and a click on them opens its code.
    *   Problems sit in the **issues bar** under the graph (`logic/issues.ts`, the SCUTOONS deck's Problems, more minimal): one
    *   line – a mark and the counts, the first issue beside – that opens a list (remembered per session); a row is the box's
    *   name and the short words, a click marks the box and goes to its level. Only an error has colour (RULES #38).
@@ -69,6 +72,26 @@
    *   folds it to a pill, its swatch takes the next colour, its name renames in place); a box's chevron folds it to its head.
    *   Each is a canvas op saved with the level's rules, so History lists it and Undo takes it back. The boxes, pins and wires
    *   wear the deck's signal colours (`logic/signals.ts`, L-T8 – the legend shows them).
+   *   **Groups** (#334): a click on a frame's head selects its boxes (Shift adds them), so Delete, Ctrl+G and a drag act on
+   *   them; a right click on the head (or on a folded group's pill) opens the group's menu – select its boxes, rename, next
+   *   colour, fold or open, **Ungroup**; **Ctrl+Shift+G** ungroups the groups of the selected boxes.
+   * - **Notes** (schema 5.3, the deck's notes): annotations, no logic – *Add note* on the empty canvas's right-click menu (at
+   *   that point), on a box's (beside it, moving with it), or **N** with the pointer over the canvas. A new note opens for
+   *   typing; its author is the signed-in person. Notes are selected and dragged like boxes; Delete removes them (an empty
+   *   text too). Each is a canvas op (History, Undo).
+   * - **Live feedback** (#334, Tilman 2026-11-21): while *Trace* is on (the bar's … view settings, kept in this browser), each new line
+   *   of the stage's timeline (`stage.events`) lights what it touches at this level for a second – an event its wires and
+   *   box, a `varChanged` its variable's wires and box (with the new value), a `behaviour` line its rule's box and wires
+   *   (`logic/live.ts`: the index once per flow, a hit per line). The timeline as it stands when the panel opens counts as
+   *   seen: nothing is replayed.
+   * - **Testing on the stage** (#334, Tilman 2026-11-21: "manually trigger an event from the nodes to test what firing them
+   *   would look like down the line"): a box's right-click menu sets things off on the running stage (`logic/fire.ts`) – an
+   *   event box *Fire on stage* (or *Fire with a payload…*: `key: value` pairs typed in the menu's field), and on
+   *   hover-capable devices a ▶ on its head; a node's own `tap` box *Tap on stage*; a variable box *Set on stage…* (a value by
+   *   its type, `stage.setVar` – `varChanged` as the Variables tab writes it); a rule box *Run this rule* (as if its event
+   *   came – its when applies, no other rule runs). The Log marks a fired event's and a run rule's line *by hand*, Trace lights
+   *   the wires. Only the running stage changes, never the draft (Restart resets it), so read-only levels allow it too; an
+   *   item is disabled with its reason while the stage does not run or what it names is not on the stage.
    */
   let { experienceId, sceneId, stage = null, onpick, onmove }: {
     experienceId: string;
@@ -79,45 +102,9 @@
     onmove: (move: StageMove) => void;
   } = $props();
 
-  /** What each plugin's code uses, by plugin id – read once per experience and Run / save */
-  let code = $state<Record<string, PluginUses>>({});
-
-  const declared = $derived.by((): PluginData[] => {
-    void plugins.version;
-    void content.scenes;
-    return getPlugins();
-  });
-
-  const readSource = async (plugin: PluginData): Promise<string | null> => {
-    try {
-      return (await getPlugin(experienceId, plugin.id)).plugin.source;
-    } catch {
-      try {
-        const response = await fetch(plugin.src);
-        return response.ok ? await response.text() : null;
-      } catch {
-        return null;
-      }
-    }
-  };
-
-  $effect(() => {
-    // A plugin whose specs declare its bus use needs no reading of its source (`project.ts` prefers the declaration)
-    const list = declared.filter(p => !declaredUses(p.registered));
-    void plugins.stored;
-    let current = true;
-    void Promise.all(list.map(async p => [p.id, await readSource(p)] as const)).then(read => {
-      if (current) code = Object.fromEntries(read.flatMap(([id, source]) => (source === null ? [] : [[id, pluginCodeUses(source)]])));
-    });
-    return () => { current = false; };
-  });
-
-  /** The open scene's trees as the stage shows them (an edit not saved yet included), the other scenes as the draft has them */
-  const scenesShown = $derived(content.scenes.map(scene => (scene.id !== sceneId || !stage ? scene : {
-    ...scene, targets: scene.targets.map(target => ({ ...target, entity: stage.overrides.has(target.id) ? stage.treeOf(target.id) : target.entity })),
-  })));
-  /** With the scenes' and the experience's rules and the variables as edited (`logicEdit`, content schema 5.0) */
-  const logic = $derived<LogicContent>(logicEdit.withLogic({ scenes: scenesShown, groups: content.groups, plugins: declared, code }));
+  /** The experience's logic (`logic-content.svelte.ts`, shared with the Log tab's problems) */
+  const source = logicContent(() => ({ experienceId, sceneId, stage }));
+  const logic = $derived<LogicContent>(source.logic);
 
   // ── The level: one place, one setter ──
   /** The level the URL names – a scene's level only on its own scene's route */
@@ -150,6 +137,60 @@
   });
   const flow = $derived(flowOf(view, levelCanvas));
   const levelKey = $derived(encodeContext(context));
+
+  // ── Live feedback (#334, Tilman 2026-11-21): the stage's new lines light their wires and boxes for a moment ──
+  const LIVE_KEY = "osct-editor-logic-trace";
+  /** On by default; off is kept in this browser */
+  let liveOn = $state(untrack(() => readStored(LIVE_KEY) !== "off"));
+  /** What is lit now (`logic/live.ts`): a pulse per wire and box, the value a variable box shows */
+  let live = $state.raw<LiveState>(emptyLive());
+  let liveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The newest line seen: the timeline as it stands when the panel opens counts as seen – nothing is replayed */
+  let liveSeen = untrack(() => markSeen(stage?.events ?? []));
+  let livePulse = 0;
+  /** The view settings' popover (Follow, Trace): under its … button, from its left edge */
+  let viewButton = $state<HTMLButtonElement>();
+  let viewPop = $state<HTMLDivElement>();
+  let viewAt = $state({ x: 0, y: 0 });
+  const placeViewPop = (e: Event) => {
+    if ((e as ToggleEvent).newState !== "open" || !viewButton || !viewPop) return;
+    const r = viewButton.getBoundingClientRect();
+    // From the button's left edge (it may sit first in a wrapped bar), kept on the screen
+    viewAt = { x: Math.max(8, Math.min(r.left, window.innerWidth - (viewPop.offsetWidth || 160) - 8)), y: r.bottom + 4 };
+  };
+  const setLive = (on: boolean) => {
+    liveOn = on;
+    writeStored(LIVE_KEY, on ? null : "off");
+    if (!on) live = emptyLive();
+  };
+  /** Which wires and boxes an event, a variable or a rule lights – once per flow, not per line */
+  const liveAt = $derived(liveOn ? liveIndex(view, flow, nodeNames(logic, sceneOfContext(context) ?? undefined)) : null);
+  const liveEnd = () => {
+    liveTimer = null;
+    live = prune(live, performance.now());
+    if (live.wires.size || live.boxes.size) liveTimer = setTimeout(liveEnd, LIVE_MS / 4);
+  };
+  $effect(() => {
+    const lines = stage?.events ?? [];
+    const index = liveAt;
+    untrack(() => {
+      const { fresh, seen } = freshLines(lines, liveSeen);
+      liveSeen = seen;
+      if (!index || !fresh.length) return;
+      const now = performance.now();
+      let next: LiveState | null = null;
+      for (const line of fresh) {
+        const hit = liveHit(index, line);
+        if (hit.wires.length || hit.boxes.length) next = addHit(next ?? live, hit, now, ++livePulse);
+      }
+      if (!next) return;
+      live = next;
+      liveTimer ??= setTimeout(liveEnd, LIVE_MS / 4);
+    });
+  });
+  $effect(() => () => {
+    if (liveTimer) clearTimeout(liveTimer);
+  });
   const up = $derived(parentLevel(view));
 
   // A level from the URL: the workspace shows it too (a node selected, a group, the experience)
@@ -167,6 +208,15 @@
       url.searchParams.set("logic", value);
       // Before the router is up (the first render) it refuses: the next change writes it
       replaceState(url, page.state).catch(() => {});
+    });
+  });
+
+  // A box asked for from elsewhere (the Log tab's problems): its level, marked
+  $effect(() => {
+    if (!logicFocus.asked) return;
+    untrack(() => {
+      const asked = logicFocus.take();
+      if (asked) go(asked.context, { mark: asked.node });
     });
   });
 
@@ -205,15 +255,29 @@
       e.preventDefault();
       if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
       const boxes = flow.boxes.filter(b => picked.includes(b.id));
-      if (boxes.length || pickedWires.length) removeBoxes(boxes, pickedWires);
+      const notes = picked.filter(id => id.startsWith(NOTE_NODE)).map(id => id.slice(NOTE_NODE.length));
+      if (boxes.length || pickedWires.length || notes.length) removeBoxes(boxes, pickedWires, notes);
       picked = [];
       pickedWires = [];
     } else if (e.key === "Backspace" || (e.altKey && e.key === "ArrowUp")) {
       e.preventDefault();
       goUp();
-    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
-      // The deck's Ctrl+G: the selected boxes become a group
+    } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "g") {
+      // As the Scenes strip: Ctrl+Shift+G ungroups the groups of the selected boxes (here – the Scenes panel's never sees it)
       e.preventDefault();
+      e.stopPropagation();
+      ungroupPicked();
+    } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === "n") {
+      // N: a note where the pointer is on the canvas
+      const over = document.elementFromPoint(pointer.x, pointer.y)?.closest(".flow");
+      const at = over ? canvasRef?.flowPoint?.(pointer) : null;
+      if (!at) return;
+      e.preventDefault();
+      addNote({ at });
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+      // The deck's Ctrl+G: the selected boxes become a group (here – the Scenes panel's never sees it)
+      e.preventDefault();
+      e.stopPropagation();
       groupPicked();
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
       // Blender's Ctrl+H: every box shows only its wired ports again
@@ -286,7 +350,6 @@
   const takesFrom = (from: [string, string], dir: "in" | "out"): Map<string, Set<string>> => {
     const takes = new Map<string, Set<string>>();
     if (!editable) return takes;
-    // A plugin's bus ports never take a wire (its code's uses) – `takesWire` leaves them out
     const ports = takesWire(logic, context, from, dir);
     for (const box of flow.boxes) {
       const ids = ports.get(box.id);
@@ -297,14 +360,25 @@
   };
   /** A wire let go where it does not fit: the op's refusal says why (B8) */
   const refused = (from: [string, string], to: [string, string]) => {
-    // A plugin's ports come from its code (uses): not a mistake to explain in red – its code opens instead (#334)
-    const plugin = [from[0], to[0]].map(id => view.nodes.find(n => n.id === id)).find(n => n?.kind === "plugin");
-    if (plugin?.pick) {
-      onpick(plugin.pick);
-      return say(`${plugin.label}'s ports come from its code (uses) – opened it in the Code tab.`);
-    }
     const result = apply({ op: "connect", from, to }, logic, context);
     if (!result.ok) say(result.reason, true);
+  };
+  /** Where the pointer last was on the panel: a wire to a plugin's pin opens its events' menu there */
+  let pointer = { x: 0, y: 0 };
+  /**
+   * A wire let go on a port that takes it: the connect op – at a plugin's emits or listens (#334) with more than one event,
+   * the menu of its events first (the wire picks one)
+   */
+  const connectWire = (from: [string, string], to: [string, string]) => {
+    const ends = [from, to].map(([id, port]) => ({ node: view.nodes.find(n => n.id === id), port }));
+    const end = ends.find(e => e.node?.kind === "plugin" && (e.port === "emits" || e.port === "listens"));
+    const names = end ? (end.port === "emits" ? end.node!.bus?.emits : end.node!.bus?.listens) ?? [] : [];
+    if (names.length < 2) return run({ op: "connect", from, to });
+    const verb = end!.port === "emits" ? "listens to" : "emits";
+    menu = {
+      at: { ...pointer }, head: `Which event – the rule ${verb} it`, add: null,
+      items: names.map(name => ({ key: `event:${name}`, label: name, detail: `${end!.node!.label} ${end!.port}`, select: () => run({ op: "connect", from, to, event: name }) })),
+    };
   };
   /** The box's +: its hidden ports to show, and hiding the unused ones again */
   const exposeMenu = (box: FlowBox, at: { x: number; y: number }) => {
@@ -335,6 +409,40 @@
     if (!boxes.length) return say(editable ? "Select the boxes to group first (Shift adds to the selection)." : readOnlyHint ?? "Read-only here.", true);
     canvasOp({ edit: "group", boxes });
   };
+  /** The groups of the selected boxes go – their boxes stay (Ctrl+Shift+G) */
+  const ungroupPicked = () => {
+    if (!editable) return say(readOnlyHint ?? "Read-only here.", true);
+    const groups = (levelCanvas?.groups ?? []).filter(g => g.members.some(m => picked.includes(m))).map(g => g.id);
+    if (!groups.length) return say("None of the selected boxes is in a group – select a group's boxes (a click on its head), then Ctrl+Shift+G.", true);
+    canvasOp({ edit: "ungroup", groups });
+  };
+  /** A group's menu: its frame head's right click, or its folded pill's */
+  const groupMenu = (id: string, at: Pin) => {
+    const group = levelCanvas?.groups?.find(g => g.id === id);
+    const shown = flow.groups.find(g => g.id === id);
+    if (!group || !shown) return;
+    const off = editable ? null : readOnlyHint ?? "Read-only here.";
+    menu = { at, head: group.label || group.id, add: null, items: [
+      { key: "select", label: "Select its boxes", detail: "Click the head", disabled: off ?? (shown.folded ? "Open the group first – a folded group is one pill." : null),
+        select: () => canvasRef?.selectBoxes?.(shown.members) },
+      { key: "rename", label: "Rename…", detail: "Click its name", disabled: off ?? (shown.folded ? "Open the group first." : null), select: () => renameGroup(group.label) },
+      { key: "colour", label: "Next colour", detail: "Its swatch", disabled: off, select: () => canvasOp({ edit: "groupColour", group: group.id }) },
+      { key: "fold", label: shown.folded ? "Open the group" : "Fold to one pill", detail: shown.folded ? "Double-click" : "Its chevron", disabled: off,
+        select: () => canvasOp({ edit: "foldGroup", group: group.id, folded: !shown.folded }) },
+      { key: "ungroup", label: "Ungroup", detail: "Ctrl+Shift+G", disabled: off, select: () => canvasOp({ edit: "ungroup", groups: [group.id] }) },
+    ] };
+  };
+  /** Rename from the menu: the frame's name field opens (the frame owns the in-place edit) */
+  const renameGroup = (label: string) => {
+    const name = document.querySelector<HTMLButtonElement>(`.flow [aria-label="Group ${CSS.escape(label)}"] button.name`);
+    if (name) name.click();
+    else say(`Click ${label}'s name on its frame to rename it.`);
+  };
+  /** Who writes a note: the signed-in person, by their address's name (the content keeps no address) */
+  const author = $derived(session.user?.email.split("@")[0] ?? "");
+  /** A new note: free at a point of the flow, or beside a box */
+  const addNote = (where: { at?: Pin; box?: string }) => canvasOp({ edit: "note", ...where, ...(author ? { author } : {}) });
+  const noteText = (note: string, text: string) => canvasOp({ edit: "noteText", note, text });
   const pinnedHere = $derived(view.nodes.some(n => !!levelCanvas?.positions?.[n.id]));
 
   /** The boxes selected on the canvas; the rule among them is where an action or a condition goes */
@@ -345,6 +453,7 @@
     void levelKey;
     picked = [];
     pickedWires = [];
+    live = emptyLive();
   });
   /** The rule a rule box stands for (its home without the part) */
   const ruleRefOf = (box: string): RuleRef | null => {
@@ -372,7 +481,11 @@
 
   // ── The menu: right click, the + button, a node type dropped from the Library ──
   type Pin = { x: number; y: number };
-  type MenuState = { at: Pin; head: string; add: { kind: string | null; from?: WireFrom | null; pin?: Pin | null } | null; items: LogicMenuItem[] };
+  /** `input`: the menu's field is a value to type (a payload, a variable's value) – its items follow what is typed */
+  type MenuState = {
+    at: Pin; head: string; add: { kind: string | null; from?: WireFrom | null; pin?: Pin | null } | null; items: LogicMenuItem[];
+    input?: { placeholder: string; label: string; items: (typed: string) => LogicMenuItem[] };
+  };
   let menu = $state<MenuState | null>(null);
   let menuQuery = $state("");
   const addContext = $derived<AddContext>({
@@ -386,9 +499,16 @@
   });
   const menuItems = $derived.by((): LogicMenuItem[] => {
     const add = menu?.add;
+    if (menu?.input) return menu.input.items(menuQuery);
     if (!add) return menu?.items ?? [];
     const choices = add.from ? wireChoices(addContext, add.from, { query: menuQuery }) : addChoices(addContext, { kind: add.kind, query: menuQuery });
-    return choices.map(c => rowOf(c, add.pin));
+    const rows = choices.map(c => rowOf(c, add.pin));
+    // A right click on the empty canvas: a note there, too (schema 5.3)
+    const pin = add.pin;
+    if (pin && !add.from && !add.kind && "add note".includes(menuQuery.trim().toLowerCase())) {
+      rows.unshift({ key: "note", label: "Add note", detail: "N – an annotation, no logic", group: "Canvas", select: () => addNote({ at: pin }) });
+    }
+    return rows;
   });
   /** The menu's head: the verb and the kind – where it goes is the breadcrumb's (Tilman, 2026-11-21) */
   const addHead = (kind: string | null) => `Add${kind ? ` ${kind}` : ""}`;
@@ -415,10 +535,14 @@
    * rules from the last one up (an earlier rule's index stays right), each op on the documents the one before left; what
    * is refused is skipped and said. A node, an event or a variable is not deleted here.
    */
-  const removeBoxes = (boxes: FlowBox[], edges: string[]) => {
+  const removeBoxes = (boxes: FlowBox[], edges: string[], notes: string[] = []) => {
     const refs = boxes.flatMap(b => (b.node?.kind === "rule" ? [ruleRefOf(b.id)] : [])).filter((r): r is RuleRef => r !== null).sort((x, y) => y.rule - x.rule);
     const others = boxes.filter(b => b.node && b.node.kind !== "rule");
-    const ops: Op[] = [...edges.map((edge): Op => ({ op: "disconnect", edge })), ...refs.map((ref): Op => ({ op: "removeRule", home: { ...ref, part: "on" } }))];
+    // Notes first (an empty text removes one), then the wires, then the rules from the last one up
+    const ops: Op[] = [
+      ...notes.map((note): Op => ({ op: "canvas", edit: { edit: "noteText", note, text: "" } })),
+      ...edges.map((edge): Op => ({ op: "disconnect", edge })), ...refs.map((ref): Op => ({ op: "removeRule", home: { ...ref, part: "on" } })),
+    ];
     if (!ops.length) {
       if (others.length) say(`${others[0].node!.label}: only rules and wires are deleted here – a node goes in the tree, an event or a variable with the rules that name it.`, true);
       return;
@@ -441,10 +565,90 @@
     }
     if (!merged) return say(refused[0] ?? "Nothing deleted.", true);
     const done = ops.length - refused.length;
-    push({ ...merged, words: `Deleted ${done} of the selection (${[edges.length && `${edges.length} wire${edges.length === 1 ? "" : "s"}`, refs.length && `${refs.length} rule${refs.length === 1 ? "" : "s"}`].filter(Boolean).join(", ")})${refused.length ? ` – ${refused.length} refused: ${refused[0]}` : ""}${others.length ? " – nodes, events and variables stay" : ""}.` });
+    push({ ...merged, words: `Deleted ${done} of the selection (${[notes.length && `${notes.length} note${notes.length === 1 ? "" : "s"}`, edges.length && `${edges.length} wire${edges.length === 1 ? "" : "s"}`, refs.length && `${refs.length} rule${refs.length === 1 ? "" : "s"}`].filter(Boolean).join(", ")})${refused.length ? ` – ${refused.length} refused: ${refused[0]}` : ""}${others.length ? " – nodes, events and variables stay" : ""}.` });
   };
+  // ── Testing on the stage (#334): fire an event, set a variable, run a rule – the running stage only, never the draft ──
+  const types = $derived(logicTypes(logic));
+  /** What a box offers to set off on the stage (`logic/fire.ts`) */
+  const stageItemsOf = (box: FlowBox): StageItem[] => (box.node && !box.stub && !box.pill
+    ? stageItems(box.node, logic, { running: stage?.status === "running", scene: stage?.sceneId ?? null, context, types, vars: stage?.vars ?? [] }) : []);
+  /** An event box the ▶ on its head fires now */
+  const fireable = (box: FlowBox): boolean => stageItemsOf(box).some(i => i.key === "stage:fire" && !i.disabled);
+  const fireBox = (box: FlowBox) => {
+    const item = stageItemsOf(box).find(i => i.key === "stage:fire");
+    if (item) stageAct(item.action, { x: 0, y: 0 }, item.disabled);
+  };
+  const RESET = "Restart on the stage resets it";
+  const fireNow = (event: string, payload: Record<string, unknown> | undefined) => {
+    const refused = stage ? stage.fire(event, payload) : NOT_RUNNING;
+    say(refused ?? `Fired ${event}${payload ? ` with ${describePayload(payload)}` : ""} on the stage, by hand – the Log and Trace show what it set off. ${RESET}.`, !!refused);
+  };
+  const setNow = (name: string, value: string | number | boolean, scope: Extract<StageAction, { kind: "set" }>["scope"]) => {
+    if (!stage) return say(NOT_RUNNING, true);
+    void stage.setVar(name, value, scope).then(refused => say(refused ?? `${name} = ${JSON.stringify(value)} on the stage (${scope}), by hand. ${RESET}.`, !!refused));
+  };
+  /** A menu whose field is a value to type – opened once the menu that asked for it has gone (so its field takes the focus) */
+  const askMenu = (next: MenuState) => {
+    menu = null;
+    menuQuery = "";
+    void tick().then(() => (menu = next));
+  };
+  /** Do what a stage item says (`off`: why it cannot – said instead) */
+  const stageAct = (action: StageAction, at: Pin, off: string | null = null) => {
+    if (off) return say(off, true);
+    if (!stage) return say(NOT_RUNNING, true);
+    if (action.kind === "fire") {
+      if (!action.ask) return fireNow(action.event, undefined);
+      const event = action.event;
+      return askMenu({ at, head: `Fire ${event} – its payload`, add: null, items: [], input: {
+        placeholder: "key: value, key: value – or nothing", label: "The payload",
+        items: typed => {
+          const parsed = parsePayload(typed);
+          return [{ key: "fire", label: parsed.ok && parsed.value ? `Fire with ${describePayload(parsed.value)}` : `Fire ${event}${parsed.ok ? " with no payload" : ""}`,
+            detail: "on the stage's bus, by hand", disabled: parsed.ok ? null : parsed.reason, select: () => { if (parsed.ok) fireNow(event, parsed.value); } }];
+        },
+      } });
+    }
+    if (action.kind === "tap") {
+      const target = action.target;
+      void stage.tap(target).then(ok => say(ok ? `Tapped ${target} on the stage, by hand – its nodes got the tap. ${RESET}.` : `${target} is not found on the stage – show its target first.`, !ok));
+      return;
+    }
+    if (action.kind === "set") {
+      const { name, type, scope } = action;
+      if (type === "boolean") {
+        return askMenu({ at, head: `Set ${name} on the stage (${scope})`, add: null, items: [true, false].map(value => ({
+          key: String(value), label: `${name} = ${value}`, detail: "varChanged, by hand", select: () => setNow(name, value, scope),
+        })) });
+      }
+      return askMenu({ at, head: `Set ${name} on the stage (${type ?? "untyped"} · ${scope})`, add: null, items: [], input: {
+        placeholder: type === "string" ? "The text" : type ? `A ${type}` : "true, false, a number or a text", label: `${name}'s value`,
+        items: typed => {
+          const parsed = parseValue(type, typed);
+          return [{ key: "set", label: parsed.ok ? `${name} = ${JSON.stringify(parsed.value)}` : `Set ${name}`, detail: "varChanged, by hand",
+            disabled: parsed.ok ? null : parsed.reason, select: () => { if (parsed.ok) setNow(name, parsed.value, scope); } }];
+        },
+      } });
+    }
+    const result = stage.runRule(action.home, action.rule);
+    say(result === "ran" ? `Ran the rule on the stage as if ${action.on} came, by hand – the Log and Trace show what it did. ${RESET}.`
+      : result === "held" ? "Its when is false on the stage – nothing ran (set its variables first)."
+        : result === "stopped" ? NOT_RUNNING : "That rule is not on the stage – Restart the stage, then try again.", result !== "ran" && result !== "held");
+  };
+
   const openMenu = (at: Pin, target: CanvasTarget, flowAt?: Pin) => {
     if (target.kind === "pane") return openAdd(at, null, flowAt ?? null);
+    if (target.kind === "group") return groupMenu(target.group, at);
+    if (target.kind === "note") {
+      const note = target.note;
+      const off = editable ? null : readOnlyHint ?? "Read-only here.";
+      menu = { at, head: `Note${note.author ? ` by ${note.author}` : ""}`, add: null, items: [
+        { key: "edit", label: "Edit the note", detail: "Double-click", disabled: off,
+          select: () => document.querySelector<HTMLElement>(`.svelte-flow__node[data-id="${CSS.escape(`${NOTE_NODE}${note.id}`)}"] .note`)?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })) },
+        { key: "delete", label: "Delete the note", detail: "Delete", disabled: off, select: () => noteText(note.id, "") },
+      ] };
+      return;
+    }
     if (target.kind === "wire") {
       menu = { at, head: `Wire ${target.label}`, add: null, items: [
         { key: "disconnect", label: "Disconnect", detail: "Delete", disabled: editable ? null : readOnlyHint, select: () => run({ op: "disconnect", edge: target.edge }) },
@@ -455,25 +659,29 @@
     const items: LogicMenuItem[] = [];
     if (box.node?.enter || box.stub) items.push({ key: "enter", label: box.stub ? "Go there" : "Open its level", detail: "Double-click", select: () => enterBox(box) });
     if (box.node?.pick) items.push({ key: "pick", label: "Select", detail: "In the tree and the Inspector", select: () => pickBox(box) });
+    // Testing on the stage (#334): read-only levels too – it changes the running stage, not the draft
+    for (const item of stageItemsOf(box)) items.push({ key: item.key, label: item.label, detail: item.detail, disabled: item.disabled, select: () => stageAct(item.action, at) });
     if (box.node?.kind === "rule") {
       items.push({ key: "add", label: "Add an action or a condition…", disabled: editable ? null : readOnlyHint, select: () => { picked = [box.id]; void tick().then(() => openAdd(at)); } });
       items.push({ key: "delete", label: "Delete the rule", detail: "Delete", disabled: editable ? null : readOnlyHint, select: () => removeBoxes([box], []) });
     } else if (box.node?.kind === "node" && box.node.pick?.kind === "node") {
       items.push({ key: "add", label: "Add a rule on this node…", disabled: editable ? null : readOnlyHint, select: () => { picked = [box.id]; void tick().then(() => openAdd(at)); } });
     }
-    if (box.pill) {
-      items.push({ key: "open", label: "Open the group", detail: "Double-click", disabled: editable ? null : readOnlyHint, select: () => foldBox(box, false) });
-    } else if (box.node) {
+    if (box.pill) return groupMenu(box.pill.id, at);
+    if (box.node) {
       items.push({ key: "fold", label: box.folded ? "Open the box" : "Fold to its head", disabled: editable ? null : readOnlyHint, select: () => foldBox(box, !box.folded) });
       if (box.pinned) items.push({ key: "unpin", label: "Tidy the level", detail: "the layout places every box again", disabled: editable ? null : readOnlyHint, select: () => canvasOp({ edit: "tidy" }) });
       items.push({ key: "group", label: picked.includes(box.id) && picked.length > 1 ? `Group the ${picked.length} selected boxes` : "Group this box", detail: "Ctrl+G", disabled: editable ? null : readOnlyHint,
         select: () => canvasOp({ edit: "group", boxes: picked.includes(box.id) ? picked.filter(id => view.nodes.some(n => n.id === id)) : [box.id] }) });
     }
+    if (box.node && !box.stub) {
+      items.push({ key: "note", label: "Add note", detail: "beside the box – it moves with it", disabled: editable ? null : readOnlyHint, select: () => addNote({ box: box.id }) });
+    }
     if (box.hidden.length || box.ports.some(p => p.kind)) {
       items.push({ key: "ports", label: "Show a port…", detail: box.hidden.length ? `${box.hidden.length} hidden` : "none hidden", disabled: editable ? (box.hidden.length ? null : "Every port shows.") : readOnlyHint, select: () => exposeMenu(box, at) });
       items.push({ key: "hide", label: "Hide unused ports", detail: "Ctrl+H: every box", disabled: editable ? null : readOnlyHint, select: () => run({ op: "canvas", edit: { edit: "hideUnused", box: box.id } }) });
     }
-    menu = { at, head: box.stub ? box.stub.label : box.pill ? box.pill.label : box.node?.label ?? "", add: null, items };
+    menu = { at, head: box.stub ? box.stub.label : box.node?.label ?? "", add: null, items };
   };
   let addButton = $state<HTMLButtonElement>();
   const plusMenu = () => {
@@ -489,6 +697,8 @@
 
   // ── The canvas, loaded on first use (xyflow stays out of the editor's first load) ──
   let Canvas = $state<Component<any> | null>(null);
+  /** The canvas's own calls: select a group's boxes, a screen point on the flow */
+  let canvasRef = $state<any>(null);
   let canvasError = $state<string | null>(null);
   onMount(() => {
     import("./LogicCanvas.svelte").then(m => (Canvas = m.default)).catch(e => (canvasError = String(e?.message ?? e)));
@@ -519,7 +729,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="logic" onkeydown={keydown}>
+<div class="logic" onkeydown={keydown} onpointermovecapture={e => (pointer = { x: e.clientX, y: e.clientY })}>
   <div class="bar">
     <button type="button" class="icon-button" disabled={!up} onclick={goUp} aria-label="Up one level" title="Up one level (Backspace)"
       data-help-name="Up one level" data-help="Goes to the level above: from a target's entity to its scene, from a scene to its group or the experience. Backspace or Alt+↑ too."><Icon name="up" /></button>
@@ -551,18 +761,26 @@
       {/if}
     </div>
     <button bind:this={addButton} type="button" class="icon-button" disabled={!editable} onclick={plusMenu} aria-label="Add to the logic" title={editable ? "Add a rule, an action or a condition (or right-click the canvas)" : readOnlyHint ?? ""}
-      data-help-name="Add to the logic" data-help="Every type, by family: an event (a new rule hears it), a condition or an action – for the selected rule, or with no rule selected a new rule on found (a node) or sceneChanged (the scene, the experience) that carries it. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list; a wire let go on the empty canvas lists what can be made there and wired to it.">+</button>
+      data-help-name="Add to the logic" data-help="Every type, by family: an event (a new rule listens to it), a condition or an action – for the selected rule, or with no rule selected a new rule on found (a node) or sceneChanged (the scene, the experience) that carries it. Type to filter; emit name, set name, when name or rule on name add a new one. A right click on the canvas, or a node dragged from the Library's Nodes, opens the same list; a wire let go on the empty canvas lists what can be made there and wired to it.">+</button>
     <button type="button" class="pill" disabled={!editable || !picked.some(id => view.nodes.some(n => n.id === id))} onclick={groupPicked}
-      title={editable ? "Group the selected boxes (Ctrl+G)" : readOnlyHint ?? ""}
-      data-help-name="Group" data-help="The selected boxes (Shift adds to the selection) get a frame of their own, as in the SCUTOONS deck: its head folds it to a pill, its swatch takes the next colour, a click on its name renames it – an empty name removes the group. A box sits in one group at most.">Group</button>
+      title={editable ? "Group the selected boxes (Ctrl+G) – Ctrl+Shift+G ungroups" : readOnlyHint ?? ""}
+      data-help-name="Group" data-help="The selected boxes (Shift adds to the selection) get a frame of their own, as in the SCUTOONS deck: its chevron folds it to a pill, its swatch takes the next colour, a click on its name renames it. A click on the frame's head selects the group's boxes (Shift adds them); a right click on it, or on a folded group's pill, opens its menu – select, rename, colour, fold, Ungroup. Ctrl+Shift+G ungroups the groups of the selected boxes; the boxes stay where they are. A box sits in one group at most. Notes: right-click the canvas or a box and Add note, or press N over the canvas.">Group</button>
     <button type="button" class="pill" disabled={!editable || !pinnedHere} onclick={() => canvasOp({ edit: "tidy" })}
       title={editable ? (pinnedHere ? "Lay the level out again: every box you placed goes back into the layout" : "Nothing placed by hand at this level") : readOnlyHint ?? ""}
       data-help-name="Tidy" data-help="A box dragged by its head stays where you let it go (on the 1rem grid). Tidy drops those places at this level: the automatic layout places every box again.">Tidy</button>
-    <span class="follow">
-      <Toggle on={follow} label="Follow" onchange={on => (follow = on)}
-        help="On: selecting a scene, a group or a node elsewhere (the stage, the tree, the Scenes panel) moves the Logic view to its level. Off: the view stays where you put it." />
-      <span class="small">Follow</span>
-    </span>
+    <!-- The view's settings (#334, Tilman 2026-11-21: "clearly a setting for this view, not an action"): Follow and Trace -->
+    <button bind:this={viewButton} type="button" class="icon-button" aria-haspopup="true" aria-label="View settings" title="View settings: Follow, Trace"
+      onclick={() => viewPop?.togglePopover()} data-help-name="View settings" data-help="The Logic view's own settings: Follow (the view moves to what is selected elsewhere) and Trace (the stage's events light their wires; kept in this browser)."><Icon name="more" /></button>
+    <div bind:this={viewPop} class="view-pop" popover="auto" ontoggle={placeViewPop} style:left="{viewAt.x}px" style:top="{viewAt.y}px">
+      <label class="setting">
+        <Toggle on={follow} label="Follow" onchange={on => (follow = on)} help="On: selecting a scene, a group or a node elsewhere (the stage, the tree, the Scenes panel) moves the Logic view to its level. Off: the view stays where you put it." />
+        <span>Follow</span>
+      </label>
+      <label class="setting">
+        <Toggle on={liveOn} label="Trace" onchange={setLive} help="On: what happens on the stage shows on the canvas as it happens – a wire that carries an event lights up in its colour when the event fires, the wires of a variable when it changes (its box shows the new value for a moment), and a rule that ran pulses with the wires out of its actions. Only what happens from now on; off keeps the canvas still. Remembered in this browser." />
+        <span>Trace</span>
+      </label>
+    </div>
   </div>
   <div class="legend small" aria-label="Legend: the signals">
     {#each LEGEND as signal (signal)}
@@ -570,7 +788,7 @@
     {/each}
     {#if never}
       <span class="wire never" data-help-name="Never fires"
-        data-help="An event between two scenes: the engine builds the rules of the open scene only, so an event a rule emits in one scene never reaches another scene's rules. Plugins hear every scene."><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>never fires</span>
+        data-help="An event between two scenes: the engine builds the rules of the open scene only, so an event a rule emits in one scene never reaches another scene's rules. Plugins listen to every scene."><svg viewBox="0 0 24 6" aria-hidden="true"><line x1="0" y1="3" x2="24" y2="3" /></svg>never fires</span>
     {/if}
   </div>
   {#if status}
@@ -580,18 +798,19 @@
   {/if}
   {#if content.loading && !content.scenes.length}
     <p class="muted small">Loading the draft…</p>
-  {:else if !view.nodes.length && !view.stubs.length}
+  {:else if !view.nodes.length && !view.stubs.length && !flow.notes.length}
     <p class="muted small">No logic at this level: no rules and no plugin. Add a rule with + (or a behaviour to a node in the Inspector).</p>
   {:else if canvasError}
     <p class="danger small">The graph could not load: {canvasError}</p>
   {:else if Canvas}
-    <Canvas {flow} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
-      onconnect={(from: [string, string], to: [string, string]) => run({ op: "connect", from, to })}
+    <Canvas bind:this={canvasRef} {flow} {live} level={levelKey} selected={selectedBox} {flash} {editable} onpick={pickBox} onenter={enterBox} canconnect={canConnect}
+      onconnect={connectWire}
       onselect={(ids: string[], wires: string[]) => { picked = ids; pickedWires = wires; }} onmenu={openMenu}
       takesfrom={takesFrom} onrefused={refused} onwiredrop={wireDrop} onexpose={exposeMenu}
+      {fireable} onfire={fireBox}
       onplace={(positions: Record<string, { x: number; y: number }>) => canvasOp({ edit: "place", positions })} onfold={foldBox}
       ongroupfold={(group: string, folded: boolean) => canvasOp({ edit: "foldGroup", group, folded })} ongroupcolour={(group: string) => canvasOp({ edit: "groupColour", group })}
-      ongrouprename={(group: string, label: string) => canvasOp({ edit: "renameGroup", group, label })} />
+      ongrouprename={(group: string, label: string) => canvasOp({ edit: "renameGroup", group, label })} onnoteedit={noteText} />
   {:else}
     <p class="muted small">Loading the graph…</p>
   {/if}
@@ -599,7 +818,7 @@
     <section class="issues small" class:open={issuesShown} aria-label="Issues">
       <button type="button" class="issues-line" aria-expanded={issuesShown} onclick={toggleIssues}
         title={issuesShown ? "Hide the issues" : "Show the issues"}
-        data-help-name="Issues" data-help="What is wrong with the logic, across the experience: errors (a name that is not there, a type the rule refuses – in the error colour) and warnings (an event nothing hears, a variable nothing sets – it never does anything). A click opens the list; a row marks its box and goes to its level.">
+        data-help-name="Issues" data-help="What is wrong with the logic, across the experience: errors (a name that is not there, a type the rule refuses – in the error colour) and warnings (an event nothing listens to, a variable nothing sets – it never does anything). A click opens the list; a row marks its box and goes to its level.">
         <span class="mark {issueErrors ? 'error' : 'warning'}" aria-hidden="true"></span>
         <span class="count">{issueSummary(issues)}</span>
         {#if !issuesShown}
@@ -621,7 +840,8 @@
     </section>
   {/if}
   {#if menu}
-    <LogicMenu at={menu.at} head={menu.head} items={menuItems} filter={!!menu.add} bind:query={menuQuery} onclose={() => (menu = null)} />
+    <LogicMenu at={menu.at} head={menu.head} items={menuItems} filter={!!menu.add || !!menu.input} placeholder={menu.input?.placeholder} fieldLabel={menu.input?.label}
+      bind:query={menuQuery} onclose={() => (menu = null)} />
   {/if}
 </div>
 
@@ -649,7 +869,6 @@
   .hit-label { font-weight: 600; }
   .hit-where { font-size: var(--text-small); color: var(--muted); }
   .none { padding: .25rem .5rem; }
-  .follow { display: inline-flex; align-items: center; gap: .25rem; }
   .legend { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; color: var(--muted); }
   .sig { display: inline-flex; align-items: center; gap: .1875rem; margin-right: .25rem; }
   .wire { display: inline-flex; align-items: center; gap: .1875rem; margin-left: .25rem; }
@@ -681,4 +900,8 @@
   .mark { flex: none; width: .4375rem; height: .4375rem; border-radius: 50%; box-sizing: border-box; }
   .mark.error { background: var(--danger); }
   .mark.warning { border: 1.5px solid var(--muted); }
+  .view-pop { position: fixed; inset: auto; margin: 0; padding: .375rem .5rem; display: none; flex-direction: column; gap: .375rem; min-width: 9rem;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+  .view-pop:popover-open { display: flex; }
+  .setting { display: flex; align-items: center; gap: .5rem; cursor: pointer; }
 </style>

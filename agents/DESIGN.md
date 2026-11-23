@@ -298,7 +298,16 @@ take the SCUTOONS deck's styles with its signal colours; the rest of the editor 
 - **Pin**: radius 0.32rem on the card's edge, filled in its signal's colour with a 1px `--control-background` edge (the
   ring: hollow, 2px); its label .625rem at 80 % of `--text`, hidden below zoom 0.55.
 - **Wire**: the deck's hanging cubic (sag 0.35rem + 0.1 × its length under the lower end), its source pin's colour at 85 %,
-  1.4 × weight px; hovered a halo 5 × as wide at 18 %; one that never fires dotted, 1px.
+  1.4 × weight px; hovered a halo 5 × as wide at 18 %; one that never fires dotted, 1px. Its **word**: .625rem, weight 500,
+  in the wire's signal colour, on a chip of `--surface` at 85 % (radius .25rem, padding 0 .25rem) with a 1–2px ring of
+  `--surface` round the letters (Tilman, 2026-11-21: *"values on wires need an outline so they stick out more"*).
+- **Pins vs display rows** (#334, Tilman 2026-11-21): a pin only where a wire changes a document. A plugin box has two –
+  **emits** (out, into a rule's on) and **listens** (in, from a rule's emit); what its code **reads**, **sets**, **drives**
+  are **display rows**: under the pin rows a 1px divider (inset .5rem, the kind's colour at 22 %), then one 1.25rem row each,
+  .625rem `--muted` text, padding 0 .75rem (*reads hasKey, scene*), no pins, hidden below zoom 0.55 like pin labels. Each
+  name's box gets a **reference line**: `--muted` at 90 %, 1px, dash `2 4`, a bezier from the row's side facing the box to
+  the box's head, under the wires; it takes no pointer, is never selected and lights nothing. The card's height counts the
+  rows (divider .25rem + rows, snapped to the grid).
 - **Group** (the deck's six, in order): `#5fb3ff`, `#7fd68a`, `#f2b84b`, `#e07ad6`, `#ff7a6b`, `#9a8cff`; frame = the
   boxes' bounds padded 1rem (sides, below) and 2rem (top), dots on a 1rem grid at 32 %, outline 45 %, radius 0.72rem;
   folded, a round pill tinted at 22 %.

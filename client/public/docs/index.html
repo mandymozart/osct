@@ -15,7 +15,7 @@
 <main>
   <p class="kicker">OSCT docs</p>
   <h1>How the editor works</h1>
-  <p class="lead">The editor at <a href="/editor/"><code>/editor</code></a> is where an experience is made: scenes, printed targets, the AR content on them, texts, rules and code. These pages explain it in three parts.</p>
+  <p class="lead">The editor at <a href="/editor/"><code>/editor</code></a> is where an experience is made: scenes, printed targets, the AR content on them, texts, rules and code. These pages explain it in three parts, with a reference for the APIs. Press <kbd>/</kbd> to search.</p>
 
   <figure>
     <a href="/docs/img/workspace.webp"><img src="/docs/img/workspace.webp" width="1440" height="900" alt="The editor's workspace: the tree on the left, the stage in the middle with its toolbar, the Inspector on the right, the scenes along the bottom." loading="lazy"></a>
@@ -51,6 +51,14 @@
     <a class="card" href="/docs/api/logic/"><b>The logic system</b><span>Rules, events, variables, expressions, addresses.</span></a>
     <a class="card" href="/docs/api/plugins/"><b>Plugin API</b><span>Components, node types, materials, passes, looks.</span></a>
     <a class="card" href="/docs/api/mcp/"><b>MCP server</b><span>An AI agent as an editor: connecting, the tools, the limits.</span></a>
+  </div>
+
+  <h2 id="reference">Reference</h2>
+  <p>Every member, tool and parameter, generated from the code. Use the search (<kbd>/</kbd>) to jump to one by name.</p>
+  <div class="cards">
+    <a class="card" href="/docs/api/plugins/reference/"><b>Plugin API reference</b><span>Every member of <code>api</code>, the contexts and the hooks, with signatures.</span></a>
+    <a class="card" href="/docs/api/mcp/reference/"><b>MCP tools reference</b><span>Every tool with its parameters.</span></a>
+    <a class="card" href="/docs/api/content/"><b>Content model reference</b><span>Node types, components, rules, passes and looks with every parameter.</span></a>
   </div>
 
   <footer id="pager"></footer>

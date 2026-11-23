@@ -27,12 +27,16 @@
    * menu's rows are one line each – the name on the left, its type on the right as the legend draws it (pin and word),
    * under the family's header; the detail is the row's tooltip, and only a grey line says why in words.
    */
-  let { at, head, items, filter = false, query = $bindable(""), onclose }: {
+  let { at, head, items, filter = false, placeholder = "Filter – or type emit name, set name, when name, rule on name", fieldLabel = "Filter what to add", query = $bindable(""), onclose }: {
     at: Point;
     head: string;
     items: readonly LogicMenuItem[];
     /** It has the filter field (the add menu) */
     filter?: boolean;
+    /** The filter field's hint (the Tree's + menu has its own) */
+    placeholder?: string;
+    /** The field's name for a screen reader (a value field – the Logic panel's stage items, #334 – has its own) */
+    fieldLabel?: string;
     query?: string;
     onclose: () => void;
   } = $props();
@@ -87,7 +91,7 @@
   oncontextmenu={e => e.preventDefault()}>
   <div class="head small">{head}</div>
   {#if filter}
-    <input bind:this={field} class="field" type="search" placeholder="Filter – or type emit name, set name, when name, rule on name" aria-label="Filter what to add"
+    <input bind:this={field} class="field" type="search" {placeholder} aria-label={fieldLabel}
       spellcheck="false" bind:value={query} />
   {/if}
   <ul>

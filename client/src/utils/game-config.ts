@@ -2,7 +2,7 @@
  * The game configuration – read access for the whole app (RULES #14). The runtime is the engine's
  * (engine/src/content/game-config.ts); the reader adds what differs per app: the content base URL – the environment's
  * CDN URL of the build (`VITE_CONTENT_BASE_URL`, docs/content-cdn.md) plus the experience the address names
- * (`/x/<experience>/…`) or the instance's default (`VITE_EXPERIENCE`) – utils/experience-path.ts, #87 –, the bundled
+ * (`/<experience>/…`) or the instance's default (`VITE_EXPERIENCE`) – utils/experience-path.ts, #87, #343 –, the bundled
  * copy (`virtual:osct-game-config` – dev server, tests) and the translated startup errors. A debug build (the dev
  * server, staging) also takes a whole content base URL from the address – `?content=<base url>` – and keeps it for the
  * tab, so content of any store opens in the same reader.

@@ -14,11 +14,17 @@ export interface StripScene {
   label: string;
   group?: string;
   surfaces: readonly SurfaceData[];
-  entries: readonly { target?: unknown }[];
+  entries: readonly { target?: { id?: string; enabled?: boolean } | null }[];
 }
 
-/** How many targets lie on a scene */
-export const targetsOf = (scene: Pick<StripScene, "entries">): number => scene.entries.filter(entry => !!entry.target).length;
+/**
+ * How many targets on a scene are switched on – the ones the reader tracks and the limits count (10 a scene, RULES #3;
+ * a group's loading window); a switched-off target (`enabled: false`) is left out, as the server's check does
+ */
+export const targetsOf = (scene: Pick<StripScene, "entries">): number => scene.entries.filter(entry => !!entry.target && entry.target.enabled !== false).length;
+
+/** How many targets on a scene are switched off (`enabled: false`) – shown next to the count, not counted against a limit */
+export const targetsOff = (scene: Pick<StripScene, "entries">): number => scene.entries.filter(entry => !!entry.target && entry.target.enabled === false).length;
 
 /** The card's name: the scene's label, else its id (schema 3.0 – nothing counted from pages) */
 export const sceneName = (scene: Pick<StripScene, "id" | "label">): string => scene.label?.trim() || scene.id;

@@ -3,7 +3,7 @@ import { componentSpec } from "@engine/types";
 import { installedPlugins, uninstallPlugin } from "@engine/scene/plugins";
 import { runPluginCode } from "../plugin-run";
 
-/** The stage frame's half of Run (#234): the transpiled module imported and installed there, the answer as data */
+/** The stage's half of Run: the transpiled module imported and installed in the stage's registry, the answer as data */
 
 const blobs = new Map<string, Blob>();
 const importer = async (url: string): Promise<unknown> => {

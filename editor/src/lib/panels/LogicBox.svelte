@@ -15,12 +15,17 @@
     editable: boolean;
     /** While a wire is dragged: the handles (`in:act:play`) that would take it; null when nothing is dragged */
     takes: ReadonlySet<string> | null;
+    /** Live feedback (#334): the stage just lit it – the pulse's number (a new one pulses again) and a variable's new value */
+    live?: { n: number; value?: string } | null;
     onpick: (box: FlowBox) => void;
     onenter: (box: FlowBox) => void;
     /** The box's + : show one of its hidden ports (the panel opens the menu at `at`) */
     onexpose: (box: FlowBox, at: { x: number; y: number }) => void;
     /** The head's chevron: fold the box to its head, or open it; on a folded group's pill, open the group */
     onfold: (box: FlowBox, folded: boolean) => void;
+    /** An event box the stage can fire now (#334): a ▶ on its head, on devices that hover */
+    fire?: boolean;
+    onfire?: (box: FlowBox) => void;
   }
 </script>
 
@@ -28,7 +33,7 @@
   import { Handle, Position, useViewport } from "@xyflow/svelte";
   import { contentUrl } from "@engine/content/game-config";
   import Icon from "#lib/components/Icon.svelte";
-  import { BOX_HEAD, PORT_ROW, handleId, rowsOf, type FlowPort } from "#lib/logic/flow.js";
+  import { BOX_HEAD, DISPLAY_ROW, DIVIDER, PORT_ROW, handleId, rowsOf, type FlowPort } from "#lib/logic/flow.js";
   import { LABEL_ZOOM, SIGNAL_STYLES, signalToken } from "#lib/logic/signals.js";
 
   /**
@@ -44,6 +49,13 @@
    * gives (L-T6) show only while wired or exposed – the box's **+** lists the hidden ones. While a wire is dragged, the
    * handles that take it are drawn heavy and the others fade (`takes`, strictly typed – B8). An image node shows its
    * picture in place of the icon.
+   *
+   * **Display rows** (#334): what a plugin's code reads, sets and drives is plain text under its pins, below a thin divider,
+   * no pins – a click opens the plugin in the Code tab (the box's own click). Invisible anchors at each row's sides (and the
+   * head's, and every box's head for the far end) carry the dotted reference lines (`LogicRef`); they never connect.
+   *
+   * **Trace** (#334): while the stage just lit it (a rule that ran, an event that fired, a variable that changed), its border
+   * pulses once in its kind's colour; a variable shows its new value in its head for that moment (`= true`).
    */
   let { data }: { data: LogicBoxData } = $props();
 
@@ -76,15 +88,17 @@
   const lit = (id: string) => (data.takes ? (data.takes.has(id) ? " takes" : " refuses") : "");
   const pinClass = (p: FlowPort, extra = "") => `pin shape-${SIGNAL_STYLES[p.deck].shape} sig-${p.deck}${p.kind ? ` kind-${p.kind}` : ""}${extra}${lit(handleId(p))}`;
   const pinStyle = (p: FlowPort, top: number) => `top: ${top}px; --pin: var(${signalToken(p.deck)})`;
-  /**
-   * A plugin's bus ports (hears, emits, reads, sets, goto, arrives, drives) are drawn from its code's declared uses: read-only
-   * (#334) – no wire starts or ends there, the pin is an outline, a click opens the plugin in the Code tab
-   */
-  const usesOnly = $derived(!pill && !box.stub && node!.kind === "plugin");
-  const portTitle = (p: FlowPort) => (usesOnly
-    ? `${p.label}: from ${label}'s code (uses) – click to open it in the Code tab`
-    : `${p.owner ? `${p.owner} · ` : ""}${p.label || p.deck}${p.detail ? ` – ${p.detail}` : ""}`);
-  const pinOf = (p: FlowPort, extra = "") => pinClass(p, `${extra}${usesOnly ? " uses" : ""}`);
+  /** A plugin's pins (#334): its emits into a rule's on, a rule's emit into its listens – the event names they stand for */
+  const busNames = (p: FlowPort) => (node?.kind === "plugin" ? (p.id === "emits" ? node.bus?.emits : p.id === "listens" ? node.bus?.listens : undefined) : undefined);
+  const portTitle = (p: FlowPort) => {
+    const names = busNames(p);
+    if (names) return `${p.label}: ${names.join(", ") || "nothing a rule can wire"} – ${p.id === "emits" ? "wire it to a rule's on" : "wire a rule's action here: it emits it"}`;
+    return `${p.owner ? `${p.owner} · ` : ""}${p.label || p.deck}${p.detail ? ` – ${p.detail}` : ""}`;
+  };
+  const pinOf = (p: FlowPort, extra = "") => pinClass(p, extra);
+  const displayRows = $derived(box.folded ? [] : box.rows);
+  const dividerTop = $derived(BOX_HEAD + rows.count * PORT_ROW + DIVIDER / 2);
+  const displayTop = (i: number) => BOX_HEAD + rows.count * PORT_ROW + DIVIDER + i * DISPLAY_ROW;
 
   const keydown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && enterable) {
@@ -113,6 +127,9 @@
   role="button" tabindex="0" aria-label="{word} {label} – {detail}{node?.problem ? ` – ${node.problem}` : ''}{enterable ? ' – Enter opens it' : ''}"
   title="{word}: {label} – {detail}{node?.problem ? `\n${node.problem}` : ''}{enterable ? '\nDouble-click to open' : ''}{data.editable && !box.stub ? '\nDrag its head to place it' : ''}"
   ondblclick={e => { if (enterable) { e.stopPropagation(); data.onenter(box); } }} onkeydown={keydown}>
+  {#if data.live}
+    {#key data.live.n}<span class="live-ring" aria-hidden="true"></span>{/key}
+  {/if}
   <span class="head drag-head">
     {#if node?.preview}
       <img class="preview" src={contentUrl(node.preview)} alt="" loading="lazy" onerror={e => ((e.currentTarget as HTMLImageElement).hidden = true)} />
@@ -120,7 +137,15 @@
       <span class="kind-icon"><Icon name={icon as never} /></span>
     {/if}
     <span class="label">{label}</span>
-    <span class="word">{word}</span>
+    {#if data.live?.value !== undefined}
+      <span class="live-value" title="its new value">= {data.live.value}</span>
+    {:else}
+      <span class="word">{word}</span>
+    {/if}
+    {#if data.fire && data.onfire}
+      <button type="button" class="fire nodrag" aria-label="Fire {label} on the stage" title="Fire {label} on the stage, by hand (right-click: with a payload)"
+        onclick={e => { e.stopPropagation(); data.onfire?.(box); }} ondblclick={e => e.stopPropagation()}><Icon name="play" /></button>
+    {/if}
     {#if box.hidden.length && data.editable && !box.folded}
       <button type="button" class="expose nodrag" aria-label="Show a port of {label} ({box.hidden.length} hidden)" title="Show a port ({box.hidden.length} hidden)"
         onclick={expose} ondblclick={e => e.stopPropagation()}>+</button>
@@ -135,20 +160,33 @@
     {/if}
   </span>
   {#each headIns as p, i (p.id)}
-    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, headTop(i, headIns.length))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
+    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, headTop(i, headIns.length))} isConnectable={data.editable} title={portTitle(p)} />
   {/each}
   {#each headOuts as p, i (p.id)}
-    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p, p.id === "do" ? " add" : "")} style={pinStyle(p, headTop(i, headOuts.length))} isConnectable={data.editable && !usesOnly}
+    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p, p.id === "do" ? " add" : "")} style={pinStyle(p, headTop(i, headOuts.length))} isConnectable={data.editable}
       title={p.id === "do" ? "Drag to a node, a variable or an event: a new action" : portTitle(p)} />
   {/each}
   {#each rows.ins as p, i (`in:${p.id}`)}
     <span class="pin-label in" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title={portTitle(p)}>{p.label}</span>
-    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
+    <Handle type="target" position={Position.Left} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable} title={portTitle(p)} />
   {/each}
   {#each rows.outs as p, i (`out:${p.id}`)}
     <span class="pin-label out" style:top="{rowTop(i) - PORT_ROW / 2}px" style:height="{PORT_ROW}px" title={portTitle(p)}>{p.label}</span>
-    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable && !usesOnly} title={portTitle(p)} />
+    <Handle type="source" position={Position.Right} id={handleId(p)} class={pinOf(p)} style={pinStyle(p, rowTop(i))} isConnectable={data.editable} title={portTitle(p)} />
   {/each}
+  {#if displayRows.length}
+    <span class="divider" style:top="{dividerTop}px" aria-hidden="true"></span>
+  {/if}
+  {#each displayRows as row, i (row.id)}
+    <span class="display-row" style:top="{displayTop(i)}px" style:height="{DISPLAY_ROW}px" title="{row.text} – from {label}'s code; click to open it in the Code tab">{row.text}</span>
+    <Handle type="source" position={Position.Left} id="ref:l:{row.id}" class="ref-anchor" style="top: {displayTop(i) + DISPLAY_ROW / 2}px" isConnectable={false} />
+    <Handle type="source" position={Position.Right} id="ref:r:{row.id}" class="ref-anchor" style="top: {displayTop(i) + DISPLAY_ROW / 2}px" isConnectable={false} />
+  {/each}
+  <!-- The reference lines' anchors on the head: the far end of a line (every box), its start while the box is folded -->
+  <Handle type="target" position={Position.Left} id="ref:l" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
+  <Handle type="target" position={Position.Right} id="ref:r" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
+  <Handle type="source" position={Position.Left} id="ref:hl" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
+  <Handle type="source" position={Position.Right} id="ref:hr" class="ref-anchor" style="top: {BOX_HEAD / 2}px" isConnectable={false} />
 </div>
 
 <style>
@@ -186,14 +224,28 @@
   .box.selected { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
   .box.flash { outline: 2px solid var(--text); outline-offset: 3px; }
   .box.problem { border-color: var(--danger); }
-  /* a warning (nothing hears, sets or emits it): dashed, no colour (RULES #38) */
+  /* a warning (nothing listens to, sets or emits it): dashed, no colour (RULES #38) */
   .box.warning { border-style: dashed; }
   .box.problem .head { background: color-mix(in srgb, var(--danger) 12%, var(--control-background)); }
   .box.dim { opacity: .55; }
+  /* Live feedback (#334): one pulse of the border in the kind's colour; reduced motion keeps it still for its moment */
+  .live-ring {
+    position: absolute; inset: -1px; border: 2px solid var(--kind); border-radius: inherit; pointer-events: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--kind) 28%, transparent); animation: live-ring 1s ease-out forwards;
+  }
+  @keyframes live-ring { from { opacity: 1; } 70% { opacity: .8; } to { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .live-ring { animation: none; } }
+  .live-value { flex: none; max-width: 45%; font-size: .625rem; font-weight: 600; color: var(--kind); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .box.pointed:not(.selected) { border-color: var(--kind); }
   .box.pointed .enter, .box.pointed .fold { color: var(--text); }
   .box:focus-visible { outline: 2px solid var(--signal-accent); outline-offset: 1px; }
-  .enter, .expose, .fold {
+  /* The ▶ that fires an event box on the stage (#334): only where a pointer hovers, shown while it is over the box */
+  .fire { display: none; }
+  @media (hover: hover) {
+    .box.pointed .fire, .fire:focus-visible { display: grid; }
+    .fire:hover { color: var(--text); background: var(--hover-background); }
+  }
+  .enter, .expose, .fold, .fire {
     flex: none; display: grid; place-items: center; width: 1.125rem; height: 1.125rem; padding: 0; border: 0; border-radius: .25rem; background: none; color: var(--muted); cursor: pointer;
   }
   .expose { font: inherit; font-size: .875rem; line-height: 1; border: 1px solid color-mix(in srgb, var(--kind) 35%, transparent); width: 1rem; height: 1rem; }
@@ -217,8 +269,15 @@
   }
   .box :global(.pin.add::after) { content: "+"; color: var(--text); pointer-events: none; }
   .box :global(.pin.connectable) { cursor: crosshair; }
-  /* A plugin's port from its code's uses: an outline, no wire starts or ends there (a click opens the Code tab) */
-  .box :global(.pin.uses) { background: var(--control-background); border: 1px solid var(--pin); cursor: pointer; }
+  /* Display rows (#334): a thin divider, then plain text – no pins; a click opens the plugin's code */
+  .divider { position: absolute; left: .5rem; right: .5rem; height: 0; border-top: 1px solid color-mix(in srgb, var(--kind) 22%, transparent); pointer-events: none; }
+  .display-row {
+    position: absolute; left: 0; right: 0; box-sizing: border-box; display: flex; align-items: center; padding: 0 .75rem;
+    font-size: .625rem; line-height: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .box:not(.labels) .display-row { visibility: hidden; }
+  /* A reference line's anchor: invisible, never takes the pointer, never connects */
+  .box :global(.ref-anchor) { width: 1px; height: 1px; min-width: 0; min-height: 0; border: 0; background: none; opacity: 0; pointer-events: none; }
   /* While a wire is dragged: what takes it heavy, the rest faded */
   .box :global(.pin.takes) { outline: 2px solid var(--text); outline-offset: 1px; clip-path: none; }
   .box :global(.pin.refuses) { opacity: .25; }

@@ -6,6 +6,12 @@ tab is where you try it. This is the guide and the reference of the plugin API; 
 registers is in [content](content.md), the editor's tab in [editor](editor.md) "Code", the decision in
 `agents/research/2026-10-29-code-in-the-editor.md`.
 
+**Plugin API 4.0** (content schema 6.0, #341 – Tilman, 2026-11-21: *"you use the word hear for events. i think it is
+listen"*): what a spec's code listens to is `uses.listens` (was `uses.hears`). The engine refuses a module built against
+another MAJOR ("… was built against plugin API 3.1, this engine runs 4.0 – not loaded"), so every experience is published
+again; stored sources are rewritten with `osct plugins listen` (`--dir` a content source, `--experience` / `--all` the
+instance's database – [content](content.md) "Schema and app versions").
+
 ## The shape
 
 ```ts
@@ -125,7 +131,7 @@ defaults filled in, `emit` sends one of the spec's `events`. It returns the hook
 node built anew). A component on a `group` node may build anything with `api.three` and add it to `placed` – but when the
 thing *is* the node, a node type says so better.
 
-## Typed specs and the Logic view (API 3.1, content schema 5.1)
+## Typed specs and the Logic view (API 3.1, content schema 5.1; `uses.listens` since API 4.0)
 
 A spec is written once, as a value, and everything else is read from it: the Inspector's rows, the guard's checks, the
 engine's limits, the editor's Logic view – and your handler's types. This is the "schema first" way of zod, TypeBox and
@@ -164,7 +170,7 @@ api.registerComponent("hum", {
   params: { volume: p.number({ min: 0, max: 1, default: 0.6, description: "How loud." }) },
   actions: ["play", "pause"],              // the rule verbs it answers on its node
   events: ["ended"],                       // the scene events it emits
-  uses: { hears: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus and the variables
+  uses: { listens: ["doorOpened"], sets: ["hummed"] },   // what its code uses of the bus and the variables
 }, ({ params, emit }) => ({
   onAction: action => { /* "play" | "pause" – a rule's `play: <this node>` lands here */ },
   onTap: () => emit("ended"),              // emit("endd") is a type error in the Code tab and the build
@@ -176,9 +182,9 @@ api.registerComponent("hum", {
   beside what the engine does itself (a model's clip, the node's visibility). Any other name is refused: there is no rule
   verb for it yet.
 - **`events`**: names your code sends with the context's `emit(event, payload?)` – on the bus, with the target's id, so a
-  rule hears it by name (`on: ended`). An event the spec does not declare is not sent (a warning); a core event or a node's
+  rule listens to it by name (`on: ended`). An event the spec does not declare is not sent (a warning); a core event or a node's
   own (`found`, `lost`, `tap`, `unlocked`) cannot be declared.
-- **`uses`**: what the code hears, emits, reads and sets (`api.events.on`, `emit`, `api.vars.get`, `set`), by name. The
+- **`uses`**: what the code listens to, emits, reads and sets (`api.events.on`, `emit`, `api.vars.get`, `set`), by name. The
   Logic view joins the plugin to the rules by it. A plugin that declares nothing in any spec is read the old way – the
   editor looks for `api.events.on("…")` and the like in its source.
 
@@ -774,7 +780,7 @@ lights when the door opened, a text counts the pages found. Four parts of `api` 
 - **`api.events`** – one bus for the stage. *Core events* belong to the engine, you only listen: `targetFound`,
   `targetLost`, `targetUnlocked` (the first find – progress is the app's), `targetTapped`, `sceneChanged`,
   `arState` (running / paused / stopped), `varChanged`. *Scene events* are yours: `api.events.emit("doorOpened",
-  { by: "key" })` – any camelCase name that is not a core event – and every plugin hears it with
+  { by: "key" })` – any camelCase name that is not a core event – and every plugin listens to it with
   `api.events.on("doorOpened", payload => …)`. `on` returns the unsubscribe; when a plugin is replaced (Run) or
   unloaded, its listeners go with it.
 - **`api.vars`** – variables in **scopes**: `scene` (while the scene is the current one – cleared when it changes),
@@ -833,13 +839,13 @@ export const register = (api: PluginApi): void => {
 };
 ```
 
-Try it in the editor: tap the key (its rule sets `hasKey` – the Inspector's *vars and events* lists it while the scene is selected, experience
-scope, a boolean), walk to the door's scene with › – the door's rules emit `openDoor`, the door opens, the timeline
+Try it in the editor: tap the key (its rule sets `hasKey` – the **Variables** tab lists it, experience
+scope, a boolean), walk to the door's scene with › – the door's rules emit `openDoor`, the door opens, the **Log** tab's timeline
 shows `openDoor` and `doorOpened` with the time since the scene opened; the tree's eye switches a target off and on (lost, found again). **reset** starts a new game.
-To test a branch without playing up to it, change a variable in the panel or **set** one (name, scope, type, value):
+To test a branch without playing up to it, change a variable in the Variables tab or **set** one (name, scope, type, value):
 it is written through `api.vars.set`, so your `api.vars.on` listeners and `varChanged` fire as for a plugin's write.
-**tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
-([editor](editor.md) "Vars and events").
+the Log tab's **tap** taps a found target as a reader would – your component's `onTap` and `targetTapped` – without aiming at it
+([editor](editor.md) "Variables and Log").
 
 ## Behaviour and plugins
 
@@ -849,14 +855,14 @@ Not every narrative needs code. The built-in **`behaviour`** component (content 
 clip, show or hide a node, set a variable, emit an event. It is no second system: the engine runs it on the same
 runtime as your code (`engine/src/scene/behaviour.ts` on `plugin-runtime.ts`). A rule's `set` is `api.vars.set` – your
 `api.vars.on` and `varChanged` fire; its `emit` is `api.events.emit` with `{ targetId, node }` as the payload – your
-`api.events.on` hears it; a rule's `on` hears your scene events and the core events like a listener of yours; its
+`api.events.on` listens to it; a rule's `on` listens to your scene events and the core events like a listener of yours; its
 `when` reads like `api.vars.get` (the innermost scope). So the split is: the **rules decide** (which event, which
 state, what follows), **a plugin does** what a rule cannot – move or animate a node over time, draw, compute, count the
 progress – and the two meet on the bus with named events. The demo shows it: the key is only a rule now (a tap plays
 its clip, sets `hasKey`, emits `keyRattled`), the door's rules emit `openDoor` and the `door` plugin lifts the door.
 
 Reach for a rule first; write a component when a rule would need a verb it does not have. The editor's timeline
-marks every rule that ran with a `behaviour` line – it is the log's own (your listeners never hear it).
+marks every rule that ran with a `behaviour` line – it is the log's own (your listeners never listen to it).
 
 ## Trying it: the Code tab
 
@@ -898,26 +904,45 @@ const rendered = (object: Object3D): boolean => {
 Wire and Solid swap the entities' materials for the stage's own; Textured keeps them – only this value tells Textured
 from Rendered.
 
-## Where it runs: the stage's sandbox
+## Where it runs: the page, with the session (5.0)
 
-In the editor a plugin runs in the **stage frame** – an iframe sandboxed without `allow-same-origin`, an origin of its
-own with no session ([editor](editor.md) "The stage frame", #234). For a plugin that changes nothing about the API
-above – the stage, the registries, `api.three`, the events, the variables, the progress, `api.loadText`, the feedback
-buffers and the passes all work as before. What a plugin **cannot** do there, by design:
+In the editor a plugin runs **in the editor's own page** (#340, Tilman 2026-11-21: *"we can drop the sandbox. since we
+trust the user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is
+fine. it is a huge security risk but only to the user who is logged in and their scope."*). The sandboxed stage frame of
+#234 (1.58.0 to 4.x) is gone, and with it its limits: a plugin may use the page's `fetch` – **with the session of the
+editor who has the experience open**:
 
-- **act as the person who has the experience open** – a request to the API carries no session (`fetch("/api/user",
-  { credentials: "include" })` is refused before it leaves: the frame's policy allows no path of the API but its public
-  content route, and there the browser withholds the cookie);
-- **read the session or the editor's storage** – `document.cookie`, `localStorage` and `sessionStorage` throw;
-- **reach the editor's page** – `parent.document` belongs to another origin; the page acts only on the stage's own
-  messages, and none of them saves or publishes;
-- **load from other origins** – files come from the experience's content and the Library (`api.loadText`, a texture
-  parameter, a model's file); `fetch` to another host, an `import()` from a CDN, a worker, an `<iframe>`, a form or a
-  popup are blocked;
-- **show a dialog** – `alert`, `confirm` and `prompt` do nothing in the sandbox; log with `api.log`, which the Code tab
-  shows under the editor (with the plugin's errors on the stage).
+```ts
+// read the experience as the person sees it – or change its data, the game state, whatever they may change
+const response = await fetch("/api/user");                   // the cookie goes along: it is the person's session
+const { csrfToken } = await response.json();                 // writes need the session's CSRF token
+await fetch(`/api/editor/experiences/${id}/…`, { method: "PUT", headers: { "X-CSRF-Token": csrfToken, … }, body });
+```
 
-The reader runs the published plugins in its own page – the same API, without this sandbox (yet).
+**The risk, plainly**: plugin code runs with the rights of **whoever opens the experience** in the editor. Code one
+editor saved runs as another editor – or an admin – when they open the stage: it can read and change what they may (the
+draft, other experiences they edit, users if they are an admin), send it elsewhere, and do it without a click. The scope
+is the signed-in person's own; nothing more. That is why the editor **asks before it runs code someone else saved
+last** ([editor](editor.md) "The plugin guard"): *Run plugin code by ben?* lists the plugins and who saved each, the
+answer is kept per experience and source version (a new save by someone else asks again), and *Don't run* leaves those
+plugins off the stage – the Code tab and the Log tab say why. The person's own last-saved code runs without asking;
+**Run** in the Code tab always runs what is open.
+
+What else follows from running in the page:
+
+- **`api.log`** shows in the Code tab's log and the Log tab (and the console); so do the engine's lines about a plugin
+  and an error a plugin's module throws that nobody catches.
+- **A plugin that blocks** (an endless loop) blocks the whole editor, not a frame: the auto-load's mark skips that source
+  the next time the editor opens ([editor](editor.md) "Code").
+- **Other origins**: the editor's page sets no Content Security Policy of its own, so the browser's defaults apply
+  (CORS) – but use the experience's content and the Library for files (`api.loadText`, a texture parameter, a model's
+  file), so the plugin works the same in the reader.
+- **Leaving the workspace** uninstalls every plugin (`resetPlugins`): code that keeps something outside the registries
+  alive (a timer, a listener on `window`) should clean it up in its component's or node's `dispose`.
+- **The plugin API stays 3.1**: `api` itself did not change. What changed is where the code runs, and the reader had
+  the session within reach of a published plugin before (one cookie for the site, #207).
+
+The reader runs the published plugins in its own page – the same API, the same session within reach.
 
 ## Shipping it: the content build
 

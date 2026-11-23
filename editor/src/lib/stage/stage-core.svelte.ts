@@ -5,7 +5,7 @@ import type { EnvironmentData } from "@shared/types/environment";
 import type { SurfacePlace, TargetPlace } from "@shared/types/game-config";
 import { entityNodes } from "@engine/content/game-config";
 import { onAppUi } from "@engine/scene/ui";
-import { allVars, ArScene, observeEvents, resetVars, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
+import { allVars, ArScene, type HandRun, observeEvents, resetVars, type RuleHome, runRuleByHand, runtimeApi, type VarScope, type VarValue } from "@engine/scene";
 import { BACKDROP_LAYER } from "@engine/scene/view";
 import { setDeviceStorage } from "@engine/utils/device-storage";
 import { getExperience, getTarget, getTargets } from "@engine/content/game-config";
@@ -23,7 +23,7 @@ import { showsWorld } from "./sky";
 import { MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
-import { REMOVED_ENTITY } from "./frame-protocol";
+import { REMOVED_ENTITY } from "./stage-types";
 import { modelOf, nearPointer, nodeOf, PICK_KINDS, pickable, pickByFilter, pickForMenu, samePick, type PickFilter, type PickKind, type StageHit, type StagePick } from "./pick";
 import { DEFAULT_ASPECT, draggedPlace, grabOffset, placeHeight, type PlacementDrag, type Surfaces } from "./placement";
 import { SceneSnapper } from "./snap-scene";
@@ -45,16 +45,16 @@ const REPLAY_GAP_MS = 900;
 const DRAGGED_PLACE_MS = 6000;
 
 /**
- * The editor's stage as it runs in the stage frame (#234, `frame-host.svelte.ts` – the sandbox the experience's plugins run
- * in; the page talks to it through `stage.svelte.ts`): the engine's `ArScene` with the mock tracker and the mock stage
+ * The editor's stage in the editor's page (#340 – the stage frame of #234 is gone; the workspace talks to it through
+ * `stage.svelte.ts`): the engine's `ArScene` with the mock tracker and the mock stage
  * instead of a camera, and the editor's simulation of the game around it – which scene is open, which targets the
  * "camera" sees, which were found for the first time (the unlock animation plays once per target, *replay* plays it
  * again), and the reader's progress for the experience's plugins (`StageProgress`: unlocked targets, experience variables – the
  * engine's `api.progress`). The reader's store does none of this here: the editor owns its state. For the Inspector it
  * keeps the plugins' variables and the stage's event timeline (`vars`, `events` – each event timed from the scene's
  * opening), and lets the author act like the experience's code or a reader would: set a variable through the plugin API
- * (`setVar`), tap a found target without aiming at it (`tap`). The live overrides are the page's: it sends each one
- * (`override`), and a gizmo drag only reports the placement (`onPlacement`) for the page to write.
+ * (`setVar`), tap a found target without aiming at it (`tap`). The live overrides are the page's: it hands each one
+ * over (`override`), and a gizmo drag only reports the placement (`onPlacement`) for the page to write.
  */
 
 /**
@@ -124,6 +124,10 @@ export class StageCore {
   private sceneOpenedAt = performance.now();
   /** The plugin API's variables, as the Inspector writes them – the same checks and `varChanged` as a plugin's `set` */
   private panelVars = runtimeApi("stage").vars;
+  /** The plugin API's events, as the Logic panel fires one by hand (#334) – the same checks as a plugin's `emit` */
+  private panelEvents = runtimeApi("stage").events;
+  /** The event whose next line the timeline marks *by hand* (`fire`, `runRule`), null when none is awaited */
+  private byHand: string | null = null;
   /** Entities shown with other values than the draft's, by target id (the page's overrides, as it sent them) */
   private overrides = new Map<string, EntityData>();
   private replayTimer = 0;
@@ -172,7 +176,8 @@ export class StageCore {
       // A rule's goto (content schema 5.0): the stage stays on its scene – the timeline logs it with a link that opens the
       // scene (`SceneView`); following it while the stage plays would leave the author's open scene behind
       navigate: address => {
-        this.events = logEvent(this.events, { event: "goto", detail: address, at: performance.now() - this.sceneOpenedAt });
+        const now = performance.now();
+        this.events = logEvent(this.events, { event: "goto", detail: address, at: now - this.sceneOpenedAt, t: now });
       },
       debug: import.meta.env.DEV,
     });
@@ -210,7 +215,11 @@ export class StageCore {
       observeEvents((event, payload) => {
         const now = performance.now();
         if (event === "sceneChanged") this.sceneOpenedAt = now;
-        this.events = logEvent(this.events, { event, detail: describePayload(payload), at: now - this.sceneOpenedAt });
+        // The line of what the Logic panel set off by hand (#334) says so – only the first line of that name, not what it set off
+        const byHand = this.byHand === event;
+        if (byHand) this.byHand = null;
+        const detail = describePayload(payload);
+        this.events = logEvent(this.events, { event, detail: byHand ? (detail ? `${detail} · by hand` : "by hand") : detail, at: now - this.sceneOpenedAt, t: now });
         if (event === "varChanged" || event === "sceneChanged") this.vars = allVars();
       }),
     );
@@ -861,7 +870,7 @@ export class StageCore {
     this.replayUnlock();
   }
 
-  /** Set (or delete with `null`) a variable by hand, through the plugin API: the plugins hear `varChanged` as from a plugin. The API's refusal as text, null when written */
+  /** Set (or delete with `null`) a variable by hand, through the plugin API: the plugins listen to `varChanged` as from a plugin. The API's refusal as text, null when written */
   setVar(name: string, value: VarValue | null, scope: VarScope): string | null {
     try {
       this.panelVars.set(name, value, scope);
@@ -872,9 +881,48 @@ export class StageCore {
     }
   }
 
+  /**
+   * Fire an event on the bus by hand (the Logic panel's *Fire on stage*, #334) as a plugin's `emit` does: the open scene's
+   * and the experience's rules that listen to it run, every plugin listens to it, the timeline marks its line *by hand*. Only the
+   * running stage changes, never the draft. The refusal as text (the stage is not running, a core event, no event name),
+   * null when fired
+   */
+  fire(event: string, payload?: Record<string, unknown>): string | null {
+    if (this.status !== "running") return "The stage is not running.";
+    this.byHand = event;
+    try {
+      this.panelEvents.emit(event, payload);
+      return null;
+    } catch (error) {
+      return (error instanceof Error ? error.message : String(error)).replace(/^stage: /, "");
+    } finally {
+      this.byHand = null;
+    }
+  }
+
+  /**
+   * Run one rule on the stage as if its event had come (the Logic panel's *Run this rule*, #334 – `runRuleByHand`): its
+   * condition applies, its actions run, the timeline marks its `behaviour` line *by hand*. `rule`: its index in its list.
+   * `stopped` while the stage does not run
+   */
+  runRule(home: RuleHome, rule: number): HandRun | "stopped" {
+    if (this.status !== "running") return "stopped";
+    this.byHand = "behaviour";
+    try {
+      return runRuleByHand(home, rule);
+    } finally {
+      this.byHand = null;
+    }
+  }
+
   /** Tap a found target's entity without aiming at it – the reader's tap (`onTap`, `targetTapped`); false when nothing was tapped */
   tap(targetId: string): boolean {
     return this.arScene.inspect()?.tap(targetId) ?? false;
+  }
+
+  /** Milliseconds since the scene on the stage opened (or the game was reset) – the timeline's clock */
+  elapsed(): number {
+    return performance.now() - this.sceneOpenedAt;
   }
 
   /** Empty the timeline (variables and progress stay) */

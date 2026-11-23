@@ -12,6 +12,10 @@
     oncolour: (group: string) => void;
     /** A new label; empty removes the group */
     onrename: (group: string, label: string) => void;
+    /** A click on the head's free area: select the group's boxes (`add`: Shift – to what is selected) */
+    onselect: (group: string, add: boolean) => void;
+    /** A right click on the head: the group's menu at that screen point */
+    onmenu: (group: string, at: { x: number; y: number }) => void;
   }
 </script>
 
@@ -24,6 +28,9 @@
    * in the group's colour (32 %) inside an outline (45 %, radius 0.72rem) round its boxes; its head row a fold chevron, the
    * colour's swatch (a click takes the next colour) and the label, renamed in place (empty removes the group). The head drags
    * the frame with its boxes (the canvas pins them where they are let go). It lies under the boxes and the wires.
+   * A click on the head's free area (not the chevron, the swatch or the name – and not the end of a drag) selects the
+   * group's boxes, Shift adds them to the selection (#334); a right click opens the group's menu (select, rename, colour,
+   * fold, ungroup).
    */
   let { data }: { data: LogicFrameData } = $props();
 
@@ -45,6 +52,15 @@
     editing = false;
     if (draft.trim() !== group.label) data.onrename(group.id, draft);
   };
+  /** Where a press on the head began: a click that moved is a drag, which selects nothing */
+  let down: { x: number; y: number } | null = null;
+  const headClick = (e: MouseEvent) => {
+    const start = down;
+    down = null;
+    if ((e.target as HTMLElement).closest("button, input")) return;
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 4) return;
+    data.onselect(group.id, e.shiftKey);
+  };
   const key = (e: KeyboardEvent) => {
     e.stopPropagation();
     if (e.key === "Enter") commit();
@@ -53,7 +69,10 @@
 </script>
 
 <div class="frame" style:width="{data.w}px" style:height="{data.h}px" style:--group={group.colour} role="group" aria-label="Group {group.label}">
-  <div class="frame-head" title={data.editable ? "Drag to move the group with its boxes" : group.label}>
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="frame-head" title={data.editable ? "Click to select the group's boxes, drag to move them, right-click for its menu" : group.label}
+    onpointerdown={e => (down = { x: e.clientX, y: e.clientY })} onclick={headClick}
+    oncontextmenu={e => { e.preventDefault(); e.stopPropagation(); data.onmenu(group.id, { x: e.clientX, y: e.clientY }); }}>
     <button type="button" class="fold nodrag" aria-label="Fold {group.label}" aria-expanded="true" title="Fold the group to one pill"
       onclick={e => { e.stopPropagation(); data.onfold(group.id, true); }}><Icon name="down" /></button>
     <button type="button" class="swatch nodrag" aria-label="Next colour for {group.label}" title="Next colour" disabled={!data.editable}

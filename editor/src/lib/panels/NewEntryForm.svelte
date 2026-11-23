@@ -8,7 +8,7 @@
   import { sceneLabel } from "@engine/content/scenes";
 
   /**
-   * A new entry without a printed image on the open scene (the tree's "+ entry", #237): read in the reader's list only,
+   * A new entry without a printed image on the open scene (the tree's + menu, *entry…*, #237): read in the reader's list only,
    * like a glossary term – its title, category and, in a scene of several surfaces, its surface. The API makes it
    * (`POST …/entries` without `target`); the caller reloads the content and selects it, so its form opens in the
    * Inspector. A target can follow on the stage.

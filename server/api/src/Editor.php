@@ -25,15 +25,16 @@ final class Editor
     public const ENTRY_CATEGORIES = ['glossary', 'video', 'text', 'link'];
     /**
      * The content schema the editor reads and the draft writes (shared/types/game-config.ts `CONTENT_SCHEMA_VERSION`): an
-     * experience of an older MAJOR is refused (`Db::migrate` turns every stored 4.x experience into 5.0, `Migration5`, #334)
+     * experience of an older MAJOR is refused (`Db::migrate` turns every stored 4.x experience into 6.0 – `Migration5`, #334 –
+     * and every 5.x one – `Migration6`, #341)
      */
-    public const CONTENT_SCHEMA = '5.2';
+    public const CONTENT_SCHEMA = '6.0';
     /**
      * The levels a picture, video or sound may hold (shared/types/media-levels.ts `MEDIA_LEVELS`, schema 4.3, #331): image
      * px (longest side), video height, audio kbps
      */
     public const MEDIA_LEVELS = ['image' => [512, 1024, 2048], 'video' => [480, 720, 1080], 'audio' => [64, 128, 192]];
-    public const CONTENT_SCHEMA_MAJOR = 5;
+    public const CONTENT_SCHEMA_MAJOR = 6;
 
     /**
      * A medium's `levels` (#331, shared/types/media-levels.ts `mediaLevelProblems`): a list of at least one `{ level, src }`,

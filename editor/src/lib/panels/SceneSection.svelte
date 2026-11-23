@@ -3,20 +3,19 @@
   import Section from "#lib/components/Section.svelte";
   import { autosave } from "#lib/autosave.svelte.js";
   import { scenes } from "#lib/scenes.svelte.js";
-  import { sceneName, targetsOf } from "#lib/scene-strip.js";
+  import { sceneName, targetsOf, targetsOff } from "#lib/scene-strip.js";
   import { errorText } from "#lib/api.js";
   import { selection } from "#lib/selection.svelte.js";
   import Icon from "#lib/components/Icon.svelte";
   import { sceneRemoval } from "#lib/scene-removal.svelte.js";
   import { arrangeSceneInRow, canArrangeInRow } from "#lib/surface-actions.js";
-  import SurfaceList from "./SurfaceList.svelte";
 
   /**
    * The open **scene** in the Inspector (#307 phase 3a, #319), above its own sections: its label (what the reader's
-   * switcher and lists show), its group, its targets, *arrange in a row*, and its **surfaces** (#314, `SurfaceList`):
-   * each with its label as printed (editable) and size; add a double or single page, a wall or a custom one, reorder,
-   * remove; a click on one selects it – the Inspector shows its size, place and reference image (the same edits as the
-   * Tree's Surfaces level and the Surface mode). Every field saves itself (`PUT …/scenes/{id}`, RULES #37).
+   * switcher and lists show), its group, its targets and *arrange in a row* for its surfaces. The surfaces themselves are
+   * the Tree's (its Surfaces level: + adds one and selects it, the row's menu reorders and removes) and the selected
+   * surface's Inspector (`SurfaceView`: label, size, place, reference image) – #337. Every field saves itself
+   * (`PUT …/scenes/{id}`, RULES #37).
    */
   let { experienceId, sceneId }: { experienceId: string; sceneId: string } = $props();
 
@@ -57,7 +56,7 @@
 
 {#if scene}
   <Section id="stage.scene" label="scene" summary={sceneName(scene)}
-    help="The open scene: its label and group, and its surfaces – the physical areas it has (a double page, a cover, a wall), each with its size, its label as printed and its place. Every field saves itself.">
+    help="The open scene: its label and group, its targets, and arrange in a row for its surfaces – the physical areas it has (a double page, a cover, a wall), listed in the Tree, where + adds one and a click shows it in the Inspector. Every field saves itself.">
     <div class="row" data-help="What the reader's switcher and lists show for the scene – free text, never counted on (40–41, Cover, Studio wall). Empty: its id.">
       <span class="label">label</span>
       <input class="field" aria-label="Scene label" placeholder={scene.id} value={label} oninput={e => editLabel(e.currentTarget.value)} /></div>
@@ -71,7 +70,7 @@
         title="Show the group in the Inspector" aria-label="Show the group"><Icon name="link" /></button>{/if}</div>
     <div class="row" data-help="The targets on this scene – the engine tracks at most 10 per scene (4 at the same moment).">
       <span class="label">targets</span>
-      <span class="value">{targetsOf(scene)} of 10</span></div>
+      <span class="value">{targetsOf(scene)} of 10{#if targetsOff(scene)}<span class="muted"> · {targetsOff(scene)} off</span>{/if}</span></div>
     <div class="row" data-help="Arrange in a row: the scene's surfaces flat on the table, side by side in their order, touching, the row centred on the origin – written to their places. Off while they lie so already.">
       <span class="label">surfaces</span>
       <button type="button" class="pill framed" disabled={!canArrangeInRow(sceneId)} onclick={() => void put(() => arrangeSceneInRow(sceneId))}
@@ -80,11 +79,6 @@
       <span class="label"></span>
       <button type="button" class="text-link danger" onclick={() => sceneRemoval.ask(sceneId)}>remove scene…</button></div>
     {#if error}<p class="small danger">{error}</p>{/if}
-  </Section>
-
-  <Section id="stage.surfaces" label="surfaces" summary={String(scene.surfaces.length)}
-    help="The scene's physical areas in order – a double page, a cover, a wall – with their label as printed and size. Add, reorder, remove; a click on an id selects the surface (its size, place and reference image). The Surface tool (S) picks them on the stage.">
-    <SurfaceList {experienceId} sceneId={sceneId} />
   </Section>
 {/if}
 

@@ -8,6 +8,8 @@ import { conditionWords, project, type LogicContent, type LogicScene, type Logic
 interface LogicGraph {
   nodes: Array<{ id: string; kind: string; label: string; detail: string; pick: unknown; problem?: string }>;
   edges: Array<{ from: string; to: string; label: string }>;
+  /** A display row's references (#334): `from|row|to` */
+  refs: string[];
   problems: string[];
 }
 const sceneLogic = (content: LogicContent, sceneId: string): LogicGraph => {
@@ -19,12 +21,13 @@ const sceneLogic = (content: LogicContent, sceneId: string): LogicGraph => {
   return {
     nodes: view.nodes.map(({ id, kind, label, detail, pick, problem }) => ({ id, kind, label, detail, pick, ...(problem ? { problem } : {}) })),
     edges,
+    refs: view.refs.map(r => `${r.from[0]}|${r.from[1]}|${r.to}`),
     problems: view.problems.map(p => p.message),
   };
 };
 
 // The demo experience's two scenes (fixtures/demo): the key sets hasKey and emits keyRattled; the door shows its hint,
-// and with hasKey hides it and emits openDoor – the door plugin hears it, sets doorOpen and emits doorOpened
+// and with hasKey hides it and emits openDoor – the door plugin listens to it, sets doorOpen and emits doorOpened
 const key: EntityData = {
   type: "model", assets: [],
   components: [
@@ -58,9 +61,9 @@ const ids = (graph: LogicGraph, kind: string) => graph.nodes.filter(n => n.kind 
 const has = (graph: LogicGraph, from: string, to: string, label: string) => graph.edges.some(e => e.from === from && e.to === to && e.label === label);
 
 describe("a scene's logic as a graph (#239)", () => {
-  it("reads what a plugin's code hears, emits, reads and sets", () => {
-    expect(pluginCodeUses(narrativeSource)).toEqual({ hears: ["openDoor"], emits: ["doorOpened"], reads: ["doorOpen"], sets: ["doorOpen"] });
-    expect(pluginCodeUses("api.events.emit(name)")).toEqual({ hears: [], emits: [], reads: [], sets: [] });
+  it("reads what a plugin's code listens to, emits, reads and sets", () => {
+    expect(pluginCodeUses(narrativeSource)).toEqual({ listens: ["openDoor"], emits: ["doorOpened"], reads: ["doorOpen"], sets: ["doorOpen"] });
+    expect(pluginCodeUses("api.events.emit(name)")).toEqual({ listens: [], emits: [], reads: [], sets: [] });
   });
 
   it("draws a rule from its node's event to what it sets, emits and plays", () => {
@@ -71,7 +74,7 @@ describe("a scene's logic as a graph (#239)", () => {
     expect(has(graph, "rule:key/#0", "event:keyRattled", "emit")).toBe(true);
     expect(has(graph, "rule:key/#0", "node:key/", "play rattle")).toBe(true);
     // The spin component is the narrative plugin's: it drives the key's node
-    expect(has(graph, "plugin:narrative", "node:key/", "spin")).toBe(true);
+    expect(graph.refs).toContain("plugin:narrative|drives|node:key/");
     expect(graph.nodes.find(n => n.id === "var:hasKey")?.detail).toBe("variable · experience");
     expect(graph.nodes.find(n => n.id === "event:key/:tap")?.pick).toEqual({ kind: "node", target: "key", path: [] });
   });
@@ -81,14 +84,15 @@ describe("a scene's logic as a graph (#239)", () => {
     expect(has(graph, "rule:door/#0", "node:door/1", "show")).toBe(true);
     expect(has(graph, "rule:door/#1", "node:door/1", "hide")).toBe(true);
     expect(has(graph, "var:hasKey", "rule:door/#1", "when")).toBe(true);
-    expect(has(graph, "event:openDoor", "plugin:narrative", "hears")).toBe(true);
+    expect(has(graph, "event:openDoor", "plugin:narrative", "listens")).toBe(true);
     expect(has(graph, "plugin:narrative", "event:doorOpened", "emits")).toBe(true);
-    expect(has(graph, "plugin:narrative", "var:doorOpen", "sets")).toBe(true);
-    expect(has(graph, "plugin:narrative", "node:door/", "door")).toBe(true);
+    // What it sets and drives: display rows with references, not wires (#334)
+    expect(has(graph, "plugin:narrative", "var:doorOpen", "sets")).toBe(false);
+    expect(graph.refs).toEqual(expect.arrayContaining(["plugin:narrative|sets|var:doorOpen", "plugin:narrative|reads|var:doorOpen", "plugin:narrative|drives|node:door/"]));
     expect(graph.nodes.find(n => n.id === "node:door/1")).toMatchObject({ label: "hint", pick: { kind: "node", target: "door", path: [1] } });
     expect(graph.nodes.find(n => n.id === "rule:door/#1")?.detail).toBe("hasKey");
-    // hasKey is set on the key's scene, openDoor heard by the plugin: no problem – doorOpened is heard by nothing
-    expect(graph.problems).toEqual(["doorOpened is emitted, but nothing in the experience hears it"]);
+    // hasKey is set on the key's scene, openDoor listened to by the plugin: no problem – doorOpened is listened to by nothing
+    expect(graph.problems).toEqual(["doorOpened is emitted, but nothing in the experience listens to it"]);
   });
 
   it("names the problems: a variable nothing sets, an event nothing emits, a node an action names that is not there", () => {
@@ -99,7 +103,7 @@ describe("a scene's logic as a graph (#239)", () => {
     const graph = sceneLogic({ scenes: [scene("s", [{ id: "t", entity: lonely }])] }, "s");
     expect(graph.problems).toEqual([
       "group, rule 1: show names ghost – no node of that name under group",
-      "doorOpened is heard, but nothing in the experience emits it – its rules never fire",
+      "doorOpened is listened to, but nothing in the experience emits it – its rules never fire",
       "tries is read, but nothing in the experience sets it",
     ]);
     expect(graph.nodes.find(n => n.id === "var:tries")?.problem).toBeTruthy();
@@ -108,19 +112,19 @@ describe("a scene's logic as a graph (#239)", () => {
   });
 
   it("keeps quiet about events and variables while a plugin's code is unknown", () => {
-    const node: EntityData = { type: "group", assets: [], components: [{ type: "behaviour", rules: [{ on: "lost", when: "mode == \"a\"", do: { emit: "nobodyHears" } }] }] };
+    const node: EntityData = { type: "group", assets: [], components: [{ type: "behaviour", rules: [{ on: "lost", when: "mode == \"a\"", do: { emit: "nobodyListens" } }] }] };
     const graph = sceneLogic({ scenes: [scene("s", [{ id: "n", entity: node }])], plugins }, "s");
     expect(graph.problems).toEqual([]);
     expect(graph.nodes.find(n => n.id === "plugin:narrative")).toBeUndefined();
     expect(sceneLogic({ scenes: [scene("s", [{ id: "n", entity: node }])] }, "s").problems).toEqual([
       "mode is read, but nothing in the experience sets it",
-      "nobodyHears is emitted, but nothing in the experience hears it",
+      "nobodyListens is emitted, but nothing in the experience listens to it",
     ]);
   });
 
   it("leaves out targets without entities and nodes without logic", () => {
     const plain: EntityData = { type: "model", assets: [], children: [{ type: "text", assets: [], text: "x" }] };
-    expect(sceneLogic({ scenes: [scene("s", [{ id: "a" }, { id: "b", entity: plain }])] }, "s")).toEqual({ nodes: [], edges: [], problems: [] });
+    expect(sceneLogic({ scenes: [scene("s", [{ id: "a" }, { id: "b", entity: plain }])] }, "s")).toEqual({ nodes: [], edges: [], refs: [], problems: [] });
   });
 });
 

@@ -1,4 +1,5 @@
-import { escapeHtml } from "@/utils";
+// Relative, not "@/utils": vite.config.js renders the desktop landing's static first paint with it (#343)
+import { escapeHtml } from "../../utils/strings";
 
 /**
  * Markup helper for the design buttons (DESIGN.md §7). Deliberately not a custom element: the result is a

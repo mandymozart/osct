@@ -76,7 +76,10 @@ final class Auth
         );
 
         $isNew = Db::value('SELECT id FROM users WHERE email = :email', ['email' => $email]) === null;
-        $link = Http::appUrl() . '/about?login=' . $token;
+        // The link opens the experience the reader asked from (#343: every experience at its own path), else the default's
+        $experience = $body['experience'] ?? null;
+        $at = is_string($experience) && preg_match('/^' . Editor::ID . '$/', $experience) && !Experiences::isReserved($experience) ? '/' . rawurlencode($experience) : '';
+        $link = Http::appUrl() . $at . '/about?login=' . $token;
         $mail = LoginMail::compose($language, $link, $code, $isNew ? $options : null);
         try {
             Mailer::send($email, $mail['subject'], $mail['text'], $mail['html']);

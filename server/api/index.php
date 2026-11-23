@@ -7,6 +7,7 @@ declare(strict_types=1);
  *   GET    /health                   { status, version, env, db }
  *   POST   /arrivals                 { source, device, first } → 204: an arrival from a QR code or link with `?s=` (#324,
  *                                    counts only, no cookie)
+ *   GET    /experiences/{id}/manifest.webmanifest   the web app manifest of the experience at /{id}/ (#343, ReaderManifest)
  *   POST   /auth/request             send the confirmation email (link + code)
  *   POST   /auth/verify              link token or request id + code → session token, or with `session: "cookie"` (a
  *                                    browser) the session cookie and its CSRF token
@@ -34,6 +35,8 @@ declare(strict_types=1);
  *
  *   The editor (docs/server.md "Editor data"; a signed-in user with role editor, else 403):
  *   GET    /editor/experiences                  the experiences: id, title, experience, initialScene, scenes, updatedAt, lastPublish
+ *   POST   /editor/experiences                  { id, title } → 201 a new, empty experience; id = its slug (#343: lower-case,
+ *                                               not one of the site's own paths – 400 invalid-slug / reserved-slug, 409 duplicate-id)
  *   GET    /editor/environments                 the environments: which one this instance publishes to, CDN or this server
  *   POST   /editor/import/preview               the import's body → what it would bring in (experience, build, counts) and the
  *                                               draft of that id it would replace – read-only, nothing imported
@@ -72,10 +75,21 @@ declare(strict_types=1);
  *   POST   /editor/experiences/{id}/publish     { env, note?, replace?, plugins? } → writes the version to the content store (env =
  *                                               this instance's own environment, else 403 other-environment); `plugins` = the
  *                                               Code tab's sources as the editor transpiled them [{ id, code, api, registered? }]
+ *                                               → 200 with the outcome when it is written within PUBLISH_STEP_SECONDS, else
+ *                                               202 { job } – the publish runs on as a job (#345, PublishJob)
+ *   GET    /editor/experiences/{id}/publish/{job}  the job: status, phase, done / total, result or error (a poll also
+ *                                               writes the next part where nothing runs on after the answer)
+ *   GET    /editor/experiences/{id}/publish     { job } the newest publish of the experience (null: none)
  *   GET    /editor/experiences/{id}/versions    the publish log
  *   GET    /editor/experiences/{id}/export[?build=]  everything an export needs (#322, Export): the draft's configuration or a
  *                                               published version's, the files it names (url, size, sha256 where known), the
  *                                               print layout, the Code tab's sources, the Library's credit lines
+ *   GET    /editor/experiences/{id}/export/file[?build=]  the draft (or a published build) as one JSON file to download – an
+ *                                               import body as it is (#348, Export::file)
+ *   POST   /editor/experiences/{id}/versions/{build}/activate  make an older published build of this instance's environment
+ *                                               live again (#348, Versions): versions.json, latest.json, a publish log row
+ *   GET    /editor/recent?limit=                the newest changes across the instance's experiences with their scene (#348:
+ *                                               the experiences page's Last worked on)
  *   GET    /editor/experiences/{id}/changes?limit=    the change log, newest first
  *   POST   /editor/experiences/{id}/changes/{cid}/revert { apply? } → one change taken back with the later changes of the same thing:
  *                                               the plan, written with apply as new changes (#312, Reverts)
@@ -103,7 +117,7 @@ declare(strict_types=1);
  * (ApiTokens). docs/server.md "Sessions, cookies and CSRF".
  */
 
-foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'ExportArchive', 'Deliveries'] as $class) {
+foreach (['Version', 'Config', 'Paths', 'Db', 'Http', 'Mailer', 'Smtp', 'LoginMail', 'Auth', 'ApiTokens', 'Passwords', 'Users', 'Progress', 'Roles', 'Admin', 'Editor', 'Migration4', 'Migration5', 'Migration6', 'Logic', 'Confirmation', 'Removal', 'Experiences', 'ExperienceTexts', 'ContentVersion', 'ContentStore', 'Assets', 'Subtitles', 'VideoInfo', 'Images', 'Plugins', 'Scenes', 'AssetNames', 'Reverts', 'SurfaceReferences', 'Arrivals', 'Export', 'ExportArchive', 'PublishJob', 'Deliveries', 'ReaderManifest', 'Versions'] as $class) {
     require __DIR__ . "/src/$class.php";
 }
 
@@ -178,6 +192,8 @@ try {
         (bool) preg_match('#^(GET|PUT) /progress/([A-Za-z0-9_-]{1,64})$#', $route, $match) =>
             $match[1] === 'GET' ? Progress::get($match[2]) : Progress::put($match[2], Http::body()),
         $route === 'GET /editor/experiences' => Experiences::list(),
+        $route === 'POST /editor/experiences' => Experiences::create(),
+        (bool) preg_match("#^GET /experiences/($id)/manifest\.webmanifest$#", $route, $match) => ReaderManifest::get($match[1]),
         $route === 'GET /editor/environments' => Experiences::environments(),
         $route === 'POST /editor/import/preview' => Experiences::preview(),
         (bool) preg_match("#^POST /editor/experiences/($id)/import$#", $route, $match) => Experiences::import($match[1]),
@@ -207,8 +223,13 @@ try {
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/latest\\.json$#", $route, $match) => ContentVersion::draftManifest($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/draft/[0-9a-f]{12}/(game\\.config|files)\\.json$#", $route, $match) => ContentVersion::draftFile($match[1], $match[2]),
         (bool) preg_match("#^POST /editor/experiences/($id)/publish$#", $route, $match) => Experiences::publish($match[1], Editor::body()),
+        (bool) preg_match("#^GET /editor/experiences/($id)/publish$#", $route, $match) => PublishJob::latest($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/publish/($uuid)$#", $route, $match) => PublishJob::poll($match[1], $match[2]),
         (bool) preg_match("#^GET /editor/experiences/($id)/versions$#", $route, $match) => Experiences::versions($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/export$#", $route, $match) => Export::read($match[1]),
+        (bool) preg_match("#^GET /editor/experiences/($id)/export/file$#", $route, $match) => Export::file($match[1]),
+        (bool) preg_match("#^POST /editor/experiences/($id)/versions/([0-9a-f]{12})/activate$#", $route, $match) => Versions::activate($match[1], $match[2]),
+        $route === 'GET /editor/recent' => Versions::recent(),
         (bool) preg_match("#^GET /editor/experiences/($id)/changes$#", $route, $match) => Experiences::changes($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert$#", $route, $match) => Reverts::many($match[1]),
         (bool) preg_match("#^POST /editor/experiences/($id)/changes/revert-to$#", $route, $match) => Reverts::to($match[1]),

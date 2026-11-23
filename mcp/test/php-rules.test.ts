@@ -44,6 +44,7 @@ import {
   TEXT_MAX_LENGTH,
 } from "../../shared/api/rules";
 import { DEFAULT_TITLE } from "../../shared/api/content-store";
+import { EXPERIENCE_SLUG, isReservedPath, RESERVED_PATHS } from "../../shared/api/experience-paths";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../../server/api/src");
 
@@ -57,6 +58,9 @@ const SOURCES = [
   `api.registerComponent(name, S, a); api.registerLayer("with-dash", S); api.registerPass("", S);`,
   "nothing here",
 ];
+
+/** Experience ids both sides must judge alike as the site's own paths (#343) */
+const SLUGS = ["osct", "demo", "editor", "Editor", "API", "scene", "x", "workbox-1a2b.js", "my-book", "docs", "manifest.webmanifest"];
 
 /** Links an entry may or may not point to: both sides must judge them alike */
 const LINKS = ["https://example.org/a?b=1", "http://example.org", "HTTPS://EXAMPLE.ORG", "javascript:alert(1)", "https://", "https://exa mple.org", "mailto:a@b.c", "ftp://example.org", "/relative", "example.org"];
@@ -85,6 +89,8 @@ function readPhp(): Record<string, unknown> {
     $registers = (new ReflectionClassConstant('Plugins', 'REGISTERS'))->getValue();
     echo json_encode([
       'ID' => Editor::ID,
+      'EXPERIENCE_PATHS' => ['reserved' => Experiences::RESERVED, 'slug' => Experiences::SLUG,
+        'isReserved' => array_map(static fn(string $id): bool => Experiences::isReserved($id), $input['slugs'])],
       'ENTITY_TYPES' => Editor::ENTITY_TYPES,
       'COMPONENT_TYPES' => Editor::COMPONENT_TYPES,
       'PLUGIN_NODE_TYPE' => Editor::PLUGIN_NODE_TYPE,
@@ -121,7 +127,7 @@ function readPhp(): Record<string, unknown> {
       'registers' => array_map(static fn(string $source): array => Plugins::registers($source), $input['sources']),
     ], JSON_THROW_ON_ERROR);
   `;
-  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, sources: SOURCES, links: LINKS, addresses: ADDRESSES, conditions: CONDITIONS.map(([when]) => when) }), encoding: "utf8" });
+  const run = spawnSync("php", ["-r", code], { input: JSON.stringify({ src: SRC, slugs: SLUGS, sources: SOURCES, links: LINKS, addresses: ADDRESSES, conditions: CONDITIONS.map(([when]) => when) }), encoding: "utf8" });
   if (run.status !== 0) throw new Error(`php failed: ${run.stderr || run.stdout}`);
   return JSON.parse(run.stdout) as Record<string, unknown>;
 }
@@ -171,6 +177,13 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(whole(php.PLUGIN_ID)).toBe(PLUGIN_ID_PATTERN.source);
     expect(php.BUILD).toBe(`/${CONTENT_BUILD.source}/`);
     expect(whole(php.ENV)).toBe(ENV_NAME.source);
+  });
+
+  it("experience paths: the site's own paths and a new experience's slug (Experiences – shared/api/experience-paths.ts, #343)", () => {
+    const paths = php.EXPERIENCE_PATHS as { reserved: string[]; slug: string; isReserved: boolean[] };
+    expect(paths.reserved).toEqual([...RESERVED_PATHS]);
+    expect(whole(paths.slug)).toBe(EXPERIENCE_SLUG.source);
+    expect(paths.isReserved).toEqual(SLUGS.map(isReservedPath));
   });
 
   it("the store layout's default title (Config TITLE, shared/api/content-store.ts – #87)", () => {

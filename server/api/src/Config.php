@@ -82,6 +82,9 @@ final class Config
         // Host name; a full http(s) origin only for a local test double
         'BUNNY_STORAGE_ENDPOINT' => 'storage.bunnycdn.com',
         'BUNNY_STORAGE_PASSWORD' => '',
+        // A publish job's run per request (#345, PublishJob): seconds of writing in the POST and in each poll before it
+        // answers – below any gateway's timeout; 0 = one slice of files per request (tests)
+        'PUBLISH_STEP_SECONDS' => '15',
         // Error log of the API; unset = var/log/error.log (Paths), set to an empty value in config.local.php = the host's log
         'LOG_PATH' => '',
     ];

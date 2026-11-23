@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { defaultAllowedOrigins, defaultClientConditions, defineConfig, type Plugin } from 'vite';
+import { defaultClientConditions, defineConfig, type Plugin } from 'vite';
 
 /** A source folder next to the app, as an absolute path with a trailing slash */
 const sibling = (folder: string) => fileURLToPath(new URL(`../${folder}/`, import.meta.url));
@@ -70,13 +70,11 @@ export default defineConfig({
     port: 5175,
     strictPort: true,
     fs: { allow: ['..', '../engine', '../shared'] },
-    // The stage frame (#234) is an opaque origin: its scripts and the editor's static files are fetched with `Origin: null`
-    cors: { origin: [defaultAllowedOrigins, 'null'] },
     proxy: {
       '/api': { target: process.env.OSCT_API_PROXY ?? 'http://127.0.0.1:8080', changeOrigin: true },
     },
   },
-  preview: { port: 5175, strictPort: true, cors: { origin: [defaultAllowedOrigins, 'null'] } },
+  preview: { port: 5175, strictPort: true },
   test: {
     environment: 'happy-dom',
     environmentOptions: { happyDOM: { url: 'http://localhost/' } },
