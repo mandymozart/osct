@@ -10,7 +10,9 @@
   import { readerAddress } from "#lib/new-experience.js";
   import { plugins } from "#lib/plugins.svelte.js";
   import { buildPlugin } from "#lib/plugins/bundle.js";
-  import { carriedPlugins, type CarriedPlugins, type SavedSource } from "#lib/publish-plugins.js";
+  import { carriedPlugins, type CarriedPlugins } from "#lib/publish-plugins.js";
+  import type { PluginSources } from "@shared/plugins/type-check";
+  import { openFloats } from "#lib/components/floats.svelte.js";
   import { targetLabel, targetOf } from "#lib/publish-target.js";
   import { logicContent } from "#lib/logic-content.svelte.js";
   import { experienceProblems } from "#lib/logic/project.js";
@@ -30,7 +32,9 @@
    * yet, the export archive's count) and **done** (what was written; it closes itself after 2 s) – white space, no
    * dividers. A small log (the build, the build it replaces, the carried plugins, every step) shows only on Ctrl+L, with no
    * visible toggle: it is not for everybody (`publish-overlay.ts`). The publish carries the Code tab's saved
-   * sources, transpiled here (#78). A publish is a job on the server (`publish-job.ts`): a gateway's timeout is never shown
+   * sources, transpiled here (#78). A plugin the type check refuses stops it: a known fault's **Repair** (#366,
+   * `shared/plugins/repairs.ts`) saves the repaired files as the person's own save and checks again, so the publish can go
+   * on; *Show in the Code tab* opens the plugin there. A publish is a job on the server (`publish-job.ts`): a gateway's timeout is never shown
    * as a failure of a publish that runs on, and a publish already running (another tab, a reload) is followed.
    */
   let { experienceId }: { experienceId: string } = $props();
@@ -65,6 +69,15 @@
     target ? (unreadable.some(e => e.env === target.env) ? "unreadable" : self?.live.find(l => l.env === target.env)) : undefined,
   );
   const problem = $derived(carried && "error" in carried ? carried.error : null);
+  /** The plugins the type check refused (#366), each with its known repair when one applies (`plugins.verdicts`) */
+  const refused = $derived.by(() => {
+    if (!carried || !("error" in carried) || !carried.problems) return [];
+    const ids = [...new Set(carried.problems.map(p => p.plugin))];
+    return ids.map(id => ({ id, repair: plugins.verdicts.get(id)?.repair ?? null }));
+  });
+  /** The plugin being repaired, and a repair's failure */
+  let repairing = $state<string | null>(null);
+  let repairError = $state<string | null>(null);
   /* The logic's problems for the whole experience, as the Log tab lists them (#337): the confirm names them (Tilman,
      2026-11-22) – errors ask "Publish anyway", they never block */
   const logicSource = logicContent(() => ({ experienceId, sceneId: "", stage: null }));
@@ -204,8 +217,39 @@
     if (plugins.experienceId !== experienceId) await plugins.load(experienceId);
     sourceCount = plugins.stored.length;
     const sources = await Promise.all(plugins.stored.map(async p => ({ id: p.id, files: await plugins.files(experienceId, p.id) })));
-    const typeCheck = async (saved: readonly SavedSource[]) => (await import("#lib/plugins/monaco.js")).typeCheckPlugins(saved);
-    carried = await carriedPlugins(sources, buildPlugin, pluginRegistrySnapshot(), typeCheck);
+    const typeCheck = async (saved: readonly PluginSources[]) => (await import("#lib/plugins/monaco.js")).typeCheckPlugins(saved);
+    const result = await carriedPlugins(sources, buildPlugin, pluginRegistrySnapshot(), typeCheck);
+    // The refused plugins' verdicts, with the known repairs they call for (the Code tab marks them too)
+    if ("error" in result && result.problems) await plugins.remember(sources, result.problems);
+    carried = result;
+  };
+
+  /**
+   * **Repair** (#366): the plugin's known fault repaired and saved – the person's own save, a change in History – then the
+   * publish's check again; with no error left, Publish is on
+   */
+  const repair = async (id: string) => {
+    if (repairing) return;
+    repairing = id;
+    repairError = null;
+    try {
+      const verdict = await plugins.repair(experienceId, id);
+      note([verdict?.problems.length ? `repaired ${id} – ${verdict.problems.length} type errors left` : `repaired ${id}`]);
+      carried = null;
+      await check();
+      void focus(carried && "error" in carried ? "button.text-link" : "button.primary");
+    } catch (e) {
+      repairError = `${id} was not repaired: ${errorText(e)}`;
+    } finally {
+      repairing = null;
+    }
+  };
+
+  /** The plugin in the Code tab: the dialog closes, the tab opens on it with its errors */
+  const showInCode = (id: string) => {
+    plugins.focus = id;
+    openFloats.current?.showTab("code", true);
+    close();
   };
 
   /** Opens the overlay: a publish of the experience that still runs is followed, else the confirm */
@@ -214,6 +258,7 @@
     if (!target || mode || opening) return;
     opening = true;
     log = [];
+    repairError = null;
     end = null;
     job = null;
     following = false;
@@ -285,6 +330,19 @@
           </div>
         {/if}
         {#if asking.problem}<p class="danger" role="alert">{asking.problem}</p>{/if}
+        {#each refused as plugin (plugin.id)}
+          <div class="refused">
+            {#if plugin.repair}<p class="small">{plugin.id}: {plugin.repair.fault.title}</p>{/if}
+            <p class="actions">
+              {#if plugin.repair}
+                <button type="button" class="pill framed" onclick={() => repair(plugin.id)} disabled={!!repairing}
+                  data-help-name="Repair" data-help={`A known fault, repaired the same way everywhere: Repair ${plugin.repair.fault.change}, saves ${plugin.id} as your own save (a change in History – Undo brings the old files back) and checks it again.`}>{repairing === plugin.id ? "Repairing…" : `Repair ${plugin.id}`}</button>
+              {/if}
+              <button type="button" class="text-link" onclick={() => showInCode(plugin.id)}>Show {refused.length > 1 ? plugin.id : "it"} in the Code tab</button>
+            </p>
+          </div>
+        {/each}
+        {#if repairError}<p class="danger" role="alert">{repairError}</p>{/if}
         {#if carried && "warnings" in carried}{#each carried.warnings as warning (warning)}<p class="small muted">{warning}</p>{/each}{/if}
         <p class="actions">
           <button type="button" class="pill primary" onclick={publish} disabled={!!asking.problem}>{logicProblems?.severity === "error" ? "Publish anyway" : "Publish"}</button>
@@ -335,6 +393,7 @@
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; margin-top: .25rem; }
   /* White space, not dividers (Tilman, 2026-11-22) */
   .logic-check { display: grid; gap: .125rem; margin: .5rem 0; }
+  .refused { display: grid; gap: .125rem; }
   .log { list-style: none; margin: .75rem 0 0; padding: 0; max-height: 12rem; overflow-y: auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .6875rem; line-height: 1.5; overflow-wrap: anywhere; }
   .log:empty::before { content: "Nothing yet."; color: var(--muted); }

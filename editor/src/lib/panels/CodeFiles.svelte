@@ -27,7 +27,9 @@
   // Every time the Library opens: the uses follow the draft's rows
   $effect(() => { void plugins.load(experienceId); });
 
-  const files = $derived(codeFiles(plugins.stored, library.assets, plugins.code.unsavedId).filter(file => matchesCodeSearch(file, search)));
+  /** The scripts whose saved files the type check refused (#366): marked, they will not publish */
+  const typeErrors = $derived(plugins.typeErrorIds());
+  const files = $derived(codeFiles(plugins.stored, library.assets, plugins.code.unsavedId, typeErrors).filter(file => matchesCodeSearch(file, search)));
   let opened = $state<string | null>(null);
   const current = $derived(files.find(file => file.key === opened) ?? null);
   /** The opened file's text, its uses and (a script) what it registers */
@@ -153,7 +155,7 @@
       <tbody>
         {#each files as file (file.key)}
           <tr class:on={opened === file.key} onclick={() => void open(file)}>
-            <td class="name" title={file.asset?.url ?? `The plugin source ${file.plugin}${file.label !== file.name ? " – unsaved edits in the Code tab" : ""}`}><button type="button" class="open" aria-expanded={opened === file.key}>{file.label}</button>{#if file.version && file.version > 1} <span class="muted">v{file.version}</span>{/if}</td>
+            <td class="name" title={file.asset?.url ?? `The plugin source ${file.plugin}${file.plugin === plugins.code.unsavedId ? " – unsaved edits in the Code tab" : ""}${file.plugin && typeErrors.has(file.plugin) ? " – its saved files have type errors: it will not publish (Open in Code shows them)" : ""}`}><button type="button" class="open" aria-expanded={opened === file.key}>{file.label}</button>{#if file.version && file.version > 1} <span class="muted">v{file.version}</span>{/if}</td>
             <td class="muted kind">{file.kind}</td>
             <td class="num muted size">{formatSize(file.size)}</td>
             <td class="num muted uses">{file.usages}<span class="unit">&nbsp;use{file.usages === 1 ? "" : "s"}</span></td>

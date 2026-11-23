@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { ApiError, errorText, type Usage } from "#lib/api.js";
   import { content } from "#lib/content.svelte.js";
   import { pluginOptions, usageText } from "#lib/library-code.js";
-  import { buildErrorText, plugins } from "#lib/plugins.svelte.js";
+  import { buildErrorText, plugins, verdictText } from "#lib/plugins.svelte.js";
+  import type { PluginTypeProblem } from "@shared/plugins/type-check";
   import { NEW_PLUGIN_SOURCE } from "#lib/plugins/compile.js";
   import { DOWNLOAD_EXTRAS, downloadFiles, unzipTexts, zipFiles } from "#lib/plugins/code-editor.js";
   import type { CodeEditor } from "#lib/plugins/monaco.js";
@@ -47,6 +48,12 @@
    * by itself only after the guard's prompt (`plugin-guard.svelte.ts`) – one kept off says so on its status line.
    * The stored plugins load onto the stage by themselves whenever it starts and run again on Save (#269,
    * `plugins.autoLoad`); the line under the picker says what of the open plugin runs there (`plugins.status`).
+   *
+   * **The saved files' verdict** (#366): when the tab opens, every stored plugin's saved files are type-checked with the
+   * publish's own check, and a plugin again after each save (`plugins.checkSaved`, a moment later). One that would not
+   * publish is marked *(type errors)* in the picker (and the Library); for the open one its errors are listed under the
+   * editor – a click opens the file at the line – and a known fault (`shared/plugins/repairs.ts`) offers **Repair**: the
+   * repaired files saved as the person's own save, checked again.
    */
   let { experienceId, stage }: { experienceId: string; stage: Stage | null } = $props();
 
@@ -94,10 +101,18 @@
   /** Save has something to store: edits, or a declared plugin's files that have no stored copy yet */
   const dirty = $derived(buffer.key !== buffer.saved);
   const current = $derived(shown.find(p => p.id === buffer.open));
-  const options = $derived(pluginOptions(shown.map(p => p.id), buffer));
+  const options = $derived(pluginOptions(shown.map(p => p.id), buffer, plugins.typeErrorIds()));
   const hasPlugin = $derived(!!buffer.open || buffer.adding);
   /** What is wrong with the files as they are (a name, a size) – Save waits for it */
   const filesProblem = $derived(hasPlugin ? (pluginFilesProblems(buffer.files)[0] ?? null) : null);
+
+  // The tab opens: the saved plugins' verdicts (#366), once the list is known
+  let checkedOnOpen = false;
+  $effect(() => {
+    if (checkedOnOpen || plugins.experienceId !== experienceId || plugins.loading) return;
+    checkedOnOpen = true;
+    untrack(() => plugins.checkSaved(experienceId));
+  });
 
   // A plugin deleted while the tab was closed (the Library's Delete) is no longer open
   $effect(() => {
@@ -176,6 +191,7 @@
       buffer.adding = false;
       buffer.load(files, true, summary.origin);
       notice = `saved ${id}`;
+      plugins.checkSaved(experienceId, [id]);
       // Saved code is what the stage runs (#269): the save runs it too
       if (stage && (await plugins.run(id, files, stage))) notice = `saved and ran ${id}`;
       else showErrorFile();
@@ -273,6 +289,7 @@
         // The stored plugin is its files without this one now; what else is edited stays unsaved
         buffer.saved = filesKey(deleted.files);
         buffer.loaded = buffer.saved;
+        if (id) plugins.checkSaved(experienceId, [id]);
         notice = `${name} deleted – Undo brings it back`;
       } else {
         notice = `${name} removed`;
@@ -415,6 +432,32 @@
     const warn = bundled > PLUGIN_BUNDLE_WARN_BYTES;
     return { text: `${count}, ${sizeText(bundled)} bundled${warn ? " – readers download it with the AR scene" : ""}`, warn };
   });
+  /** The open plugin's saved files as the type check found them (#366) – shown while they have errors */
+  const verdict = $derived(buffer.open && current?.stored ? (plugins.verdicts.get(buffer.open) ?? null) : null);
+  let repairing = $state(false);
+  /** A type error picked: its file's tab, the editor at its line */
+  const showProblem = async (problem: PluginTypeProblem) => {
+    if (!buffer.files.some(f => f.name === problem.file)) return;
+    buffer.active = problem.file;
+    await tick();
+    code?.revealLine(problem.line);
+  };
+  /** **Repair**: the known fault repaired and saved as the person's own save, checked again (`plugins.repair`) */
+  const repairOpen = async () => {
+    const id = buffer.open;
+    if (!id || repairing) return;
+    repairing = true;
+    notice = null;
+    try {
+      const after = await plugins.repair(experienceId, id);
+      notice = after?.problems.length ? `repaired ${id} – ${after.problems.length} type ${after.problems.length === 1 ? "error" : "errors"} left` : `repaired ${id} – it type-checks`;
+    } catch (e) {
+      plugins.error = `${id} was not repaired: ${errorText(e)}`;
+    } finally {
+      repairing = false;
+    }
+  };
+
   /** The other stored sources that are not on the stage */
   const othersFailed = $derived(plugins.failed().filter(f => f.id !== buffer.open));
   const ago = (iso: string): string => {
@@ -496,6 +539,23 @@
 {#if othersFailed.length}
   <p class="small danger message" title={othersFailed.map(f => `${f.id}: ${f.error}`).join("\n")}>not on the stage: {othersFailed.map(f => f.id).join(", ")}</p>
 {/if}
+{#if verdict?.problems.length}
+  <div class="verdict small" data-help-name="Type check" data-help="The saved files' type check – the one Publish runs: while it finds errors the plugin does not publish. A click on an error opens its file at the line. Saving checks it again.">
+    <p class="danger message" title={verdictText(verdict)}>
+      will not publish – {verdict.problems.length} type {verdict.problems.length === 1 ? "error" : "errors"} in the saved files{verdict.repair ? ` · ${verdict.repair.fault.title}` : ""}
+      {#if verdict.repair}
+        <button type="button" class="text-link" onclick={repairOpen} disabled={repairing}
+          data-help-name="Repair" data-help={`A known fault, repaired the same way everywhere: Repair ${verdict.repair.fault.change}, saves the plugin as your own save (a change in History – Undo brings the old files back) and checks it again. Your unsaved edits stay edits.`}>{repairing ? "Repairing…" : "Repair"}</button>
+      {/if}
+    </p>
+    <ol class="problems">
+      {#each verdict.problems.slice(0, 5) as problem, i (i)}
+        <li><button type="button" class="text-link" onclick={() => void showProblem(problem)}>{problem.file} line {problem.line}</button> {problem.message}</li>
+      {/each}
+      {#if verdict.problems.length > 5}<li class="muted">… and {verdict.problems.length - 5} more</li>{/if}
+    </ol>
+  </div>
+{/if}
 {#if plugins.runError}
   <p class="small danger message">{buildErrorText(plugins.runError)}</p>
 {:else if plugins.error}
@@ -557,6 +617,8 @@
   .monaco { position: absolute; inset: 0; }
   .loading { position: absolute; inset: 0; margin: 0; padding: .375rem .5rem; }
   .message { margin: .25rem 0 0; overflow-wrap: anywhere; }
+  .problems { margin: .125rem 0 0; padding: 0; list-style: none; max-height: 6rem; overflow: auto; }
+  .problems li { overflow-wrap: anywhere; }
   .warn { color: var(--danger); }
   .log { max-height: 6rem; margin: .25rem 0 0; padding: .25rem .5rem; list-style: none; overflow: auto; border: 1px solid var(--line); border-radius: var(--control-radius); font-family: ui-monospace, Consolas, monospace; }
   .log li { white-space: pre-wrap; overflow-wrap: anywhere; }

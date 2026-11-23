@@ -67,9 +67,10 @@ describe("the plugins a publish carries", () => {
 describe("a publish's type check and sizes (#352)", () => {
   it("a type error stops the publish with its plugin, file and line – nothing is built", async () => {
     const built = vi.fn(build);
-    const result = await carriedPlugins([{ id: "tint", files: [{ name: "index.ts", text: TINT }] }], built, null,
-      async () => [{ plugin: "tint", file: "fluid.ts", line: 4, message: "Type 'string' is not assignable to type 'number'." }, { plugin: "tint", file: "index.ts", line: 1, message: "x" }]);
-    expect(result).toEqual({ error: "The plugin tint has a type error in fluid.ts line 4: Type 'string' is not assignable to type 'number'. (and 1 more) – fix it in the Code tab." });
+    const problems = [{ plugin: "tint", file: "fluid.ts", line: 4, message: "Type 'string' is not assignable to type 'number'." }, { plugin: "tint", file: "index.ts", line: 1, message: "x" }];
+    const result = await carriedPlugins([{ id: "tint", files: [{ name: "index.ts", text: TINT }] }], built, null, async () => problems);
+    // The problems go with it: the dialog offers a known fault's Repair (#366)
+    expect(result).toEqual({ error: "The plugin tint has a type error in fluid.ts line 4: Type 'string' is not assignable to type 'number'. (and 1 more) – fix it in the Code tab.", problems });
     expect(built).not.toHaveBeenCalled();
   });
 

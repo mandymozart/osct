@@ -2,62 +2,33 @@ import * as monaco from "monaco-editor";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 import TypeScriptWorker from "monaco-editor/language/typescript/ts.worker?worker";
 import pluginApi from "./plugin-api.d.ts?raw";
-import { codeKeys, codeTheme, type CodeAction, EDITOR_OPTIONS, libPath, PLUGIN_API_PATH, pluginModelPath, runMarker, SHADER_MODULES, SHADER_MODULES_PATH } from "./code-editor";
+import { codeKeys, codeTheme, type CodeAction, EDITOR_OPTIONS, pluginModelPath, runMarker } from "./code-editor";
+import { threeTypesByPath } from "./three-types";
 import { codeLanguage } from "#lib/library-code.js";
 import type { PluginFile } from "@shared/types/plugins";
-import type { SavedSource, TypeProblem } from "#lib/publish-plugins.js";
+import {
+  diagnosticText, ERROR_CATEGORY, isCheckedFile, PLUGIN_COMPILER_OPTIONS, pluginCheckLibs, pluginCheckPath, type DiagnosticMessage,
+  type PluginSources, type PluginTypeProblem,
+} from "@shared/plugins/type-check";
 
 /**
  * Monaco for the Code tab, loaded with the tab only (`CodePanel` imports this module dynamically – the reader and
- * the other tabs carry nothing of it). TypeScript gets the content build's compiler options and declarations: the
- * plugin API as the module `osct-plugin-api` (`plugin-api.d.ts`, generated from the engine) and three's own types,
- * so completion and type errors inline are the build's. Its workers are bundled by Vite (`?worker`) and served from
- * the editor's base path.
+ * the other tabs carry nothing of it). TypeScript gets the plugin type check's compiler options and declarations
+ * (`shared/plugins/type-check.ts`, #366 – the Node check's too): the plugin API as the module `osct-plugin-api`
+ * (`plugin-api.d.ts`, generated from the engine), the shader imports and three's own types, so completion and type errors
+ * inline are the check's. Its workers are bundled by Vite (`?worker`) and served from the editor's base path.
  */
-
-/** three's declarations the plugin API reaches (the WebGPU / node material parts are left out: plugins never see them) */
-const threeTypes = import.meta.glob(
-  [
-    "../../../node_modules/@types/three/index.d.ts",
-    "../../../node_modules/@types/three/src/**/*.d.ts",
-    "!../../../node_modules/@types/three/src/nodes/**",
-    "!../../../node_modules/@types/three/src/**/nodes/**",
-    "!../../../node_modules/@types/three/src/**/webgpu/**",
-    "!../../../node_modules/@types/three/src/renderers/common/**",
-    "!../../../node_modules/@types/three/src/renderers/webgl-fallback/**",
-    "!../../../node_modules/@types/three/src/Three.TSL.d.ts",
-    "!../../../node_modules/@types/three/src/Three.WebGPU*.d.ts",
-    "../../../node_modules/@types/three/examples/jsm/postprocessing/Pass.d.ts",
-    "../../../node_modules/@types/three/examples/jsm/postprocessing/ShaderPass.d.ts",
-  ],
-  { query: "?raw", import: "default", eager: true },
-) as Record<string, string>;
 
 self.MonacoEnvironment = {
   getWorker: (_id: string, label: string) => (label === "typescript" || label === "javascript" ? new TypeScriptWorker() : new EditorWorker()),
 };
 
 const ts = monaco.typescript;
-ts.typescriptDefaults.setCompilerOptions({
-  strict: true,
-  target: ts.ScriptTarget.ES2020,
-  module: ts.ModuleKind.ESNext,
-  moduleResolution: ts.ModuleResolutionKind.NodeJs,
-  lib: ["es2020", "dom", "dom.iterable"],
-  types: [],
-  noEmit: true,
-  skipLibCheck: true,
-  isolatedModules: true,
-  esModuleInterop: true,
-  allowNonTsExtensions: true,
-});
+// The plugin type check's own options and declarations (#366, `shared/plugins/type-check.ts`) – the ones the Node check uses
+ts.typescriptDefaults.setCompilerOptions(PLUGIN_COMPILER_OPTIONS as unknown as monaco.typescript.CompilerOptions);
 ts.typescriptDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
 ts.typescriptDefaults.setEagerModelSync(true);
-ts.typescriptDefaults.setExtraLibs([
-  { content: pluginApi, filePath: PLUGIN_API_PATH },
-  { content: SHADER_MODULES, filePath: SHADER_MODULES_PATH },
-  ...Object.entries(threeTypes).map(([key, content]) => ({ content, filePath: libPath(key) })),
-]);
+ts.typescriptDefaults.setExtraLibs(pluginCheckLibs(pluginApi, threeTypesByPath()));
 
 const THEME = "osct";
 /** Monaco's theme from the editor's tokens now (day or night) */
@@ -83,6 +54,8 @@ export interface CodeEditor {
   setReadOnly(readOnly: boolean): void;
   /** The last Run's error as a marker on its line; null clears it */
   setRunError(error: { message: string; line: number | null } | null): void;
+  /** The shown file's line in the middle, the cursor on it (a type error picked under the editor) */
+  revealLine(line: number): void;
   focus(): void;
   dispose(): void;
 }
@@ -158,6 +131,11 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
       runError = error;
       markRun();
     },
+    revealLine(line) {
+      editor.revealLineInCenter(line);
+      editor.setPosition({ lineNumber: line, column: 1 });
+      editor.focus();
+    },
     focus() {
       editor.focus();
     },
@@ -171,37 +149,34 @@ export const createCodeEditor = (container: HTMLElement, options: CodeEditorOpti
   };
 };
 
-/** TypeScript's message, a chain flattened */
-const messageOf = (text: string | { messageText: string; next?: unknown[] }): string =>
-  typeof text === "string" ? text : [text.messageText, ...((text.next ?? []) as Array<{ messageText: string }>).map(n => n.messageText)].join(" ");
-
 /**
- * Type-check plugins' files (#352, Publish): every TypeScript file as a model of its own below `file:///check/<plugin>/`
- * (apart from the Code tab's open models), asked of the TypeScript worker for its syntax and type errors – the same
- * compiler options and declarations the Code tab underlines with. The models go again afterwards.
+ * Type-check plugins' files (#352 Publish, #366 the Code tab's check of a saved plugin): every file as a model of its own at
+ * its check path (`file:///check/<plugin>/<name>`, apart from the Code tab's open models), its TypeScript files asked of the
+ * TypeScript worker for their syntax and type errors – the shared check's options and declarations, as the Node check runs
+ * them. The models go again afterwards.
  */
-export const typeCheckPlugins = async (sources: readonly SavedSource[]): Promise<TypeProblem[]> => {
+export const typeCheckPlugins = async (sources: readonly PluginSources[]): Promise<PluginTypeProblem[]> => {
   const made: monaco.editor.ITextModel[] = [];
   const checked: Array<{ plugin: string; file: string; model: monaco.editor.ITextModel }> = [];
   try {
     for (const { id, files } of sources) {
       for (const file of files) {
-        const uri = monaco.Uri.parse(`file:///check/${id}/${file.name}`);
+        const uri = monaco.Uri.parse(pluginCheckPath(id, file.name));
         monaco.editor.getModel(uri)?.dispose();
         const model = monaco.editor.createModel(file.text, codeLanguage(file.name), uri);
         made.push(model);
-        if (file.name.endsWith(".ts")) checked.push({ plugin: id, file: file.name, model });
+        if (isCheckedFile(file.name)) checked.push({ plugin: id, file: file.name, model });
       }
     }
     if (!checked.length) return [];
     const worker = await (await ts.getTypeScriptWorker())(...checked.map(c => c.model.uri));
-    const problems: TypeProblem[] = [];
+    const problems: PluginTypeProblem[] = [];
     for (const { plugin, file, model } of checked) {
       const name = model.uri.toString();
       const diagnostics = [...(await worker.getSyntacticDiagnostics(name)), ...(await worker.getSemanticDiagnostics(name))];
       for (const d of diagnostics) {
-        if (d.category !== 1) continue;
-        problems.push({ plugin, file, line: model.getPositionAt(d.start ?? 0).lineNumber, message: messageOf(d.messageText as never) });
+        if (d.category !== ERROR_CATEGORY) continue;
+        problems.push({ plugin, file, line: model.getPositionAt(d.start ?? 0).lineNumber, message: diagnosticText(d.messageText as DiagnosticMessage) });
       }
     }
     return problems;

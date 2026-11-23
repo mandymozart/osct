@@ -218,8 +218,13 @@ should be much more on point"*; `PublishButton.svelte`, its words in `publish-ov
    experience is live; *Not published on staging yet.* before the first). Warnings only when they matter, set apart by
    white space, no dividers: the logic's problems for the whole experience as the Log tab lists them (*2 warnings in the
    logic* and the first one; errors in red, and the button says **Publish anyway** – they never block); a saved Code
-   tab source that does not compile is one danger line and **Publish** stays off (the sources are transpiled when the
-   overlay opens). **Publish** or **Cancel**; Esc or a click beside the overlay cancels – in this state only.
+   tab source that does not compile or that the type check refuses is one danger line and **Publish** stays off (the
+   sources are type-checked and bundled when the overlay opens). A refused plugin gets *Show in the Code tab* (the overlay
+   closes, the tab opens on it), and a **known fault** (#366, `shared/plugins/repairs.ts` – code made with *Make it code*
+   before 6.17.1) names itself and offers **Repair <plugin>**: the repaired files saved as the person's own save (through
+   the autosaver – a change in History, Undo brings the old files back; the person saved it, so the plugin guard does not
+   ask them about it), the publish's check again, and with nothing left **Publish** is on. **Publish** or **Cancel**; Esc
+   or a click beside the overlay cancels – in this state only.
 2. **Running** – *Publishing…*, then *Writing the build…* until latest.json names the build, from then *Live for readers
    ✓*; the export archive's count as a bar with *Archive 412 / 1522* (the bar runs without a count before that – the
    job's `parts` tell the archive's files from the build's, [server, "Publish jobs"](server.md#publish-jobs)), and *Keep
@@ -1860,8 +1865,9 @@ whether readers have the stored sources is the top bar's *draft only* / *live on
 another tab shows (`plugins.code`), so a tab switch loses no edit.
 
 - **The editor** is **Monaco** (loaded with the tab only – the reader and the other tabs carry nothing of it):
-  TypeScript with the content build's compiler options against `plugin-api.d.ts` (the module `osct-plugin-api`) and
-  three's own types, so completion, hover documentation and type errors inline are the build's; Tab indents,
+  TypeScript with the plugin type check's compiler options and declarations (`shared/plugins/type-check.ts`, #366 – the
+  publish's and the `osct` CLI's) against `plugin-api.d.ts` (the module `osct-plugin-api`) and three's own types, so
+  completion, hover documentation and type errors inline are the publish's; Tab indents,
   Ctrl+Enter runs, Ctrl+S saves; the colours follow the editor's day / night tokens. Every file of the open plugin is
   a model of its own (`file:///plugins/<id>/<name>`), so `./fluid` resolves and type-checks across the tabs and a
   shader import is a string. **Download** gives the plugin's folder as a zip (its files, `plugin-api.d.ts`,
@@ -1891,12 +1897,21 @@ another tab shows (`plugins.code`), so a tab switch loses no edit.
   exception in `register`); the previous registration stays. The **log** under the editor has the plugins' lines from
   the stage, newest last: their `api.log` and their errors there (a build that failed, an error nothing caught); every
   Run starts it anew.
+- **The saved files' verdict** (#366): when the tab opens, every stored plugin's saved files are type-checked with the
+  publish's own check (`shared/plugins/type-check.ts`, in Monaco's worker), and a plugin again after each Save, a deleted
+  file or an Undo that moved it (`plugins.checkSaved`, 300 ms later, so a run of saves is checked once). A plugin that would
+  not publish is *(type errors)* in the picker and in the Library's scripts; for the open one a red line *will not publish –
+  2 type errors in the saved files* and its first errors (file, line, message) show under the editor – a click opens the
+  file's tab at the line. It is the saved state's verdict: Monaco's underlines are the open text's. A **known fault**
+  (`shared/plugins/repairs.ts`) adds its name and **Repair** to the line – the same Repair as the publish overlay's
+  (`plugins.repair`): only of the files it checked (saved again since, it checks them again instead), saved through the
+  autosaver, the open plugin's other unsaved edits kept and given the repair too.
 - **Save** stores the source (`/api/editor/experiences/{id}/plugins/{pid}`, a change recorded), **Delete** removes it –
   refused while the draft uses a type it registers (*used by entity castle – Delete anyway*). The Library lists the
   stored sources as its scripts and opens one here (**Open in Code**); a script file uploaded there is a source here.
-- **A Run reaches no reader; Publish does**: the publish carries every saved source, transpiled in the browser as a
-  Run transpiles it, and the API puts it into the version (#78, [plugins](plugins.md) "Shipping it"). Unsaved edits stay
-  behind; a source that does not transpile stops the publish with its line; type errors are not checked there (#266). A
+- **A Run reaches no reader; Publish does**: the publish carries every saved source, type-checked and bundled in the
+  browser as a Run bundles it, and the API puts it into the version (#78, [plugins](plugins.md) "Shipping it"). Unsaved
+  edits stay behind; a source that does not build or type-check stops the publish with its file and line (#352, #366). A
   node whose component, node type, material, pass or look neither a compiled plugin nor a saved source provides is
   refused (409 `unknown-components`, `unknown-node-types`, `unknown-materials`, `unknown-passes`, `unknown-appearances`).
 

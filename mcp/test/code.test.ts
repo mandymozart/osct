@@ -8,9 +8,17 @@ import { fakeFetch, recorder, type Seen } from "./helpers.ts";
 const LINKS = { editor: "http://localhost:5175/editor" };
 const SOURCE = `import type { PluginApi } from "osct-plugin-api";\nexport const register = (api: PluginApi): void => {\n  api.registerLayer("tint", { description: "t", nodeTypes: ["video"], params: {} }, { glsl: "return rgba;" });\n};\n`;
 
+/** A plugin of several files (#352): the API answers its files, no `source` */
+const SEA = [
+  { name: "index.ts", text: `import type { PluginApi } from "osct-plugin-api";\nimport { fluid } from "./fluid";\nexport const register = (api: PluginApi): void => fluid(api);\n` },
+  { name: "fluid.ts", text: `import type { PluginApi } from "osct-plugin-api";\nimport WATER from "./water.frag";\nexport const fluid = (api: PluginApi): void => {\n  api.registerLayer("sea", { description: "s", params: {} }, { glsl: WATER });\n};\n` },
+  { name: "water.frag", text: "return rgba;\n" },
+];
+
 function pluginsApi(seen: Seen) {
   const { method, path } = seen;
   if (method === "GET" && path === "/editor/experiences/osct/plugins") return { json: { plugins: [{ id: "tint", size: SOURCE.length, updatedAt: "t", updatedBy: "a@b" }] } };
+  if (method === "GET" && path === "/editor/experiences/osct/plugins/sea") return { json: { plugin: { id: "sea", files: SEA, size: 1, updatedAt: "t", updatedBy: "a@b", origin: null } } };
   if (method === "GET" && path === "/editor/experiences/osct/plugins/tint") return { json: { plugin: { id: "tint", files: [{ name: "index.ts", text: SOURCE }], size: SOURCE.length, updatedAt: "t", updatedBy: "a@b", origin: null } } };
   if (method === "PUT" && path.startsWith("/editor/experiences/osct/plugins/") && !path.endsWith("/file")) {
     const files = (seen.body as any).files as Array<{ name: string; text: string }>;
@@ -41,6 +49,14 @@ describe("the Code tab's plugin tools", () => {
     const one = await rec.call("get_plugin", { experience: "osct", plugin: "tint" });
     expect(one.data.plugin.files).toEqual([{ name: "index.ts", text: SOURCE }]);
     expect(one.data.registers).toEqual({ components: [], layers: ["tint"], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [], cardLooks: [] });
+  });
+
+  it("reads a plugin of several files – the types it registers from all of them (#366: an older server answered source, an older MCP read only that)", async () => {
+    const { rec } = setup();
+    const sea = await rec.call("get_plugin", { experience: "osct", plugin: "sea" });
+    expect(sea.ok).toBe(true);
+    expect(sea.data.plugin.files.map((f: { name: string }) => f.name)).toEqual(["index.ts", "fluid.ts", "water.frag"]);
+    expect(sea.data.registers.layers).toEqual(["sea"]);
   });
 
   it("saves a source and names what it registers, with warnings for a source the engine would refuse", async () => {

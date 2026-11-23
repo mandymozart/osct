@@ -66,6 +66,8 @@
     <li><b>A Run reaches no reader. Publish does</b>: it carries every <b>saved</b> plugin.</li>
     <li>Unsaved edits stay behind.</li>
     <li>Publish <b>checks the types</b> of every file first: a type error stops it and names the plugin, the file and the line.</li>
+    <li>You see it before: when the Code tab opens, and after every Save, the saved files get the same check. A plugin that would not publish says <i>(type errors)</i> in the list (and in the Library); under the editor are its errors – a click opens the file at the line.</li>
+    <li><b>Repair</b>: some errors are a known fault the editor itself once wrote – code made with <i>Make it code</i> before 6.17.1. Then the Code tab and the publish box offer <b>Repair</b>: it changes exactly that, saves the plugin as your save (Undo brings the old files back) and checks it again.</li>
     <li>A plugin that does not build stops the publish too, and so does a node that uses a component, node type, material, pass or look no plugin provides.</li>
     <li>A plugin above 256 KB (bundled) is a warning in the publish, not a stop – readers download it with the AR scene.</li>
   </ul>

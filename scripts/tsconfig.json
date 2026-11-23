@@ -29,5 +29,7 @@
       "three/*": ["./node_modules/@types/three/*"]
     }
   },
-  "include": ["src", "test", "../shared"]
+  "include": ["src", "test", "../shared"],
+  /* Plugin sources the tests type-check as plugins (against osct-plugin-api), not as this package's code */
+  "exclude": ["test/fixtures"]
 }

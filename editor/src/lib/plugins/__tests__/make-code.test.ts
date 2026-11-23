@@ -1,7 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Mesh, type MeshStandardMaterial, ShaderMaterial } from "three";
 import type { EntityData, Target } from "@engine/types";
@@ -11,6 +9,10 @@ import {
 import { buildEntity } from "@engine/scene/entities";
 import { MakeCodeError, materialCode, nodeTypeCode, nodeTypeOwner, takesMaterial } from "../make-code";
 import { transpilePlugin } from "../compile";
+import { checkWithMonacoTypeScript, problemLines } from "./node-check";
+
+// The type check builds a TypeScript program with three's declarations: seconds on a busy machine
+vi.setConfig({ testTimeout: 30_000 });
 
 /** Make it code (#188): a node, or its look, becomes a Code tab plugin – the source runs and reproduces the node */
 
@@ -28,30 +30,8 @@ const run = async (id: string, source: string): Promise<void> => {
 /** The demo's aquarium (#188): its build closes over FISH_COLOURS, defined in register outside the build (#199) */
 const AQUARIUM = readFileSync(resolve(process.cwd(), "../fixtures/demo/plugins/aquarium/index.ts"), "utf8");
 
-/**
- * A made source's type errors as the publish's type check (monaco.ts, #352) sees them: its compiler options, the plugin
- * API as the module `osct-plugin-api`, three's own types – written to a folder of its own and checked with TypeScript
- */
-const typeErrors = (source: string): string[] => {
-  const require = createRequire(resolve(process.cwd(), "package.json"));
-  const ts = require("typescript") as typeof import("typescript");
-  const dir = mkdtempSync(join(tmpdir(), "osct-made-code-"));
-  try {
-    mkdirSync(join(dir, "node_modules", "osct-plugin-api"), { recursive: true });
-    writeFileSync(join(dir, "node_modules", "osct-plugin-api", "index.d.ts"), readFileSync(resolve(process.cwd(), "src/lib/plugins/plugin-api.d.ts"), "utf8"));
-    writeFileSync(join(dir, "plugin.ts"), source);
-    const three = resolve(process.cwd(), "node_modules/@types/three");
-    const program = ts.createProgram([join(dir, "plugin.ts")], {
-      strict: true, target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Node10,
-      lib: ["lib.es2020.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"], types: [], noEmit: true, skipLibCheck: true, isolatedModules: true,
-      esModuleInterop: true, ignoreDeprecations: "6.0", paths: { three: [join(three, "index.d.ts")], "three/*": [join(three, "*")] },
-    });
-    return ts.getPreEmitDiagnostics(program, program.getSourceFile(join(dir, "plugin.ts")))
-      .map(d => `${d.start !== undefined ? d.file?.getLineAndCharacterOfPosition(d.start).line : "?"}: ${ts.flattenDiagnosticMessageText(d.messageText, " ")}`);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-};
+/** A made source's type errors as the publish's type check sees them (#366: the shared check, with Monaco's TypeScript) */
+const typeErrors = (source: string): string[] => problemLines(checkWithMonacoTypeScript([{ id: "made", files: [{ name: "index.ts", text: source }] }]));
 
 /** The meshes of a built object */
 const meshes = (object: { traverse(visit: (child: unknown) => void): void }): Mesh[] => {

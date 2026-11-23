@@ -22,6 +22,8 @@
  *                        [--apply] [--overwrite] [--all] [--cache <dir>]   (a publisher's delivery into the draft, #322)
  *   osct plugins listen (--experience <id> | --all | --dir <folder>) [--dry-run]
  *                                                          (plugin API 4.0, #341: the stored plugin sources' uses.hears → uses.listens)
+ *   osct plugins check [--experience <id>] [--repair]     (#366: every stored plugin type-checked as the publish does;
+ *                                                          --repair saves the known faults' repairs)
  *   osct plugin link <experience> [<folder>] [--id <plugin>]   (#352: a plugin developed in your own folder)
  *   osct plugin push [<folder>] [--watch] [--force]
  *   osct plugin pull [<folder>]
@@ -39,8 +41,8 @@
  *                                checks what the CDN serves; purge requires it
  *   OSCT_APP_URL                 the site the reader runs on (optional) – the CDN check asks with its origin (CORS)
  * The same names as the server's settings (docs/server.md, #33).
- *   OSCT_API_URL                 targets prepare, export, delivery import, plugins listen: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
- *   OSCT_EDITOR_TOKEN            targets prepare, export, delivery import, plugins listen: a person's editor token (the editor's experiences page, AI connections)
+ *   OSCT_API_URL                 targets prepare, export, delivery import, plugins listen / check: the instance's API (default: the local dev API, http://127.0.0.1:8080/api)
+ *   OSCT_EDITOR_TOKEN            targets prepare, export, delivery import, plugins listen / check: a person's editor token (the editor's experiences page, AI connections)
  */
 import { spawnSync } from 'child_process';
 import fs from 'fs';
@@ -66,7 +68,7 @@ import {
   versionProblems,
 } from './lib/content-sync';
 import { type CliArgs, parseArgs } from './lib/cli-args';
-import { buildErrors, messageOf } from './lib/errors';
+import { messageOf } from './lib/errors';
 import { describePlan, editorApi, planTargets, prepareTargets } from './lib/targets-prepare';
 import { StorageClient } from './lib/storage';
 import { deleteMoved, describeMove, experienceOf, moveProblems, planMove, runMove } from './lib/content-move';
@@ -77,8 +79,9 @@ import { parseMapping, type LayoutLike } from './lib/delivery-plan';
 import { DeliveryProblems, deliveryApi, runDeliveryImport } from './lib/delivery-import';
 import { listenSource, listenStored, pluginSourcesApi, shortDiff } from './lib/plugins-listen';
 import { pluginFilesApi } from './lib/plugin-files-api';
-import { idFromFolder, pullFolder, pushFolder, readLink, writeFolderTypes, writeLink, type PluginLink } from './lib/plugin-link';
-import { typeCheckPlugins } from './build/plugins';
+import { folderFiles, idFromFolder, pullFolder, pushFolder, readLink, writeFolderTypes, writeLink, type PluginLink } from './lib/plugin-link';
+import { checkPlugins } from './lib/plugin-type-check';
+import { checkStoredPlugins, checkTable } from './lib/plugins-check';
 import type { ExperienceExport } from '../../shared/api/editor';
 import { ENV_NAME } from '../../shared/api/rules';
 import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAME } from '../../shared/api/content-store';
@@ -87,7 +90,7 @@ import { DEFAULT_TITLE, EXPERIENCE_NAME, experienceBaseUrl, storeRoot, TITLE_NAM
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 const OPTIONS = {
-  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite', 'archive', 'watch'],
+  flags: ['force', 'dry-run', 'without-videos', 'unknown', 'delete-old', 'help', 'all', 'apply', 'overwrite', 'archive', 'watch', 'repair'],
   values: ['env', 'experience', 'from', 'min-age', 'keep', 'out', 'assets-base', 'files', 'layout', 'name', 'cache', 'dir', 'id'],
 };
 /** The local dev API (as the MCP server's default) */
@@ -147,6 +150,15 @@ const USAGE = `osct – content command line
                                                written back through the editor API (OSCT_API_URL, OSCT_EDITOR_TOKEN);
                                                --dir: a content source folder's plugins/<id>/index.ts. --dry-run prints
                                                per experience and plugin the lines that would change, nothing written
+  osct plugins check [--experience <id>] [--repair]
+                                               #366: type-check every stored plugin of the instance's experiences (or of
+                                               one) as the publish does – a table of the errors (experience, plugin,
+                                               file, line, message; "repairable" when a known fault's repair applies),
+                                               exit code 1 when any plugin fails. Nothing is written unless --repair:
+                                               then each known fault is repaired through the editor API – a normal
+                                               save (a change in History) by the token's owner, so the editor's plugin
+                                               guard asks the others once more before it runs it – and checked again.
+                                               OSCT_API_URL, OSCT_EDITOR_TOKEN
   osct plugin link <experience> [<folder>] [--id <plugin>]
                                                #352: a plugin developed in your own folder and tools. Writes
                                                .osct-plugin.json (OSCT_API_URL, the experience, the plugin – --id, else
@@ -154,7 +166,7 @@ const USAGE = `osct – content command line
                                                folder's type-check files (plugin-api.d.ts, shader-files.d.ts,
                                                tsconfig.json). <folder> defaults to the current one
   osct plugin push [<folder>] [--watch] [--force]
-                                               type-checks the folder's plugin as the content build does (--force pushes
+                                               type-checks the folder's plugin as the publish does (--force pushes
                                                anyway), then sends its files (.ts, .frag, .vert, .glsl, .wgsl) to the
                                                linked plugin – the editor's stage runs them, the Code tab shows it linked.
                                                --watch pushes again on every change. OSCT_EDITOR_TOKEN
@@ -483,6 +495,27 @@ async function pluginsListen(cli: CliArgs): Promise<void> {
     (changes.length && !dryRun ? ' – each a change in History; publish each experience again for its readers' : ''));
 }
 
+/**
+ * `osct plugins check` (#366): every stored plugin of the instance's experiences (`--experience`: one) type-checked as the
+ * publish does (`lib/plugins-check.ts`), the errors as a table; `--repair` saves the known faults' repairs. Exit code 1
+ * while a plugin fails.
+ */
+async function pluginsCheck(cli: CliArgs): Promise<void> {
+  const apiUrl = (process.env.OSCT_API_URL?.trim() || LOCAL_API).replace(/\/+$/, '');
+  const api = pluginFilesApi(apiUrl, required('OSCT_EDITOR_TOKEN'));
+  const named = experienceOption(cli);
+  const experiences = named ? [named] : await api.experiences();
+  const repair = cli.flag('repair');
+  console.log(`🔎 plugins on ${apiUrl} – ${experiences.join(', ') || 'no experiences'}${repair ? ' (repairing the known faults)' : ''}`);
+  const result = await checkStoredPlugins(api, experiences, { repair, check: checkPlugins, log: line => console.log(line) });
+  checkTable(result.rows).forEach(line => console.log(line));
+  const repairable = new Set(result.rows.filter(r => r.repair === 'repairable').map(r => `${r.experience}/${r.plugin}`)).size;
+  console.log(`${result.failing ? '❌' : '✅'} ${result.checked} plugins in ${experiences.length} experiences: ${result.failing} with type errors` +
+    (repairable ? `, ${repairable} repairable – --repair saves the repairs (a change in History each)` : '') +
+    (result.repaired.length ? `; ${result.repaired.length} repaired – publish each experience again for its readers` : ''));
+  if (result.failing) process.exitCode = 1;
+}
+
 /** The editor API the plugin commands talk to: the link's, else OSCT_API_URL (the local dev API by default) */
 const apiOf = (link?: PluginLink | null): string => (link?.api ?? (process.env.OSCT_API_URL?.trim() || LOCAL_API)).replace(/\/+$/, '');
 
@@ -495,7 +528,7 @@ const linkOf = (folder: string): PluginLink => {
 
 /**
  * `osct plugin link / push / pull` (#352): a plugin in someone's own folder, linked to a plugin of an experience
- * (`lib/plugin-link.ts`). Push type-checks first, as the content build does.
+ * (`lib/plugin-link.ts`). Push type-checks first, as the publish does (#366, `lib/plugin-type-check.ts`).
  */
 async function pluginCommand(cli: CliArgs, command: string): Promise<void> {
   const typesOf = () => [
@@ -532,9 +565,7 @@ async function pluginCommand(cli: CliArgs, command: string): Promise<void> {
   if (command !== 'push') throw new Error(`osct plugin ${command}: link, push or pull`);
   const push = async (): Promise<void> => {
     if (!cli.flag('force')) {
-      const before = buildErrors.length;
-      typeCheckPlugins([path.join(folder, 'index.ts')]);
-      const errors = buildErrors.splice(before);
+      const errors = checkPlugins([{ id: link.plugin, files: folderFiles(folder) }]).map(p => `${p.file}(${p.line}): ${p.message}`);
       if (errors.length) {
         console.error(`❌ ${link.plugin}: ${errors.length} type ${errors.length === 1 ? 'error' : 'errors'} – not pushed (--force pushes anyway)\n   ${errors.slice(0, 10).join('\n   ')}`);
         process.exitCode = 1;
@@ -564,6 +595,7 @@ async function main(): Promise<void> {
   if (group === 'targets' && command === 'prepare' && !flag('help')) return targetsPrepare(cli);
   if (group === 'delivery' && command === 'import' && !flag('help')) return deliveryImport(cli);
   if (group === 'plugins' && command === 'listen' && !flag('help')) return pluginsListen(cli);
+  if (group === 'plugins' && command === 'check' && !flag('help')) return pluginsCheck(cli);
   if (group === 'plugin' && command && !flag('help')) return pluginCommand(cli, command);
   if (group !== 'content' || !command || flag('help')) {
     console.log(USAGE);

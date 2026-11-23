@@ -109,6 +109,8 @@ jobs:
       # … and with it the documentation site's plugin API reference, written from that file (docs/docs-site.md)
       - name: Plugin API types and their reference page up to date
         run: npm run plugin-api -- --check
+      # Includes the plugin type check (#366): every plugin of fixtures/content and fixtures/demo against plugin-api.d.ts –
+      # a change of the API's types that breaks one fails here with its plugin, file, line and message
       - name: Tests
         run: npm test
       - name: Build

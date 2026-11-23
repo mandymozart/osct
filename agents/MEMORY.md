@@ -4,6 +4,45 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – One type check for plugins: on save, in CI, before publish with Repair, osct plugins check (6.18.0, #366)
+- After the 6.17.1 fix (Make it code's wrapper refused by the publish's type check) Tilman asked: *"So what do we need to
+  prevent this in the future? And with older plugins as well."* Proposal (one check in more places, CI against API type
+  changes, a check command over all experiences, a Repair for the known fault in the publish dialog and the command) –
+  decided: *"Yes do all of the type checks too. Makes total sense to not let stuff slip through and to fix if it encounters
+  one during publish."*
+- Built: `shared/plugins/type-check.ts` – the one definition (options as TypeScript's numbers, the declarations, the
+  `file:///check/<plugin>/<name>` layout, `isCheckedThreeType`) and `createPluginTypeChecker(ts, libs, readLib)` that
+  mirrors Monaco's worker host (every file and declaration a root, current directory "", syntax + semantic errors of the
+  `.ts` files). Monaco (`monaco.ts`) takes the options and `pluginCheckLibs`; the three glob moved to
+  `plugins/three-types.ts`. `type-check.test.ts` runs **Monaco's real `TypeScriptWorker` class in Node** (fed fake mirror
+  models), Monaco's bundled TypeScript 5.9.3 and the editor's TypeScript 6 on the same sources – identical problems – and
+  every fixture plugin (the CI check, in the editor's `npm test`). The CLI uses `scripts/`' TypeScript 5.7
+  (`scripts/src/lib/plugin-type-check.ts`); its tests check the fixtures too.
+- My calls: **moduleResolution Bundler** (100) in Monaco too (was NodeJs) – TypeScript 6 deprecates node10, and Bundler is
+  the content build's and the download tsconfig's; the worker test shows the same verdicts. Tried bumping scripts to
+  TypeScript 5.9 (Monaco's) – its `tsc` then fails on Buffer/BodyInit typings in optimize-media, recognition, storage,
+  targets-prepare; stayed on 5.7 (a small version gap between the CLI and the browser – open item below). `osct plugin
+  push` now checks with the publish's check (was the content build's against the engine's sources). The content build
+  keeps its own check (engine sources as `osct-plugin-api`).
+- Repairs: `shared/plugins/repairs.ts` – `KnownFault` { fingerprint via `fix` (exact, once), `message`, `gives` (message +
+  the line of the fingerprint's call) }, `repairFor`, `verifiedRepair` (re-check: the fault's error gone, no new error in
+  the changed files). First entry `made-code-build`: header `Made with "make it code" from the node type "…`, the wrapper's
+  `}, build);` → `}, build as never);`. The editor's `plugins.verdicts` / `checkSaved` (300 ms debounce; on the Code tab's
+  opening all stored plugins, after Save one) / `repair` (re-reads the stored files, saves only if they are what was
+  checked, through `autosave.queue` + `flush`, the open buffer gets the fix too). Publish dialog: `carriedPlugins` returns
+  `problems`, `plugins.remember` makes verdicts, *Repair <id>* and *Show in the Code tab*.
+- `osct plugins check [--experience] [--repair]` (`scripts/src/lib/plugins-check.ts`), through the existing plugin routes
+  (`pluginFilesApi` – no new endpoint, so no new MCP tool). A repaired plugin is then saved by the token's owner, so
+  others' plugin guard asks once more (RULES #35).
+- Staging's `my-my-video-code-code` is exactly this fault: `osct plugins check --experience <id> --repair` against
+  staging, or the publish dialog's / Code tab's Repair, fixes it (not run against staging – Tilman decides).
+- The MCP `get_plugin` error on staging (*"Cannot read properties of undefined (reading 'matchAll')"*) is an MCP process
+  older than 6.11 (it read `row.source`, which the API no longer answers); the repo's `get_plugin` reads `files` – a test
+  of a several-file plugin added. Update the local osct-mcp-develop build.
+- [ ] The CLI's TypeScript (5.7) differs from Monaco's (5.9.3): bump `scripts/` to 5.9 once its Buffer/BodyInit typings are
+  fixed, so the CLI's verdict is the browser's to the version.
+- [ ] More known faults go into `KNOWN_FAULTS` only when the editor itself wrote them and a fingerprint is exact.
+
 ## 2026-11-23 – The landing's texts and shop, edited per experience (6.17.0, content schema 6.4, #365)
 - Concept `agents/design/landing-texts.html`; decided (Tilman, 2026-11-23: *"Yes, as recommended"*): (1) texts per
   language, an EN / DE / FR / NL switch, an empty field is the app's text for that language; (2) editable: intro, Get the

@@ -2,7 +2,8 @@
  * The content contract (shared/) and its schema version (RULES #10): `shared/content-schema.json` locks the
  * checksum of shared/ to `CONTENT_SCHEMA_VERSION`. A change in shared/ without a schema bump fails a test
  * (scripts/test/schema.test.ts); `npm run schema:lock` writes the lock after the bump. `shared/api/` – the instance
- * API's answers and rules, which content never holds – is no part of the contract.
+ * API's answers and rules, which content never holds – and `shared/plugins/` – the plugin type check and its repairs,
+ * tooling the content never holds either – are no part of the contract.
  */
 import { createHash } from 'crypto';
 import fs from 'fs';
@@ -12,20 +13,20 @@ import { listFiles } from './files';
 
 export const SHARED_DIR = path.join(projectRoot, 'shared');
 export const SCHEMA_LOCK_FILE = path.join(SHARED_DIR, 'content-schema.json');
-/** The folder of shared/ that is no content: the API's response types and request rules */
-export const SHARED_API_DIR = 'api';
+/** The folders of shared/ that are no content: the API's response types and request rules, the plugin type check (#366) */
+export const SHARED_TOOLING_DIRS = ['api', 'plugins'];
 
 export interface SchemaLock {
   /** The schema version the checksum belongs to (`CONTENT_SCHEMA_VERSION`) */
   schema: string;
-  /** SHA-256 of shared/ without this file and shared/api/, line endings normalised */
+  /** SHA-256 of shared/ without this file, shared/api/ and shared/plugins/, line endings normalised */
   checksum: string;
 }
 
-/** Checksum of the contract: every file in shared/ except the lock itself and shared/api/ */
+/** Checksum of the contract: every file in shared/ except the lock itself, shared/api/ and shared/plugins/ */
 export function hashContract(dir = SHARED_DIR): string {
   const hash = createHash('sha256');
-  const isContract = (file: string) => path.join(dir, file) !== SCHEMA_LOCK_FILE && !file.startsWith(`${SHARED_API_DIR}/`);
+  const isContract = (file: string) => path.join(dir, file) !== SCHEMA_LOCK_FILE && !SHARED_TOOLING_DIRS.some(folder => file.startsWith(`${folder}/`));
   for (const file of listFiles(dir).filter(isContract).sort()) {
     hash.update(`${file}\n`);
     hash.update(fs.readFileSync(path.join(dir, file), 'utf8').replace(/\r\n/g, '\n'));

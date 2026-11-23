@@ -8,6 +8,30 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.18.0 – 2026-11-23
+
+### Added
+- **The Code tab tells you before Publish does** (#366, Tilman, 2026-11-23: *"So what do we need to prevent this in the
+  future? And with older plugins as well."*): when the tab opens, and after every Save, the saved plugins get the
+  publish's own type check. A plugin that would not publish says *(type errors)* in the list and in the Library, and under
+  the editor its errors are listed – a click opens the file at the line.
+- **Repair** for a known fault: code made with *Make it code* from a plugin's node type before 6.17.1 is recognised by the
+  text *Make it code* wrote, and the publish box and the Code tab offer **Repair** – it changes exactly that (`}, build);`
+  → `}, build as never);`), saves the plugin as your own save (Undo brings the old files back) and checks it again; the
+  publish then goes on. The publish box also offers *Show in the Code tab* for a plugin with type errors. Nothing is
+  repaired without your click.
+- **`osct plugins check`**: every stored plugin of an installation's experiences (or one, `--experience`) type-checked as
+  the publish does, the errors as a table with what a Repair would fix, exit code 1 when one fails; `--repair` saves the
+  known repairs (each a change in History, by the token's owner – others' editors ask once more before they run it).
+- **CI type-checks the test content's and the demo's plugins** against the current plugin API types: a change of the
+  API that breaks one fails the checks.
+
+### Changed
+- **One type check for plugins**: the Code tab's underlines, the check after Save, Publish, `osct plugins check` and
+  `osct plugin push` use one definition (compiler options, the plugin API, three's types, the shader imports) – in the
+  browser with Monaco's TypeScript, in Node with TypeScript's own. Modules now resolve as a bundler does (as in a
+  download's `tsconfig.json`). `osct plugin push` checks as the publish does (it checked as the content build).
+
 ## 6.17.2 – 2026-11-23
 
 ### Changed

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { codeKeys, codeTheme, crc32, hexColour, downloadFiles, EDITOR_OPTIONS, libPath, PLUGIN_API_PATH, pluginModelPath, runMarker, zipFiles } from "../code-editor";
+import { PLUGIN_API_PATH } from "@shared/plugins/type-check";
+import { codeKeys, codeTheme, crc32, hexColour, downloadFiles, EDITOR_OPTIONS, pluginModelPath, runMarker, zipFiles } from "../code-editor";
 
 // Monaco's own values: KeyMod.CtrlCmd = 1 << 11, KeyCode.Enter = 3, KeyCode.KeyS = 49
 const KEYS = { KeyMod: { CtrlCmd: 2048 }, KeyCode: { Enter: 3, KeyS: 49 } };
@@ -66,11 +67,6 @@ describe("codeTheme", () => {
 describe("paths in the TypeScript worker", () => {
   it("puts the plugin API where node resolution finds osct-plugin-api", () => {
     expect(PLUGIN_API_PATH).toBe("file:///node_modules/osct-plugin-api/index.d.ts");
-  });
-
-  it("maps a glob key of three's types into node_modules", () => {
-    expect(libPath("../../../node_modules/@types/three/src/Three.d.ts")).toBe("file:///node_modules/@types/three/src/Three.d.ts");
-    expect(libPath("/node_modules/@types/three/index.d.ts")).toBe("file:///node_modules/@types/three/index.d.ts");
   });
 
   it("gives every plugin its own model path", () => {

@@ -13,6 +13,9 @@ import { NO_ANSWER, type StageLog } from "#lib/stage/stage-types.js";
 import { trackUnsaved } from "#lib/unsaved.js";
 import { unsavedPlugin } from "#lib/library-code.js";
 import { nodeAt, withNode } from "./values";
+import { autosave } from "./autosave.svelte";
+import { verifiedRepair, type VerifiedRepair } from "@shared/plugins/repairs";
+import type { PluginSources, PluginTypeProblem } from "@shared/plugins/type-check";
 
 /** A node made code whose new type has not built yet: it shows as it was until its plugin's code builds it (#199) */
 export interface PendingSwitch {
@@ -63,6 +66,28 @@ const writeHung = (experienceId: string, id: string | null): void => {
 
 /** What a Run needs of the stage: its runner, a refresh and the overrides (a node made code switches through them) */
 export type RunStage = Pick<Stage, "runPlugin" | "refresh" | "treeOf" | "overrideOf" | "override">;
+
+/**
+ * The type check's verdict on a stored plugin's saved files (#366): its type errors (none: it publishes) and the known
+ * repair they call for, checked (`shared/plugins/repairs.ts`) – null when none applies. `key` the files it was given.
+ */
+export interface PluginVerdict {
+  key: string;
+  problems: PluginTypeProblem[];
+  repair: VerifiedRepair | null;
+}
+
+/** How long after a save or the tab's opening the saved plugins are type-checked: a run of saves is checked once */
+export const VERDICT_DELAY_MS = 300;
+
+/** The type check of saved plugins: Monaco's worker, loaded with it (the Code tab and Publish load it anyway) */
+const typeCheck = async (sources: readonly PluginSources[]): Promise<PluginTypeProblem[]> =>
+  sources.length ? (await import("#lib/plugins/monaco.js")).typeCheckPlugins(sources) : [];
+
+/** A verdict in words, for a marker's title: the first errors with their file and line */
+export const verdictText = (verdict: PluginVerdict): string =>
+  verdict.problems.slice(0, 5).map(p => `${p.file} line ${p.line}: ${p.message}`).join("\n") +
+  (verdict.problems.length > 5 ? `\n… and ${verdict.problems.length - 5} more` : "");
 
 /** A plugin's files as one comparable string: the same files in any order are the same (#352) */
 export const filesKey = (files: readonly PluginFile[]): string => JSON.stringify(sortPluginFiles(files).map(f => [f.name, f.text]));
@@ -192,6 +217,14 @@ class Plugins {
   private storedText = new Map<string, string>();
   /** The size of each plugin's last bundle (#352: the 256 KB warning), by id */
   readonly bundleSize = new SvelteMap<string, number>();
+  /**
+   * The type check's verdict on each stored plugin's saved files (#366), by id – known once the Code tab checked it (on its
+   * opening, after a save) or a publish did; the Code tab's list and the Library's scripts mark the ones that will not publish
+   */
+  readonly verdicts = new SvelteMap<string, PluginVerdict>();
+  /** The plugins waiting for their check, and the timer that starts it */
+  private checking = new Set<string>();
+  private checkTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * The same lines for the Log tab's timeline, newest last (at most `JOURNAL_LINES`): not emptied by a Run, only by the
@@ -221,6 +254,8 @@ class Plugins {
         this.storedText.clear();
         this.pending = null;
         this.declined.clear();
+        this.verdicts.clear();
+        this.checking.clear();
         this.code.reset();
         this.journal = [];
       }
@@ -446,6 +481,7 @@ class Plugins {
     let changed = false;
     for (const id of before.keys()) {
       if (now.has(id)) continue;
+      this.verdicts.delete(id);
       uninstallPlugin(id);
       this.ran.delete(id);
       this.status.delete(id);
@@ -470,8 +506,92 @@ class Plugins {
       if (ran.ok) this.ran.set(id, files);
     }
     if (!changed) return;
+    // A verdict follows the saved files it was given (#366): the moved ones are checked again
+    const moved = [...now.keys()].filter(id => before.get(id) !== now.get(id) && this.verdicts.has(id));
+    if (moved.length) this.checkSaved(experienceId, moved);
     this.version += 1;
     if (stage) await stage.refresh();
+  }
+
+  /** The stored plugins whose saved files the type check refused (#366): they will not publish */
+  typeErrorIds(): Set<string> {
+    return new Set([...this.verdicts].filter(([, verdict]) => verdict.problems.length).map(([id]) => id));
+  }
+
+  /**
+   * Type-check stored plugins' saved files (#366) – a moment later (`VERDICT_DELAY_MS`), so a run of saves is checked once;
+   * the verdicts land in `verdicts`. No id: every stored plugin (the Code tab's opening). A plugin only the content declares
+   * is the content build's to check.
+   */
+  checkSaved(experienceId: string, ids?: readonly string[]): void {
+    for (const id of ids ?? this.stored.map(p => p.id)) this.checking.add(id);
+    if (this.checkTimer) clearTimeout(this.checkTimer);
+    this.checkTimer = setTimeout(() => {
+      this.checkTimer = null;
+      void this.runChecks(experienceId).catch(e => console.warn(`[code] the type check did not run: ${errorText(e)}`));
+    }, VERDICT_DELAY_MS);
+  }
+
+  /** The waiting checks, now: the saved files of each, checked together, then each one's known repair checked */
+  private async runChecks(experienceId: string): Promise<void> {
+    const ids = [...this.checking].filter(id => this.stored.some(p => p.id === id));
+    this.checking.clear();
+    if (this.experienceId !== experienceId || !ids.length) return;
+    const sources = await Promise.all(ids.map(async id => ({ id, files: await this.savedFiles(experienceId, id) })));
+    this.remember(sources, await typeCheck(sources));
+  }
+
+  /**
+   * The verdicts of a type check (the Code tab's, the publish's): each plugin's errors and the known repair they call for,
+   * checked again before it is offered
+   */
+  async remember(sources: readonly PluginSources[], problems: readonly PluginTypeProblem[]): Promise<void> {
+    for (const source of sources) {
+      const own = problems.filter(p => p.plugin === source.id);
+      const repair = own.length ? await verifiedRepair(source, own, typeCheck) : null;
+      this.verdicts.set(source.id, { key: filesKey(source.files), problems: own, repair });
+    }
+  }
+
+  /**
+   * **Repair** (#366): a stored plugin's known fault repaired by the person who asks – the repaired files saved as a normal
+   * save through the autosaver (a change in History, Undo brings the old files back; the person saves it, so the plugin
+   * guard does not ask them about it). Only the files checked: when the saved files changed since, nothing is saved and
+   * the plugin is checked again. The Code tab's open plugin follows – its other unsaved edits stay edits. Returns the
+   * verdict after the repair.
+   */
+  async repair(experienceId: string, id: string): Promise<PluginVerdict | null> {
+    const verdict = this.verdicts.get(id);
+    const repair = verdict?.repair;
+    if (!verdict || !repair) return verdict ?? null;
+    const stored = await this.files(experienceId, id);
+    if (filesKey(stored) !== verdict.key) {
+      await this.remember([{ id, files: stored }], await typeCheck([{ id, files: stored }]));
+      return this.verdicts.get(id) ?? null;
+    }
+    const saved = new Promise<PluginSummary>((resolve, reject) => {
+      autosave.queue(`plugin:${id}`, async () => {
+        try {
+          resolve(await this.save(experienceId, id, repair.files));
+        } catch (e) {
+          reject(e);
+          throw e;
+        }
+      });
+    });
+    void autosave.flush();
+    const summary = await saved;
+    if (this.code.open === id) {
+      // The open plugin takes the repair: unedited, it is the saved files now; edited, its edits keep the repair too
+      const fixed = this.code.files.map(f => (repair.changed.includes(f.name) ? { name: f.name, text: repair.fault.fix(f.text) ?? f.text } : f));
+      const wasUnsaved = this.code.unsaved;
+      this.code.files = fixed;
+      this.code.saved = filesKey(repair.files);
+      if (!wasUnsaved) this.code.loaded = this.code.saved;
+      this.code.origin = summary.origin ?? null;
+    }
+    this.verdicts.set(id, { key: filesKey(repair.files), problems: repair.remaining, repair: null });
+    return this.verdicts.get(id) ?? null;
   }
 
   /** A script file as a new source, its id from the file's name (409 plugin-exists when that id is taken) */
@@ -492,6 +612,7 @@ class Plugins {
     this.status.delete(id);
     this.storedText.delete(id);
     this.bundleSize.delete(id);
+    this.verdicts.delete(id);
     void library.refresh();
   }
 

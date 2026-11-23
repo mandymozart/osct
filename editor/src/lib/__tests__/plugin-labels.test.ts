@@ -36,6 +36,13 @@ describe("a plugin's label", () => {
     expect(files.map(f => [f.name, f.label])).toEqual([["aquarium.ts", "aquarium.ts"], ["grain.ts", "grain.ts*"]]);
     expect(codeFiles([summary("grain")], []).map(f => f.label)).toEqual(["grain.ts"]);
   });
+
+  it("marks a plugin whose saved files the type check refused – in the picker and the Library (#366)", () => {
+    expect(pluginLabel("aquarium", true, true)).toBe("aquarium* (type errors)");
+    const failing = new Set(["grain"]);
+    expect(pluginOptions(["aquarium", "grain"], { open: null, adding: false, unsaved: false }, failing).map(o => o.label)).toEqual(["aquarium", "grain (type errors)"]);
+    expect(codeFiles([summary("aquarium"), summary("grain")], [], null, failing).map(f => f.label)).toEqual(["aquarium.ts", "grain.ts (type errors)"]);
+  });
 });
 
 describe("the Code tab's open source (plugins.code)", () => {

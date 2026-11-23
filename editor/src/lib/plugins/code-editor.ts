@@ -4,28 +4,14 @@
  * file system, and the download of a plugin with its types.
  */
 
-/** The module name a plugin imports its types from (`import type { PluginApi } from "osct-plugin-api"`) */
-export const PLUGIN_API_MODULE = "osct-plugin-api";
-/** Where `plugin-api.d.ts` lies for the TypeScript worker: node resolution finds `osct-plugin-api` there */
-export const PLUGIN_API_PATH = `file:///node_modules/${PLUGIN_API_MODULE}/index.d.ts`;
+// The plugin API's module name and the shader imports' declarations: the plugin type check's own (#366)
+import { PLUGIN_API_MODULE, SHADER_MODULES } from "@shared/plugins/type-check";
 
 /**
  * The model of a file of the open plugin (#352: one per file, so `./fluid` resolves to `fluid.ts` in the TypeScript worker;
  * a path the worker resolves `osct-plugin-api` from)
  */
 export const pluginModelPath = (id: string, name = "index.ts"): string => `file:///plugins/${id || "draft"}/${name}`;
-
-/** Shader files a plugin imports are strings to TypeScript (esbuild's text loader in the bundle, #352) */
-export const SHADER_MODULES = ["frag", "vert", "glsl", "wgsl"]
-  .map(extension => `declare module "*.${extension}" {\n  const text: string;\n  export default text;\n}\n`)
-  .join("");
-export const SHADER_MODULES_PATH = "file:///node_modules/@types/osct-shader-files/index.d.ts";
-
-/** A glob key of a declaration file below some `node_modules/` → its path in the worker's file system */
-export const libPath = (key: string): string => {
-  const at = key.indexOf("node_modules/");
-  return `file:///${at >= 0 ? key.slice(at) : key.replace(/^(\.\.?\/)+/, "")}`;
-};
 
 export type CodeAction = "run" | "save";
 

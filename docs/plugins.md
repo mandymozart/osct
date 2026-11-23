@@ -497,6 +497,52 @@ without it). Nothing else may be imported – no package, no folder below the pl
 - **In your own folder and tools** – `osct plugin link`, `push`, `pull` ("Your own folder" below).
 - **Shared shaders stay in the Library** ("A shader file" below): one file several plugins load by its URL.
 
+## One type check: the Code tab, Publish, CI and osct plugins check (#366)
+
+Tilman, 2026-11-23, after code made with *Make it code* stopped a publish: *"So what do we need to prevent this in the
+future? And with older plugins as well."* – then *"Yes do all of the type checks too. Makes total sense to not let stuff
+slip through and to fix if it encounters one during publish."*
+
+- **One definition, two runtimes** – `shared/plugins/type-check.ts`: the compiler options (strict, ES2020, ES modules
+  resolved as a bundler does, the DOM), the declarations (the checked-in `plugin-api.d.ts` as `osct-plugin-api`, the shader
+  imports as strings, three's own types – `isCheckedThreeType` says which) and where every file lies
+  (`file:///check/<plugin>/<name>`). The editor gives them to Monaco's TypeScript worker (`editor/src/lib/plugins/monaco.ts`:
+  the Code tab's underlines, the check of a saved plugin, the publish); `createPluginTypeChecker` runs the same program with
+  any TypeScript – Node's in the `osct` CLI (`scripts/src/lib/plugin-type-check.ts`). A test runs Monaco's real worker class,
+  Monaco's own TypeScript and the editor's TypeScript on the same sources and holds them to one verdict
+  (`editor/src/lib/plugins/__tests__/type-check.test.ts`). The content build keeps its own check of a content source's
+  plugins against the engine's sources (`scripts/src/build/plugins.ts`).
+- **On save** – the Code tab checks the saved files when it opens and after every Save, and marks a plugin that will not
+  publish ([editor](editor.md) "Code").
+- **CI** – the editor's tests type-check every plugin of `fixtures/content/plugins/` and `fixtures/demo/plugins/` against
+  the current `plugin-api.d.ts` with Monaco's TypeScript (the browser's own compiler): a change of the plugin API's types
+  that breaks one fails the Checks with the plugin, file, line and message. The scripts' tests run the same with the CLI's
+  TypeScript.
+- **Known faults and Repair** – `shared/plugins/repairs.ts` is a short list of faults the editor itself once wrote, each
+  with a fingerprint (the exact text, found once), the type error it gives and a mechanical fix. A repair is offered only
+  when the fingerprint matches, the plugin has the fault's error there and the repaired files type-check without it;
+  otherwise nothing changes. The first: *Make it code* before 6.17.1 passed a copied node type's build on as `}, build);`
+  – the repair makes it `}, build as never);`, as *Make it code* writes it since. The publish overlay and the Code tab
+  offer **Repair** ([editor](editor.md)); nothing is ever repaired without a person's click or `--repair`.
+- **`osct plugins check`** – every stored plugin of an instance's experiences (`--experience <id>`: one), each
+  experience's plugins together as its publish carries them, through the editor API (`OSCT_API_URL`, `OSCT_EDITOR_TOKEN`):
+
+  ```sh
+  osct plugins check                         # a table of the errors; exit code 1 when a plugin fails – nothing written
+  osct plugins check --experience osct --repair   # the known faults repaired, each a normal save, checked again
+  ```
+
+  ```
+  experience  plugin        file      line  repair      message
+  osct        my-tank-code  index.ts  13    repairable  Argument of type '{ … }' is not assignable to parameter of type 'S'. …
+  demo        wrong         index.ts  1                 Type 'string' is not assignable to type 'number'.
+  ❌ 3 plugins in 2 experiences: 2 with type errors, 1 repairable – --repair saves the repairs (a change in History each)
+  ```
+
+  `--repair` saves every file of the plugin (a link to a folder stays) as the **token's owner**: History names them, and
+  the editor's plugin guard (#340) asks everyone else once more before it runs that plugin's code on their stage – a
+  repair is a new save like any other. Publish each repaired experience again for its readers.
+
 ## Your own folder: osct plugin link, push, pull (6.11.0, #352)
 
 A plugin can be developed where you develop everything else – your editor, your repository, your tests – and still be
@@ -506,7 +552,7 @@ a token from the editor's experiences page):
 ```sh
 osct plugin link demo ./aquarium            # .osct-plugin.json: the API, the experience, the plugin (--id, else the folder's name);
                                              # pulls the plugin's files if it exists, and plugin-api.d.ts, shader-files.d.ts, tsconfig.json
-osct plugin push ./aquarium --watch          # type-checks as the content build does, then sends the files – again on every change
+osct plugin push ./aquarium --watch          # type-checks as the publish does, then sends the files – again on every change
 osct plugin pull ./aquarium                  # the editor's files back (edits made there; a file deleted there goes here too)
 ```
 

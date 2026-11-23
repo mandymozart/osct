@@ -1,6 +1,7 @@
 import { PLUGIN_API_VERSION, type PluginRegistrations } from "@engine/types";
 import type { PluginRegistrySnapshot } from "@engine/scene/plugins";
 import { PLUGIN_BUNDLE_WARN_BYTES, PLUGIN_ENTRY, type PluginFile } from "@shared/types/plugins";
+import type { PluginSources, PluginTypeProblem } from "@shared/plugins/type-check";
 import type { CompileResult } from "#lib/plugins/compile.js";
 
 /**
@@ -9,8 +10,9 @@ import type { CompileResult } from "#lib/plugins/compile.js";
  * it ran on the stage in this session, the specs that run registered. The API puts each into the published version and
  * declares it; readers load it from the CDN like a compiled plugin.
  *
- * Before that, every file is **type-checked** (#352, the type-check half of #266): a type error stops the publish with its
- * plugin, file and line, as the content build stops. A bundle above 256 KB is a warning, never a stop.
+ * Before that, every file is **type-checked** (#352, the type-check half of #266 – the shared check, #366): a type error
+ * stops the publish with its plugin, file and line, as the content build stops, and the problems go with it (the dialog
+ * offers a known fault's Repair). A bundle above 256 KB is a warning, never a stop.
  */
 
 /** One carried plugin (`POST /editor/experiences/{id}/publish` → `plugins[]`) */
@@ -24,21 +26,7 @@ export interface PublishedPlugin {
   registered?: PluginRegistrations;
 }
 
-/** A saved plugin: its id and files */
-export interface SavedSource {
-  id: string;
-  files: PluginFile[];
-}
-
-/** A type error in a plugin's file */
-export interface TypeProblem {
-  plugin: string;
-  file: string;
-  line: number;
-  message: string;
-}
-
-export type CarriedPlugins = { plugins: PublishedPlugin[]; warnings: string[] } | { error: string };
+export type CarriedPlugins = { plugins: PublishedPlugin[]; warnings: string[] } | { error: string; problems?: PluginTypeProblem[] };
 
 type SnapshotEntry = PluginRegistrySnapshot["plugins"][string];
 
@@ -57,7 +45,7 @@ export const declaredRegistrations = (entry: SnapshotEntry): PluginRegistrations
 });
 
 /** Type problems as the publish says them: the first, and how many more */
-export const typeProblemText = (problems: readonly TypeProblem[]): string => {
+export const typeProblemText = (problems: readonly PluginTypeProblem[]): string => {
   const [first] = problems;
   const more = problems.length > 1 ? ` (and ${problems.length - 1} more)` : "";
   return `The plugin ${first.plugin} has a type error in ${first.file} line ${first.line}: ${first.message}${more} – fix it in the Code tab.`;
@@ -69,14 +57,14 @@ export const typeProblemText = (problems: readonly TypeProblem[]): string => {
  * what to fix in the Code tab.
  */
 export const carriedPlugins = async (
-  sources: readonly SavedSource[],
+  sources: readonly PluginSources[],
   build: (files: readonly PluginFile[], name: string) => Promise<CompileResult>,
   registry: PluginRegistrySnapshot | null,
-  typeCheck?: (sources: readonly SavedSource[]) => Promise<TypeProblem[]>,
+  typeCheck?: (sources: readonly PluginSources[]) => Promise<PluginTypeProblem[]>,
 ): Promise<CarriedPlugins> => {
   if (typeCheck && sources.length) {
     const problems = await typeCheck(sources);
-    if (problems.length) return { error: typeProblemText(problems) };
+    if (problems.length) return { error: typeProblemText(problems), problems };
   }
   const plugins: PublishedPlugin[] = [];
   const warnings: string[] = [];
