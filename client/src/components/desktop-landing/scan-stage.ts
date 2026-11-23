@@ -423,6 +423,9 @@ export class ScanStage {
   /** How much the phone's camera keeps to the target's middle: 0 held over the book, 1 pulled all the way to the eye */
   private stick = 0;
   private risen = false;
+  private screen: MeshBasicMaterial | null = null;
+  /** How far the phone has come up from where it lay: 0 lying, 1 held over the book */
+  private rise = 0;
   /** The middle of what stands on the target (the model's box), in the stage's space */
   private readonly centre = new Vector3(0, 0, LOOK_HEIGHT);
   private textDirty = true;
@@ -708,7 +711,9 @@ export class ScanStage {
     this.feed = new WebGLRenderTarget(FEED_WIDTH, Math.round(FEED_WIDTH * (inner.height / inner.width)), { samples: 4 });
     this.phoneCamera.aspect = inner.width / inner.height;
     this.phoneCamera.updateProjectionMatrix();
-    const screen = new Mesh(screenGeometry(), new MeshBasicMaterial({ map: this.feed.texture, toneMapped: false }));
+    // Dark while the phone lies there: its camera's picture comes up only as it is held over the book (`render`)
+    this.screen = new MeshBasicMaterial({ map: this.feed.texture, toneMapped: false, color: 0x000000 });
+    const screen = new Mesh(screenGeometry(), this.screen);
     const overlay = (geometry: ShapeGeometry | PlaneGeometry, material: MeshBasicMaterial): Mesh => {
       material.transparent = true;
       material.depthTest = false;
@@ -873,7 +878,7 @@ export class ScanStage {
   private animateMarks(seconds: number, delta: number) {
     if (!this.marks) return;
     const material = this.marks.material as MeshBasicMaterial;
-    const searching = !this.inView && (this.still || this.clock.elapsedTime >= this.introEnd + PHONE_RISE * 0.5);
+    const searching = !this.inView && this.rise >= 1;
     material.opacity = MathUtils.damp(material.opacity, searching ? SCAN.opacity : 0, 6, delta);
     this.marks.rotation.z = this.still ? 0 : -(seconds / SCAN.turn) * Math.PI * 2;
   }
@@ -1022,6 +1027,8 @@ export class ScanStage {
       if (this.celebration.kind === "lost") this.placed.visible = false;
       this.celebration = null;
     }
+    // The screen wakes in the last part of the way up – lying flat and on its way it shows nothing of its camera
+    this.screen?.color.setScalar(smooth((this.rise - 0.7) / 0.3));
     this.animateMarks(seconds, delta);
     this.mixer?.update(delta);
     if (onPage) this.film(onPage);
@@ -1052,6 +1059,7 @@ export class ScanStage {
     this.phone.rotateZ(Math.sin(seconds * 0.5) * 0.035);
     // It comes up from where it lay beside the book
     const rise = this.still ? 1 : smooth((seconds - this.introEnd) / PHONE_RISE);
+    this.rise = rise;
     if (rise < 1) {
       this.phone.position.lerpVectors(PHONE_REST.position, this.phone.position, rise);
       this.phone.quaternion.slerpQuaternions(PHONE_REST.quaternion, this.phone.quaternion, rise);
