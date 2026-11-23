@@ -7,11 +7,12 @@
   import { content } from "#lib/content.svelte.js";
   import type { Stage } from "#lib/stage/stage.svelte.js";
   import {
-    appearanceHeading, appearanceToSave, draftAppearance, inheritLabel, lookSource, momentSummary, playedLook, playedType, sameAppearance, setLook, setLookValue,
+    appearanceHeading, appearanceToSave, cardSummary, draftAppearance, inheritLabel, lookSource, momentSummary, playedCardLook, playedLook, playedType,
+    sameAppearance, setCardLook, setCardLookValue, setLook, setLookValue,
   } from "#lib/appearance-edit.js";
-  import { liveLookChoices, lookPluginOf, lookSpecOf } from "#lib/plugin-appearances.js";
+  import { cardLookPluginOf, cardLookSpecOf, liveCardLookChoices, liveLookChoices, lookPluginOf, lookSpecOf } from "#lib/plugin-appearances.js";
   import { plugins } from "#lib/plugins.svelte.js";
-  import { helpName, lookRows, passOptionLabels, passValue, type ValueRow } from "#lib/values.js";
+  import { cardLookRows, helpName, lookRows, passOptionLabels, passValue, type ValueRow } from "#lib/values.js";
   import ColourField from "#lib/components/ColourField.svelte";
   import Icon from "#lib/components/Icon.svelte";
   import Segmented from "#lib/components/Segmented.svelte";
@@ -30,6 +31,9 @@
    * stage's next animations take the panel's looks, and each moment's *play* shows it on the shown targets – and reaches
    * the draft by itself a moment later (`PUT …/appearance`, #259). *Undo edits* takes it back to how the draft had it
    * before the first edit in this page. The model is `PassesPanel.svelte`; the logic `appearance-edit.ts`.
+   *
+   * Below the moments the **card** (#361, `appearance.card`): the look the marginalia card is picked up with – the built-in
+   * `cardFlight` with its values or a plugin's card look (`registerCardLook`); *play* flies a shown target's card on the stage.
    */
   let { stage, experienceId }: { stage: Stage | null; experienceId: string } = $props();
 
@@ -65,6 +69,37 @@
       };
     });
   });
+
+  /** The card look: what the picker offers, what plays, its rows */
+  const cardChoices = $derived.by(() => { void plugins.version; void content.experienceAppearance; return liveCardLookChoices(); });
+  const cardBuiltIns = $derived(cardChoices.filter(choice => !choice.plugin));
+  const cardByPlugin = $derived([...new Set(cardChoices.filter(choice => choice.plugin).map(choice => choice.plugin!))]
+    .map(plugin => ({ plugin, choices: cardChoices.filter(choice => choice.plugin === plugin) })));
+  const card = $derived.by(() => {
+    void plugins.version;
+    const look = edit.card;
+    const played = playedCardLook(edit);
+    const rows = cardLookRows(played);
+    return {
+      look, played, rows, summary: cardSummary(edit, rows),
+      plugin: look ? cardLookPluginOf(look.type) : null, description: cardLookSpecOf(played.type)?.description,
+      known: !look || cardChoices.some(choice => choice.type === look.type),
+    };
+  });
+  const chooseCard = (type: string) => apply(setCardLook(edit, type || null));
+  const setCard = (row: ValueRow, value: number | string) => apply(setCardLookValue(edit, row, value));
+  /** A card row's value as the draft has it – the default when the draft's card look is another one */
+  const savedCardValue = (row: ValueRow) => {
+    const look = playedCardLook(saved);
+    return look.type === playedCardLook(edit).type ? passValue(look as PassData, row) : row.default;
+  };
+  /** The card section's help: what the card is, then its look's description */
+  const cardHelp = $derived(
+    "How the marginalia card is picked up: a glossary target found in the reader's scan flies its card – the printed picture leaves the page and lands on the screen, where it becomes the entry's own picture, and the entry opens over it. "
+    + (card.look && !card.known
+      ? `A plugin's card look that is not registered on the stage (${missing}) – the Code tab says why, or pick another.`
+      : card.description ? (card.plugin ? `${card.description} – a card look of the plugin ${card.plugin}.` : card.description) : ""),
+  );
 
   /** What the moment is, for its help */
   const MOMENT_HELP: Record<Moment, string> = {
@@ -119,7 +154,7 @@
 </script>
 
 <Section id="stage.appearance" label={appearanceHeading(edit)} open={false}
-  help="How the experience's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the experience's plugins. It is the experience's: every scene plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
+  help="How the experience's AR entities appear and disappear: a look for the first find (reveal), every later find (found) and the lost page (lost) – a built-in look with its values, or a look of the experience's plugins – and how the marginalia card is picked up (card). It is the experience's: every scene plays it. A change plays on the stage at once – play in a moment's head shows it – and reaches the draft by itself.">
 {#each moments as { moment, look, played, rows, source, summary, plugin, description, known } (moment)}
   <Section id="stage.appearance.{moment}" label={moment} {summary} open={false} nested
     help={`${MOMENT_HELP[moment]} ${look ? (description ? (plugin ? `${description} – a look of the plugin ${plugin}.` : description) : `A plugin's look that is not registered on the stage (${missing}) – the Code tab says why, or pick another.`) : source === "found" ? "It has no look of its own: it plays found's." : "It has no look of its own: it plays the default look."}`}>
@@ -168,6 +203,46 @@
     {/if}
   </Section>
 {/each}
+<Section id="stage.appearance.card" label="card" summary={card.summary} open={false} nested help={cardHelp}>
+  {#snippet aside()}
+    {#if card.plugin}<span class="small muted plugin" title="A card look of the plugin {card.plugin}">{card.plugin}</span>{/if}
+    <button type="button" class="icon-button" aria-label="Play card" title="Fly a shown target's card on the stage" disabled={!stage} onclick={() => void stage?.playCard()}><Icon name="play" /></button>
+  {/snippet}
+  <div class="row" data-help-name="card · look" data-help="The card look: the built-in cardFlight with its values, or a card look of the experience's plugins (api.registerCardLook). Default plays cardFlight at its defaults.">
+    <span class="label sub">look</span>
+    <span class="controls">
+      <select class="field" aria-label="card look" value={card.look?.type ?? ""} onchange={e => chooseCard((e.currentTarget as HTMLSelectElement).value)}>
+        <option value="">default (cardFlight)</option>
+        {#each cardBuiltIns as choice (choice.type)}<option value={choice.type} title={choice.spec.description}>{choice.type}</option>{/each}
+        {#each cardByPlugin as group (group.plugin)}
+          <optgroup label={group.plugin}>
+            {#each group.choices as choice (choice.type)}<option value={choice.type} title={choice.spec.description}>{choice.type}</option>{/each}
+          </optgroup>
+        {/each}
+        {#if card.look && !card.known}<option value={card.look.type}>{card.look.type} ({missing})</option>{/if}
+      </select>
+    </span>
+  </div>
+  {#each card.rows as row (row.id)}
+    <div class="row" class:changed={passValue(card.played as PassData, row) !== savedCardValue(row)} data-help-name="card · {helpName(row)}" data-help="{row.description} – default {row.default === '' ? 'none' : row.default}">
+      <span class="label sub">{row.label}</span>
+      {#if row.kind === "choice"}
+        <span class="controls"><Segmented options={row.options ?? []} value={String(passValue(card.played as PassData, row))} labels={passOptionLabels(card.played as PassData, row)} onchange={v => setCard(row, v)} /></span>
+      {:else if row.kind === "boolean"}
+        <span class="controls"><Toggle on={passValue(card.played as PassData, row) === "true"} label={row.label} onchange={value => setCard(row, value ? "true" : "false")} /></span>
+      {:else if row.kind === "string"}
+        <input class="field" value={String(passValue(card.played as PassData, row))} aria-label={row.label} oninput={e => setCard(row, (e.currentTarget as HTMLInputElement).value)} />
+      {:else if row.kind === "texture"}
+        <TextureField value={String(passValue(card.played as PassData, row))} label={row.label} onchange={v => setCard(row, v)} />
+      {:else if row.kind === "color"}
+        <ColourField value={String(passValue(card.played as PassData, row))} label={row.label} onchange={hex => setCard(row, hex)} />
+      {:else}
+        <span class="w"><ScrubNumber value={Number(passValue(card.played as PassData, row))} min={row.min} max={row.max} step={row.step} fallback={Number(row.default)}
+          unit={row.unit ?? ""} label={row.label} strict={row.strict} integer={row.integer} oninput={v => setCard(row, v)} /></span>
+      {/if}
+    </div>
+  {/each}
+</Section>
 {#if canUndo}
   <div class="actions">
     <button type="button" class="text-link" onclick={revert} data-help-name="Undo edits"

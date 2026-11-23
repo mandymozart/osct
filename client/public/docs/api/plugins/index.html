@@ -50,6 +50,7 @@
     <tr><td><code>registerTexture(type, spec, draw)</code></td><td>a procedural texture</td><td class="wrap">A picture your code draws; every <code>texture</code> parameter can take it.</td></tr>
     <tr><td><code>registerPass(type, spec, factory)</code></td><td>a post-processing pass</td><td class="wrap">An effect over the whole rendered picture: film grain.</td></tr>
     <tr><td><code>registerAppearance(type, spec, factory)</code></td><td>a look</td><td class="wrap">How an entity appears and disappears.</td></tr>
+    <tr><td><code>registerCardLook(type, spec, factory)</code></td><td>a card look</td><td class="wrap">How the card of a glossary entry flies from the page to the screen (API 4.1).</td></tr>
   </table></div>
   <p>Type names are camelCase. Each type is then used in the content by its name, and the Inspector shows its rows.</p>
 
@@ -161,6 +162,7 @@ osct plugin pull ./aquarium              # takes edits made in the editor back</
     <li><b>A material's</b> <code>build({ params, time, map, three })</code> returns a three.js material, or <code>{ material, update, tune, dispose }</code>. End a fragment shader with <code>#include &lt;colorspace_fragment&gt;</code> and declare <code>varying vec2 vUv</code> so layers still work on it.</li>
     <li><b>A pass's</b> factory gets <code>{ params, three, shaderPass, size, pixelRatio }</code> and returns a three.js pass. <code>tDiffuse</code> is the AR layer, premultiplied, in linear RGB.</li>
     <li><b>A look's</b> factory returns <code>{ duration, update(visible) }</code>; <code>visible</code> runs 0 → 1 on reveal and found, 1 → 0 on lost. Use <code>materials()</code> for copies you may change; never change a mesh's own material.</li>
+    <li><b>A card look's</b> factory gets the AR <code>scene</code>, the <code>camera</code>, the page's <code>anchor</code>, the pictures <code>front</code>, <code>back</code>, <code>reveal</code> and <code>landing(width, fill)</code>, and returns <code>{ duration, update(t), dispose }</code>; <code>t</code> runs 0 → 1, the entry opens when it is over. Add your card to <code>scene</code>, remove it in <code>dispose</code>; the engine frees the pictures. The experience picks it as <code>appearance.card</code>. Example: the demo's <code>plugins/card</code>.</li>
   </ul>
   <pre><code>api.registerLayer("tint", {
     description: "Tints the pixels towards one colour.",

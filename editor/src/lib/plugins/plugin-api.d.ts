@@ -3,7 +3,7 @@
 //   import type { PluginApi } from "osct-plugin-api";
 
 import * as THREE from 'three';
-import { AnimationClip, Group, Material, Object3D, Texture, Vector2, VideoTexture } from 'three';
+import { AnimationClip, Group, Material, Object3D, PerspectiveCamera, Texture, Vector2, VideoTexture } from 'three';
 import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
@@ -848,6 +848,50 @@ interface AppearanceRun {
 	dispose?(): void;
 }
 type AppearanceFactory<P = Record<string, unknown>> = (context: AppearanceContext<P>) => AppearanceRun;
+interface CardLookContext<P = Record<string, unknown>> {
+	/** The look's parameters with the spec's defaults filled in */
+	params: P;
+	/** The app's three.js (one instance – a plugin never imports three itself) */
+	three: typeof THREE;
+	/**
+	 * The AR camera. The three.js camera stays at the origin and looks down −z; the page's anchor is placed relative to it
+	 * (1 unit = the target's width). Read its matrices every frame: the projection follows the screen
+	 */
+	camera: PerspectiveCamera;
+	/** The AR scene: add the card's objects here and remove them in `dispose` */
+	scene: Object3D;
+	/**
+	 * The page the card leaves: the target's anchor – x to the right, y to the top of the page, z out of it, its scale the
+	 * target's width. It follows the page while the page is found (`found()`), else it keeps its last pose
+	 */
+	anchor: Object3D;
+	/** Whether the page is still found right now */
+	found(): boolean;
+	/** The printed picture (the target's image) – the engine owns the textures: never dispose them */
+	front: Texture;
+	/** The card's back: the book's cover, else a default pattern */
+	back: Texture;
+	/** The entry's own picture in full resolution, to show once the card has landed – null when it is the printed one */
+	reveal: Texture | null;
+	/** The picture's height / width */
+	aspect: number;
+	/**
+	 * How far in front of the camera a card `width` wide (and `width · aspect` high) fills `fill` of the screen in both
+	 * directions – where the built-in flight lands (`fill` default 0.62)
+	 */
+	landing(width: number, fill?: number): number;
+	/** Let the phone vibrate (where it can; nothing elsewhere) */
+	vibrate(pattern: number | number[]): void;
+}
+interface CardLookRun {
+	/** ms of the whole flight – the entry opens when it is over, over the card, which stays a moment longer */
+	duration: number;
+	/** One frame: `t` from 0 to 1 over `duration`, `delta` the seconds since the last frame */
+	update(t: number, delta: number): void;
+	/** Remove and free what the look created (the engine frees the textures) */
+	dispose?(): void;
+}
+type CardLookFactory<P = Record<string, unknown>> = (context: CardLookContext<P>) => CardLookRun;
 declare const FEEDBACK_TYPES: readonly [
 	"half",
 	"float",
@@ -911,6 +955,7 @@ export interface Feedback {
  *   api.registerMaterial("water", MATERIAL_SPEC, ({ params, time, three }) => new three.ShaderMaterial({ uniforms: { time }, … }))
  *   api.registerTexture("caustics", TEXTURE_SPEC, ({ params, three }) => ({ texture: new three.CanvasTexture(canvas), update }))
  *   api.registerAppearance("softFade", LOOK_SPEC, ({ params, materials }) => ({ duration: params.duration, update: visible => … }))
+ *   api.registerCardLook("drop", CARD_SPEC, ({ scene, camera, front }) => ({ duration: 900, update: t => … }))
  *
  * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
  * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
@@ -922,7 +967,8 @@ export interface Feedback {
  * any); a **material** (`materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
  * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
- * is how an entity appears and disappears: the experience names it for a moment (`appearance: { reveal, found, lost }`).
+ * is how an entity appears and disappears: the experience names it for a moment (`appearance: { reveal, found, lost }`). A
+ * **card look** (`card-looks.ts`, API 4.1) is how the marginalia card is picked up: the experience names it in `appearance.card`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / experience),
  * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the experience's
@@ -1084,6 +1130,14 @@ export interface PluginApi {
 	 * `lost`. The experience names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
 	 */
 	registerAppearance<const S extends AppearanceSpec>(type: string, spec: S, factory: AppearanceFactory<ParamsOf<S>>): void;
+	/**
+	 * A card look of the plugin's own (API 4.1, #361): how the marginalia card is picked up – a glossary target found in
+	 * scan mode flies its card, and the entry opens once it has landed. The factory runs once per flight with the AR scene,
+	 * its camera, the page's anchor, the card's pictures and the resolved parameters (`CardLookContext`) and returns
+	 * `{ duration, update(t, delta), dispose? }` – `t` runs from 0 to 1 over `duration`. The experience names it in
+	 * `appearance.card`, in the built-in `cardFlight`'s place.
+	 */
+	registerCardLook<const S extends AppearanceSpec>(type: string, spec: S, factory: CardLookFactory<ParamsOf<S>>): void;
 	/** Core events of the scene (read-only) and scene events of the content */
 	readonly events: PluginEvents;
 	/** Variables in the scopes scene, stage, session and experience */

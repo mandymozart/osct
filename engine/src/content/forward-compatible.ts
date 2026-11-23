@@ -21,6 +21,9 @@ import { isObject } from "@shared/guards/game-config";
 import {
   APPEARANCE_TYPES,
   APPEARANCES,
+  CARD_LOOK_KEY,
+  CARD_LOOK_TYPES,
+  CARD_LOOKS,
   BEHAVIOUR_ACTIONS,
   BEHAVIOUR_NODE_ACTIONS,
   BEHAVIOUR_TYPE,
@@ -65,6 +68,8 @@ export interface KnownFeatures {
   passFields: readonly string[];
   /** Built-in looks an entity appears with (`experience.appearance`) */
   appearances: readonly string[];
+  /** Built-in card looks (`experience.appearance.card`, schema 6.3) – none: the app does not know the field */
+  cardLooks?: readonly string[];
   /** Video filter types */
   filters: readonly string[];
   /** The verbs of a behaviour rule's actions */
@@ -78,7 +83,7 @@ export interface KnownFeatures {
 }
 
 /** The kinds of a plugin's recorded registrations the content can use */
-export type PluginKind = "components" | "nodeTypes" | "passes" | "materials" | "appearances";
+export type PluginKind = "components" | "nodeTypes" | "passes" | "materials" | "appearances" | "cardLooks";
 
 /** What this app knows right now (the registered components included) */
 export const currentFeatures = (): KnownFeatures => ({
@@ -88,11 +93,12 @@ export const currentFeatures = (): KnownFeatures => ({
   passes: PASS_TYPES,
   passFields: PASS_FIELDS,
   appearances: APPEARANCE_TYPES,
+  cardLooks: CARD_LOOK_TYPES,
   filters: FILTER_TYPES,
   behaviourActions: BEHAVIOUR_ACTIONS,
   paramKinds: PARAM_KINDS,
   pluginApi: PLUGIN_API_VERSION,
-  pluginKinds: ["components", "nodeTypes", "passes", "materials", "appearances"],
+  pluginKinds: ["components", "nodeTypes", "passes", "materials", "appearances", "cardLooks"],
 });
 
 /** What a skipped feature is */
@@ -167,6 +173,7 @@ export const skipUnknownFeatures = (
     passes: known.pluginKinds.includes("passes") ? all.passes : none,
     materials: known.pluginKinds.includes("materials") ? all.materials : none,
     appearances: known.pluginKinds.includes("appearances") ? all.appearances : none,
+    cardLooks: known.pluginKinds.includes("cardLooks") ? all.cardLooks : none,
     complete: all.complete,
   };
   // As the guard: with a plugin that recorded nothing (or on the editor's stage) an unknown type may be registered at load
@@ -316,6 +323,18 @@ export const skipUnknownFeatures = (
   const appearance = (value: unknown, path: string) => {
     if (!isObject(value)) return;
     for (const [moment, look] of Object.entries(value)) {
+      // The card look (schema 6.3): a card look this app does not know is dropped – the built-in flight plays
+      if (moment === CARD_LOOK_KEY && known.cardLooks) {
+        if (!isObject(look) || typeof look.type !== "string") continue;
+        const spec = (known.cardLooks.includes(look.type) ? (CARD_LOOKS as unknown as Record<string, Spec>)[look.type] : undefined)
+          ?? recorded.cardLooks.get(look.type);
+        if (spec) dropUnknownParams(look, spec, `${path}.${moment}`, ["type"]);
+        else if (!allowUnknown) {
+          delete value[moment];
+          skip(`${path}.${moment}`, "look", look.type);
+        }
+        continue;
+      }
       if (!(MOMENTS as readonly string[]).includes(moment)) {
         delete value[moment];
         skip(`${path}.${moment}`, "field", moment);

@@ -35,6 +35,7 @@ export * from "./textures";
 export * from "./media-levels";
 export * from "./passes";
 export * from "./appearance";
+export * from "./card-look";
 export * from "./plugins";
 export * from "./node-types";
 export * from "./subtitles";
@@ -133,10 +134,14 @@ export type AssetType = (typeof ASSET_TYPES)[number];
  * (`./plugins.ts` PluginFile, the names and limits, `./plugin-shader-files.d.ts` the shader imports' types). The content
  * build and the editor bundle the folder; the configuration's `plugins` list is unchanged – an app of 6.1 reads 6.2 as
  * it is, nothing to skip.
+ *
+ * **6.3** (#361): the experience's `appearance.card` – the card look the marginalia card is picked up with
+ * (`./card-look.ts`): the built-in `cardFlight` with its values, or a plugin's (`registered.cardLooks`, plugin API 4.1
+ * `registerCardLook`). An app of 6.2 drops the field (forward compatibility) and flies its own card.
  * Every change in shared/ needs a bump: shared/content-schema.json locks the checksum of shared/ to this
  * version (scripts: `npm run schema:lock`, checked by a test).
  */
-export const CONTENT_SCHEMA_VERSION = "6.2";
+export const CONTENT_SCHEMA_VERSION = "6.3";
 /** The oldest content schema MAJOR this contract reads – 6: no 5.x content is read (6.0 renamed a spec's `uses.hears` to `uses.listens`) */
 export const OLDEST_READABLE_SCHEMA_MAJOR = 6;
 
@@ -171,7 +176,10 @@ export interface ExperienceData {
   passes?: PassData[];
   /** Optional (schema 2.8; world and sky assets 2.9): the world around the reader and the onion sky (`./environment.ts`); none = the default */
   environment?: EnvironmentData;
-  /** Optional (schema 2.29): the look an entity appears with on reveal, found and lost (`./appearance.ts`); none = the default look */
+  /**
+   * Optional (schema 2.29): the look an entity appears with on reveal, found and lost (`./appearance.ts`); none = the default
+   * look. Since 6.3 also `card`: the card look of the marginalia card (`./card-look.ts`)
+   */
   appearance?: ExperienceAppearance;
   /** Optional (schema 4.0): the printed book this experience accompanies – none: not a book (a wall, a room, an exhibition) */
   book?: BookData;

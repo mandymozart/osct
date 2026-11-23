@@ -31,6 +31,7 @@
 import type { ComponentData, ComponentParamSpec, SpecLogic } from "./components";
 import { paramProblems } from "./components";
 import { isObject } from "../guards/primitives";
+import { CARD_LOOK_KEY, type CardLookCheckOptions, cardLookProblems } from "./card-look";
 
 /** The moments an entity appears or disappears at */
 export const MOMENTS = ["reveal", "found", "lost"] as const;
@@ -49,8 +50,11 @@ export interface AppearanceData {
   [param: string]: unknown;
 }
 
-/** The experience's looks, by moment */
-export type ExperienceAppearance = Partial<Record<Moment, AppearanceData>>;
+/**
+ * The experience's looks, by moment – and since schema 6.3 the card look (`card`, `./card-look.ts`, #361): how the
+ * marginalia card is picked up, no moment of an entity
+ */
+export type ExperienceAppearance = Partial<Record<Moment, AppearanceData>> & { card?: AppearanceData };
 
 /** The values of a built-in look, as the engine reads them */
 export interface Appearance {
@@ -157,7 +161,7 @@ export const isBuiltInAppearanceType = (value: unknown): value is BuiltInAppeara
 /** The look an experience without `appearance` plays at every moment */
 export const DEFAULT_APPEARANCE_TYPE: BuiltInAppearanceType = "inflateDissolve";
 
-export interface AppearanceCheckOptions {
+export interface AppearanceCheckOptions extends CardLookCheckOptions {
   /** The spec of a type that is not built in (a plugin's) – `undefined` = unknown */
   spec?: (type: string) => AppearanceSpec | undefined;
   /** The plugin looks known – named in the message about an unknown type */
@@ -188,12 +192,17 @@ export const appearanceSpec = (type: string, options: AppearanceCheckOptions = {
 
 /** Problems of an experience's `appearance` (the content build, the guard, the API) */
 export const appearanceProblems = (raw: unknown, path: string, options: AppearanceCheckOptions = {}): string[] => {
-  if (!isObject(raw)) return [`${path}: expected { ${MOMENTS.join("?, ")}? }, each { type, ...parameters }`];
+  if (!isObject(raw)) return [`${path}: expected { ${MOMENTS.join("?, ")}?, ${CARD_LOOK_KEY}? }, each { type, ...parameters }`];
   const problems: string[] = [];
   for (const [moment, value] of Object.entries(raw)) {
     const at = `${path}.${moment}`;
+    // The card look (schema 6.3): checked against the card looks, not the entities' looks
+    if (moment === CARD_LOOK_KEY) {
+      problems.push(...cardLookProblems(value, at, options));
+      continue;
+    }
     if (!(MOMENTS as readonly string[]).includes(moment)) {
-      if (options.unknown !== "ignore") problems.push(`${at}: not a moment (${MOMENTS.join(", ")})`);
+      if (options.unknown !== "ignore") problems.push(`${at}: not a moment (${MOMENTS.join(", ")}) or ${CARD_LOOK_KEY}`);
       continue;
     }
     if (!isObject(value)) {

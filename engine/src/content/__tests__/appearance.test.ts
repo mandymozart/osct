@@ -22,8 +22,8 @@ describe("the experience's appearance: a look per moment (content schema 2.29)",
   it("accepts a look per moment and reports unknown moments, types, parameters and values out of range", () => {
     expect(appearanceProblems({ reveal: { type: "inflateDissolve" }, found: { type: "printLift", duration: 900 }, lost: { type: "fade" } }, "appearance")).toEqual([]);
     expect(appearanceProblems({}, "appearance")).toEqual([]);
-    expect(appearanceProblems([], "appearance")).toEqual(["appearance: expected { reveal?, found?, lost? }, each { type, ...parameters }"]);
-    expect(appearanceProblems({ unlock: { type: "fade" } }, "appearance")).toEqual(["appearance.unlock: not a moment (reveal, found, lost)"]);
+    expect(appearanceProblems([], "appearance")).toEqual(["appearance: expected { reveal?, found?, lost?, card? }, each { type, ...parameters }"]);
+    expect(appearanceProblems({ unlock: { type: "fade" } }, "appearance")).toEqual(["appearance.unlock: not a moment (reveal, found, lost) or card"]);
     expect(appearanceProblems({ found: "fade" }, "appearance")).toEqual(["appearance.found: expected { type, ...parameters }"]);
     expect(appearanceProblems({ found: { type: "swirl" } }, "appearance")).toEqual(['appearance.found.type: "swirl" is not one of inflateDissolve, printLift, fade']);
     expect(appearanceProblems({ found: { type: "fade", duration: 5, mask: "rise", later: 1 } }, "appearance")).toEqual([

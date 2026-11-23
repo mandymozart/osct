@@ -15,6 +15,7 @@ import { parseAddress } from "../../shared/types/address";
 import { BEHAVIOUR_SCOPES } from "../../shared/types/behaviour";
 import { VARIABLE_TYPES } from "../../shared/types/variables";
 import { APPEARANCE_TYPES, MOMENTS } from "../../shared/types/appearance";
+import { CARD_LOOK_KEY, CARD_LOOK_TYPES } from "../../shared/types/card-look";
 import { CONTENT_BUILD } from "../../shared/types/content-manifest";
 import { ENTRY_CATEGORIES } from "../../shared/types/entry";
 import { ENVIRONMENT_WORLDS, SKY_IMAGE_EXTENSIONS, WORLD_MODEL_EXTENSIONS } from "../../shared/types/environment";
@@ -106,6 +107,7 @@ function readPhp(): Record<string, unknown> {
       'MOMENTS' => Experiences::MOMENTS,
       'RECOGNITION_MODES' => Experiences::RECOGNITION_MODES,
       'APPEARANCE_TYPES' => Experiences::APPEARANCE_TYPES,
+      'CARD_LOOK' => [Experiences::CARD_LOOK_KEY, Experiences::CARD_LOOK_TYPES],
       'PLUGIN_PASS_TYPE' => Experiences::PLUGIN_PASS_TYPE,
       'WORLDS' => Experiences::WORLDS,
       'WORLD_MODEL_EXTENSIONS' => Experiences::WORLD_MODEL_EXTENSIONS,
@@ -195,6 +197,7 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
     expect(php.MOMENTS).toEqual([...MOMENTS]);
     expect(php.RECOGNITION_MODES).toEqual([...RECOGNITION_MODES]);
     expect(php.APPEARANCE_TYPES).toEqual([...APPEARANCE_TYPES]);
+    expect(php.CARD_LOOK).toEqual([CARD_LOOK_KEY, [...CARD_LOOK_TYPES]]);
     expect(php.WORLDS).toEqual([...ENVIRONMENT_WORLDS]);
     expect(php.WORLD_MODEL_EXTENSIONS).toEqual([...WORLD_MODEL_EXTENSIONS]);
     expect(php.SKY_IMAGE_EXTENSIONS).toEqual([...SKY_IMAGE_EXTENSIONS]);
@@ -235,6 +238,6 @@ describe.skipIf(!hasPhp)("the PHP API's copies of shared/ rules", () => {
   it("the plugin-type scanner: the same functions, the same types read from the same sources (Plugins::registers)", () => {
     expect(php.REGISTERS).toEqual(PLUGIN_REGISTER_FUNCTIONS);
     expect(php.registers).toEqual(SOURCES.map(pluginTypes));
-    expect(pluginTypes(SOURCES[2])).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [] });
+    expect(pluginTypes(SOURCES[2])).toEqual({ components: [], layers: [], nodeTypes: [], passes: [], materials: [], textures: [], appearances: [], cardLooks: [] });
   });
 });

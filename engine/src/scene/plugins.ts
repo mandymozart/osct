@@ -6,6 +6,7 @@ import {
   type AppearanceSpec,
   componentSpecProblems,
   isBuiltInAppearanceType,
+  isBuiltInCardLookType,
   type EntityData,
   type MaterialSpec,
   materialSpecProblems,
@@ -44,6 +45,7 @@ import { deleteTextureRegistration, resolveTextures, sameTextures, setTextureReg
 import {
   type AppearanceFactory, appearanceRegistration, registerAppearance, registeredAppearanceTypes, unregisterAppearancesOf,
 } from "./appearances";
+import { type CardLookFactory, cardLookRegistration, registerCardLook, registeredCardLookTypes, unregisterCardLooksOf } from "./card-looks";
 import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback, type FeedbackOptions, type OwnedFeedbacks, shadertoyFragment } from "./feedback";
 
 /**
@@ -57,6 +59,7 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  *   api.registerMaterial("water", MATERIAL_SPEC, ({ params, time, three }) => new three.ShaderMaterial({ uniforms: { time }, … }))
  *   api.registerTexture("caustics", TEXTURE_SPEC, ({ params, three }) => ({ texture: new three.CanvasTexture(canvas), update }))
  *   api.registerAppearance("softFade", LOOK_SPEC, ({ params, materials }) => ({ duration: params.duration, update: visible => … }))
+ *   api.registerCardLook("drop", CARD_SPEC, ({ scene, camera, front }) => ({ duration: 900, update: t => … }))
  *
  * – with the specs of `shared/types/components.ts` (a pass: `shared/types/passes.ts`, a node type:
  * `shared/types/node-types.ts`), so the editor's Entity panel, the content build and the guard read a plugin's
@@ -68,7 +71,8 @@ import { collectFeedbacks, createFeedback, disposePluginFeedbacks, type Feedback
  * any); a **material** (`materials.ts`) replaces the material of a node's meshes (`material: { type, params }`);
  * a **procedural texture** (`textures.ts`) is drawn by code and taken by any spec's `texture` parameter. Components
  * and layers are used in the content as `components: [{ type, … }]`, a node type as `type`. A **look** (`appearances.ts`)
- * is how an entity appears and disappears: the experience names it for a moment (`appearance: { reveal, found, lost }`).
+ * is how an entity appears and disappears: the experience names it for a moment (`appearance: { reveal, found, lost }`). A
+ * **card look** (`card-looks.ts`, API 4.1) is how the marginalia card is picked up: the experience names it in `appearance.card`.
  * Across nodes and pages a plugin uses the runtime (`plugin-runtime.ts`): `api.events` (core events of the
  * scene, scene events of the content), `api.vars` (variables in the scopes scene / stage / session / experience),
  * `api.progress` (what the reader unlocked – from the app) and `api.scene` (the current scene). A file of the experience's
@@ -241,6 +245,14 @@ export interface PluginApi {
    * `lost`. The experience names it by its type in `appearance: { reveal, found, lost }`, in a built-in look's place.
    */
   registerAppearance<const S extends AppearanceSpec>(type: string, spec: S, factory: AppearanceFactory<ParamsOf<S>>): void;
+  /**
+   * A card look of the plugin's own (API 4.1, #361): how the marginalia card is picked up – a glossary target found in
+   * scan mode flies its card, and the entry opens once it has landed. The factory runs once per flight with the AR scene,
+   * its camera, the page's anchor, the card's pictures and the resolved parameters (`CardLookContext`) and returns
+   * `{ duration, update(t, delta), dispose? }` – `t` runs from 0 to 1 over `duration`. The experience names it in
+   * `appearance.card`, in the built-in `cardFlight`'s place.
+   */
+  registerCardLook<const S extends AppearanceSpec>(type: string, spec: S, factory: CardLookFactory<ParamsOf<S>>): void;
   /** Core events of the scene (read-only) and scene events of the content */
   readonly events: PluginEvents;
   /** Variables in the scopes scene, stage, session and experience */
@@ -298,6 +310,7 @@ interface ComponentRegistration { plugin: string; spec: ComponentSpec; apply: Co
 interface LayerRegistration { plugin: string; spec: ComponentSpec; layer: LayerDefinition }
 interface PassRegistrationStaged { spec: PassSpec; factory: PassFactory }
 interface AppearanceStaged { spec: AppearanceSpec; factory: AppearanceFactory }
+interface CardLookStaged { spec: AppearanceSpec; factory: CardLookFactory }
 interface NodeTypeRegistration { plugin: string; spec: NodeTypeSpec; build: NodeTypeBuild }
 interface MaterialStaged { spec: MaterialSpec; build: MaterialBuild }
 interface TextureStaged { spec: TextureSpec; draw: TextureDraw }
@@ -398,6 +411,7 @@ const removeRegistrations = (id: string): void => {
   });
   unregisterPassesOf(id);
   unregisterAppearancesOf(id);
+  unregisterCardLooksOf(id);
   installed.delete(id);
   installedNodeTypes.delete(id);
   installedMaterials.delete(id);
@@ -415,7 +429,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   const staged: {
     components: Map<string, ComponentRegistration>; layers: Map<string, LayerRegistration>; passes: Map<string, PassRegistrationStaged>;
     nodeTypes: Map<string, NodeTypeRegistration>; materials: Map<string, MaterialStaged>; textures: Map<string, TextureStaged>;
-    appearances: Map<string, AppearanceStaged>;
+    appearances: Map<string, AppearanceStaged>; cardLooks: Map<string, CardLookStaged>;
   } = {
     components: new Map(),
     layers: new Map(),
@@ -424,6 +438,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
     materials: new Map(),
     textures: new Map(),
     appearances: new Map(),
+    cardLooks: new Map(),
   };
   // The listeners this run subscribes replace the previous run's once register succeeded
   const run = nextRun();
@@ -495,6 +510,16 @@ export const installPlugin = (id: string, module: PluginModule): void => {
       if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
       staged.appearances.set(type, { spec, factory: factory as AppearanceFactory });
     },
+    registerCardLook: (type, spec, factory) => {
+      const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component"));
+      if (isBuiltInCardLookType(type)) problems.push(`"${type}" is a built-in card look`);
+      const owner = cardLookRegistration(type)?.owner;
+      if (owner && owner !== id) problems.push(`the card look "${type}" is registered by ${owner}`);
+      if (staged.cardLooks.has(type)) problems.push(`the card look "${type}" is registered twice`);
+      if (typeof factory !== "function") problems.push(`the card look "${type}" needs a factory`);
+      if (problems.length) throw new PluginError(id, `${id}: ${problems.join("; ")}`);
+      staged.cardLooks.set(type, { spec, factory: factory as CardLookFactory });
+    },
     loadText: url => loadText(url),
     loadModel: url => loadModel(url),
     feedback: options => createFeedback(id, options),
@@ -520,6 +545,7 @@ export const installPlugin = (id: string, module: PluginModule): void => {
   });
   staged.passes.forEach(({ spec, factory }, type) => registerPass(type, spec, factory, id));
   staged.appearances.forEach(({ spec, factory }, type) => registerAppearance(type, spec, factory, id));
+  staged.cardLooks.forEach(({ spec, factory }, type) => registerCardLook(type, spec, factory, id));
   staged.nodeTypes.forEach((registration, type) => {
     failures.delete(type);
     nodeTypes.set(type, registration);
@@ -810,6 +836,7 @@ export interface PluginRegistrations {
   textures: Record<string, TextureSpec>;
   passes: Record<string, PassSpec>;
   appearances: Record<string, AppearanceSpec>;
+  cardLooks: Record<string, AppearanceSpec>;
 }
 
 /** The plugin registry as data: every installed plugin's registrations and the node types whose last build failed */
@@ -825,7 +852,7 @@ const plain = <T>(spec: T): T => JSON.parse(JSON.stringify(spec)) as T;
 export const pluginRegistrySnapshot = (): PluginRegistrySnapshot => {
   const plugins: Record<string, PluginRegistrations> = {};
   installed.forEach((types, id) => {
-    const entry: PluginRegistrations = { components: {}, layers: {}, nodeTypes: {}, materials: {}, textures: {}, passes: {}, appearances: {} };
+    const entry: PluginRegistrations = { components: {}, layers: {}, nodeTypes: {}, materials: {}, textures: {}, passes: {}, appearances: {}, cardLooks: {} };
     types.forEach(type => {
       const component = components.get(type);
       if (component?.plugin === id) entry.components[type] = plain(component.spec);
@@ -851,6 +878,10 @@ export const pluginRegistrySnapshot = (): PluginRegistrySnapshot => {
     registeredAppearanceTypes().forEach(type => {
       const registration = appearanceRegistration(type);
       if (registration?.owner === id) entry.appearances[type] = plain(registration.spec);
+    });
+    registeredCardLookTypes().forEach(type => {
+      const registration = cardLookRegistration(type);
+      if (registration?.owner === id) entry.cardLooks[type] = plain(registration.spec);
     });
     plugins[id] = entry;
   });

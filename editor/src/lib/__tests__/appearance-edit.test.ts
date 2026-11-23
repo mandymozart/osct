@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { APPEARANCES, type AppearanceSpec, type ExperienceAppearance } from "@engine/types";
+import { APPEARANCES, type AppearanceSpec, CARD_LOOKS, type ExperienceAppearance } from "@engine/types";
 import {
-  appearanceHeading, appearanceToSave, draftAppearance, inheritLabel, lookSource, momentSummary, ownLook, playedLook, playedType, sameAppearance,
+  appearanceHeading, appearanceToSave, cardSummary, draftAppearance, playedCardLook, setCardLook, setCardLookValue, inheritLabel, lookSource, momentSummary, ownLook, playedLook, playedType, sameAppearance,
   setLook, setLookValue,
 } from "../appearance-edit";
-import { lookRows, passValue } from "../values";
+import { cardLookRows, lookRows, passValue } from "../values";
 
 /** The appearance panel (#265): a look per moment, a moment without one plays found's, then the default */
 
@@ -134,5 +134,32 @@ describe("the words", () => {
     expect(appearanceHeading({ lost: { type: "fade" } })).toBe("appearance");
     expect(inheritLabel("reveal")).toBe("as found");
     expect(inheritLabel("found")).toBe("default (inflateDissolve)");
+  });
+});
+
+describe("the card look (#361): appearance.card beside the moments", () => {
+  const cardSpec = (type: string): AppearanceSpec | undefined => (CARD_LOOKS as Record<string, AppearanceSpec>)[type];
+
+  it("the draft keeps the card look, last, and saves it with the moments", () => {
+    const draft = draftAppearance({ card: { type: "cardFlight", spins: 2 }, found: { type: "fade" } });
+    expect(Object.keys(draft)).toEqual(["found", "card"]);
+    expect(appearanceToSave({ card: { type: "cardFlight" } })).toEqual({ card: { type: "cardFlight" } });
+    expect(appearanceToSave({})).toBeNull();
+  });
+
+  it("plays the default without one, never found's; a change starts from what plays", () => {
+    expect(playedCardLook({ found: { type: "fade" } })).toEqual({ type: "cardFlight" });
+    const spins = cardLookRows({ type: "cardFlight" }, cardSpec).find(row => row.id === "appearance.card.spins")!;
+    const changed = setCardLookValue({ found: { type: "fade" } }, spins, 2);
+    expect(changed).toEqual({ found: { type: "fade" }, card: { type: "cardFlight", spins: 2 } });
+    expect(passValue(changed.card!, spins)).toBe(2);
+    expect(cardSummary(changed, cardLookRows(changed.card!, cardSpec))).toBe("cardFlight · spins 2 turns");
+    expect(cardSummary({}, [])).toBe("default · cardFlight");
+  });
+
+  it("picking another card look starts at its defaults; none removes it", () => {
+    expect(setCardLook({ card: { type: "cardFlight", spins: 2 } }, "cardFlight")).toEqual({ card: { type: "cardFlight", spins: 2 } });
+    expect(setCardLook({ card: { type: "cardFlight", spins: 2 } }, "cardDrift")).toEqual({ card: { type: "cardDrift" } });
+    expect(setCardLook({ card: { type: "cardFlight" }, lost: { type: "fade" } }, null)).toEqual({ lost: { type: "fade" } });
   });
 });

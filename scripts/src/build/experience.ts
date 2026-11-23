@@ -49,8 +49,17 @@ export function checkedPasses(passes: unknown, label: string, pluginPasses: Read
  * The experience's `appearance` (schema 2.29): a look per moment, checked against the built-in looks and the looks the
  * plugins recorded (`pluginAppearances`, type → spec)
  */
-export function checkedAppearance(appearance: unknown, label: string, pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): ExperienceAppearance {
-  const problems = appearanceProblems(appearance, 'appearance', { spec: type => pluginAppearances.get(type), pluginTypes: [...pluginAppearances.keys()] });
+export function checkedAppearance(
+  appearance: unknown,
+  label: string,
+  pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map(),
+  pluginCardLooks: ReadonlyMap<string, AppearanceSpec> = new Map(),
+): ExperienceAppearance {
+  const problems = appearanceProblems(appearance, 'appearance', {
+    spec: type => pluginAppearances.get(type), pluginTypes: [...pluginAppearances.keys()],
+    // The card look (schema 6.3, #361): built in or recorded by a plugin
+    cardSpec: type => pluginCardLooks.get(type), cardPluginTypes: [...pluginCardLooks.keys()],
+  });
   return contractPart<ExperienceAppearance>(appearance, problems, label);
 }
 
@@ -86,7 +95,11 @@ const GONE = 'sourceOfTruth is gone – every experience adds and removes its sc
  * The experience (content/experience.yaml): id, title, passes, environment, appearance – and the printed book it
  * accompanies (`book:`, optional: author, publisher)
  */
-export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = new Map(), pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map()): ExperienceData {
+export function buildExperience(
+  pluginPasses: ReadonlyMap<string, PassSpec> = new Map(),
+  pluginAppearances: ReadonlyMap<string, AppearanceSpec> = new Map(),
+  pluginCardLooks: ReadonlyMap<string, AppearanceSpec> = new Map(),
+): ExperienceData {
   const label = 'experience.yaml';
   const file = path.join(CONTENT_DIR, label);
   if (!fs.existsSync(file)) {
@@ -113,7 +126,7 @@ export function buildExperience(pluginPasses: ReadonlyMap<string, PassSpec> = ne
     else if (printed) result.book = printed as BookData;
   }
   if (passes !== undefined) result.passes = checkedPasses(passes, label, pluginPasses);
-  if (appearance !== undefined) result.appearance = checkedAppearance(appearance, label, pluginAppearances);
+  if (appearance !== undefined) result.appearance = checkedAppearance(appearance, label, pluginAppearances, pluginCardLooks);
   if (logic !== undefined) result.logic = checkedLogic(logic, label, 'experience');
   // The typed variables (schema 5.0, B7): their declarations here, the rules checked against them with the whole configuration
   if (variables !== undefined) result.variables = contractPart<Record<string, VariableDeclaration>>(variables, variablesProblems(variables, 'variables'), label);

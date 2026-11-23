@@ -6,6 +6,10 @@ import { assertGameConfiguration, GameConfigurationError, MAX_NODE_DEPTH } from 
 import {
   APPEARANCE_TYPES,
   APPEARANCES,
+  CARD_LOOK_KEY,
+  CARD_LOOK_TYPES,
+  CARD_LOOKS,
+  DEFAULT_CARD_LOOK_TYPE,
   appearanceProblems,
   type AppearanceSpec,
   ASSET_TYPES,
@@ -65,6 +69,8 @@ export interface KnownPluginTypes {
   passes: string[];
   /** looks an entity appears with (`registerAppearance`, a `experience.appearance` moment), the same way */
   appearances: string[];
+  /** card looks (`registerCardLook`, `experience.appearance.card` – #361), the same way */
+  cardLooks: string[];
   /**
    * every plugin's registrations are known: each declared plugin recorded them and the experience has no Code tab
    * source (a source's types are read from its text, which may miss one) – a type outside the lists is then a typo
@@ -83,6 +89,7 @@ export function knownPluginTypes(experience: ExperienceModel): KnownPluginTypes 
     textures: unique([...recorded.flatMap(r => Object.keys(r.textures ?? {})), ...experience.sources.flatMap(s => s.textures)]),
     passes: unique([...recorded.flatMap(r => Object.keys(r.passes ?? {})), ...experience.sources.flatMap(s => s.passes)]),
     appearances: unique([...recorded.flatMap(r => Object.keys(r.appearances ?? {})), ...experience.sources.flatMap(s => s.appearances)]),
+    cardLooks: unique([...recorded.flatMap(r => Object.keys(r.cardLooks ?? {})), ...experience.sources.flatMap(s => s.cardLooks)]),
     complete: experience.declared.every(plugin => plugin.registered) && experience.sources.length === 0,
   };
 }
@@ -120,7 +127,8 @@ export function checkPasses(passes: unknown, path: string, experience?: Experien
 /** An experience's `appearance` names a look that is not built in – only then the experience's plugins matter */
 export function usesPluginAppearances(appearance: unknown): boolean {
   if (typeof appearance !== "object" || appearance === null) return false;
-  return Object.values(appearance).some(look => typeof look?.type === "string" && !(APPEARANCE_TYPES as readonly string[]).includes(look.type));
+  return Object.entries(appearance).some(([key, look]) => typeof look?.type === "string"
+    && !((key === CARD_LOOK_KEY ? CARD_LOOK_TYPES : APPEARANCE_TYPES) as readonly string[]).includes(look.type));
 }
 
 /**
@@ -133,18 +141,29 @@ export function checkAppearance(appearance: unknown, path: string, experience?: 
   const specs = new Map<string, AppearanceSpec>(
     (experience?.declared ?? []).flatMap(plugin => Object.entries(plugin.registered?.appearances ?? {})),
   );
-  const fromSources = new Set((experience?.sources ?? []).flatMap(source => source.appearances));
+  // The card look (#361): its own specs and types, the same way
+  const cardSpecs = new Map<string, AppearanceSpec>(
+    (experience?.declared ?? []).flatMap(plugin => Object.entries(plugin.registered?.cardLooks ?? {})),
+  );
+  const fromSources = new Set((experience?.sources ?? []).flatMap(source => [...source.appearances, ...source.cardLooks]));
   const unrecorded = (experience?.declared ?? []).some(plugin => !plugin.registered);
-  const known = experience ? knownPluginTypes(experience).appearances : [];
+  const known = experience ? knownPluginTypes(experience) : undefined;
   const allowed = (type: string) => fromSources.has(type) || (unrecorded && COMPONENT_TYPE_PATTERN.test(type));
-  const problems = appearanceProblems(appearance, path, { spec: type => specs.get(type), pluginTypes: known })
+  const problems = appearanceProblems(appearance, path, {
+    spec: type => specs.get(type), pluginTypes: known?.appearances ?? [],
+    cardSpec: type => cardSpecs.get(type), cardPluginTypes: known?.cardLooks ?? [],
+  })
     .filter(problem => {
       const type = /\.type: "([^"]*)" is not one of/.exec(problem)?.[1];
       return type === undefined || !allowed(type);
     });
-  const looks = typeof appearance === "object" && appearance !== null ? Object.values(appearance) : [];
-  const unverified = [...new Set(looks.map(look => look?.type).filter((type): type is string =>
-    typeof type === "string" && !(APPEARANCE_TYPES as readonly string[]).includes(type) && !specs.has(type) && allowed(type)))];
+  const looks = typeof appearance === "object" && appearance !== null ? Object.entries(appearance) : [];
+  const unverified = [...new Set(looks.flatMap(([key, look]) => {
+    const type = look?.type;
+    const card = key === CARD_LOOK_KEY;
+    const builtIn = (card ? CARD_LOOK_TYPES : APPEARANCE_TYPES) as readonly string[];
+    return typeof type === "string" && !builtIn.includes(type) && !(card ? cardSpecs : specs).has(type) && allowed(type) ? [type] : [];
+  }))];
   return { problems, unverified };
 }
 
@@ -271,7 +290,7 @@ export function usesPluginTypes(entity: unknown): boolean {
 }
 
 /** The recorded specs of a kind, type → the spec with the plugin that registers it */
-const recordedSpecs = (experience: ExperienceModel, kind: "components" | "nodeTypes" | "passes" | "materials" | "textures" | "appearances") =>
+const recordedSpecs = (experience: ExperienceModel, kind: "components" | "nodeTypes" | "passes" | "materials" | "textures" | "appearances" | "cardLooks") =>
   Object.fromEntries(experience.declared.flatMap(plugin => Object.entries(plugin.registered?.[kind] ?? {}).map(([type, spec]) => [type, { plugin: plugin.id, ...spec }])));
 
 /** The static model (the contract) and, with an experience, what its plugins add */
@@ -402,11 +421,18 @@ export function describeContentModel(experience?: ExperienceModel): Record<strin
       description:
         "How an AR entity appears and disappears (content schema 2.29, put_experience_appearance): experience.appearance { reveal?, found?, lost? }, each a look { type, …params } like a pass – reveal = the first find of a target (the entry is unlocked with it), found = every later find, lost = the target is lost (its look plays rewound, in the look's outDuration). " +
         `A moment without a look takes found's, and without that ${DEFAULT_APPEARANCE_TYPE}; an experience without appearance plays ${DEFAULT_APPEARANCE_TYPE} everywhere. ` +
-        "The built-in looks share one set of parameters and differ in their defaults (builtIn: each look's params with its defaults); write only the values that differ. A look a plugin of the experience registers (api.registerAppearance, plugin API 1.8) is named the same way, its parameters checked against the recorded spec; the publish refuses a look no compiled plugin provides (409 unknown-appearances). An app before 2.29 ignores the field and plays its own animation.",
+        "The built-in looks share one set of parameters and differ in their defaults (builtIn: each look's params with its defaults); write only the values that differ. A look a plugin of the experience registers (api.registerAppearance, plugin API 1.8) is named the same way, its parameters checked against the recorded spec; the publish refuses a look no compiled plugin provides (409 unknown-appearances). An app before 2.29 ignores the field and plays its own animation. " +
+        "card (content schema 6.3, #361): experience.appearance.card – the card look the marginalia card is picked up with (a glossary target found in the reader's scan flies its card to the screen, the entry opens over it): { type, …params }, experience-wide, no moment of an entity (never takes found's). " +
+        `Without it ${DEFAULT_CARD_LOOK_TYPE} plays at its defaults (card.builtIn); a card look a plugin registers (api.registerCardLook, plugin API 4.1) is named the same way – the publish refuses one no compiled plugin provides (409 unknown-card-looks). An app before 6.3 drops the field and flies its own card.`,
       moments: MOMENTS,
       default: DEFAULT_APPEARANCE_TYPE,
       builtIn: APPEARANCES,
       ...(experience ? { plugins: recordedSpecs(experience, "appearances"), known: known!.appearances } : {}),
+      card: {
+        default: DEFAULT_CARD_LOOK_TYPE,
+        builtIn: CARD_LOOKS,
+        ...(experience ? { plugins: recordedSpecs(experience, "cardLooks"), known: known!.cardLooks } : {}),
+      },
     },
     environment: {
       description:

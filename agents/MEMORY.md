@@ -4,6 +4,21 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – The card pick-up is a card look a plugin can replace (6.13.0, schema 6.3, plugin API 4.1, #361)
+- Tilman asked whether a plugin can replace the built-in card pick-up (it could not: `CardFlight` was hard-coded in
+  `ar-scene.ts` `flyCard`). Decided (Tilman, 2026-11-23): *"yes, do it registerCardLook"* – a register call of its own,
+  not `registerAppearance` with a moment `card` (a card look gets the AR scene, the camera, the page and pictures; an entity
+  look gets an object and its materials) · *"experience wide for now"* – `appearance.card` only, no per-entry override.
+- Built: `shared/types/card-look.ts` (`CARD_LOOKS.cardFlight` with the flight's constants as parameters: near, far, fill,
+  lift, spins, impact, rumble – the defaults are the flight as it was), `appearance.card` checked by `appearanceProblems`
+  against the card looks (not a `MOMENTS` entry, never falls back to `found`), `registered.cardLooks`, PHP
+  `Experiences::CARD_LOOK_TYPES` + 409 `unknown-card-looks`, engine `card-looks.ts` (`playCardLook`: a plugin's look driven
+  by `t` over its duration, errors end the flight; an unregistered type plays the built-in), the editor's appearance panel
+  *card* section with *play* (`stage.playCard()` flies a shown target's card), MCP schema + model, demo `plugins/card`
+  (`cardDrift`, named by the demo's `appearance.card`).
+- Open: a per-entry card look (an entry's own override) if a book needs one; the editor's *play* flies without the book's
+  cover as the back and without the entry's own picture (the reader's bridge resolves both).
+
 ## 2026-11-23 – Step 2: the landing's hero is picked in the editor, publish writes landing.json (6.10.0, schema 6.1, #355)
 - Tilman: *"the landing page hero needs only a specific target on a surface on a scene to show of how they work. so that
   data can be extracted in the editor to fill in the data needed to build the landing page."* · *"the landing.json is

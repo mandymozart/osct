@@ -53,6 +53,7 @@ export const declaredRegistrations = (entry: SnapshotEntry): PluginRegistrations
   materials: { ...entry.materials },
   textures: { ...entry.textures },
   ...(Object.keys(entry.appearances ?? {}).length ? { appearances: { ...entry.appearances } } : {}),
+  ...(Object.keys(entry.cardLooks ?? {}).length ? { cardLooks: { ...entry.cardLooks } } : {}),
 });
 
 /** Type problems as the publish says them: the first, and how many more */

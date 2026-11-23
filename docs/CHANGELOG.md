@@ -8,6 +8,20 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.13.0 – 2026-11-23
+
+### Added
+- **A plugin can replace the card pick-up** (#361, content schema 6.3, plugin API 4.1): how the marginalia card flies
+  from the page to the screen is now the experience's **card look**, `appearance.card`. The built-in `cardFlight` is the
+  flight as before, now with values the experience can change: flight time near / far, how much of the screen it fills,
+  lift, spins, impact and vibration. A plugin brings its own with `api.registerCardLook(type, spec, factory)`, which gets
+  the AR scene, the camera, the page and the card's pictures, and returns `{ duration, update(t), dispose }`. The content
+  build records it (`registered.cardLooks`), the API and the MCP's `put_experience_appearance` accept it, and the publish
+  refuses one no compiled plugin provides (409 `unknown-card-looks`). The editor's appearance section has a *card* part
+  with its picker, its rows and *play*, which flies a shown target's card on the stage. The demo's `plugins/card` is one to
+  copy (`cardDrift`: the card floats up, rocks like a leaf and glides to the screen). An app of 6.2 drops the field and
+  flies its own card. Docs: content "How the card is picked up", plugins "A card look", the documentation site.
+
 ## 6.12.1 – 2026-11-23
 
 ### Changed

@@ -28,7 +28,7 @@ final class Editor
      * experience of an older MAJOR is refused (`Db::migrate` turns every stored 4.x experience into 6.0 – `Migration5`, #334 –
      * and every 5.x one – `Migration6`, #341)
      */
-    public const CONTENT_SCHEMA = '6.2';
+    public const CONTENT_SCHEMA = '6.3';
     /**
      * The levels a picture, video or sound may hold (shared/types/media-levels.ts `MEDIA_LEVELS`, schema 4.3, #331): image
      * px (longest side), video height, audio kbps
@@ -198,7 +198,7 @@ final class Editor
     }
 
     /**
-     * The types of a kind (`materials`, `passes`, `appearances`) a save in this experience accepts: from the compiled plugins its
+     * The types of a kind (`materials`, `passes`, `appearances`, `cardLooks`) a save in this experience accepts: from the compiled plugins its
      * configuration declares and its Code tab sources (`typesOf`)
      * @return bool|list<string>
      */
@@ -228,11 +228,11 @@ final class Editor
      * (shared/types/plugins.ts `recordedRegistrations`) – null when one of them recorded nothing (an older build: what it
      * registers is known only when it runs). No plugins: nothing registered.
      * @param array<mixed> $declared
-     * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>, materials: list<string>, textures: list<string>, appearances: list<string>}|null
+     * @return array{components: list<string>, nodeTypes: list<string>, passes: list<string>, materials: list<string>, textures: list<string>, appearances: list<string>, cardLooks: list<string>}|null
      */
     public static function recorded(array $declared): ?array
     {
-        $recorded = ['components' => [], 'nodeTypes' => [], 'passes' => [], 'materials' => [], 'textures' => [], 'appearances' => []];
+        $recorded = ['components' => [], 'nodeTypes' => [], 'passes' => [], 'materials' => [], 'textures' => [], 'appearances' => [], 'cardLooks' => []];
         foreach ($declared as $plugin) {
             $registered = $plugin instanceof stdClass ? ($plugin->registered ?? null) : null;
             if (!$registered instanceof stdClass) return null;

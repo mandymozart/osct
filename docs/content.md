@@ -722,6 +722,36 @@ a node with a look of its own animates its subtree with it, at the same moment b
 turning) around its own footprint – while the rest of the entity plays the root's look; a child's moment without a look of
 its own is part of its parent's animation.
 
+### How the card is picked up: `appearance.card`
+
+A glossary target found in the reader's scan flies its **marginalia card** (#285): the printed picture leaves the page,
+lands on the screen, becomes the entry's own picture there, and the entry opens over it. How it flies is the experience's
+**card look** (content schema 6.3, #361) – a fourth key of `appearance`, experience-wide:
+
+```yaml
+appearance:
+  found: { type: printLift }
+  card:  { type: cardFlight, spins: 2, rumble: false }   # the built-in flight, two turns, no vibration
+```
+
+`card` is no moment of an entity: no node names it, and it never falls back to `found`. Without it the built-in
+`cardFlight` plays at its defaults (`shared/types/card-look.ts`):
+
+| Parameter | Default | What it is |
+|---|---|---|
+| `near`, `far` | 800, 1200 ms | the flight's time from a page about as close as the landing, and from one three landing distances away and more – in between in proportion |
+| `fill` | 0.62 | share of the screen's width and height the card fills when it lands |
+| `lift` | 0.6 widths | how far the card rises off the page before it turns towards the reader |
+| `spins` | 1 turn | turns about its vertical axis on the way (the back shows, then the front again); 0 = none |
+| `impact` | 480 ms | the slap after the landing – pushed at the reader, bounced back, shaken; 0 = it just lands |
+| `rumble` | true | the phone vibrates once when the card lands |
+
+A card look of the experience's own code – a plugin's, `api.registerCardLook` – is named the same way, by its type with
+its own parameters ([plugins](plugins.md), "A card look"); the demo's `plugins/card` is one (`cardDrift`). The editor sets
+it in the appearance section's *card* ([editor](editor.md) "Appearance"), an AI connection with
+`put_experience_appearance` ([MCP](mcp.md)). The publish refuses a card look no compiled plugin provides
+(409 `unknown-card-looks`). An app before 6.3 drops the field and flies its own card.
+
 ## Scenes
 
 `content/scenes/<id>/scene.yaml` – content schema 3.0 (#319, `agents/SCENES.md` "Schema 3.0"). A **scene** is one step
@@ -1121,6 +1151,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 6.0 | 6.0.0 | in develop | **listen, not hear** (#341, plugin API 4.0 – Tilman, 2026-11-21: *"you use the word hear for events. i think it is listen"*): a plugin's recorded spec names what its code listens to `uses.listens` (was `uses.hears`: `{ listens, emits, reads, sets }`). A plugin source is rewritten with `osct plugins listen` (`--dir <content folder>`; `--experience <id>` / `--all` the instance's database through the editor API, `--dry-run` first), the server's rows by `Migration6` (the deploy's `Db::migrate`: 5.x experiences → 6.0, the declared plugins' recorded `uses`; a dry run: `php server/deploy/migrate.php --plan-6`) | refused: an app since 6.0 reads 6.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 6) and refuses plugins built against plugin API 3.x; a 5.x app refuses 6.0 content – every published experience is published again after the migration |
 | 6.1 | 6.10.0 | in develop | **the landing's hero** (#355, [editor](editor.md) "The landing's hero"): the experience's optional `landing` – `{ scene, target }` by id, a target with AR content (a model, a video, a component) on that scene (its surface is the hero's), and what the editor (or the content build, or the MCP's `put_experience_landing`) extracted from it: `hero` (the `LandingHeroData` of `landing.json`) and the print layout's `cover`. Publish writes the version's `landing.json` from it | ignored: the landing derives its hero from the configuration as before |
 | 6.2 | 6.11.0 | in develop | **a plugin is a folder of files** (#352, [plugins](plugins.md) "A plugin of several files"): `index.ts` and the TypeScript and shader files next to it (`shared/types/plugins.ts` the names and limits, `shared/types/plugin-shader-files.d.ts` a shader import's type). The content build bundles the folder (a shader as a string) and writes `files.json` next to `plugin.js`; the configuration's `plugins` list is unchanged | not touched: a plugin still arrives as one module |
+| 6.3 | 6.13.0 | in develop | **the card look** (#361, "How the card is picked up" above): the experience's `appearance.card` – how the marginalia card is picked up, `{ type, …parameters }`: the built-in `cardFlight` with its values (`near`, `far`, `fill`, `lift`, `spins`, `impact`, `rumble`) or a plugin's card look (`registered.cardLooks`, plugin API 4.1 `registerCardLook`) | dropped (forward compatibility): the app flies its own card |
 
 Several schema bumps may share one app version. Each bump gets its own row when it merges, and a rebase that meets
 another bump takes the next free number. *released* = on production (`main`), *in develop* = on staging only.

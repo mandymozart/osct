@@ -18,6 +18,7 @@ import {
 import type { EntityData } from '../../../shared/types/game-config';
 import { isBuiltInPassType } from '../../../shared/types/passes';
 import { isBuiltInAppearanceType, registerAppearanceSpec } from '../../../shared/types/appearance';
+import { isBuiltInCardLookType, registerCardLookSpec } from '../../../shared/types/card-look';
 import { CLIENT_PUBLIC_ASSETS_DIR, CONTENT_DIR, projectRoot } from '../config';
 import { buildErrors, buildWarnings, messageOf } from '../lib/errors';
 import type { PluginApi } from '../../../engine/src/scene/plugins';
@@ -206,7 +207,7 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'osct-plugin-')), `${id}.mjs`);
   fs.writeFileSync(file, code);
   const types: string[] = [];
-  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {}, materials: {}, textures: {}, appearances: {} };
+  const registered: Required<PluginRegistrations> = { components: {}, nodeTypes: {}, passes: {}, materials: {}, textures: {}, appearances: {}, cardLooks: {} };
   const record: PluginRecord = { types, registered };
   const take = (type: string, spec: ComponentSpec) => {
     const problems = componentSpecProblems(type, spec);
@@ -274,6 +275,22 @@ export async function recordPlugin(id: string, code: string, taken: Map<string, 
         registered.appearances[type] = plain(passSpec(spec));
         // The entities' own looks (`reveal`, `found`, `lost` components) are checked against it
         registerAppearanceSpec(type, registered.appearances[type]);
+      },
+      // A card look (API 4.1, #361): as a look – the experience names it in `appearance.card` (schema 6.3)
+      registerCardLook: (type: string, spec: ComponentSpec, factory: unknown) => {
+        const problems = componentSpecProblems(type, spec).filter(problem => !problem.endsWith('is a built-in component'));
+        const key = `card:${type}`;
+        if (isBuiltInCardLookType(type)) problems.push(`the card look "${type}" is a built-in card look`);
+        if (taken.has(key) && taken.get(key) !== id) problems.push(`the card look "${type}" is registered by the plugin ${taken.get(key)} too`);
+        if (typeof factory !== 'function') problems.push(`the card look ${type} needs a factory`);
+        if (problems.length) {
+          problems.forEach(problem => buildErrors.push(`plugins/${id}: ${problem}`));
+          return;
+        }
+        taken.set(key, id);
+        types.push(type);
+        registered.cardLooks[type] = plain(passSpec(spec));
+        registerCardLookSpec(type, registered.cardLooks[type]);
       },
       // A node type (API 1.2): its spec joins the registry, so the nodes of that type are checked (params, src)
       registerNodeType: (type: string, spec: NodeTypeSpec, build: unknown) => {
@@ -376,11 +393,12 @@ export async function buildPlugins(): Promise<PluginBuild[]> {
     if (code === null) continue;
     const { types, registered } = await recordPlugin(id, code, taken);
     console.log(`   ${id}: ${Math.round(code.length / 1024)} KB${types.length ? ` – ${types.join(', ')}` : ''}`);
-    // Materials and textures (API 1.4) and looks (API 1.8) only when the plugin registers some
-    const { materials, textures, appearances, ...kinds } = registered;
+    // Materials and textures (API 1.4), looks (API 1.8) and card looks (API 4.1) only when the plugin registers some
+    const { materials, textures, appearances, cardLooks, ...kinds } = registered;
     const recorded: PluginRegistrations = {
       ...kinds, ...(Object.keys(materials).length ? { materials } : {}), ...(Object.keys(textures).length ? { textures } : {}),
       ...(Object.keys(appearances).length ? { appearances } : {}),
+      ...(Object.keys(cardLooks).length ? { cardLooks } : {}),
     };
     builds.push({ data: { id, src: `/assets/content/${PLUGINS_DIR}/${id}/plugin.js`, api: PLUGIN_API_VERSION, registered: recorded }, code, files: pluginFilesOf(path.dirname(entry)).map(f => f.name) });
   }

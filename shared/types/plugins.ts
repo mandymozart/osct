@@ -27,6 +27,8 @@
  * number parameter's `slider` (soft range) and `integer`.
  * **4.0** (content schema 6.0, #341, no alias – Tilman: "i think it is listen"): a spec's bus use names what its code
  * listens to `uses.listens` (was `uses.hears`) – a plugin built against 3.x is not loaded until it is built again.
+ * **4.1** (content schema 6.3, #361): `api.registerCardLook` – how the marginalia card is picked up, in code
+ * (`./card-look.ts`); recorded as `registered.cardLooks`.
  *
  * What a plugin registers is recorded by the content build (content schema 2.14, #90): it runs every plugin once with a
  * recording API and writes the specs into the plugin's `registered` – so the guard, the editor's API, the MCP server and
@@ -38,11 +40,12 @@
 import { componentSpecProblems, declaresLogic, type ComponentSpec, type SpecLogic } from "./components";
 import { nodeTypeSpecProblems, type NodeTypeSpec } from "./node-types";
 import { type AppearanceSpec, isBuiltInAppearanceType } from "./appearance";
+import { isBuiltInCardLookType } from "./card-look";
 import { isBuiltInPassType, type PassSpec } from "./passes";
 import { materialSpecProblems, textureSpecProblems, type MaterialSpec, type TextureSpec } from "./materials";
 import { isObject } from "../guards/primitives";
 
-export const PLUGIN_API_VERSION = "4.0";
+export const PLUGIN_API_VERSION = "4.1";
 
 /**
  * What a plugin registered, as the content build recorded it (schema 2.14); a missing kind = none of it. Since schema 5.1
@@ -62,6 +65,8 @@ export interface PluginRegistrations {
   textures?: Record<string, TextureSpec>;
   /** Its looks (`registerAppearance`, API 1.8 – schema 2.29), type → spec */
   appearances?: Record<string, AppearanceSpec>;
+  /** Its card looks (`registerCardLook`, API 4.1 – schema 6.3), type → spec */
+  cardLooks?: Record<string, AppearanceSpec>;
 }
 
 /** A plugin as the game configuration declares it */
@@ -100,11 +105,11 @@ export const pluginProblems = (raw: unknown, path = "plugins"): string[] => {
   return problems;
 };
 
-const KINDS = ["components", "nodeTypes", "passes", "materials", "textures", "appearances"] as const;
+const KINDS = ["components", "nodeTypes", "passes", "materials", "textures", "appearances", "cardLooks"] as const;
 
 /** Problems of a plugin's recorded `registered`: every spec checked as the engine checks it when the plugin registers it */
 export const registrationProblems = (raw: unknown, path: string): string[] => {
-  if (!isObject(raw)) return [`${path}: expected { components?, nodeTypes?, passes?, materials?, textures?, appearances? }`];
+  if (!isObject(raw)) return [`${path}: expected { components?, nodeTypes?, passes?, materials?, textures?, appearances?, cardLooks? }`];
   const problems: string[] = [];
   const checks: Record<(typeof KINDS)[number], (type: string, spec: unknown) => string[]> = {
     components: componentSpecProblems,
@@ -120,6 +125,11 @@ export const registrationProblems = (raw: unknown, path: string): string[] => {
     appearances: (type, spec) => [
       ...componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component")),
       ...(isBuiltInAppearanceType(type) ? [`"${type}" is a built-in look`] : []),
+    ],
+    // A card look's spec as a look's; never a built-in card look's name
+    cardLooks: (type, spec) => [
+      ...componentSpecProblems(type, spec).filter(problem => !problem.endsWith("is a built-in component")),
+      ...(isBuiltInCardLookType(type) ? [`"${type}" is a built-in card look`] : []),
     ],
   };
   for (const kind of KINDS) {
@@ -142,6 +152,7 @@ export interface RecordedRegistrations {
   materials: Map<string, MaterialSpec>;
   textures: Map<string, TextureSpec>;
   appearances: Map<string, AppearanceSpec>;
+  cardLooks: Map<string, AppearanceSpec>;
   /**
    * Every declared plugin recorded what it registers: a type outside the maps is registered by none of them. False when
    * one recorded nothing (an older build – what it registers is known only when it runs) or there is no list
@@ -154,6 +165,7 @@ export const recordedRegistrations = (plugins: unknown): RecordedRegistrations =
   const recorded = {
     components: new Map<string, unknown>(), nodeTypes: new Map<string, unknown>(), passes: new Map<string, unknown>(),
     materials: new Map<string, unknown>(), textures: new Map<string, unknown>(), appearances: new Map<string, unknown>(),
+    cardLooks: new Map<string, unknown>(),
     complete: Array.isArray(plugins),
   };
   for (const plugin of Array.isArray(plugins) ? plugins : []) {

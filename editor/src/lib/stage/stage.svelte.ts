@@ -286,6 +286,11 @@ export class Stage {
     this.core.overrideAppearance({ appearance });
   }
 
+  /** Play the card look on the stage (#361): a shown target flies its card */
+  playCard(): Promise<boolean> {
+    return this.core.playCard();
+  }
+
   /** Play a moment's look on the stage's shown targets: the first find, a later find, the page lost */
   playMoment(moment: Moment): void {
     this.core.playMoment(moment);

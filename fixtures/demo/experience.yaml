@@ -13,6 +13,9 @@ appearance:
     type: printLiftCode
   lost:
     type: fadeCode
+  # How the marginalia card is picked up (#361): a card look of plugins/card instead of the built-in cardFlight
+  card:
+    type: cardDrift
 variables:
   hasKey:
     type: boolean

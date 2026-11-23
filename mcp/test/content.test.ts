@@ -513,7 +513,7 @@ describe("the content tools", () => {
 
   it("describe_content_model explains an entry's Markdown and variables, the experience with its printed book and that the onboarding is the app's (#223, #236, #320)", async () => {
     const model = (await rec.call("describe_content_model", {})).data;
-    expect(model.contentSchema).toBe("6.2");
+    expect(model.contentSchema).toBe("6.3");
     expect(model.spread).toBeUndefined();
     expect(model.book).toBeUndefined();
     expect(model.experience.description).toContain("book = BookData { author, publisher? }");
@@ -640,7 +640,7 @@ describe("the content tools", () => {
     expect(experience.data.components.plugins.tint).toMatchObject({ plugin: "tint", params: { opacity: { min: 0, max: 1 } } });
     expect(experience.data.entity.pluginNodeTypes.recorded.sparkle).toMatchObject({ plugin: "tint", params: { count: { max: 500 } } });
     expect(experience.data.entity.pluginNodeTypes.known).toEqual(["sparkle", "beam"]);
-    expect(experience.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [], appearances: ["popIn"] }]);
+    expect(experience.data.components.codeTabSources).toEqual([{ id: "glow", components: [], layers: ["glow"], nodeTypes: ["beam"], passes: [], materials: [], textures: [], appearances: ["popIn"], cardLooks: [] }]);
   });
 
   it("put_scene: the scene's own passes, checked before they are sent", async () => {

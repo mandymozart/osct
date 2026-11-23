@@ -52,7 +52,7 @@ describe("pluginRegistrySnapshot", () => {
     const snapshot = pluginRegistrySnapshot();
     expect(snapshot.plugins.fx).toEqual({
       components: { spin: SPIN }, layers: { tint: TINT }, nodeTypes: { sparkle: SPARKLE }, materials: { water: WATER }, textures: { caustics: CAUSTICS }, passes: { halo: HALO },
-      appearances: { softFade: SOFT_FADE },
+      appearances: { softFade: SOFT_FADE }, cardLooks: {},
     });
     // Copies – the plugin's own objects stay its own
     expect(snapshot.plugins.fx.components.spin).not.toBe(SPIN);
