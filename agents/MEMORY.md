@@ -4,6 +4,19 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-23 – Plugin development with an agent: a tutorial, not a kit (#363)
+- Tilman wants artists to develop and fine-tune plugins locally with Claude Code (or another agent), as he tunes looks in
+  `sandbox/`. Decided (Tilman, 2026-11-23): no maintained sandbox or starter repository – *"claude or other agents can pick
+  their own local framework … as agents evolve the sandbox might get outdated and it is usually super fast built"*, then
+  *"we can put this in the docs as a tutorial rather than an entire repo"*, titled *"Plugin Development with Agent"*.
+- Built: `docs/plugins.md` "Plugin development with an agent" – connect the MCP server, a folder from the Code tab's
+  Download (or `osct plugin link`), an `AGENTS.md` block of rules to copy, the questions to ask the artist and the register
+  call each answer leads to, the agent's own throwaway `harness/` (`sandbox/reveal` as the reference for the reader's
+  conditions), the hand-off with `put_plugin` / `push --watch` and the stage as the check. Agents get it as
+  `osct://guides/plugins`.
+- Open: an MCP prompt (`plugin-starter`) that starts this interview from the client's prompt menu, if the tutorial alone
+  is not enough; a page of the documentation site (#336).
+
 ## 2026-11-23 – The card pick-up is a card look a plugin can replace (6.16.0, schema 6.3, plugin API 4.1, #361)
 - Tilman asked whether a plugin can replace the built-in card pick-up (it could not: `CardFlight` was hard-coded in
   `ar-scene.ts` `flyCard`). Decided (Tilman, 2026-11-23): *"yes, do it registerCardLook"* – a register call of its own,

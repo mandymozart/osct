@@ -517,6 +517,82 @@ with every save, and `pull` takes theirs back. The folder's own files (`plugin-a
 `tsconfig.json`, a README) are not the plugin's and stay at home. No version numbers of our own: History is the
 history, the published module carries its hash; semver, if you want one, lives in your repository.
 
+## Plugin development with an agent (#363)
+
+An artist who tunes an animation or an effect can work with an AI agent – Claude Code, Codex, Cursor, any agent that
+edits files and runs commands – on their own computer. There is no kit or sandbox repository to download (Tilman,
+2026-11-23: *"we can put this in the docs as a tutorial rather than an entire repo"*): the agent builds the small
+preview it needs in minutes, and the plugin's API types come from the editor, so nothing goes stale. This section is
+the tutorial – the agent reads it as `osct://guides/plugins` through the MCP server, the artist reads it here.
+
+**1 · Connect the agent.** Connect the agent to the instance's MCP server ([mcp](mcp.md): the editor's experiences page,
+*AI connections – Connect an AI agent*, shows the setup for each client). The MCP server serves this guide and saves the
+plugin into the experience's draft (`put_plugin`); the agent then starts with `whoami` and `list_experiences`.
+
+**2 · Make a folder.** One folder per plugin, anywhere on the computer:
+
+- **The editor's Download** (the Code tab, a plugin's **Download**, or **new** first and then Download): a zip with the
+  plugin's files, `plugin-api.d.ts`, `shader-files.d.ts` and `tsconfig.json`. Unpack it into the folder.
+- **Or, with a checkout of the repository**: `osct plugin link <experience> ./<folder>` writes the same files, and
+  `osct plugin push ./<folder> --watch` later sends every change to the stage ("Your own folder" above).
+
+Then `npm install --save-dev typescript @types/three@0.174 three@0.174` – the reader's three.js version (the engine's
+`package.json`), for the types and for the agent's own preview. `npx tsc --noEmit` checks the plugin as the content build
+and the Publish do.
+
+**3 · Give the folder its rules.** Copy this into an `AGENTS.md` (and a `CLAUDE.md` that says *read AGENTS.md*) next to
+the plugin – the agent reads it at every start:
+
+```markdown
+# An OSCT plugin
+
+- The plugin is `index.ts` (it exports `register(api)`) and the `.ts` / `.frag` / `.vert` / `.glsl` / `.wgsl` files next
+  to it. The guide is osct://guides/plugins (the MCP server) – read it before writing code.
+- Import nothing but the plugin's own files (`./name`) and `import type`. three.js is `api.three` (or the context's
+  `three`), never `import "three"` – the build refuses a second three.js.
+- Type names in camelCase. Every parameter the author should tune goes into the spec, with `min`, `max`, a `default`, a
+  `description` and a short `label` – the editor builds its controls from it.
+- It runs on a phone: few draw calls, no allocation per frame, a feedback buffer at 256² first, at most 256 KB bundled.
+  Dispose what you create in `dispose`.
+- A layer's GLSL works in linear RGB; a ShaderMaterial ends with `#include <colorspace_fragment>`.
+- Borrowed code (Shadertoy, GitHub) keeps its author, link and licence at the top of its file.
+- `harness/` is my preview only – throwaway, never part of the plugin. The editor's stage decides how it looks.
+- `npx tsc --noEmit` before every hand-off. Save to the experience with put_plugin only when I ask; never publish.
+```
+
+**4 · Ask before writing.** The agent's first job is to find out what the plugin is. The questions, and where the
+answers lead:
+
+| Ask | The answer decides |
+| --- | --- |
+| What should change: how something **looks**, what it **does**, what it **is**, the **whole picture**, how it **appears or disappears**, the **card's** pick-up? | the register call: a layer (`registerLayer`) or a whole material (`registerMaterial`) · a component · a node type · a pass · a look (`registerAppearance`) · a card look ("Where a plugin can go" above) |
+| On what – a video, an image, a model, text, something new? Which experience and scene? | `nodeTypes` in the spec, `src` of a node type; `get_scene` shows what is there |
+| How should it feel? Timing, references (a video, a Shadertoy, a drawing), what happens on found, lost, a tap? | the hooks (`update`, `onFound`, `onLost`, `onTap`), the look's duration, the easing |
+| What should the author tune in the editor, and within which range? | the spec's parameters: kinds, `min` / `max`, `slider`, defaults |
+| Does it react to the story – a rule, another node, a variable? | `actions`, `events`, `uses` ("Typed specs and the Logic view") – or a `behaviour` rule and no code ("Behaviour and plugins") |
+| Which files: a model, a picture, a shader, borrowed code? | `model` / `texture` parameters (the Library), files of the plugin, the credit |
+
+It then writes the spec first and shows it – the parameters are what the artist will tune, so they are agreed before
+the code.
+
+**5 · Let the agent build its own preview.** For quick turns – a slider, a reload in a second – the agent writes a page
+of its own in `harness/` (Vite and three.js are enough): a camera, a plane or a model in the place of the page, the
+plugin's `register` called with a small stand-in `api` that runs what the plugin registers, and controls made from the
+spec. It is meant to be thrown away and rebuilt as needed. Two things keep it honest:
+
+- **The reader's conditions**: a transparent renderer (antialias, pixel ratio at most 2), linear colour, the page 1 unit
+  wide with y towards the page's top and z out of it, a 60° camera, a hand-held wobble. `sandbox/reveal/` in the
+  repository is the reference for how the engine's own sandboxes set this up (its README: "What is the reader's, what
+  is simulated").
+- **It only approximates**: the engine's lights, bloom, placement and the camera picture are the reader's. The check
+  is the editor's stage – step 6.
+
+**6 · Hand it over, look at it on the stage.** `put_plugin` (the folder's files) or `osct plugin push --watch` saves it
+to the experience's draft – a change in History, as the Code tab's Save. The agent places it on a node to try
+(`put_entity`, `put_target`), `render_scene` gives it a picture as the stage shows it, and the artist opens the link
+the result gives and tunes the rows in the Inspector. Tuned values found in the harness go into the spec's defaults or
+the node's values. Readers get it with the editor's **Publish**, which stays the person's own button.
+
 ## A shader file (API 1.5)
 
 GLSL that grows past a few lines reads better as a file of its own – a file of the plugin (above), or, when several
