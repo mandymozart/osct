@@ -50,7 +50,7 @@
   let workspace = $state<HTMLDivElement>();
   let width = $state(0);
   let height = $state(0);
-  // The room and the measures from the page's CSS: the control height (44 px with a finger), the gap of .5rem
+  // The room and the measures from the page's CSS: the control height (44 px with a finger), no gap (#364)
   $effect(() => {
     const [el, w, h] = [workspace, width, height];
     void coarse;
@@ -58,9 +58,10 @@
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const token = getComputedStyle(el).getPropertyValue("--control-height").trim();
     const control = token.endsWith("rem") ? parseFloat(token) * rem : parseFloat(token) || 1.75 * rem;
-    const gap = rem / 2;
+    // No gap (#364): the panels sit flush against the stage's walls and each other
+    const gap = 0;
     floats.metrics = { rem, gap, head: control + (3 * rem) / 8 + 1, button: control, char: rem / 2 };
-    floats.area = { x: gap, y: gap, w: Math.max(1, w - 2 * gap), h: Math.max(1, h - 2 * gap) };
+    floats.area = { x: 0, y: 0, w: Math.max(1, w), h: Math.max(1, h) };
   });
   // The top bar's panels menu lists this workspace's panels
   $effect(() => {

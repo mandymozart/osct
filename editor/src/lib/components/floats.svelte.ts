@@ -4,7 +4,7 @@ import {
   selectTab, splitOut, storedArrangement, TABS_KEY, type Arrangement, type TabSpec,
 } from "./float-tabs.js";
 import {
-  at, clampInto, defaultPlace, evade, layout, moved, placeOf, raise, readPlaces, resized, settle, settleSize, wantOf, withPlaces,
+  at, clampInto, defaultPlace, evade, layout, moved, placeOf, raise, readPlaces, resized, settleSize, wantOf, withPlaces,
   type Edge, type Metrics, type Neighbour, type PanelSpec, type Place, type Rect, type Size, type View,
 } from "./floats.js";
 
@@ -335,7 +335,7 @@ export class Floats {
       return true;
     }
     const id = nextFloatId(this.arrangement);
-    const { rem, gap, head } = this.metrics;
+    const { rem, head } = this.metrics;
     const from = this.views[h.from]?.rect;
     const home = this.spec(this.tabSpec(h.tab)?.home ?? "")?.size;
     // The tab's home panel's size where it is a number, else the panel it left – at most 24rem and the room there is
@@ -343,11 +343,9 @@ export class Floats {
       Math.min(room, Math.max(least * rem, Math.min(typeof d === "number" ? d * rem : was ?? most * rem, most * rem)));
     const w = dim(home?.w, from?.w, FLOAT_SIZE.w, this.area.w, FLOAT_MIN.w);
     const hh = dim(home?.h, from?.h, FLOAT_SIZE.h, this.area.h, FLOAT_MIN.h);
-    // The panel it leaves goes when it was its last tab: its room is free
-    const lonely = this.arrangement[h.from]?.tabs.length === 1;
-    const others = Object.entries(this.views).filter(([o]) => !(lonely && o === h.from)).map(([, v]) => v.rect);
-    const rect = settle(clampInto({ x: h.at[0] - 2 * rem, y: h.at[1] - head / 2, w, h: hh }, this.area), others, this.area, gap);
-    this.places = { ...this.places, [id]: { ...placeOf(rect, this.area), size: { w: Math.round(rect.w), h: Math.round(rect.h) } } };
+    // Where it was dropped, free (#364): over the others if it lands there
+    const rect = clampInto({ x: h.at[0] - 2 * rem, y: h.at[1] - head / 2, w, h: hh }, this.area);
+    this.places = { ...this.places, [id]: { ...placeOf(rect, this.area), size: { w: Math.round(rect.w), h: Math.round(rect.h) }, free: true } };
     this.arrange(splitOut(this.arrangement, h.tab, id));
     this.order = raise(this.order, id);
     return true;
@@ -420,6 +418,11 @@ export class Floats {
       return;
     }
     const target = resized(h.start, h.edge, dx, dy, this.minOf(spec), this.area);
+    // A free panel (#364) moves no other
+    if (this.place(h.id).free) {
+      this.held = { ...h, rect: target, moved: true };
+      return;
+    }
     const base = h.base ?? {};
     const rects = evade(h.neighbours ?? [], h.id, target, h.edge, this.area, this.metrics.gap);
     const views = Object.fromEntries(Object.entries(base).map(([id, v]) => [id, sameRect(v.rect, rects[id]) ? v : { ...v, rect: rects[id] }]));
@@ -442,9 +445,15 @@ export class Floats {
     const others = Object.entries(views).filter(([id]) => id !== h.id).map(([, v]) => v.rect);
     const { gap } = this.metrics;
     const old = this.place(h.id);
+    // Where it was let go, free (#364): no snapping, over the others if it lies there – only kept inside the stage. It
+    // keeps the size it had (a toolbar follows its content)
+    const size = { w: Math.round(h.rect.w), h: Math.round(h.rect.h) };
     if (h.kind === "move") {
-      const rect = settle(h.rect, others, this.area, gap);
-      this.set(h.id, { ...old, ...placeOf(rect, this.area) });
+      this.set(h.id, { ...old, ...placeOf(h.rect, this.area), ...(spec.inline || views[h.id]?.collapsed ? {} : { size }), free: true });
+      return true;
+    }
+    if (old.free) {
+      this.set(h.id, { ...old, ...placeOf(h.rect, this.area), size });
       return true;
     }
     const rect = settleSize(h.rect, h.edge, others, this.minOf(spec), this.area, gap);

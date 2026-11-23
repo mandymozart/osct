@@ -8,6 +8,19 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.19.0 – 2026-11-23
+
+### Changed
+- **A leaner stage toolbar** (#364): the toolbar holds only the stage's own tools now – the tool, the select filters,
+  render quality, grid & snap, view, live · restart (20 buttons down to 14 with everything expanded). **Undo · redo ·
+  history** moved into the top bar after the crumbs (in a scene's workspace, their keys as before). The **camera** –
+  Home, Focus, fixed / free – is a small column at the stage's bottom right corner, with the chip that names what it
+  turns around beside it; a panel lying in that corner pushes it to the left, never over it.
+- **Panels float freely** (#364): a panel moved by hand stays exactly where it is dropped – over another panel too –
+  and is only kept inside the stage; no more snapping to walls and edges or fleeing to a free place. It keeps its size,
+  and no other panel moves it or makes room for it; Reset layout lays everything out again. The panels sit flush
+  against the stage's walls and each other (the .5rem gap is gone). A resize of a laid-out panel still makes room (#329).
+
 ## 6.18.0 – 2026-11-23
 
 ### Added
