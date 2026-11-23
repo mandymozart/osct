@@ -88,12 +88,13 @@ const PHONE_FOV = 27;
 const FILM_BACK = 0.6;
 const FEED_WIDTH = 640;
 /**
- * Before it scans, the phone lies beside the book, its screen up ("it could lay next to the book and move up from
- * there"): it slides in from the lower right while the pages turn, and rises to the scan within `PHONE_RISE` seconds
+ * Before it scans, the phone lies in front of the book, level with it, its screen up and its long side along the
+ * book's lower edge ("in the same level as the book parallel to the bottom 90 degrees turned"). It glides in slowly
+ * from below while the view moves to the stage, and rises to the scan within `PHONE_RISE` seconds.
  */
-const PHONE_REST = { position: new Vector3(0.74, -0.12, -0.03), quaternion: new Quaternion().setFromEuler(new Euler(0, 0, -0.28)) };
-const PHONE_ARRIVAL = { before: 1.7, slide: 1.3, from: new Vector3(0.7, -1.1, 0) };
-const PHONE_RISE = 1.3;
+const PHONE_REST = { position: new Vector3(0, -0.58, -0.012), quaternion: new Quaternion().setFromEuler(new Euler(0, 0, Math.PI / 2)) };
+const PHONE_ARRIVAL = { at: INTRO.hold, slide: 2.8, from: new Vector3(0, -0.9, 0) };
+const PHONE_RISE = 1.6;
 /**
  * The app's scanning indicator on the screen (agents/DESIGN.md §6, `.gold-scanning`): a thin circle, 62 % of the
  * screen's width, whose gold fades in from transparent and sweeps around once in `turn` seconds
@@ -984,8 +985,8 @@ export class ScanStage {
     const seconds = this.still ? this.introEnd + LOOP_S * 0.4 : this.clock.elapsedTime;
     if (!this.still) this.playIntro(seconds);
     const scanning = seconds >= this.introEnd;
-    // While the pages turn, the phone slides in from the lower right and lies beside the book
-    const arrival = (seconds - (this.introEnd - PHONE_ARRIVAL.before)) / PHONE_ARRIVAL.slide;
+    // While the view moves and the book opens, the phone glides in and lies in front of the book
+    const arrival = (seconds - PHONE_ARRIVAL.at) / PHONE_ARRIVAL.slide;
     this.phone.visible = arrival > 0;
     if (!scanning && arrival > 0) {
       this.phone.position.copy(PHONE_REST.position).addScaledVector(PHONE_ARRIVAL.from, 1 - smooth(arrival));
