@@ -66,7 +66,7 @@
   const onExperiencesPage = $derived(!experienceId && !isAdminRoute && session.isEditor);
   const menuItems = $derived<MenuItem[]>([
     ...(onExperiencesPage ? [
-      { label: "New experience…", icon: "plus" as const, help: "Make a new experience step by step in the column: empty, or from an export.", select: () => experiencesMenu.ask("new") },
+      { label: "New experience…", icon: "plus" as const, help: "Make a new experience step by step in the Inspector: empty, or from an export.", select: () => experiencesMenu.ask("new") },
       { label: "Import…", icon: "download" as const, help: "Bring an experience in as a new one: an export file, a URL or a published version.", select: () => experiencesMenu.ask("import") },
     ] : []),
     ...(session.isAdmin && !isAdminRoute ? [{ label: "Admin", icon: "settings" as const, help: "The instance's users and AI connections.", select: () => void goto(resolve("admin/")) }] : []),

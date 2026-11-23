@@ -105,6 +105,8 @@ export class StageCore {
   pickFilter = $state<PickKind[]>([]);
   /** The viewport's shading (stored with the preview settings) */
   shading = $state<ShadingMode>(getPreview().shading);
+  /** The view settings' *wire* switch (#362): the selection's mesh lines in every shading, not only in Wire */
+  private meshLines = getPreview().meshLines;
 
   private arScene: ArScene;
   private tracker: MockTracker | null = null;
@@ -201,6 +203,10 @@ export class StageCore {
         }
       }),
       subscribePreview(state => {
+        if (state.meshLines !== this.meshLines) {
+          this.meshLines = state.meshLines;
+          this.gizmo?.setMeshLines(this.shading === "wireframe" || this.meshLines);
+        }
         if (state.shading !== this.shading) {
           this.shading = state.shading;
           this.shade();
@@ -393,7 +399,7 @@ export class StageCore {
     if (canvas) canvas.style.cursor = pick ? "pointer" : "";
     if (!pick) return;
     const object = this.isSelected(pick) ? null : this.pickedObject(pick);
-    this.hovered = { pick, outline: object ? outline(object, HOVER_COLOR, 1, 0.9) : null };
+    this.hovered = { pick, outline: object ? outline(object, HOVER_COLOR, { opacity: 0.9 }) : null };
   }
 
   /** The object a pick stands for: the printed image, or the node's placement group */
@@ -489,6 +495,7 @@ export class StageCore {
     applyShading(roots, this.shading);
     // The scene's post-processing belongs to rendered only, like the HDRI's sky
     this.arScene.setPostProcessing(this.shading === "rendered");
+    this.gizmo?.setMeshLines(this.shading === "wireframe" || this.meshLines);
     this.gizmo?.refreshOutline();
   }
 

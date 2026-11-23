@@ -6,7 +6,7 @@
   import ImportSource, { type LoadedSource } from "#lib/ImportSource.svelte";
 
   /**
-   * **New experience** step by step in the experiences page's column (#348, after #343): **1 Start** – *Empty* (one scene,
+   * **New experience** step by step in the Experiences workspace's Inspector (#348, #356, after #343): **1 Start** – *Empty* (one scene,
    * nothing on it: `POST /editor/experiences`) or *From an export* (a file, a URL or a published version – `ImportSource`
    * reads and previews it); **2 Name** – the title and the slug, its reader address shown whole (`<host>/<slug>/`), the
    * slug proposed from the title until the person types one, checked as the API checks it; **3 Create** – the new

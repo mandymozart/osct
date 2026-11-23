@@ -1,4 +1,5 @@
 import type { GameConfiguration } from "@engine/types";
+import type { Rect, View } from "./components/floats";
 import type { ExperienceDeletionImpact, ExportDownload, LiveIn, PublishedVersion, RecentChange } from "./api";
 import type { PluginFiles } from "@shared/api/editor";
 import { kindWord } from "./history";
@@ -7,8 +8,8 @@ import { whenText } from "./publish-overlay";
 import { readerAddress } from "./new-experience";
 
 /**
- * The experiences page (#348, docs/editor.md "Experiences"), the pure part: the books on the left, a context column on
- * the right – quick access (New, Import, Last worked on), the New flow step by step, a selected book's sheet (Open,
+ * The Experiences workspace (#348, #356, docs/editor.md "The Experiences page"), the pure part: the books on the stage, the
+ * Inspector over it – quick access (New, Import, Last worked on), the New flow step by step, a selected book's sheet (Open,
  * Export, Replace…, Versions with make live). These are its words and its rules; the page and its components draw them.
  */
 
@@ -182,7 +183,7 @@ export const readImportFile = (name: string, text: string): ReadFile => {
   return { kind: "configuration", configuration: value as GameConfiguration };
 };
 
-/** The column's heading per state – the region's accessible name */
+/** The Inspector's heading per state – the region's accessible name */
 export const columnLabel = (state: "quick" | "new" | "book" | "replace", title?: string): string =>
   state === "quick" ? "Quick access" : state === "new" ? "New experience" : state === "replace" ? `Replace the draft of ${title ?? "the experience"}` : `${title ?? "The experience"}`;
 
@@ -202,3 +203,24 @@ export const deletionTakes = (counts: ExperienceDeletionImpact["counts"]): strin
 
 /** The delete button is armed only once the experience's id is typed exactly (spaces around it ignored) */
 export const deleteArmed = (typed: string, id: string): boolean => typed.trim() === id;
+
+// ── the books beside the panels ─────────────────────────────────────────────────────────────────────
+
+/**
+ * How far the books keep from the stage's left and right sides (px): a panel open along a side – at least half the
+ * room's height, nearer to that side than to the middle – takes its width and a gap there. Should the books keep less than
+ * `least` that way, they keep nothing and reflow under the panels (a narrow window, an iPad upright).
+ */
+export const shelfInsets = (views: readonly View[], area: Rect, gap: number, least: number): { left: number; right: number } => {
+  let left = 0;
+  let right = 0;
+  const middle = area.x + area.w / 2;
+  for (const { rect, collapsed } of views) {
+    if (collapsed || rect.h < area.h / 2) continue;
+    if (rect.x + rect.w / 2 >= middle) right = Math.max(right, area.x + area.w - rect.x + gap);
+    else left = Math.max(left, rect.x + rect.w - area.x + gap);
+  }
+  // The stage is the room and a gap each side
+  const width = area.w + 2 * gap;
+  return width - left - right < least ? { left: 0, right: 0 } : { left: Math.round(left), right: Math.round(right) };
+};

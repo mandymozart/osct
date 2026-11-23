@@ -57,6 +57,14 @@
     </span>
   </div>
 
+  <div class="row" data-help="The selected model's mesh – its triangles as faint lines in the selection's colour, Blender's Wireframe overlay. Off, a selection shows only the line around its shape; the Wire shading shows the mesh either way.">
+    <span class="label">wire</span>
+    <span class="controls">
+      <Toggle on={preview.meshLines} label="Mesh lines on the selection" title={preview.meshLines ? "Show only the outline around the selection" : "Show the selected model's mesh lines in every shading"} onchange={meshLines => updatePreview({ meshLines })} />
+      <span class="small">{preview.meshLines ? "on the selection" : "in Wire only"}</span>
+    </span>
+  </div>
+
   {#if environment}
     <div class="row" data-help="The sky: the experience's environment (the Environment tab) – while rendered its world replaces the HDRI, and the scene's own lights light the stage, as in the reader.">
       <span class="label">sky</span>

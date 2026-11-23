@@ -4,7 +4,7 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
-## 2026-11-23 – The card pick-up is a card look a plugin can replace (6.14.0, schema 6.3, plugin API 4.1, #361)
+## 2026-11-23 – The card pick-up is a card look a plugin can replace (6.16.0, schema 6.3, plugin API 4.1, #361)
 - Tilman asked whether a plugin can replace the built-in card pick-up (it could not: `CardFlight` was hard-coded in
   `ar-scene.ts` `flyCard`). Decided (Tilman, 2026-11-23): *"yes, do it registerCardLook"* – a register call of its own,
   not `registerAppearance` with a moment `card` (a card look gets the AR scene, the camera, the page and pictures; an entity
@@ -18,6 +18,26 @@ outcome in the line (or move it into a dated decision block).
   (`cardDrift`, named by the demo's `appearance.card`).
 - Open: a per-entry card look (an entry's own override) if a book needs one; the editor's *play* flies without the book's
   cover as the back and without the entry's own picture (the reader's bridge resolves both).
+
+## 2026-11-23 – Step (c): the Experiences page is a workspace on the shell (6.14.0, #356)
+- Tilman: *"maybe it is time to rethink the dashboard and make it merely a stage without the 3d scene in the
+  background"*; concept `agents/design/workspace-shell.html` frame 1, decision 1 (a workspace of its own, not an overlay).
+- Built: `/editor/` on `Workspace.svelte` with `Floats("experiences")`. Stage = the covers grid (+ card, empty state,
+  load error, unreadable-environment lines), scrolling inside the stage on the editor's surface – no 3D. Panels:
+  **Inspector** (top right, full height, essential) with the tabs **Inspector** (quick access / New flow / the sheet –
+  the old column, a region named by `columnLabel`) and **AI connections**; **Info** (bottom left, folded). Manage, New
+  and the ☰ menu call `floats.showTab("inspector", true)`. All keys kept (tests: `experiences-workspace.svelte.test.ts`).
+- My calls: **no History panel** – there is no cross-experience history except quick access's *Last worked on*
+  (`GET /editor/recent`); HistoryPanel is per experience. AI connections is a tab of the Inspector's panel as in the
+  concept; its `view`, `fresh` and `freshShown` are bindable and held by the page, so a token shown once survives a tab
+  switch. Side effect: with no token yet, the first one is now made when the AI tab first opens, not on page load.
+  The books keep clear of a tall panel along a side (`shelfInsets`, pure, tested) unless less than 12rem would be left –
+  then they reflow under the panels (iPad upright). Checked locally (editor 5197, API 8097, scratch SQLite): the page,
+  New flow, sheet, AI tab, Esc, Panels menu.
+- [ ] Screenshots on the docs site: `/docs/img/experiences.webp` (the page), `/docs/img/ai-connections.webp` (now a
+  tab in a panel), the tutorials' `tutorials/import/01-empty.webp` and `tutorials/demo/01-experiences.webp`. The
+  sheet / New / import-preview / compare / delete crops show the same content in a panel – retake only if the frame
+  matters. #356 is complete apart from these.
 
 ## 2026-11-23 – Step 3: the editor's landing workspace on the shell; the landing piece moves to `ui/` (6.13.0, #356 #355)
 - Tilman: *"the editor shows the final product the landing page draft"* · *"shared ui for the landing page should be
@@ -47,7 +67,7 @@ outcome in the line (or move it into a dated decision block).
   hero after the answer (same render, no flash); `mountLanding` got `styles` (empty for the reader); the mark's path is
   passed by mount to the hero (no tiny extra chunk); `landing` is a reserved scene id (`RESERVED_SCENE_IDS`,
   `Scenes::RESERVED_IDS`, 400 `reserved-id`, MCP `add_scene` – the new-scene form makes `scene-<n>` ids).
-- [ ] (c) the Experiences page into the shell (#356).
+- [x] (c) the Experiences page into the shell (#356) – 6.14.0, the entry above.
 - [ ] The landing workspace: shop items and publisher editable (concept frame 2), a click on a part of the page opening
   its section, Privacy & terms as a second view.
 - [ ] The guard lists every plugin of the experience for the hero (the hero carries them all); a hero that needs none

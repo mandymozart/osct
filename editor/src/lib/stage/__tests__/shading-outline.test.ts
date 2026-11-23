@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BufferGeometry, Float32BufferAttribute, Group, LineSegments, Mesh, PlaneGeometry, Points, Raycaster, Vector3 } from "three";
+import { BufferGeometry, Float32BufferAttribute, Group, LineSegments, Mesh, PlaneGeometry, Points, Raycaster, type ShaderMaterial, Vector3 } from "three";
 import { outline } from "../shading";
 
 describe("outlines (#192)", () => {
@@ -15,6 +15,21 @@ describe("outlines (#192)", () => {
     expect(box.geometry.boundingBox!.max.toArray()).toEqual([1, 2, 3]);
     lines.remove();
     expect(points.children).toHaveLength(0);
+  });
+
+  it("outlines a mesh by its silhouette – a mask and eight shifted copies – and adds the grid only when asked (#362)", () => {
+    const mesh = new Mesh(new PlaneGeometry(1, 1));
+    const plain = outline(mesh, 0xffa028);
+    expect(mesh.children).toHaveLength(9);
+    expect(mesh.children.every(child => child instanceof Mesh && child.geometry === mesh.geometry && child.name === "editor-outline")).toBe(true);
+    plain.remove();
+    expect(mesh.children).toHaveLength(0);
+    const selected = outline(mesh, 0xffa028, { grid: true });
+    const grid = mesh.children.find(child => ((child as Mesh).material as ShaderMaterial).wireframe);
+    expect(grid).toBeDefined();
+    expect(mesh.children).toHaveLength(10);
+    selected.remove();
+    expect(mesh.geometry.getAttribute("position")).toBeDefined(); // the mesh's own geometry is never disposed
   });
 
   it("is never hit by a pick, however near the ray passes", () => {

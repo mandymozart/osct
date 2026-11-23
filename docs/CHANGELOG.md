@@ -8,7 +8,7 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
-## 6.14.0 – 2026-11-23
+## 6.16.0 – 2026-11-23
 
 ### Added
 - **A plugin can replace the card pick-up** (#361, content schema 6.3, plugin API 4.1): how the marginalia card flies
@@ -21,6 +21,34 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   with its picker, its rows and *play*, which flies a shown target's card on the stage. The demo's `plugins/card` is one to
   copy (`cardDrift`: the card floats up, rocks like a leaf and glides to the screen). An app of 6.2 drops the field and
   flies its own card. Docs: content "How the card is picked up", plugins "A card look", the documentation site.
+
+## 6.15.0 – 2026-11-23
+
+### Changed
+- **The Experiences page is a workspace: the books on the stage, the panels over them** (Tilman, 2026-11-23: *"make it
+  merely a stage without the 3d scene in the background … look at how scutoon is using the panels and the stage now"*,
+  #356). `/editor/` works like a scene and the landing page now: the covers fill the window and scroll inside it, and
+  the right-hand column became the **Inspector** panel – quick access (New experience, Import, Last worked on), the New
+  flow, or a book's sheet, exactly as before. **AI connections** moved from under the books into a tab of that panel;
+  a token made there stays shown while you switch tabs. **Info** sits folded at the bottom left. Panels move, fold,
+  resize and split like everywhere else, the top bar's **Panels** button lists them and resets the layout, and the page
+  remembers its own layout. The books keep clear of a panel along the side; in a narrow window they run on under it.
+  Everything else stays: Tab from cover to cover, Enter opens, Space manages, the arrows, Esc closes the sheet, the
+  ☰ menu's New and Import. There is no History panel here – Last worked on is the history across experiences.
+- **The documentation site** describes the Experiences page as a workspace (the guide's Experiences page, its first
+  page, the workspace page and the tutorials). Its screenshot of the Experiences page is not retaken yet.
+
+## 6.14.0 – 2026-11-23
+
+### Added
+- **The selection's mesh lines, when you want them** (#362): the view settings have a *wire* switch – on, the selected
+  model shows its triangles as faint orange lines in every shading (Blender's Wireframe overlay). Off (the default) they
+  come with the *wire* shading only. Stored in this browser like the other view settings.
+
+### Changed
+- **A clean outline around a selected model** (#362): the selection's orange (and the hover's grey) is the silhouette
+  now – one 2 px line around the whole shape, drawn through everything – instead of every crease edge sharper than 40°,
+  which on a scanned or remeshed model was a tangle of strokes across its surface. A particle cloud keeps its box.
 
 ## 6.13.1 – 2026-11-23
 

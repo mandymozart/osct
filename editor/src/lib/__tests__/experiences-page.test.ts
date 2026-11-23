@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PublishedVersion, RecentChange } from "../api";
-import { addressPreview, deleteArmed, deletionTakes, makeLiveQuestion, moveSelection, readImportFile, recentPlaces, versionRows } from "../experiences-page";
+import { addressPreview, deleteArmed, deletionTakes, makeLiveQuestion, moveSelection, readImportFile, recentPlaces, shelfInsets, versionRows } from "../experiences-page";
 
-// The experiences page (#348): the pure parts of the books and the context column
+// The Experiences workspace (#348, #356): the pure parts of the books and the Inspector
 
 describe("the reader address while the slug is typed", () => {
   it("shows the whole address once there is a slug", () => {
@@ -137,5 +137,24 @@ describe("deleting an experience", () => {
     expect(deleteArmed("OSCT", "osct")).toBe(false);
     expect(deleteArmed("osc", "osct")).toBe(false);
     expect(deleteArmed("", "osct")).toBe(false);
+  });
+});
+
+describe("the books beside the panels (#356)", () => {
+  // A stage of 1000 × 600 px: the room inside a gap of 8
+  const area = { x: 8, y: 8, w: 984, h: 584 };
+  const view = (x: number, y: number, w: number, h: number, collapsed = false) => ({ rect: { x, y, w, h }, collapsed });
+
+  it("keeps clear of a tall panel along the right side, by its width and a gap", () => {
+    expect(shelfInsets([view(576, 8, 416, 584), view(8, 556, 264, 36, true)], area, 8, 192)).toEqual({ left: 0, right: 424 });
+  });
+
+  it("keeps clear of one along the left side too; a folded or short panel takes nothing", () => {
+    expect(shelfInsets([view(8, 8, 300, 584)], area, 8, 192)).toEqual({ left: 308, right: 0 });
+    expect(shelfInsets([view(576, 8, 416, 584, true), view(8, 400, 300, 192)], area, 8, 192)).toEqual({ left: 0, right: 0 });
+  });
+
+  it("lets the books reflow under the panels when too little room would be left", () => {
+    expect(shelfInsets([view(8, 8, 450, 584), view(542, 8, 450, 584)], area, 8, 192)).toEqual({ left: 0, right: 0 });
   });
 });

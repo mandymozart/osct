@@ -7,7 +7,7 @@
   import Icon from "#lib/components/Icon.svelte";
 
   /**
-   * The experiences page's column while no book is selected (#348, Tilman: "nothing is clicked, the right side shows cards
+   * The Experiences workspace's Inspector while no book is selected (#348, Tilman: "nothing is clicked, the right side shows cards
    * new experience and import and last worked on. so we use it as quick access menu"): **New experience** and **Import**,
    * and **Last worked on** – the newest places across the instance's experiences from the server's change history
    * (`GET /editor/recent`): book · scene (· entry or panel) · when · who (when not you); a click opens that place.

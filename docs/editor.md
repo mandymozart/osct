@@ -113,16 +113,30 @@ export as a check; it no longer syncs (that competed with the editor's Publish).
 
 ### The Experiences page
 
-`/editor/` (#153, #348 – `editor/src/routes/(app)/+page.svelte`, the words and rules in `editor/src/lib/experiences-page.ts`):
-**the books** on the left, **a context column** on the right.
+`/editor/` (#153, #348, #356 – `editor/src/routes/(app)/+page.svelte`, the words and rules in `editor/src/lib/experiences-page.ts`)
+is a **workspace** on the same shell as a scene's and the landing's ([The workspace](#the-workspace)): the **stage** is a
+plain page of **the books** – no 3D – and the panels float over it, remembered per workspace (`Floats("experiences", …)`):
 
-- **The books**: each experience as its cover (title, author, where it is live – below) with a **Manage** button centred under it,
-  and a dashed **+** card (*New*) at the end. A click on the cover or **Enter** opens it in the editor; **Manage** (or
-  **Space** on a focused cover) selects the book (outlined, the button filled) and its sheet opens in the column –
-  Manage again closes it. **Tab** goes from cover to cover (the Manage buttons are no tab stops – Tilman 2026-11-23, #348);
-  the arrows move the focus too (↑ ↓ a row), Home / End the first / last; an open sheet follows the focus; **Esc** closes
-  it. The column is a region named after what it shows. Under the books: **AI connections** and the MCP guide
-  ([below](#ai-connections)).
+| Panel | Tabs | Starts |
+| --- | --- | --- |
+| **Inspector** | **Inspector** (quick access, the New flow or a book's sheet) · **AI connections** ([below](#ai-connections)) | along the right side, the full height; it folds, never closes |
+| **Info** | Info | folded at the bottom left |
+
+There is no History here: the instance has no history across its experiences but the quick access's *Last worked on*
+(each experience's History is in its workspaces). The top bar's **Panels** menu lists AI connections and Info and
+**Reset layout**; a tab dragged out becomes a panel of its own, as in the other workspaces.
+
+- **The books** (on the stage, scrolling inside it): each experience as its cover (title, author, where it is live – below)
+  with a **Manage** button centred under it, and a dashed **+** card (*New*) at the end. A click on the cover or **Enter**
+  opens it in the editor; **Manage** (or **Space** on a focused cover) selects the book (outlined, the button filled) and
+  its sheet opens in the Inspector – Manage again closes it. **Tab** goes from cover to cover (the Manage buttons are no tab
+  stops – Tilman 2026-11-23, #348); the arrows move the focus too (↑ ↓ a row), Home / End the first / last; an open sheet
+  follows the focus; **Esc** closes it. Where a panel lies along the stage's left or right side over at least half its
+  height, the books keep clear of it (`shelfInsets`); in a window too narrow for that (an iPad upright) they reflow under
+  the panels. Under the books: the empty state (no experience yet, with the link to the tutorial), a load error, and a line
+  for each environment whose content store cannot be read.
+- **The Inspector tab** is a region named after what it shows. Manage, New (the cards, the + card) and the ☰ menu bring
+  it to the front of its panel, unfolded.
 - **Nothing selected → quick access** (`QuickAccess.svelte`): the cards **New experience** (empty, step by step) and
   **Import** (file, URL or published), and **Last worked on** – the newest places across the instance's experiences from the
   server's change history (`GET /editor/recent` – [server](server.md#recent-places)): book · scene (· the entry, or the panel)
@@ -160,7 +174,8 @@ export as a check; it no longer syncs (that competed with the editor's Publish).
   build, but no one can edit, publish or take it back any more), *Export it first* – and **Delete for good** only once the
   experience's id is typed exactly (`DELETE /editor/experiences/{id}` – [server](server.md#deleting-an-experience)). The
   content store's builds and uploaded files stay.
-- The **☰ menu** on the experiences page has *New experience…* and *Import…* (`experiences-menu.svelte.ts`).
+- The **☰ menu** on the experiences page has *New experience…* and *Import…* (`experiences-menu.svelte.ts`): both open the
+  New flow in the Inspector.
 
 ### Import: what comes in
 
@@ -242,8 +257,9 @@ instance's default.
 
 ## AI connections
 
-Connecting an AI agent is a first step of working here, so it sits on the experiences page under the covers (#142, #194,
-#273, `lib/AiConnections.svelte`, `lib/mcp-setup.ts`) as two tabs:
+Connecting an AI agent is a first step of working here, so it is a tab of the Experiences page's Inspector panel (#142,
+#194, #273, #356, `lib/AiConnections.svelte`, `lib/mcp-setup.ts`) – drag it out to see it beside the books' sheets. It
+has two views of its own:
 
 - **Connect an AI agent** – one line on what an agent does here (works as you, saves drafts, never publishes), then three
   steps: **1** *Which agent?* – segmented pills **Claude Code** / **Claude Desktop** / **Codex CLI** / **OpenCode** /
@@ -254,8 +270,8 @@ Connecting an AI agent is a first step of working here, so it sits on the experi
   restart, then `whoami` and `describe_content_model`; it tells the agent to keep the token secret and, if it cannot run
   commands, to show the steps instead. With no token yet one is made as the tab opens, named after the agent and the
   machine the browser reports ("Claude Code on Windows"); with tokens, **Create token & copy prompt** makes one and copies
-  the prompt (a token is shown only once, so every agent gets its own). The token stays on the page until it is left,
-  never stored. **3** the agent sets itself up. *Set it up by hand* (closed) holds the download link, the field for
+  the prompt (a token is shown only once, so every agent gets its own). The token stays on the page until it is left –
+  switching the panel's tabs keeps it (the page holds it) –, never stored. **3** the agent sets itself up. *Set it up by hand* (closed) holds the download link, the field for
   where the file was saved (`osct-editor-mcp-file`; a checkout's folder gets `mcp/bin/osct-mcp.mjs` appended), the
   client's snippet with **Copy** and the four values any MCP client takes ([mcp, "Connecting an agent"](mcp.md#connecting-an-agent)).
 - **Existing connections** (with their count) – a name and **Create token** (the token shows once in a framed box with
@@ -343,7 +359,8 @@ a sheet at the bottom with the tree as a tab, ‹ › over the stage – is gone
 **Library**, **Code** – no Stage tab: the scene is the Inspector's, the preview settings are the stage toolbar's; a tab
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
 The experience's second workspace, on the same shell, is its landing page ([The landing workspace](#the-landing-workspace-356));
-the top bar's **Scenes · Landing** switches between the two.
+the top bar's **Scenes · Landing** switches between the two. The Experiences page (`/editor/`) is a workspace on the shell
+too, its stage the books ([The Experiences page](#the-experiences-page)).
 
 The Inspector's head: its grip and icon (the handle), the tabs – as words, or as icons in a panel too narrow for them
 (under 24rem, 28rem with a finger), so the head stays one line (#172) – and, on the last scene,
@@ -1033,6 +1050,8 @@ desk's top, *plywood* (the default) or *linoleum* (#226; switching it changes on
 grid and the camera stay). The switch off (#358) takes the whole desk away – for work that lies on no table (a wall, a
 poster, a room): the scene floats over the sky, the floor grid and the camera stay; the summary says *no desk*. `desk`
 is that switch since #358 (an older stored `desk: "eiermann"` / `"schoepfer"` reads as on).
+**wire** (#362): the selected model's mesh lines in every shading, not only in the *wire* shading (off by default –
+a selection shows its silhouette; [Outlines, shading and lights](#outlines-shading-and-lights)).
 **sky**: one of six Poly Haven studios (the HDRI – sky and light while the shading is rendered), and a switch that turns
 the HDRI **off** (#327: no sky and no HDRI light – the scene's own lights, remembered per browser); with the experience's
 environment the row names its world (*the environment's (world café)*), the HDRI picker waits below it for an experience
@@ -1174,9 +1193,16 @@ reader's tracker does – the placement math is `editor/src/lib/stage/placement.
 
 ### Outlines, shading and lights
 
-The selected node wears Blender's orange **outline** (the edges of its meshes, drawn through everything, in the
-object's own space – a video plane outlines as a plane), a selected target the same orange around its printed image (it
-follows the image as loaded and a move), and what a click would pick a light grey one. The toolbar's **shading**, after
+The selected node wears Blender's orange **outline** – the **silhouette** of its meshes (#362): one line of 2 px
+around the whole shape, however many faces it has (a scanned model's crease edges made a tangle), drawn through
+everything and following the object – a selected target the same orange around its printed image (it follows the image
+as loaded and a move), and what a click would pick a light grey one. How: a mask stamps the mesh's screen footprint
+into the depth buffer just behind the near plane, the mesh drawn eight times shifted 2 px around it colours only what
+lies outside; each outline takes a slot of draw order and depth, a later one nearer, so the selection's line still shows
+over a hovered model in front of it (`outline()` in `editor/src/lib/stage/shading.ts`). A particle cloud keeps the box
+around its points. The selection's **mesh lines** – its triangles, faint, in the same orange – come as in Blender: with
+the *wire* shading, or in every shading with the view settings' *wire* switch (Blender's Wireframe overlay); off, a
+selection shows only its silhouette. The toolbar's **shading**, after
 Blender's: *wire* (the entities as lines), *solid* (one grey under the scene's lights), *textured* (the content's
 materials, no sky) and *rendered* (the HDRI's sky and light, the default – or the experience's environment as the sky, its
 tooltip then says so); stored on the device. The post-processing passes show under *rendered* only. The stage and the

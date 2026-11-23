@@ -15,28 +15,28 @@
 <main>
   <p class="kicker">Editor guide</p>
   <h1>Experiences, versions, publish</h1>
-  <p class="lead">The start page is the dashboard: every experience here, where you worked last, and where an experience is made, exported, rolled back or deleted. Publishing happens from inside an experience.</p>
+  <p class="lead">The start page is a workspace of its own: every experience on the stage, and the panels over it for where you worked last and where an experience is made, exported, rolled back or deleted. Publishing happens from inside an experience.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <h2 id="page">The Experiences page</h2>
   <figure>
-    <a href="/docs/img/experiences.webp"><img src="/docs/img/experiences.webp" width="1440" height="900" alt="The Experiences page: the experiences as covers on the left, each with a Manage button, and a dashed + card; the quick access column on the right with New experience, Import and Last worked on; AI connections below the covers." loading="lazy"></a>
-    <figcaption>Left: the experiences, each with where it is live (<i>draft</i> = not published) and its <b>Manage</b> button, then the <b>+</b> card. Right: the column – here the quick access, as nothing is managed.</figcaption>
+    <a href="/docs/img/experiences.webp"><img src="/docs/img/experiences.webp" width="1440" height="900" alt="The Experiences page: the experiences as covers on the stage, each with a Manage button, and a dashed + card; the Inspector panel on the right with New experience, Import and Last worked on, and its AI connections tab." loading="lazy"></a>
+    <figcaption>On the stage: the experiences, each with where it is live (<i>draft</i> = not published) and its <b>Manage</b> button, then the <b>+</b> card. Right: the Inspector – here the quick access, as nothing is managed.</figcaption>
   </figure>
-  <p>The experiences are on the left; the column on the right shows what you are doing.</p>
+  <p>The experiences are on the stage; the <b>Inspector</b> panel floats over it and shows what you are doing. Its second tab is <a href="#ai">AI connections</a>; <b>Info</b> waits folded at the bottom left. Panels move, fold and resize as in a <a href="/docs/guide/workspace/">scene</a>, and the <b>Panels</b> button in the top bar brings a closed one back or resets the layout. The books keep clear of a panel along the side; in a narrow window they run on under it.</p>
   <div class="table"><table>
     <tr><th>To</th><th>Do</th></tr>
     <tr><td>Open an experience</td><td>Click its cover, or press <kbd>Enter</kbd> on it. It opens the scene you had open last.</td></tr>
-    <tr><td>Go back to where you worked</td><td><b>Last worked on</b> in the column: the newest places across all experiences (experience · scene or panel · when). A click opens that place.</td></tr>
-    <tr><td>Export, replace, roll back, delete</td><td><b>Manage</b> under the cover (or <kbd>Space</kbd> on it) shows the experience's <a href="#sheet">sheet</a> in the column. <b>Manage</b> again or <kbd>Esc</kbd> closes it.</td></tr>
-    <tr><td>Make a new one</td><td><b>New experience</b> in the column, or the dashed <b>+</b> card. <a href="#new">Below</a></td></tr>
-    <tr><td>Bring one in</td><td><b>Import</b> in the column. <a href="#import">Below</a></td></tr>
+    <tr><td>Go back to where you worked</td><td><b>Last worked on</b> in the Inspector: the newest places across all experiences (experience · scene or panel · when). A click opens that place.</td></tr>
+    <tr><td>Export, replace, roll back, delete</td><td><b>Manage</b> under the cover (or <kbd>Space</kbd> on it) shows the experience's <a href="#sheet">sheet</a> in the Inspector. <b>Manage</b> again or <kbd>Esc</kbd> closes it.</td></tr>
+    <tr><td>Make a new one</td><td><b>New experience</b> in the Inspector, or the dashed <b>+</b> card. <a href="#new">Below</a></td></tr>
+    <tr><td>Bring one in</td><td><b>Import</b> in the Inspector. <a href="#import">Below</a></td></tr>
   </table></div>
   <p><kbd>Tab</kbd> and the arrow keys go from cover to cover; an open sheet follows. The <b>☰</b> menu at the top right has <i>New experience…</i> and <i>Import…</i> as well, and <i>Admin</i> for admins.</p>
 
   <h2 id="new">A new experience</h2>
   <div class="beside wide">
     <div>
-      <p><b>New experience</b> goes step by step in the column:</p>
+      <p><b>New experience</b> goes step by step in the Inspector:</p>
       <ol>
         <li><b>Start</b>: pick <i>Empty</i> – one scene with a double page, nothing on it – or <i>From an export</i> – a file, a URL or a published version (<a href="#import">below</a>). Then <b>Next</b>.</li>
         <li><b>Name</b>: a <b>title</b> and the <b>address</b> (the slug). The slug is proposed from the title – lower-case letters, digits and dashes – and the reader's address is shown in full under it: <code>https://&lt;installation&gt;/&lt;slug&gt;/</code>. The site keeps a few words for itself (<code>editor</code>, <code>api</code>, <code>docs</code>, <code>scene</code>, …) and every experience needs its own.</li>
@@ -62,7 +62,7 @@
         <li><b>Published</b>: the version of an experience this installation has published.</li>
       </ul>
       <p><b>Assets at</b> (for a bare <code>game.config.json</code>) is where the media paths resolve. No media is copied: the draft points at the files where they are.</p>
-      <p>Before anything is imported the column shows <b>what comes in</b>: the build, its date, the app and schema version and what it holds. <b>Next</b> goes on to the name – the title starts as the export's.</p>
+      <p>Before anything is imported the Inspector shows <b>what comes in</b>: the build, its date, the app and schema version and what it holds. <b>Next</b> goes on to the name – the title starts as the export's.</p>
     </div>
     <figure>
       <a href="/docs/img/import-preview.webp"><img src="/docs/img/import-preview.webp" width="479" height="660" alt="From an export, by URL: the content base and the preview of what comes in – build, date, versions, what it holds." loading="lazy"></a>
@@ -73,7 +73,7 @@
   <h2 id="sheet">Managing an experience</h2>
   <div class="beside wide">
     <div>
-      <p><b>Manage</b> under a cover shows the experience's sheet in the column: title, author and reader address, and</p>
+      <p><b>Manage</b> under a cover shows the experience's sheet in the Inspector: title, author and reader address, and</p>
       <ul>
         <li><b>Open</b>: the experience in the editor.</li>
         <li><b>Landing page</b>: the experience's <a href="/docs/guide/landing/">landing workspace</a>.</li>
@@ -165,7 +165,7 @@
   <h2 id="ai">AI connections</h2>
   <div class="beside wide">
     <div>
-      <p>An AI agent (Claude Code, Claude Desktop, Codex CLI, OpenCode, Cursor) can work in the editor as you. It saves drafts and <b>never publishes</b>.</p>
+      <p>An AI agent (Claude Code, Claude Desktop, Codex CLI, OpenCode, Cursor) can work in the editor as you. It saves drafts and <b>never publishes</b>. Connections are the <b>AI connections</b> tab of the Inspector panel – drag the tab out to keep it beside the sheets.</p>
       <ul>
         <li><b>Connect an AI agent</b>: pick the agent, press <b>Create token &amp; copy prompt</b>, paste the prompt into the agent. It sets itself up.</li>
         <li><b>Existing connections</b>: each token with when it was last used and when it expires. <b>Renew</b> gives it another 182 days; <b>Revoke</b> stops it at once.</li>

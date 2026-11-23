@@ -1,3 +1,11 @@
+<script lang="ts" module>
+  /** A token made on this page: shown in the prompt and the snippets until the page is left, never stored */
+  export interface FreshToken {
+    name: string;
+    token: string;
+  }
+</script>
+
 <script lang="ts">
   import { onMount } from "svelte";
   import { API_URL, createApiToken, errorText, getHealth, listApiTokens, renewApiToken, revokeApiToken, type ApiToken } from "#lib/api.js";
@@ -9,24 +17,33 @@
   import { readStored, writeStored } from "#lib/storage.js";
 
   /**
-   * AI connections on the experiences page (#142, #273, docs/editor.md "AI connections"), two tabs:
+   * AI connections, a tab of the Experiences workspace (#142, #273, #356, docs/editor.md "AI connections"), two tabs:
    * - **Connect an AI agent** – pick the agent, copy one prompt into it. The prompt (`agentPrompt`) has the agent download
    *   this instance's server file, add its client's entry and call `whoami`; a token made for it is filled in. With no
    *   token yet, one is made at once (named after the agent and the machine); else one click makes it and copies the
    *   prompt. Everything by hand – the server file, the four values, the client's snippet – folds away under it.
    * - **Existing connections** – the person's tokens: last use, expiry, renew (182 days from now), revoke, and a named one.
    * Every call here is the person's own sign-in; the API refuses them to a token. A token is shown once, never stored.
+   *
+   * `view`, `fresh` and `freshShown` are bindable: a page that shows this in a tab keeps them while the tab is switched
+   * (#356), so a token made here is not lost before the page is left.
    */
   type View = "connect" | "existing";
-  let view = $state<View>("connect");
+  let {
+    view = $bindable("connect"),
+    fresh = $bindable(null),
+    freshShown = $bindable(false),
+  }: {
+    view?: View;
+    /** The token just made – in the prompt and the snippets until the page is left; never stored */
+    fresh?: FreshToken | null;
+    /** Made on the Existing tab: its token is shown there once, with a copy button */
+    freshShown?: boolean;
+  } = $props();
   let tokens = $state<ApiToken[] | null>(null);
   let name = $state("");
   let busy = $state(false);
   let error = $state<string | null>(null);
-  /** The token just made – in the prompt and the snippets until the page is left; never stored */
-  let fresh = $state<{ name: string; token: string } | null>(null);
-  /** Made on the Existing tab: its token is shown there once, with a copy button */
-  let freshShown = $state(false);
   /** Which copy button just copied (its label says so for a moment) */
   let copied = $state<string | null>(null);
   /** This instance's environment from GET /health (null until known) */
@@ -257,7 +274,7 @@
 </section>
 
 <style>
-  .ai { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); max-width: 46rem; }
+  .ai { max-width: 46rem; }
   p { margin: 0 0 .75rem; line-height: 1.45; }
   code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--text-small); }
 

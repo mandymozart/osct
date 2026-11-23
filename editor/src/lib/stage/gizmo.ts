@@ -84,6 +84,8 @@ export class Gizmo {
   private controls: TransformControls;
   private helper: Object3D;
   private selectionOutline: Outline | null = null;
+  /** The selection's mesh lines with its outline (#362): the Wire shading, or the view settings' *wire* switch */
+  private meshLines = false;
   private selection: GizmoSelection | null = null;
   private attached: Object3D | null = null;
   private dragging = false;
@@ -183,7 +185,7 @@ export class Gizmo {
     if (object === this.attached && (object && this.showHandles ? this.controls.object === object : true)) return;
     this.attached = object;
     this.selectionOutline?.remove();
-    this.selectionOutline = object ? outline(object, SELECTION_COLOR) : null;
+    this.selectionOutline = object ? outline(object, SELECTION_COLOR, { grid: this.meshLines }) : null;
     if (object && this.showHandles) this.controls.attach(object);
     else this.controls.detach();
   }
@@ -191,7 +193,14 @@ export class Gizmo {
   /** The selection's outline drawn again (a node's meshes changed, the shading swapped materials) */
   refreshOutline(): void {
     this.selectionOutline?.remove();
-    this.selectionOutline = this.attached ? outline(this.attached, SELECTION_COLOR) : null;
+    this.selectionOutline = this.attached ? outline(this.attached, SELECTION_COLOR, { grid: this.meshLines }) : null;
+  }
+
+  /** The selection's mesh lines on or off (drawn again when that changes) */
+  setMeshLines(on: boolean): void {
+    if (on === this.meshLines) return;
+    this.meshLines = on;
+    this.refreshOutline();
   }
 
   dispose(): void {
