@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PublishedVersion, RecentChange } from "../api";
-import { addressPreview, makeLiveQuestion, moveSelection, readImportFile, recentPlaces, versionRows } from "../experiences-page";
+import { addressPreview, deleteArmed, deletionTakes, makeLiveQuestion, moveSelection, readImportFile, recentPlaces, versionRows } from "../experiences-page";
 
 // The experiences page (#348): the pure parts of the books and the context column
 
@@ -110,5 +110,26 @@ describe("a file the Import reads", () => {
     expect(() => readImportFile("x.json", "nope")).toThrow("x.json is not JSON.");
     expect(() => readImportFile("x.json", "[1]")).toThrow(/no export/);
     expect(() => readImportFile("x.json", '{"format":"osct-export","formatVersion":2,"configuration":{}}')).toThrow(/newer format/);
+  });
+});
+
+describe("deleting an experience", () => {
+  it("names what goes, leaving out the parts that are zero", () => {
+    expect(deletionTakes({ scenes: 1, entries: 0, plugins: 0, files: 0, versions: 0, changes: 0 })).toEqual(["1 scene"]);
+    expect(deletionTakes({ scenes: 12, entries: 40, plugins: 2, files: 1, versions: 3, changes: 120 })).toEqual([
+      "12 scenes with 40 entries",
+      "2 plugin sources",
+      "the Library's records of 1 file",
+      "the history (120 changes) – no undo brings it back",
+      "the publish log (3 versions) – no make live afterwards",
+    ]);
+  });
+
+  it("arms the button only for the exact id", () => {
+    expect(deleteArmed("osct", "osct")).toBe(true);
+    expect(deleteArmed("  osct ", "osct")).toBe(true);
+    expect(deleteArmed("OSCT", "osct")).toBe(false);
+    expect(deleteArmed("osc", "osct")).toBe(false);
+    expect(deleteArmed("", "osct")).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import type { GameConfiguration } from "@engine/types";
-import type { ExportDownload, LiveIn, PublishedVersion, RecentChange } from "./api";
+import type { ExperienceDeletionImpact, ExportDownload, LiveIn, PublishedVersion, RecentChange } from "./api";
 import { kindWord } from "./history";
 import { ago } from "./mcp-setup";
 import { whenText } from "./publish-overlay";
@@ -178,3 +178,20 @@ export const readImportFile = (name: string, text: string): ReadFile => {
 /** The column's heading per state – the region's accessible name */
 export const columnLabel = (state: "quick" | "new" | "book" | "replace", title?: string): string =>
   state === "quick" ? "Quick access" : state === "new" ? "New experience" : state === "replace" ? `Replace the draft of ${title ?? "the experience"}` : `${title ?? "The experience"}`;
+
+// ── Delete ──────────────────────────────────────────────────────────────────────────────────────────
+
+/** What deleting an experience takes, in words for the warning – the parts that are not zero (#348) */
+export const deletionTakes = (counts: ExperienceDeletionImpact["counts"]): string[] => {
+  const n = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+  return [
+    n(counts.scenes, "scene", "scenes") + (counts.entries ? ` with ${n(counts.entries, "entry", "entries")}` : ""),
+    counts.plugins ? n(counts.plugins, "plugin source", "plugin sources") : "",
+    counts.files ? `the Library's records of ${n(counts.files, "file", "files")}` : "",
+    counts.changes ? `the history (${n(counts.changes, "change", "changes")}) – no undo brings it back` : "",
+    counts.versions ? `the publish log (${n(counts.versions, "version", "versions")}) – no make live afterwards` : "",
+  ].filter(Boolean);
+};
+
+/** The delete button is armed only once the experience's id is typed exactly (spaces around it ignored) */
+export const deleteArmed = (typed: string, id: string): boolean => typed.trim() === id;

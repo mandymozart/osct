@@ -984,6 +984,19 @@ created by the migration like every table). `fit` = how it fills the surface: `c
   refuses the file while it is one, a replace relinks it (a change), a forced delete removes it (a change). It names the
   file `<scene>_<surface>` (#298); an upload with `?fit=reference&scene=<id>&surface=<id>` is named so at once.
 
+### Deleting an experience
+
+`DELETE /editor/experiences/{id}` (#348) deletes a whole experience from the editor, in the two steps of a
+[confirmation](#confirmations): without `confirm` 409 `confirm-delete` with `impact` – `{ experience, kind: "experience",
+title, counts: { scenes, entries, plugins, files, versions, changes }, live: [{ env, build }] }` – and `confirmation`; with
+`confirm` its rows go in one transaction → 200 `{ deleted: { experience } }`: the draft (scenes, entries, targets,
+entities, plugin sources), the change history, the publish log, the Library's records, the deliveries and publish jobs.
+Nothing undoes it. What the **content store** holds stays: the published builds (readers of an environment where it is
+live keep getting that build) and the uploaded files (a live build may load them) – and readers' progress. An experience
+of an older content schema can be deleted. The id is bound to the experience's last change, its counts and where it is
+live. The editor asks for the experience's id to be typed before it sends `confirm` (the sheet's *Delete experience…*,
+[editor](editor.md#the-experiences-page)).
+
 ### Removing a scene or an entry
 
 `DELETE /editor/experiences/{id}/scenes/{sid}` and `DELETE /editor/experiences/{id}/entries/{eid}` remove with everything on it, in

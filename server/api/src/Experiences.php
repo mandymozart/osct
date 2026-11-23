@@ -102,6 +102,45 @@ final class Experiences
         Http::json(201, ['experience' => self::summary(self::experience($id))]);
     }
 
+    /**
+     * DELETE /editor/experiences/{id} { confirm? }: the whole experience from the editor (#348), in two steps (`Confirmation`):
+     * 1. without `confirm` nothing is written: 409 `confirm-delete` with the `impact` – { experience, kind: "experience",
+     *    title, counts: { scenes, entries, plugins, files, versions, changes }, live: [{ env, build }] } – and a `confirmation`;
+     * 2. with `confirm` the experience's rows go in one transaction → 200 { deleted: { experience } }: the draft (scenes,
+     *    entries, targets, entities, plugins), its change history, its publish log, its Library records and deliveries.
+     * Not undone by anything. What the content store holds stays: the published builds (readers of an environment where it
+     * is live keep getting it) and the uploaded files (a live build may load them). Readers' progress stays too. An
+     * experience of an older schema can be deleted. 404.
+     */
+    public static function delete(string $experienceId): never
+    {
+        $user = Editor::user();
+        $row = self::experience($experienceId, false, true);
+        [$confirm] = self::deleteOptions();
+        $count = static fn(string $table): int => (int) Db::value("SELECT COUNT(*) FROM $table WHERE experience_id = :experience", ['experience' => $experienceId]);
+        $counts = [
+            'scenes' => $count('scenes'), 'entries' => $count('entries'), 'plugins' => $count('plugins'), 'files' => $count('assets'),
+            'versions' => $count('experience_versions'), 'changes' => $count('changes'),
+        ];
+        $live = array_map(static fn(array $l): array => ['env' => $l['env'], 'build' => $l['build']], self::liveIn($experienceId));
+        $impact = ['experience' => $experienceId, 'kind' => 'experience', 'title' => $row['title'], 'counts' => $counts, 'live' => $live];
+        $state = Confirmation::digest([$row['updated_at'], $counts, $live]);
+        Confirmation::require("delete-experience|$experienceId", $user, $state, $confirm,
+            ['confirm-delete', "Deleting the experience takes its draft ({$counts['scenes']} scenes, {$counts['entries']} entries), its history and its publish log – it cannot be undone. Show this to the person, then delete again with confirm: <confirmation id>."],
+            'The confirmation is expired, someone else\'s, or the experience changed since – here is what the deletion takes now; confirm with the new id.',
+            fn() => ['impact' => $impact]);
+        Db::transaction(function () use ($experienceId) {
+            // Children first – the foreign keys cascade too, but an older database may lack one
+            Db::run('DELETE FROM asset_versions WHERE asset_id IN (SELECT id FROM assets WHERE experience_id = :experience)', ['experience' => $experienceId]);
+            foreach (['targets', 'entries', 'scenes', 'entities', 'plugins', 'asset_credits', 'asset_names', 'assets', 'surface_references',
+                'changes', 'deliveries', 'publish_jobs', 'experience_versions'] as $table) {
+                Db::run("DELETE FROM $table WHERE experience_id = :experience", ['experience' => $experienceId]);
+            }
+            Db::run('DELETE FROM experiences WHERE id = :id', ['id' => $experienceId]);
+        });
+        Http::json(200, ['deleted' => ['experience' => $experienceId]]);
+    }
+
     /** Environments whose content store could not be read in this request (ContentStore::live of an experience failed) */
     private static array $unreadable = [];
 

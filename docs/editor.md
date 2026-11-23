@@ -116,11 +116,13 @@ export as a check; it no longer syncs (that competed with the editor's Publish).
 `/editor/` (#153, #348 – `editor/src/routes/(app)/+page.svelte`, the words and rules in `editor/src/lib/experiences-page.ts`):
 **the books** on the left, **a context column** on the right.
 
-- **The books**: each experience as its cover (title, author, where it is live – below) with a **···** under it, and a
-  dashed **+** card (*New*) at the end. A click **selects** a book (outlined) and its sheet opens in the column; a double
-  click or **Enter** opens it in the editor. The arrows move the selection (↑ ↓ a row), Home / End the first / last, **Esc**
-  clears it. The cards are buttons with `aria-pressed`; the column is a region named after what it shows. Under the
-  books: **AI connections** and the MCP guide ([below](#ai-connections)).
+- **The books**: each experience as its cover (title, author, where it is live – below) with a **Manage** button centred under it,
+  and a dashed **+** card (*New*) at the end. A click on the cover or **Enter** opens it in the editor; **Manage** (or
+  **Space** on a focused cover) selects the book (outlined, the button filled) and its sheet opens in the column –
+  Manage again closes it. **Tab** goes from cover to cover (the Manage buttons are no tab stops – Tilman 2026-11-23, #348);
+  the arrows move the focus too (↑ ↓ a row), Home / End the first / last; an open sheet follows the focus; **Esc** closes
+  it. The column is a region named after what it shows. Under the books: **AI connections** and the MCP guide
+  ([below](#ai-connections)).
 - **Nothing selected → quick access** (`QuickAccess.svelte`): the cards **New experience** (empty, step by step) and
   **Import** (file, URL or published), and **Last worked on** – the newest places across the instance's experiences from the
   server's change history (`GET /editor/recent` – [server](server.md#recent-places)): book · scene (· the entry, or the panel)
@@ -142,7 +144,7 @@ export as a check; it no longer syncs (that competed with the editor's Publish).
   this instance's environment, read by the server from its own store on the CDN. *assets at* = where a bare configuration's
   `/assets/content/…` paths resolve (a content base and an export file bring their own) – every draft and publish points
   there, no media is copied.
-- **A book's sheet** (`ExperienceSheet.svelte`; a click or its ···): title, author, the reader address; **Open** (primary);
+- **A book's sheet** (`ExperienceSheet.svelte`; its Manage, or Space): title, author, the reader address; **Open** (primary);
   **Export** – the draft as one file `<id>-<build>.osct.json` (`GET …/export/file` – [server](server.md#export-file)): its
   configuration, its files' list and the Code tab's plugin sources, the import body Import reads back (here or on another
   instance); the media stay where they are. **Replace…** step by step: the source, then the comparison below (`ImportCompare.svelte`
@@ -153,6 +155,11 @@ export as a check; it no longer syncs (that competed with the editor's Publish).
   live on staging again? Readers get it on their next start. The draft is not changed.* (`POST …/versions/{build}/activate` –
   [server](server.md#make-a-version-live-again)). Builds are kept in the store, so any of them can come back; the log gets a
   row *Made live again*.
+  **Delete experience…** at the end of the sheet (#348): the server's impact in a red warning – what goes (scenes, entries,
+  plugin sources, the Library's records, the history, the publish log), where it is live (readers there keep the published
+  build, but no one can edit, publish or take it back any more), *Export it first* – and **Delete for good** only once the
+  experience's id is typed exactly (`DELETE /editor/experiences/{id}` – [server](server.md#deleting-an-experience)). The
+  content store's builds and uploaded files stay.
 - The **☰ menu** on the experiences page has *New experience…* and *Import…* (`experiences-menu.svelte.ts`).
 
 ### Import: what comes in

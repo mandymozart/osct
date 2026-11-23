@@ -8,6 +8,30 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.4.0 – 2026-11-23
+
+### Added
+- **Delete an experience** (Tilman, 2026-11-23, #348: *"a delete button with massive warning also goes to the right
+  side"*): *Delete experience…* at the end of a book's sheet shows a red warning with what goes – the draft, the history,
+  the publish log – and where it is live, and deletes only once the experience's id is typed. The API:
+  `DELETE /editor/experiences/{id}` in two steps (409 `confirm-delete` with the impact, then `confirm`); the content
+  store's published builds and uploaded files stay, so readers of a live build keep it (docs/server.md "Deleting an
+  experience").
+
+### Changed
+- **The Experiences page: a Manage button instead of the ···** (Tilman, 2026-11-23, #348: *"tab switches through the
+  experiences, enter or click opens it, a select button shows the right hand export and replace view. the 3 dots go"*):
+  Tab goes from cover to cover, Enter or a click opens the book, **Manage** (or Space) shows its sheet on the right; an
+  open sheet follows the focus. It reads **Manage**, centred under the cover (*"select button can be centered
+  underneath and it could say manage"*).
+
+## 6.3.3 – 2026-11-23
+
+### Fixed
+- **The editor's stage camera orbits freely** (#335): dragging up and down no longer stops at 85° from the vertical –
+  the camera goes down to the level of the table, below it to look up, and over the top to the far side. The start
+  view and the presets are unchanged, and a double click still brings back the reader's view.
+
 ## 6.3.2 – 2026-11-22
 
 ### Fixed

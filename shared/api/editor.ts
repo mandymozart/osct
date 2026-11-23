@@ -675,6 +675,18 @@ export interface RemovalResult {
   deleted: { scene: string | null; entries: string[]; targets: string[]; entities: string[]; files: string[] };
 }
 
+/**
+ * `DELETE /editor/experiences/{id}`'s first step (#348): what deleting the experience takes – its draft, history and
+ * publish log – and where it is live (its builds and files in the content store stay)
+ */
+export interface ExperienceDeletionImpact {
+  experience: string;
+  kind: "experience";
+  title: string;
+  counts: { scenes: number; entries: number; plugins: number; files: number; versions: number; changes: number };
+  live: { env: string; build: string }[];
+}
+
 // ── Assets ───────────────────────────────────────────────────────────────────────────────────────────
 
 /** A Library file (`GET /editor/experiences/{id}/assets`): an upload, or a file of the content import (`imported`) */
