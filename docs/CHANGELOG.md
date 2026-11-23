@@ -8,6 +8,20 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.4.1 – 2026-11-23
+
+### Changed
+- **The documentation site follows the editor of 6.4.0** (Tilman, 2026-11-23, #336: *"check the docs and update to the
+  latest changes i made. with new screen shots in places where things moved … also focus on dashboard and the rollback
+  and delete and how to create new experiences"*): the Experiences page of the guide (now *Experiences, versions,
+  publish*) is written around the dashboard – a click opens, **Manage** shows the sheet, *Last worked on*, the *New
+  experience* steps, Replace with its comparison, **Versions: going back to an older one** (make live) and **Deleting an
+  experience**; three new tutorials for editors (a new experience, rolling back, deleting); the ⚙ that selects the
+  experience, the Tree's footer, the toolbar's …, the free camera and the target counts in their pages.
+- **Screenshots**: every workspace and Experiences-page picture retaken on the current demo, and new ones – the New
+  experience steps, the delete warning, the experience in the Inspector, the Log tab, the plugin prompt, *Published*,
+  and on the Logic canvas the demo's key scene and the Add menu.
+
 ## 6.4.0 – 2026-11-23
 
 ### Added

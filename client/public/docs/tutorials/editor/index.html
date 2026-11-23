@@ -15,18 +15,18 @@
 <main>
   <p class="kicker">Tutorials</p>
   <h1>Tutorials for editors</h1>
-  <p class="lead">Eight short jobs, each a few minutes. They use the demo experience, so nothing here can break a real one.</p>
+  <p class="lead">Eleven short jobs, each a few minutes. They use the demo experience, so nothing here can break a real one.</p>
   <nav id="toc" aria-label="On this page"></nav>
   <h2 id="first-look">1 · A first look with the demo</h2>
   <ol class="steps">
-    <li><p>Open <a href="/editor/"><code>/editor</code></a>, sign in, and click <b>The Demo</b>. If it is not there, <a href="/docs/guide/experiences/#import">import it</a> first.</p></li>
+    <li><p>Open <a href="/editor/"><code>/editor</code></a>, sign in, and click the cover of <b>The Demo Book</b>. If it is not there, <a href="/docs/guide/experiences/#import">import it</a> first.</p></li>
     <li><p>In the Scenes panel at the bottom, click the scene <b>1–2</b>. Drag on the stage to orbit, use the wheel to zoom.</p></li>
     <li><p>In the tree, click <b>model</b> under <i>The key</i>. The Inspector shows its placement and its components.</p></li>
     <li><p>Click the scene's row (<b>1–2</b>) at the top of the tree. Open the <b>Log</b> tab (the <i>log</i> link in the scene's Inspector) and press the tap button <b>The key</b>. The key rattles, <code>hasKey</code> becomes <i>true</i>, and the timeline lists what happened.</p></li>
     <li><p>Open scene <b>3–4</b>. Because <code>hasKey</code> is true, the door opens. Press <b>Restart</b> in the Tools to start over: the door stays shut and shows its hint.</p></li>
   </ol>
   <figure>
-    <img src="/docs/img/vars.webp" width="400" height="376" alt="The narrative after the tap." loading="lazy">
+    <img src="/docs/img/log.webp" width="400" height="470" alt="The narrative after the tap." loading="lazy">
     <figcaption>Step 4: the variable and the timeline after the tap.</figcaption>
   </figure>
 
@@ -61,7 +61,7 @@
     <li><p>Use it elsewhere: on another node add a behaviour with <b>found</b>, <b>when</b> <code>tapped</code>, and an action such as <b>show</b>.</p></li>
   </ol>
   <figure>
-    <img src="/docs/img/behaviour.webp" width="400" height="490" alt="Two rules in the Inspector." loading="lazy">
+    <img src="/docs/img/behaviour.webp" width="400" height="456" alt="Two rules in the Inspector." loading="lazy">
     <figcaption>Rules in the Inspector: the event as pills, the condition, then the actions in order.</figcaption>
   </figure>
   <p>More: <a href="/docs/api/logic/">the logic system</a>. To see the rules as a graph, open the <a href="/docs/guide/logic/">Logic panel</a>.</p>
@@ -78,7 +78,7 @@
   <h2 id="look">6 · Give the picture a look</h2>
   <ol class="steps">
     <li><p>Set the shading in the Tools to <b>rendered</b>. Passes show only there.</p></li>
-    <li><p><b>For every scene</b>: click the experience's name in the top bar; under <b>post-processing</b> press <b>+ bloom</b>, <b>+ vignette</b> or <b>+ grade</b> and tune the rows.</p></li>
+    <li><p><b>For every scene</b>: click the <b>⚙</b> next to the experience's name in the top bar; under <b>post-processing</b> press <b>+ bloom</b>, <b>+ vignette</b> or <b>+ grade</b> and tune the rows.</p></li>
     <li><p><b>For one scene only</b>: select the scene, open <b>post-processing</b>, press <b>own for this scene</b>, then change its list. <i>Back to the experience's</i> drops the override.</p></li>
     <li><p><b>How things appear</b>: in the experience's Inspector, under <b>appearance</b>, pick a look for <i>found</i> (e.g. <i>printLift</i>) and press <b>play</b> to see it.</p></li>
   </ol>
@@ -89,10 +89,10 @@
     <li><p>Check the top bar says <b>Saved</b>. If you changed code, press <b>Save</b> in the Code tab too.</p></li>
     <li><p>Press <b>Publish</b> (the cloud button), then <b>Publish</b> in the box. Wait for <i>Published</i> – readers have it from <i>Live for readers ✓</i> on.</p></li>
     <li><p>Open the reader on a phone: <code>/&lt;experience&gt;/</code> – every experience at its own address, <code>/osct/</code>, <code>/demo/</code>. Point it at the printed page.</p></li>
-    <li><p>Something wrong? Open <b>History</b> (the clock in the Tools), click the change, choose <b>Revert</b> or <b>Jump back to here</b>. Then publish again.</p></li>
+    <li><p>Something wrong? Give readers the version before first (<a href="#rollback">tutorial 10</a>). Then open <b>History</b> (the clock in the Tools), click the change, choose <b>Revert</b> or <b>Jump back to here</b>, and publish again.</p></li>
   </ol>
   <figure>
-    <img src="/docs/img/publish.webp" width="480" height="250" alt="The publish box." loading="lazy">
+    <img src="/docs/img/publish.webp" width="448" height="180" alt="The publish box asking before it starts." loading="lazy">
   </figure>
 
   <h2 id="agent">8 · Let an AI agent help</h2>
@@ -103,6 +103,46 @@
     <li><p>After each change it gives you a link. Open it and check the stage. Publishing stays your button.</p></li>
   </ol>
   <p>What an agent can do: <a href="/docs/api/mcp/">MCP server</a>.</p>
+
+  <h2 id="new-experience">9 · Start a new experience</h2>
+  <ol class="steps">
+    <li><p>On the <a href="/editor/">Experiences page</a>, click <b>New experience</b> in the right column (or the dashed <b>+</b> card).</p></li>
+    <li><p><b>Start</b>: choose <b>Empty</b>, then <b>Next</b>. (<i>From an export</i> starts from a file, a URL or a published version instead.)</p></li>
+    <li><p><b>Name</b>: type the title. The address under it is proposed from the title; change it if you want a shorter one. Read the reader's address below the field: this is what goes into QR codes, and <b>it can't be changed once the experience is published</b>.</p></li>
+    <li><p><b>Create</b>. The editor opens the new experience on its one scene, an empty double page.</p></li>
+    <li><p>Go on with a <a href="#scene">scene</a> and a <a href="#target">target</a>. Nothing reaches readers before you <a href="#publish">publish</a>.</p></li>
+  </ol>
+  <figure>
+    <img src="/docs/img/experience-new.webp" width="479" height="360" alt="New experience, the Name step: title, address, the reader's address." loading="lazy">
+  </figure>
+  <p>A try-out you no longer need: <a href="#delete">tutorial 11</a>.</p>
+
+  <h2 id="rollback">10 · Roll back to an older version</h2>
+  <p>Readers got something broken. Give them the version before, then fix the draft in peace.</p>
+  <ol class="steps">
+    <li><p>On the <a href="/editor/">Experiences page</a>, press <b>Manage</b> under the experience.</p></li>
+    <li><p>Under <b>Versions</b>, find the last good one. <b>● live</b> marks what readers have now.</p></li>
+    <li><p>Click <b>make live</b> in its row, read the question, press <b>Make live</b>. Readers get that version on their next start.</p></li>
+    <li><p>Now fix the draft: <b>Open</b> the experience, and revert the change in <b>History</b> – or put the good version into the draft with <b>Replace… › Published</b>.</p></li>
+    <li><p><a href="#publish">Publish</a> again when it is right. That is a new version; the others stay in the list.</p></li>
+  </ol>
+  <figure>
+    <img src="/docs/img/experience-sheet.webp" width="479" height="460" alt="The sheet's versions: the live one, and make live on the older one with its question." loading="lazy">
+  </figure>
+  <p>Make live changes what readers get, never the draft. It works for this installation's own environment. <a href="/docs/guide/experiences/#versions">More</a></p>
+
+  <h2 id="delete">11 · Delete an experience</h2>
+  <p>For a try-out or a duplicate. It cannot be undone.</p>
+  <ol class="steps">
+    <li><p>On the <a href="/editor/">Experiences page</a>, press <b>Manage</b> under the experience.</p></li>
+    <li><p>Press <b>Export</b> and keep the file. It is the only way back.</p></li>
+    <li><p>Press <b>Delete experience…</b> at the end of the sheet and read the red box: what goes, and whether it is live.</p></li>
+    <li><p>Type the experience's address (e.g. <code>night-garden</code>) into the field and press <b>Delete for good</b>.</p></li>
+  </ol>
+  <figure>
+    <img src="/docs/img/experience-delete.webp" width="479" height="720" alt="The delete warning with the field to type the address into." loading="lazy">
+  </figure>
+  <p><b>If it is live</b>, readers keep getting the published build after the delete, and nobody can change that from the editor any more. Do not delete an experience to take it away from readers. <a href="/docs/guide/experiences/#delete">More</a></p>
   <footer id="pager"></footer>
 </main>
 </body>

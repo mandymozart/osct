@@ -62,7 +62,7 @@
     <tr><td>a plugin's</td><td class="wrap">Whatever the experience's code registers, e.g. <i>spin</i>, <i>tint</i>. <a href="/docs/guide/code/">The Code tab</a></td></tr>
   </table></div>
   <figure>
-    <img src="/docs/img/behaviour.webp" width="400" height="490" alt="A behaviour component with two rules." loading="lazy">
+    <img src="/docs/img/behaviour.webp" width="400" height="456" alt="A behaviour component with two rules." loading="lazy">
     <figcaption>The demo's door. Rule 1 shows the hint when the page is found. Rule 2 runs only when <code>hasKey == true</code>: it hides the hint and emits <code>openDoor</code>.</figcaption>
   </figure>
 
@@ -99,7 +99,7 @@
       <p><b>Add pass</b>: bloom, vignette, grade, or a plugin's pass. Each pass folds, has an on / off switch and arrows for its place in the chain. More than three passes or more than one bloom is too much for a phone; the section says so.</p>
     </div>
     <figure>
-      <img src="/docs/img/post.webp" width="400" height="128" alt="A scene's own post-processing with a film grain pass." loading="lazy">
+      <img src="/docs/img/post.webp" width="400" height="240" alt="A scene's post-processing section showing the experience's passes: bloom and grade, each with its switch, and the passes to add." loading="lazy">
     </figure>
   </div>
 
@@ -113,13 +113,21 @@
       </ul>
     </div>
     <figure>
-      <img src="/docs/img/vars.webp" width="400" height="376" alt="The narrative after a tap on the key." loading="lazy">
-      <figcaption>After a tap on the key: the rule ran, set <code>hasKey</code> and emitted <code>keyRattled</code>.</figcaption>
+      <img src="/docs/img/log.webp" width="400" height="470" alt="The Log tab after a tap on the key: the tap buttons, the chips, the problems line and the timeline." loading="lazy">
+      <img src="/docs/img/vars.webp" width="400" height="320" alt="The Variables tab: a section per scope, hasKey under experience." loading="lazy">
+      <figcaption>After a tap on the key. Log: the rule ran, set <code>hasKey</code> and emitted <code>keyRattled</code>. Variables: <code>hasKey</code> is in the experience scope.</figcaption>
     </figure>
   </div>
 
   <h2 id="experience">The experience</h2>
-  <p>Click the experience's name in the top bar. The Inspector shows its <b>title</b>, the <b>printed book</b> switch with author and publisher, the experience's <b>post-processing</b> (the list every scene without its own shows), its <b>appearance</b>, and at the end its own <b>rules</b> and declared <b>variables</b>.</p>
+  <div class="beside">
+    <div>
+      <p>Click the <b>⚙</b> next to the experience's name in the top bar. The Inspector shows its <b>title</b>, the <b>printed book</b> switch with author and publisher, the experience's <b>post-processing</b> (the list every scene without its own shows), its <b>appearance</b>, and at the end its own <b>rules</b> and declared <b>variables</b>.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/inspector-experience.webp" width="400" height="520" alt="The experience in the Inspector: texts, printed book, recognition, post-processing, appearance, rules, variables." loading="lazy">
+    </figure>
+  </div>
 
   <h3 id="appearance">Appearance</h3>
   <p>Three moments, each with a look: <b>reveal</b> (the first find), <b>found</b> (every later find) and <b>lost</b>. Built-in looks: <i>inflateDissolve</i>, <i>printLift</i>, <i>fade</i>; plugins can add more. <b>Play</b> in a moment's head shows it on the stage.</p>
