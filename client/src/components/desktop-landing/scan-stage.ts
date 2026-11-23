@@ -86,13 +86,15 @@ const TEXT_LAYER = 3;
  */
 const PHONE_FOV = 27;
 const FILM_BACK = 0.6;
+/** The camera's focus on what stands on the target: this share of its middle's height – a little below the middle */
+const FOCUS_HEIGHT = 0.6;
 const FEED_WIDTH = 640;
 /**
  * Before it scans, the phone lies in front of the book, level with it, its screen up and its long side along the
- * book's lower edge ("in the same level as the book parallel to the bottom 90 degrees turned"). It glides in slowly
+ * book's lower edge, the Mark to the right ("in the same level as the book parallel to the bottom 90 degrees turned"). It glides in slowly
  * from below while the view moves to the stage, and rises to the scan within `PHONE_RISE` seconds.
  */
-const PHONE_REST = { position: new Vector3(0, -0.58, -0.012), quaternion: new Quaternion().setFromEuler(new Euler(0, 0, Math.PI / 2)) };
+const PHONE_REST = { position: new Vector3(0, -0.58, -0.012), quaternion: new Quaternion().setFromEuler(new Euler(0, 0, -Math.PI / 2)) };
 const PHONE_ARRIVAL = { at: INTRO.hold, slide: 2.8, from: new Vector3(0, -0.9, 0) };
 const PHONE_RISE = 1.6;
 /**
@@ -514,6 +516,7 @@ export class ScanStage {
     this.model = model;
     this.anchor.updateWorldMatrix(true, true);
     new Box3().setFromObject(this.placed).getCenter(this.centre);
+    this.centre.z *= FOCUS_HEIGHT;
     if (loaded.animations.length) {
       this.mixer = new AnimationMixer(model);
       loaded.animations.forEach(clip => this.mixer!.clipAction(clip).play());
@@ -1029,9 +1032,10 @@ export class ScanStage {
     const off = Math.max((this.aim.y - 0.12) / 0.45, (Math.abs(this.aim.x) - 0.3) / 0.45);
     this.stick = Math.max(toEye, smooth(off) * smooth(this.near));
     // Its back keeps towards what its camera looks at: dragged to a side, it turns towards the focus
-    const aside = (MathUtils.lerp(this.aim.x, this.centre.x, this.stick) - this.aim.x) * 0.8;
-    this.phone.rotateY(-MathUtils.clamp(aside, -0.6, 0.6));
-    this.phone.rotateX(-0.4 + 0.8 * toEye);
+    // – gently: a hand's turn, not a swivel
+    const aside = (MathUtils.lerp(this.aim.x, this.centre.x, this.stick) - this.aim.x) * 0.4;
+    this.phone.rotateY(-MathUtils.clamp(aside, -0.32, 0.32));
+    this.phone.rotateX(-0.4 + 0.6 * toEye);
     this.phone.rotateZ(Math.sin(seconds * 0.5) * 0.035);
     // It comes up from where it lay beside the book
     const rise = this.still ? 1 : smooth((seconds - this.introEnd) / PHONE_RISE);
