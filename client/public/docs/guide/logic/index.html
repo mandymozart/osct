@@ -20,7 +20,7 @@
   <p>Open it from the panels menu in the top bar. How rules work is in <a href="/docs/api/logic/">the logic system</a>; this page is about the panel.</p>
   <figure>
     <a href="/docs/img/logic.webp"><img src="/docs/img/logic.webp" width="896" height="676" alt="The Logic panel on the demo's door scene." loading="lazy"></a>
-    <figcaption>The demo's door scene. <code>found</code> sets off two rules of the door's group; rule 2 reads <code>hasKey</code> (set in scene 1–2), hides the hint and emits <code>openDoor</code>, which the <i>narrative</i> plugin listens to. In red below: a problem it found.</figcaption>
+    <figcaption>The demo's door scene. <code>found</code> sets off two rules of the door's group; rule 2 reads <code>hasKey</code> (set in scene 1–2), hides the hint and emits <code>openDoor</code>, which the <i>narrative</i> plugin listens to. At the foot: a warning it found.</figcaption>
   </figure>
 
   <h2 id="boxes">What the boxes are</h2>
@@ -34,6 +34,11 @@
     <tr><td>Stub</td><td class="wrap">At the edge: something that crosses into another level, named by its far end (<i>hasKey ← set in 1–2</i>).</td></tr>
   </table></div>
   <p>The legend under the bar gives the colour and shape of each signal: event, control, picture, address, scene and so on.</p>
+
+  <figure>
+    <a href="/docs/img/logic-key.webp"><img src="/docs/img/logic-key.webp" width="896" height="676" alt="The Logic panel on the demo's key scene: events, a rule with four actions, plugins, nodes, a variable and a stub to scene 3–4." loading="lazy"></a>
+    <figcaption>A fuller level, the demo's key scene. <code>tap</code> sets off the model's rule, which plays the clip, sets <code>hasKey</code>, emits <code>keyRattled</code> and shows the model. <code>hasKey</code> leaves the scene through a stub: <i>read in 3–4</i>. The <i>tally</i> plugin listens to two core events; dotted lines are what plugins drive.</figcaption>
+  </figure>
 
   <h2 id="levels">Levels</h2>
   <p><b>Experience → group → scene → entity.</b> The breadcrumb shows where you are.</p>
@@ -74,6 +79,11 @@
   </table></div>
   <p>While you drag a wire, only the ports that can take it light up. A wire that does not fit says why under the bar. Every change shows on the stage at once, saves itself, and is a step you can undo.</p>
   <p>Fine-tune a rule in the Inspector: the verb, the value, the scope. The canvas and the Inspector edit the same rules.</p>
+
+  <figure>
+    <a href="/docs/img/logic-add.webp"><img src="/docs/img/logic-add.webp" width="896" height="676" alt="The canvas's Add menu on the door scene: Add note, then the events a new rule can listen to." loading="lazy"></a>
+    <figcaption>A right click on the canvas: a note, or a new rule on one of the events. Type to filter.</figcaption>
+  </figure>
 
   <h2 id="canvas">Arranging the canvas</h2>
   <ul>

@@ -59,7 +59,15 @@
   </ul>
 
   <h2 id="safety">Where the code runs</h2>
-  <p>In the editor, plugins run in the editor's page, with your session: a plugin can do what you may do here – read and change the draft, the data, the game state. So before the stage runs plugin code that someone else saved last, the editor asks: <i>Run plugin code by …?</i>, with each plugin and who saved it. <b>Run</b> runs them; <b>Don't run</b> leaves them off the stage, and the Code tab and the Log tab say why. The answer is kept in this browser until someone else saves a new version. Your own code runs without asking. In the reader app the published plugins run in the app's page.</p>
+  <div class="beside">
+    <div>
+      <p>In the editor, plugins run in the editor's page, with your session: a plugin can do what you may do here – read and change the draft, the data, the game state. So before the stage runs plugin code that someone else saved last, the editor asks: <i>Run plugin code by …?</i>, with each plugin and who saved it. <b>Run</b> runs them; <b>Don't run</b> leaves them off the stage, and the Code tab and the Log tab say why. The answer is kept in this browser until someone else saves a new version. Your own code runs without asking. In the reader app the published plugins run in the app's page.</p>
+    </div>
+    <figure>
+      <img src="/docs/img/plugin-prompt.webp" width="480" height="386" alt="The prompt before plugin code by someone else runs: each plugin with who saved it, Run or Don&#x27;t run." loading="lazy">
+      <figcaption>Asked once per version, here after an import.</figcaption>
+    </figure>
+  </div>
   <footer id="pager"></footer>
 </main>
 </body>
