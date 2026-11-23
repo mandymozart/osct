@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Third-party video consent – concept (#351)</title>
+<style>
+  :root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --muted: #8b8d8c; --text: #fff; --rule: #8b8d8c;
+    --gold: linear-gradient(90deg, #f5e7c8 0%, #f5e7c8 3.8%, #7f6032 31.5%, #d2ae5a 57%, #f3cc94 73.6%, #f3cc94 100%);
+    --gutter: 22px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #2a2a2a; font: 15px/1.45 var(--font); color: var(--text); }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .lead { color: #bbb; margin: 0 0 20px; max-width: 1400px; }
+  .row { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .frame { width: 393px; }
+  .frame > b { display: block; margin-bottom: 8px; font-size: 13px; color: #f3cc94; }
+  .frame > small { display: block; margin-top: 8px; color: #bbb; font-size: 12.5px; max-width: 393px; }
+  .phone { width: 393px; height: 760px; border-radius: 34px; overflow: hidden; position: relative;
+           background: linear-gradient(160deg, #6b5a44, #2f3a33 60%, #1c1c1c); border: 6px solid #111; }
+  .sheet { position: absolute; inset: 0; background: rgba(0,0,0,.82); padding: 64px var(--gutter) 24px; overflow: hidden; }
+  .top { position: absolute; top: 18px; left: var(--gutter); right: var(--gutter); display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 18px; }
+  th { text-align: left; color: var(--muted); font-weight: 400; padding: 5px 0; width: 38%; border-bottom: .5px solid var(--rule); }
+  td { padding: 5px 0; border-bottom: .5px solid var(--rule); }
+  p { margin: 0 0 12px; font-size: 14px; }
+  a { color: #d2ae5a; }
+
+  /* the gate – in the player's place, full width, 16:9 */
+  .gate { margin: 14px calc(-1 * var(--gutter)); aspect-ratio: 16/9; background: #0b0b0b; position: relative;
+          display: flex; flex-direction: column; justify-content: center; padding: 14px var(--gutter); gap: 10px;
+          border-top: .5px solid #333; border-bottom: .5px solid #333; }
+  .gate .who { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .gate .msg { font-size: 12.5px; line-height: 1.4; color: #ddd; margin: 0; }
+  .gate .acts { display: flex; align-items: center; gap: 16px; margin-top: 2px; }
+  .btn { height: 31px; padding: 0 18px; border-radius: 16px; display: inline-flex; align-items: center; gap: 8px;
+         font-size: 13px; box-shadow: 0 0 14px 3px rgba(255,255,255,.35); }
+  .btn span { background: var(--gold); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 600; }
+  .check { font-size: 12px; color: #ccc; display: inline-flex; align-items: center; gap: 6px; }
+  .box { width: 14px; height: 14px; border: 1px solid #aaa; border-radius: 3px; display: inline-block; }
+  .box.on { background: #d2ae5a; border-color: #d2ae5a; }
+  .gate.picture { background: center/cover no-repeat, #0b0b0b;
+    background-image: linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,.78)), linear-gradient(135deg, #6c7b5a, #2d3541 55%, #b99b6a); }
+  .player { margin: 14px calc(-1 * var(--gutter)); aspect-ratio: 16/9; background: #000; display: grid; place-items: center; position: relative; }
+  .player .yt { width: 62px; height: 42px; border-radius: 10px; background: #e22; display: grid; place-items: center; }
+  .player .yt::after { content: ""; border-left: 16px solid #fff; border-top: 10px solid transparent; border-bottom: 10px solid transparent; margin-left: 4px; }
+  .player .bar { position: absolute; left: 10px; right: 10px; bottom: 8px; height: 3px; background: #555; }
+  .player .bar::before { content: ""; display: block; width: 0; height: 100%; background: #e22; }
+  .open { font-size: 13px; }
+
+  /* settings */
+  .sec { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+  .set { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: .5px solid var(--rule); font-size: 14px; }
+  .set small { display: block; color: var(--muted); font-size: 12px; }
+  .seg { display: flex; border: 1px solid #555; border-radius: 15px; overflow: hidden; font-size: 12px; }
+  .seg span { padding: 5px 10px; color: #aaa; } .seg span.on { background: #444; color: #fff; }
+  .rm { font-size: 12px; color: #d2ae5a; }
+
+  .q { margin-top: 28px; max-width: 1240px; background: #1d1d1d; border: 1px solid #3a3a3a; padding: 16px 20px; font-size: 14px; }
+  .q h2 { font-size: 15px; margin: 0 0 8px; }
+  .q li { margin: 6px 0; }
+  .q em { color: #f3cc94; font-style: normal; }
+</style>
+</head>
+<body>
+<h1>#351 – a marginalia video from YouTube / Vimeo loads only after the reader agrees</h1>
+<p class="lead">Newspaper pattern: in the player's place (full width, 16:9) a card says who would load and what that means. Nothing is
+requested from YouTube before the tap – not even the thumbnail (i.ytimg.com would already see the reader's IP).</p>
+
+<div class="row">
+  <div class="frame"><b>A · Entry opens – the gate</b>
+    <div class="phone"><div class="sheet">
+      <div class="top"><span>‹ Entries</span><span>Links</span></div>
+      <table>
+        <tr><th>Name</th><td>Crocodile tears, the film</td></tr>
+        <tr><th>Place</th><td>Spread 12–13</td></tr>
+        <tr><th>Category</th><td>Links</td></tr>
+      </table>
+      <p>A short documentary about the tear glands of crocodiles, made in 1974 for Dutch television.</p>
+      <div class="gate">
+        <div class="who">Video on YouTube</div>
+        <p class="msg">Playing loads the YouTube player. YouTube (Google) may set cookies and record what you watch.
+          <a href="#">Google's privacy policy</a></p>
+        <div class="acts">
+          <span class="btn"><span>▶ Play video</span></span>
+          <span class="check"><i class="box"></i>Always for YouTube</span>
+        </div>
+      </div>
+      <p class="open"><a href="#">Open in a new tab</a></p>
+    </div></div>
+    <small>Black card, muted provider line, text in Small, the onboarding's glass button with gold text. The checkbox is
+      unticked every time; "Open in a new tab" stays below as today.</small>
+  </div>
+
+  <div class="frame"><b>A′ · Same, with the entry's own picture behind</b>
+    <div class="phone"><div class="sheet">
+      <div class="top"><span>‹ Entries</span><span>Links</span></div>
+      <table>
+        <tr><th>Name</th><td>Crocodile tears, the film</td></tr>
+        <tr><th>Place</th><td>Spread 12–13</td></tr>
+        <tr><th>Category</th><td>Links</td></tr>
+      </table>
+      <p>A short documentary about the tear glands of crocodiles, made in 1974 for Dutch television.</p>
+      <div class="gate picture">
+        <div class="who">Video on YouTube</div>
+        <p class="msg">Playing loads the YouTube player. YouTube (Google) may set cookies and record what you watch.
+          <a href="#">Google's privacy policy</a></p>
+        <div class="acts">
+          <span class="btn"><span>▶ Play video</span></span>
+          <span class="check"><i class="box"></i>Always for YouTube</span>
+        </div>
+      </div>
+      <p class="open"><a href="#">Open in a new tab</a></p>
+    </div></div>
+    <small>If the entry has an <code>image</code> (our own file, from our CDN) it shows darkened behind the card – a poster
+      without asking YouTube. No image → A.</small>
+  </div>
+
+  <div class="frame"><b>B · After "Play video"</b>
+    <div class="phone"><div class="sheet">
+      <div class="top"><span>‹ Entries</span><span>Links</span></div>
+      <table>
+        <tr><th>Name</th><td>Crocodile tears, the film</td></tr>
+        <tr><th>Place</th><td>Spread 12–13</td></tr>
+        <tr><th>Category</th><td>Links</td></tr>
+      </table>
+      <p>A short documentary about the tear glands of crocodiles, made in 1974 for Dutch television.</p>
+      <div class="player"><div class="yt"></div><div class="bar"></div></div>
+      <p class="open"><a href="#">Open in a new tab</a></p>
+    </div></div>
+    <small>The card is replaced by the youtube-nocookie player with <code>autoplay=1</code>, so one tap plays. Leaving the
+      entry removes the iframe again; next time: the gate again (unless "Always").</small>
+  </div>
+
+  <div class="frame"><b>C · Info → Settings</b>
+    <div class="phone"><div class="sheet">
+      <div class="top"><span>‹ Back</span><span>Info</span></div>
+      <div class="sec">Picture and video quality</div>
+      <div class="set">Quality <div class="seg"><span class="on">Auto</span><span>Low</span><span>Med</span><span>High</span></div></div>
+      <div class="sec">Videos from other sites</div>
+      <div class="set"><div>YouTube<small>Plays without asking</small></div><span class="rm">Ask again</span></div>
+      <div class="set"><div>Vimeo<small>Asks before playing</small></div><span></span></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px">Some entries show videos from YouTube or Vimeo. They load
+        only after you agree, because these sites may set cookies and track what you watch.</p>
+      <div class="sec">Sound &amp; vibration</div>
+      <div class="set">Sound <div class="seg"><span class="on">On</span><span>Off</span></div></div>
+    </div></div>
+    <small>New section after the quality setting. A provider ticked "Always" shows <em>Ask again</em>; kept in this
+      device's storage (like the other settings), nothing on the server.</small>
+  </div>
+</div>
+
+<div class="q">
+  <h2>Open decisions – my recommendation in <em>gold</em></h2>
+  <ol>
+    <li>"Always for YouTube" at all, or ask every time? → <em>offer it, unticked, revocable in Settings (C)</em> – newspapers do the same; asking every
+      time gets tiring in a book full of links.</li>
+    <li>Other web pages a Links entry embeds (today an iframe of the whole page, also loaded at once) – gate them too? →
+      <em>yes, same card</em> ("Page on example.org – opening loads the page from example.org, which may set cookies…", button "Show page"), one
+      "Always" per site.</li>
+    <li>Poster: A (plain black) or A′ (the entry's own image behind)? → <em>A′ when the entry has an image, else A</em>.</li>
+    <li>Texts are placeholders – the final wording (privacy notice) with whoever writes the app's privacy page; EN + the other reader languages via i18n.</li>
+  </ol>
+</div>
+</body>
+</html>
