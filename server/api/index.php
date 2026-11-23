@@ -51,6 +51,8 @@ declare(strict_types=1);
  *   PUT    /editor/experiences/{id}/entries/{id}      { title?, body?, author?, image?, media?, tags?, category?, scene?, surface? } → an entry's
  *                                               fields; a scene moves it · GET /editor/experiences/{id}/entries: every entry with its fields as written
  *   PUT    /editor/experiences/{id}             { title?, book?: { author?, publisher? } | null } → the title and the printed book
+ *   DELETE /editor/experiences/{id}             { confirm? } the whole experience from the editor, in two steps (409 confirm-delete with
+ *                                               the impact) – the content store's builds and files stay (#348)
  *   Scenes (content schema 3.0, docs/server.md "Scenes" – its order is its position, nothing renumbers):
  *   GET    /editor/experiences/{id}/scenes      the scenes in order (label, group, surfaces with their reference images, counts) and the groups
  *   POST   /editor/experiences/{id}/scenes      { preset?, after? | before? | position?, id?, label?, group?, surfaces? } → 201 a
@@ -198,6 +200,7 @@ try {
         $route === 'POST /editor/import/preview' => Experiences::preview(),
         (bool) preg_match("#^POST /editor/experiences/($id)/import$#", $route, $match) => Experiences::import($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)$#", $route, $match) => Experiences::tree($match[1]),
+        (bool) preg_match("#^DELETE /editor/experiences/($id)$#", $route, $match) => Experiences::delete($match[1]),
         (bool) preg_match("#^GET /editor/experiences/($id)/entities$#", $route, $match) => Experiences::entities($match[1]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/entities/($id)$#", $route, $match) => Experiences::putEntity($match[1], $match[2]),
         (bool) preg_match("#^PUT /editor/experiences/($id)/targets/($id)$#", $route, $match) => Experiences::putTarget($match[1], $match[2]),

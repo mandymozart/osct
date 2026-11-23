@@ -721,10 +721,21 @@ try {
         && $data['display'] === 'standalone' && count($data['icons']) === 3, 'GET /experiences/{id}/manifest.webmanifest: id, start and scope /<id>/ – a draft\'s title is not given away');
     [$status] = call($api, 'GET', '/experiences/editor/manifest.webmanifest');
     check($status === 404, '… none for one of the site\'s own paths');
-    // The rest of the run knows one experience: the new one goes again (the API has no removal of an experience)
+    // The rest of the run knows one experience: the new one goes again – deleting an experience, in two steps (#348)
+    [$status, $data] = call($api, 'DELETE', '/editor/experiences/new-book', null, $editor);
+    check($status === 409 && $data['error']['code'] === 'confirm-delete' && $data['error']['impact']['kind'] === 'experience'
+        && $data['error']['impact']['counts']['scenes'] === 1 && $data['error']['impact']['live'] === [], 'DELETE /editor/experiences/{id}: first 409 confirm-delete with the impact – nothing written');
+    [$status] = call($api, 'GET', '/editor/experiences/new-book', null, $editor);
+    check($status === 200, '… the experience is still there');
+    [$status, $data] = call($api, 'DELETE', '/editor/experiences/new-book', ['confirm' => 'nonsense'], $editor);
+    check($status === 409 && $data['error']['code'] === 'confirmation-void', '… a confirmation that does not fit → 409 confirmation-void');
+    [$status, $data] = deleting($api, '/editor/experiences/new-book', $editor);
+    check($status === 200 && $data['deleted']['experience'] === 'new-book', '… with confirm it goes → 200');
+    [$status] = call($api, 'GET', '/editor/experiences/new-book', null, $editor);
+    check($status === 404, '… and is gone (404)');
     $pdo = connect('test');
-    foreach (['scenes', 'changes'] as $table) $pdo->exec("DELETE FROM $table WHERE experience_id = 'new-book'");
-    $pdo->exec("DELETE FROM experiences WHERE id = 'new-book'");
+    check((int) $pdo->query("SELECT COUNT(*) FROM changes WHERE experience_id = 'new-book'")->fetchColumn() === 0
+        && (int) $pdo->query("SELECT COUNT(*) FROM scenes WHERE experience_id = 'new-book'")->fetchColumn() === 0, '… its scenes and history with it');
     $pdo = null;
 
     echo "editor: tree, entities\n";

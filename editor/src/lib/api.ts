@@ -56,7 +56,7 @@ import type {
   ExportDownload,
   ImportResult,
 } from "@shared/api/editor";
-export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishJob, PublishResult, PublishStarted, ImportComparison, ImportPreview, ExperienceSaved, PublishedVersion, VersionActivated, RecentChange, ExportDownload, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact } from "@shared/api/editor";
+export type { EnvironmentUnreadable, ExperienceSummary, ExperienceList, ExperienceTree, PublishJob, PublishResult, PublishStarted, ImportComparison, ImportPreview, ExperienceSaved, PublishedVersion, VersionActivated, RecentChange, ExportDownload, ExperiencePassesSaved, ExperienceAppearanceSaved, RemovalImpact, ExperienceDeletionImpact } from "@shared/api/editor";
 import { apiErrorFields } from "@shared/api/errors";
 import { imageUseQuery, type ImageFit, type ImageUse } from "@shared/api/images";
 import type { PublishedPlugin } from "#lib/publish-plugins.js";
@@ -679,6 +679,13 @@ export const deleteScene = (experienceId: string, sceneId: string, confirm?: str
 /** Removes an entry with its target, its entity and (with `deleteFiles`) the files used only there – the same two steps */
 export const deleteEntry = (experienceId: string, entryId: string, confirm?: string, deleteFiles = false) =>
   api<RemovalResult>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}/entries/${encodeURIComponent(entryId)}`, removalBody(confirm, deleteFiles));
+
+/**
+ * Deletes a whole experience (#348), in two steps: without `confirm` 409 `confirm-delete` with `details.impact` (an
+ * `ExperienceDeletionImpact`) and `details.confirmation`; with `confirm` it goes. The content store's builds and files stay.
+ */
+export const deleteExperience = (experienceId: string, confirm?: string) =>
+  api<{ deleted: { experience: string } }>("DELETE", `/editor/experiences/${encodeURIComponent(experienceId)}`, confirm ? { confirm } : undefined);
 
 const removalBody = (confirm: string | undefined, deleteFiles: boolean) => (confirm ? { confirm, ...(deleteFiles ? { deleteFiles: true } : {}) } : undefined);
 

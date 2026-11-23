@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { confirmationStep } from "@shared/api/errors";
-  import { activateVersion, errorText, exportFileUrl, importExperience, listVersions, type Confirmation, type ExperienceSummary, type ImportBody, type ImportComparison, type PublishedVersion } from "#lib/api.js";
+  import { activateVersion, deleteExperience, errorText, exportFileUrl, importExperience, listVersions, type Confirmation, type ExperienceDeletionImpact, type ExperienceSummary, type ImportBody, type ImportComparison, type PublishedVersion } from "#lib/api.js";
   import { readerAddress } from "#lib/new-experience.js";
-  import { makeLiveQuestion, versionRows, type VersionRow } from "#lib/experiences-page.js";
+  import { deleteArmed, deletionTakes, makeLiveQuestion, versionRows, type VersionRow } from "#lib/experiences-page.js";
   import ImportSource, { type LoadedSource } from "#lib/ImportSource.svelte";
   import ImportCompare from "#lib/ImportCompare.svelte";
 
@@ -12,9 +12,11 @@
    * editor), **Export** (the draft as one file to download – `GET …/export/file`, the import body Import reads back),
    * **Replace…** step by step (a source – file, URL or published –, then the comparison, then *Replace the draft*; readers
    * keep the live version until the next publish) and **Versions** – the publish log, the live mark per environment, and
-   * *make live* for an older build of this instance's environment, after a confirm in words (`POST …/versions/{build}/activate`).
+   * *make live* for an older build of this instance's environment, after a confirm in words (`POST …/versions/{build}/activate`);
+   * **Delete experience…** at the end: the server's impact (what goes, where it is live) in a red warning, armed only once
+   * the experience's id is typed (`DELETE …/experiences/{id}`, two steps – the content store's builds and files stay).
    */
-  let { experience, ownEnv, published, view = $bindable("sheet"), onopen, onchanged }: {
+  let { experience, ownEnv, published, view = $bindable("sheet"), onopen, onchanged, ondeleted }: {
     experience: ExperienceSummary;
     ownEnv: string | null;
     published: readonly { id: string; title: string }[];
@@ -22,6 +24,8 @@
     onopen: () => void;
     /** Something changed on the server (a replace, make live): the page reads the experiences again */
     onchanged: () => Promise<void> | void;
+    /** The experience was deleted: the page reads the experiences again and clears the selection */
+    ondeleted: () => Promise<void> | void;
   } = $props();
 
   const origin = typeof location === "undefined" ? "" : location.origin;
@@ -48,6 +52,9 @@
     versions = null;
     asking = null;
     done = null;
+    deletion = null;
+    deleteError = null;
+    typed = "";
     void loadVersions(id);
   });
   const rows = $derived(versions ? versionRows(versions, experience.live ?? [], ownEnv) : []);
@@ -74,6 +81,47 @@
       actionError = errorText(e, { code: true });
     } finally {
       busy = false;
+    }
+  };
+
+  // Delete experience…: the first step asks the server what goes, the second sends its confirmation
+  let deletion = $state<{ impact: ExperienceDeletionImpact; confirmation: Confirmation; changed: boolean } | null>(null);
+  let deleteError = $state<string | null>(null);
+  let typed = $state("");
+  let deleting = $state(false);
+  let deleteBox = $state<HTMLElement | null>(null);
+  const askDelete = async () => {
+    deleting = true;
+    deleteError = null;
+    typed = "";
+    try {
+      await deleteExperience(experience.id);
+      await ondeleted(); // no first step: gone already (cannot happen with this API, but nothing is left to ask)
+    } catch (e) {
+      const step = confirmationStep<ExperienceDeletionImpact>(e, "removal");
+      if (step) {
+        deletion = { impact: step.shows, confirmation: step.confirmation, changed: step.changed };
+        await tick();
+        deleteBox?.querySelector<HTMLInputElement>("input")?.focus();
+      } else deleteError = errorText(e, { code: true });
+    } finally {
+      deleting = false;
+    }
+  };
+  const confirmDelete = async () => {
+    if (!deletion || !deleteArmed(typed, experience.id)) return;
+    deleting = true;
+    deleteError = null;
+    try {
+      await deleteExperience(experience.id, deletion.confirmation.id);
+      deletion = null;
+      await ondeleted();
+    } catch (e) {
+      const step = confirmationStep<ExperienceDeletionImpact>(e, "removal");
+      if (step) deletion = { impact: step.shows, confirmation: step.confirmation, changed: true };
+      else deleteError = errorText(e, { code: true });
+    } finally {
+      deleting = false;
     }
   };
 
@@ -199,6 +247,40 @@
         </div>
       {/if}
     </section>
+
+    <section class="delete" aria-label="Delete the experience">
+      {#if !deletion}
+        <button type="button" class="pill framed danger-pill" onclick={askDelete} disabled={deleting}
+          data-help-name="Delete experience" data-help="Deletes the experience from the editor for good: its draft, its history and its publish log. Nothing brings it back – export it first. Published builds stay where they are live.">{deleting ? "Checking…" : "Delete experience…"}</button>
+        {#if deleteError}<p class="danger small" role="alert">{deleteError}</p>{/if}
+      {:else}
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <div class="warning" role="alertdialog" tabindex="-1" aria-labelledby="delete-title" aria-describedby="delete-what" bind:this={deleteBox}
+          onkeydown={e => { if (e.key === "Escape") { e.stopPropagation(); deletion = null; } }}>
+          <p id="delete-title" class="warning-title">⚠ Delete “{deletion.impact.title}” for good?</p>
+          {#if deletion.changed}<p class="small">The experience changed since you asked – this is what goes now.</p>{/if}
+          <div id="delete-what">
+            <p>This cannot be undone. Nothing in the editor brings it back – not undo, not the versions. Gone with it:</p>
+            <ul>{#each deletionTakes(deletion.impact.counts) as line (line)}<li>{line}</li>{/each}</ul>
+            {#if deletion.impact.live.length}
+              <p><b>It is live on {deletion.impact.live.map(l => l.env).join(", ")}.</b> Readers there keep getting the published build,
+                but no one can edit, publish or take it back from the editor any more.</p>
+            {/if}
+            <p class="small">Export it first if you might need it again. The published builds and uploaded files stay in the content store.</p>
+          </div>
+          <label class="type-to-confirm">
+            <span>Type <code>{experience.id}</code> to confirm</span>
+            <input type="text" bind:value={typed} autocomplete="off" spellcheck="false"
+              onkeydown={e => { if (e.key === "Enter") { e.preventDefault(); void confirmDelete(); } }} />
+          </label>
+          {#if deleteError}<p class="danger small" role="alert">{deleteError}</p>{/if}
+          <p class="actions">
+            <button type="button" class="pill delete-now" onclick={confirmDelete} disabled={deleting || !deleteArmed(typed, experience.id)}>{deleting ? "Deleting…" : "Delete for good"}</button>
+            <button type="button" class="text-link" onclick={() => (deletion = null)}>Cancel</button>
+          </p>
+        </div>
+      {/if}
+    </section>
   {/if}
 </div>
 
@@ -219,5 +301,15 @@
   .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .badge { font-size: var(--text-small); line-height: 1; padding: .1875rem .375rem; border: 1px solid var(--text); }
   .badge.on::before { content: "● "; font-size: .75em; vertical-align: .1em; }
+  .delete { padding-top: 1rem; border-top: 1px solid var(--line); }
+  .delete .danger-pill { color: var(--danger); }
+  .warning { display: grid; gap: .75rem; padding: 1rem; border: 2px solid var(--danger); background: var(--surface); }
+  .warning-title { color: var(--danger); font-size: 1rem; font-weight: 700; }
+  .warning ul { margin: .375rem 0 .625rem; padding-left: 1.25rem; }
+  .warning #delete-what { display: grid; gap: .5rem; }
+  .type-to-confirm { display: grid; gap: .375rem; font-size: var(--text-small); }
+  .type-to-confirm input { font: inherit; font-size: .875rem; padding: .375rem .5rem; border: 1px solid var(--danger); background: var(--surface); color: var(--text); }
+  .delete-now { color: var(--surface); background: var(--danger); }
+  .delete-now:disabled { opacity: .4; cursor: not-allowed; }
   .confirm { display: grid; gap: .625rem; margin-top: .75rem; padding: .75rem; border: 1px solid var(--text); background: var(--surface); }
 </style>

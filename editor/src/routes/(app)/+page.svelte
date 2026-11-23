@@ -16,12 +16,14 @@
 
   /**
    * The editor's start (#153, #348 – Tilman 2026-11-22: "the right side is still smart"): **the books** on the left – each
-   * experience as its cover (title, author, where it is live) with a ··· under it, and a dashed **+** card at the end –,
-   * the AI connections under them (#142, #194); **a context column** on the right: nothing selected → quick access (New
-   * experience, Import, Last worked on); New → the New flow step by step; a book's ··· → its sheet (Open, Export,
-   * Replace…, Versions with make live; the ··· again closes it). A click on the cover or Enter opens the editor (Tilman
-   * 2026-11-22: "primary action on the experience should still be to open"); the arrows move the focus – an open sheet
-   * follows –, Esc closes the sheet. The ☰ menu's *New experience…* and *Import…* open the New flow.
+   * experience as its cover (title, author, where it is live) with a **Manage** button centred under it, and a dashed **+** card at
+   * the end –, the AI connections under them (#142, #194); **a context column** on the right: nothing selected → quick
+   * access (New experience, Import, Last worked on); New → the New flow step by step; a book's Manage → its sheet (Open,
+   * Export, Replace…, Versions with make live, Delete experience…; Manage again closes it). Keyboard (Tilman 2026-11-23:
+   * "tab switches through the experiences, enter or click opens it, a select button shows the right hand export and
+   * replace view"): Tab goes from cover to cover (the Manage buttons are no tab stops), Enter or a click opens the editor,
+   * Space manages (selects) the focused book; the arrows move the focus too; an open sheet follows the focus; Esc closes the sheet.
+   * The ☰ menu's *New experience…* and *Import…* open the New flow.
    */
   let experiences = $state<ExperienceSummary[] | null>(null);
   let unreadable = $state<EnvironmentUnreadable[]>([]);
@@ -95,12 +97,27 @@
       open(card.dataset.card!);
       return;
     }
+    if (event.key === " " && card.dataset.card !== "new") {
+      event.preventDefault();
+      toggle(card.dataset.card!);
+      return;
+    }
     const to = moveSelection(index, event.key, cards.length, columns());
     if (to === null || to === index) return;
     event.preventDefault();
     const id = cards[to].dataset.card!;
     if (id !== "new" && column === "book") select(id);
     void focusCard(to);
+  };
+
+  const toggle = (id: string) => select(selected === id ? null : id);
+  /** Tab (or a click) onto another book while its sheet is open: the sheet follows */
+  const onCardFocus = (id: string) => {
+    if (column === "book" && selected !== id) select(id);
+  };
+  const onDeleted = async () => {
+    select(null);
+    await load();
   };
 
   // Esc clears the selection – not while a field, a menu or a confirm has the key
@@ -128,7 +145,7 @@
         {#each experiences as experience (experience.id)}
           <li class:selected={selected === experience.id}>
             <button type="button" class="experience" data-card={experience.id}
-              onclick={() => open(experience.id)} title="Open in the editor">
+              onclick={() => open(experience.id)} onfocus={() => onCardFocus(experience.id)} title="Open in the editor (Enter) – Space: Manage">
               <span class="cover-box"><ExperienceCover {experience} /></span>
               <span class="title">{experience.title}</span>
               {#if experience.experience.book}<span class="author muted">{experience.experience.book.author}</span>{/if}
@@ -136,8 +153,8 @@
                 {#each experience.live ?? [] as l (l.env)}<span class="badge on" title={l.build ? `build ${l.build}` : undefined}>{l.env}</span>{:else}<span class="badge">draft</span>{/each}
               </span>
             </button>
-            <button type="button" class="icon-button more" aria-label="More: {experience.title}" title="Export, Replace, Versions"
-              aria-expanded={selected === experience.id} onclick={() => select(selected === experience.id ? null : experience.id)}><Icon name="more" /></button>
+            <button type="button" class="select" tabindex="-1" aria-label="Manage {experience.title}" title="Export, Replace, Versions, Delete – in the column on the right"
+              aria-pressed={selected === experience.id} onclick={() => toggle(experience.id)}>Manage</button>
           </li>
         {/each}
         <li class="new-card">
@@ -170,7 +187,7 @@
             ondone={async id => { await load(); open(id); }} oncancel={() => select(null)} />
         {/key}
       {:else if column === "book" && current}
-        <ExperienceSheet experience={current} {ownEnv} {published} bind:view={sheetView} onopen={() => open(current.id)} onchanged={load} />
+        <ExperienceSheet experience={current} {ownEnv} {published} bind:view={sheetView} onopen={() => open(current.id)} onchanged={load} ondeleted={onDeleted} />
       {:else}
         <QuickAccess {initialScenes} onnew={() => openNew(null)} onimport={() => openNew("export")} />
       {/if}
@@ -215,8 +232,10 @@
   @media (hover: hover) { .add:hover .cover-box { border-color: var(--text); color: var(--text); box-shadow: none; } }
   .experience.add[aria-pressed="true"] .cover-box { border: 1px solid var(--text); color: var(--text); box-shadow: 0 0 0 1px var(--text); }
   .add .cover-box :global(svg) { width: 2rem; height: 2rem; }
-  .more { height: 1.5rem; width: 2rem; margin-left: -.375rem; color: var(--muted); }
-  li.selected .more { color: var(--text); }
+  .select { justify-self: center; margin-top: .25rem; padding: .1875rem .625rem; border: 1px solid var(--line); background: none; color: var(--muted);
+    font: inherit; font-size: var(--text-small); line-height: 1.2; cursor: pointer; }
+  @media (hover: hover) { .select:hover { border-color: var(--text); color: var(--text); } }
+  li.selected .select { border-color: var(--text); background: var(--text); color: var(--surface); }
   .title { font-size: .875rem; font-weight: 600; line-height: 1.25; }
   .author { font-size: var(--text-size); }
   .live { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .25rem; }
