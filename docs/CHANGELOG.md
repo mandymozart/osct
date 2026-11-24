@@ -8,6 +8,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.20.1 – 2026-11-24
+
+### Fixed
+- **Moving a panel moves nothing else** (#368, Tilman: *"the dashboard is still jumping around like crazy when i drag the
+  inspector"*): while a panel was held the layout left it out, so the panels that take what is left (the Tree, the
+  Scenes) grew into its room and shrank back with every step, and once it was dropped they grew again. Now the others
+  keep the places they had while it is held, and when it is let go a panel the layout would move because of it is pinned
+  where it was (free, like the moved one). Reset layout lays everything out again.
+
 ## 6.20.0 – 2026-11-23
 
 ### Added

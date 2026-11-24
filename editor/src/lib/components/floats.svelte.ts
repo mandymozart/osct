@@ -23,10 +23,11 @@ interface Held {
   from: [number, number];
   rect: Rect;
   moved: boolean;
-  /** A resize (#329): every panel's view when it started and its least size – what `evade` lays out from */
+  /** Every panel's view when it started: a resize lays out from it (#329, `evade`), a move keeps the others in it (#368) */
   base?: Record<string, View>;
+  /** A resize (#329): every panel's least size */
   neighbours?: Neighbour[];
-  /** A resize: the views while it lasts – the base's own objects where a panel did not move, so it is not drawn again */
+  /** The views while it lasts – the base's own objects where a panel did not move, so it is not drawn again */
   views?: Record<string, View>;
 }
 
@@ -169,7 +170,10 @@ export class Floats {
     else this.front(at);
   }
 
-  /** While a resize lasts the views are its own (`evade`, once per frame) – no layout of all the panels */
+  /**
+   * While a panel is in the hand the views are the hand's own – a resize's `evade` once per frame, a move's the others
+   * where they were when it was grabbed (#368: nothing grows into the room it leaves) – no layout of all the panels
+   */
   readonly views: Record<string, View> = $derived.by(() => this.held?.views ?? layout({
     specs: this.specs, places: this.resolved, shown: this.shown, area: this.area, m: this.metrics, measured: this.measured, asks: this.asks,
     held: this.held && this.held.moved ? { id: this.held.id, rect: this.held.rect } : null,
@@ -357,16 +361,37 @@ export class Floats {
 
   // ── the hand: a move by the head, a resize by an edge ──
 
+  /**
+   * The places once `id` lies at `place` (free, #364) – and every other panel the layout would move because of it
+   * pinned where it is now (`views`), free at its size (#368: a moved panel moves nothing else; Reset layout lays them
+   * out again)
+   */
+  private pinned(id: string, place: Place, views: Record<string, View>): Record<string, Place> {
+    const places = { ...this.places, [id]: place };
+    const after = layout({
+      specs: this.specs, places: Object.fromEntries(this.specs.map(s => [s.id, places[s.id] ?? defaultPlace(s, this.metrics)])),
+      shown: this.shown, area: this.area, m: this.metrics, measured: this.measured, asks: this.asks,
+    });
+    const moves = (a: Rect, b: Rect) => Math.abs(a.x - b.x) > 0.5 || Math.abs(a.y - b.y) > 0.5 || Math.abs(a.w - b.w) > 0.5 || Math.abs(a.h - b.h) > 0.5;
+    for (const [other, was] of Object.entries(views)) {
+      const now = after[other];
+      if (other === id || !now || !moves(was.rect, now.rect)) continue;
+      const keep = this.place(other);
+      const sized = !this.spec(other)?.inline && !was.collapsed;
+      places[other] = { ...keep, ...placeOf(was.rect, this.area), ...(sized ? { size: { w: Math.round(was.rect.w), h: Math.round(was.rect.h) } } : {}), free: true };
+    }
+    return places;
+  }
+
   /** A press on a panel's handle (`edge` null) or one of its edges */
   grab(id: string, x: number, y: number, edge: Edge | null = null): void {
     const view = this.views[id];
     if (!view) return;
     this.cancelFrame();
     this.front(id);
-    const held: Held = { id, kind: edge ? "size" : "move", edge: edge ?? { x: 0, y: 0 }, start: view.rect, from: [x, y], rect: view.rect, moved: false };
+    const held: Held = { id, kind: edge ? "size" : "move", edge: edge ?? { x: 0, y: 0 }, start: view.rect, from: [x, y], rect: view.rect, moved: false, base: this.views };
     if (edge) {
       // A resize lays the others out from where they are now: each may move and shrink to its least size (#329)
-      held.base = this.views;
       held.neighbours = Object.entries(this.views).map(([other, v]) => {
         const spec = this.spec(other);
         const min = v.collapsed || !spec ? { w: v.rect.w, h: v.rect.h } : this.minOf(spec);
@@ -414,13 +439,17 @@ export class Floats {
     if (!spec) return;
     this.passes++;
     if (h.kind === "move") {
-      this.held = { ...h, rect: moved(h.start, dx, dy, this.area), moved: true };
+      // The others stay as they were (#368): only the held panel's view is new
+      const rect = moved(h.start, dx, dy, this.area);
+      const base = h.base ?? this.views;
+      this.held = { ...h, rect, moved: true, views: { ...base, [h.id]: { ...(base[h.id] ?? { collapsed: false }), rect } } };
       return;
     }
     const target = resized(h.start, h.edge, dx, dy, this.minOf(spec), this.area);
     // A free panel (#364) moves no other
     if (this.place(h.id).free) {
-      this.held = { ...h, rect: target, moved: true };
+      const base = h.base ?? this.views;
+      this.held = { ...h, rect: target, moved: true, views: { ...base, [h.id]: { ...(base[h.id] ?? { collapsed: false }), rect: target } } };
       return;
     }
     const base = h.base ?? {};
@@ -449,11 +478,13 @@ export class Floats {
     // keeps the size it had (a toolbar follows its content)
     const size = { w: Math.round(h.rect.w), h: Math.round(h.rect.h) };
     if (h.kind === "move") {
-      this.set(h.id, { ...old, ...placeOf(h.rect, this.area), ...(spec.inline || views[h.id]?.collapsed ? {} : { size }), free: true });
+      this.places = this.pinned(h.id, { ...old, ...placeOf(h.rect, this.area), ...(spec.inline || views[h.id]?.collapsed ? {} : { size }), free: true }, views);
+      this.save();
       return true;
     }
     if (old.free) {
-      this.set(h.id, { ...old, ...placeOf(h.rect, this.area), size });
+      this.places = this.pinned(h.id, { ...old, ...placeOf(h.rect, this.area), size }, views);
+      this.save();
       return true;
     }
     const rect = settleSize(h.rect, h.edge, others, this.minOf(spec), this.area, gap);
