@@ -87,7 +87,7 @@
   const initialScenes = $derived(Object.fromEntries((experiences ?? []).map(e => [e.id, e.initialScene])));
   const label = $derived(columnLabel(column === "book" ? (sheetView === "replace" ? "replace" : "book") : column, current?.title));
   /** The books keep clear of a tall panel along a side (px) */
-  const insets = $derived(shelfInsets(Object.values(floats.views), floats.area, floats.metrics.gap, 12 * floats.metrics.rem));
+  const insets = $derived(shelfInsets(Object.values(floats.resting), floats.area, floats.metrics.gap, 12 * floats.metrics.rem));
 
   /** The Inspector's tab comes to the front, its panel unfolded – what was asked for shows */
   const showInspector = () => floats.showTab("inspector", true);

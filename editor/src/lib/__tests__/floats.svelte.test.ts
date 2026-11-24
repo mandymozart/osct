@@ -77,11 +77,14 @@ describe("Floats: resizing a panel", () => {
       // The Tree and the Scenes do not grow into the room it leaves: the very same views
       expect(f.views.tree).toBe(tree);
       expect(f.views.scenes).toBe(scenes);
+      // What the page lays its content out by (the experiences shelf) stays as before the grab
+      expect(f.resting.inspector.rect).toEqual(inspector);
     }
     const dropped = f.views.inspector.rect;
     expect(f.drop()).toBe(true);
     // Let go, it lies where it was dropped and the others where they were – the Scenes pinned, as the layout would grow them
     expect(f.views.inspector.rect).toEqual(dropped);
+    expect(f.resting.inspector.rect).toEqual(dropped);
     expect(f.views.tree.rect).toEqual(tree.rect);
     expect(f.views.scenes.rect).toEqual(scenes.rect);
     expect(f.place("inspector").free).toBe(true);

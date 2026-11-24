@@ -15,7 +15,10 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   inspector"*): while a panel was held the layout left it out, so the panels that take what is left (the Tree, the
   Scenes) grew into its room and shrank back with every step, and once it was dropped they grew again. Now the others
   keep the places they had while it is held, and when it is let go a panel the layout would move because of it is pinned
-  where it was (free, like the moved one). Reset layout lays everything out again.
+  where it was (free, like the moved one; a toolbar only when its corner would move – its length follows its groups).
+  On the **experiences dashboard** the shelf of books took its margins from the Inspector at every step of the drag and
+  reflowed all the time; it now keeps them until the panel is let go (`Floats.resting`). Reset layout lays everything
+  out again.
 
 ## 6.20.0 – 2026-11-23
 

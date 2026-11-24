@@ -4,7 +4,7 @@ import {
   selectTab, splitOut, storedArrangement, TABS_KEY, type Arrangement, type TabSpec,
 } from "./float-tabs.js";
 import {
-  at, clampInto, defaultPlace, evade, layout, moved, placeOf, raise, readPlaces, resized, settleSize, wantOf, withPlaces,
+  at, clampInto, cornerOf, defaultPlace, evade, layout, moved, placeBy, placeOf, raise, readPlaces, resized, settleSize, wantOf, withPlaces,
   type Edge, type Metrics, type Neighbour, type PanelSpec, type Place, type Rect, type Size, type View,
 } from "./floats.js";
 
@@ -178,6 +178,14 @@ export class Floats {
     specs: this.specs, places: this.resolved, shown: this.shown, area: this.area, m: this.metrics, measured: this.measured, asks: this.asks,
     held: this.held && this.held.moved ? { id: this.held.id, rect: this.held.rect } : null,
   }));
+
+  /**
+   * The views as they were before the panel in the hand was grabbed (#368) – what the page lays its own content out by
+   * (the experiences shelf's margins), so it follows a panel once when it is let go, not with every step of the drag
+   */
+  get resting(): Record<string, View> {
+    return this.held?.base ?? this.views;
+  }
 
   /** Every panel's place: the stored one, else its default */
   get resolved(): Record<string, Place> {
@@ -372,13 +380,21 @@ export class Floats {
       specs: this.specs, places: Object.fromEntries(this.specs.map(s => [s.id, places[s.id] ?? defaultPlace(s, this.metrics)])),
       shown: this.shown, area: this.area, m: this.metrics, measured: this.measured, asks: this.asks,
     });
-    const moves = (a: Rect, b: Rect) => Math.abs(a.x - b.x) > 0.5 || Math.abs(a.y - b.y) > 0.5 || Math.abs(a.w - b.w) > 0.5 || Math.abs(a.h - b.h) > 0.5;
+    const off = (a: number, b: number) => Math.abs(a - b) > 0.5;
     for (const [other, was] of Object.entries(views)) {
       const now = after[other];
-      if (other === id || !now || !moves(was.rect, now.rect)) continue;
+      if (other === id || !now) continue;
       const keep = this.place(other);
-      const sized = !this.spec(other)?.inline && !was.collapsed;
-      places[other] = { ...keep, ...placeOf(was.rect, this.area), ...(sized ? { size: { w: Math.round(was.rect.w), h: Math.round(was.rect.h) } } : {}), free: true };
+      // A toolbar is as long as its content: only a move of its corner counts, never a change of its length
+      const inline = !!this.spec(other)?.inline;
+      const corner = cornerOf(was.rect, keep.corner);
+      const cornerNow = cornerOf(now.rect, keep.corner);
+      const moved = off(corner[0], cornerNow[0]) || off(corner[1], cornerNow[1]);
+      const resized = off(was.rect.w, now.rect.w) || off(was.rect.h, now.rect.h);
+      if (!moved && (inline || !resized)) continue;
+      // Pinned by its own corner, so it grows (a toolbar) the way it did
+      const sized = !inline && !was.collapsed;
+      places[other] = { ...keep, ...placeBy(was.rect, keep.corner, this.area), ...(sized ? { size: { w: Math.round(was.rect.w), h: Math.round(was.rect.h) } } : {}), free: true };
     }
     return places;
   }
