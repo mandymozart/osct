@@ -64,6 +64,36 @@ describe("Floats: resizing a panel", () => {
     writes.mockRestore();
   });
 
+  it("moving a panel moves nothing else – not while it is held, not when it is let go (#368)", () => {
+    const f = floats();
+    const tree = f.views.tree;
+    const scenes = f.views.scenes;
+    const inspector = f.views.inspector.rect;
+    // The Inspector by its head into the middle of the stage, in steps
+    f.grab("inspector", inspector.x + 20, inspector.y + 10);
+    for (let k = 1; k <= 10; k++) {
+      f.drag(inspector.x + 20 - k * 50, inspector.y + 10 + k * 20);
+      runFrame();
+      // The Tree and the Scenes do not grow into the room it leaves: the very same views
+      expect(f.views.tree).toBe(tree);
+      expect(f.views.scenes).toBe(scenes);
+      // What the page lays its content out by (the experiences shelf) stays as before the grab
+      expect(f.resting.inspector.rect).toEqual(inspector);
+    }
+    const dropped = f.views.inspector.rect;
+    expect(f.drop()).toBe(true);
+    // Let go, it lies where it was dropped and the others where they were – the Scenes pinned, as the layout would grow them
+    expect(f.views.inspector.rect).toEqual(dropped);
+    expect(f.resting.inspector.rect).toEqual(dropped);
+    expect(f.views.tree.rect).toEqual(tree.rect);
+    expect(f.views.scenes.rect).toEqual(scenes.rect);
+    expect(f.place("inspector").free).toBe(true);
+    expect(f.place("scenes").free).toBe(true);
+    // Reset layout lays them all out again
+    f.reset();
+    expect(f.place("scenes").free).toBeFalsy();
+  });
+
   it("a panel not in the way keeps its very view (nothing to draw again)", () => {
     const f = floats();
     const before = f.views;

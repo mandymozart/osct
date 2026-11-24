@@ -399,7 +399,12 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
   follows the pointer over the others; let go, it **stays where it was dropped** (#364, Tilman 2026-11-23: *"remove the
   snapping of windows. only limit them to not go out of the stage area"*) – over another panel too, the one in front on
   top – only kept inside the stage. It is then **free** (`Place.free`): the layout neither pushes it nor makes room for
-  it, and it keeps the size it had (a toolbar follows its content). Reset layout lays every panel out again. The panels
+  it, and it keeps the size it had (a toolbar follows its content). **Moving a panel moves nothing else** (#368): while
+  it is held the others keep their places (the hand's views, no layout), and let go, a panel the layout would move
+  because of it – a `fill` panel growing into the room it left – is pinned where it was by its own corner, free too (a
+  toolbar only when its corner would move, never for its length). What a page lays out by the panels (the experiences
+  shelf's margins) reads `Floats.resting` – the views before the grab – so it follows once, on let go. Reset layout lays
+  every panel out again. The panels
   the layout places sit flush against the stage's walls and each other – no gap since #364 (it was .5rem).
 - **Resize** by its edges and corners (wider grips with a finger). The resize **makes room** (#329, `evade` in
   `floats.ts`): the panels in its way move on, away from the moving edge (one pushes the next), and at the wall they

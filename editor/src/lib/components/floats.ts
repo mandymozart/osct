@@ -197,6 +197,16 @@ export const placeOf = (r: Rect, area: Rect): Pick<Place, "corner" | "dx" | "dy"
   };
 };
 
+/** The point of `r` at `corner` (px) – what a panel is held by */
+export const cornerOf = (r: Rect, corner: Corner): [number, number] => [isRight(corner) ? right(r) : r.x, isBottom(corner) ? bottom(r) : r.y];
+
+/** `r`'s place held by `corner` (its distances from that corner's walls) – `placeOf` with the corner given */
+export const placeBy = (r: Rect, corner: Corner, area: Rect): Pick<Place, "corner" | "dx" | "dy"> => ({
+  corner,
+  dx: Math.max(0, Math.round(isRight(corner) ? right(area) - right(r) : r.x - area.x)),
+  dy: Math.max(0, Math.round(isBottom(corner) ? bottom(area) - bottom(r) : r.y - area.y)),
+});
+
 /** A folded panel's pill: grip and icon, its name and – unless it is essential – the close (a double-click on the head folds and opens it, #318) */
 export const pillSize = (spec: PanelSpec, m: Metrics): Size =>
   spec.inline ? { w: m.head, h: m.head } : { w: 2 * m.head + spec.name.length * m.char + (spec.essential ? 0 : m.button), h: m.head };
