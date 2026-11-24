@@ -54,6 +54,17 @@ outcome in the line (or move it into a dated decision block).
 - The MCP `get_plugin` error on staging (*"Cannot read properties of undefined (reading 'matchAll')"*) is an MCP process
   older than 6.11 (it read `row.source`, which the API no longer answers); the repo's `get_plugin` reads `files` – a test
   of a several-file plugin added. Update the local osct-mcp-develop build.
+- [x] osct-mcp-develop updated to 6.18.0 (2026-11-24: its processes stopped, `checkout --detach origin/develop`, `npm ci`
+      in `mcp/`): `get_plugin` reads several-file plugins again. An auto-update of that local build is another session's.
+- Browser check of 6.18.0 found the repair's second look seeing the old text (Monaco's worker keeps its copy of a model by
+  address and version; a model made again at the same address starts at version 1) – each check now lies in a folder of
+  its own (`pluginCheckPath(…, run)`). The Experiences and landing workspace tests waited a fixed number of turns – CI's
+  Editor job was red from 6.13.1 to 6.18.0; they wait for their page now (30 s timeout for those two files).
+- [ ] **Repair stays a button – watch how it goes** (Tilman, 2026-11-24, asked whether Publish should repair known faults
+      by itself: *"lets see what will happen. learn us something about ux"*). Staging's `my-my-video-code-code` (last saved
+      by Kévin) is the first real case: see who presses Repair, whether the dialog is understood, whether the plugin
+      guard's question afterwards (the repairer becomes the saver) confuses Kévin. Then decide: keep the button, or let
+      Publish apply a verified known repair itself and say so.
 - [ ] The CLI's TypeScript (5.7) differs from Monaco's (5.9.3): bump `scripts/` to 5.9 once its Buffer/BodyInit typings are
   fixed, so the CLI's verdict is the browser's to the version.
 - [ ] More known faults go into `KNOWN_FAULTS` only when the editor itself wrote them and a fingerprint is exact.
