@@ -1709,29 +1709,21 @@ first names), the scene's open at first, *set* closed:
 
 ### Environment
 
-The experience's world around the reader and its sky (content schema 2.8 / 2.10, [content guide](content.md) "Environment",
-[look-around](look-around.md); `EnvironmentPanel.svelte`). Two collapsible sections: *environment* (world, sky, onion
-sky – open on a first visit) and *preview* (look up – closed, its header naming the angle).
+The experience's sky around the reader and its onion sky (content schema 2.8 / 2.10, [content guide](content.md)
+"Environment", [look-around](look-around.md); `EnvironmentPanel.svelte`): what **readers** get. Rows: **sky** – none, or
+an equirectangular image, with *Library…* (the Library as the picker), *Upload* (into the Library and taken at once) and
+*remove*; **onion sky** on / off (it needs a camera picture, so only the reader shows it). Changes are
+[saved by themselves](#autosave) (`PUT /editor/experiences/{id}/environment`); *Undo edits* takes the environment back,
+*Use the default* removes it.
 
-While the tab is open the stage shows the **engine's own look-around pass** with the values being edited – the world
-anchored to the experience, the window around it and the clear floor – under the desk and the experience (the studio's HDRI steps
-aside, sky and light), turned by the view as a phone's gyroscope would turn it (`MockTracker.worldOrientation`,
-`ArScene.previewEnvironment` – an editor-only method, not part of `IArScene`). **look up** raises the camera from the
-experience towards the horizon and the sky (the targets stay found, as the reader's world stays for 45 s). Rows: **world** –
-the built-in *café*, or a glTF model; **sky** – *the world's*, or an equirectangular image; each with *Library…* (the
-Library as the picker), *Upload* (into the Library and taken at once) and *remove* (back to the built-in part); **onion
-sky** on / off (it needs a camera picture, so only the reader shows it). Changes show at once and are [saved by themselves](#autosave)
-(`PUT /editor/experiences/{id}/environment`); *Undo edits* takes the environment back, *Use the default* removes it.
-
-**The environment replaces the HDRI sky box** (#185): once the experience has an environment – the draft's, or edits that
-start one – the stage shows its world as the sky in every tab while the shading is rendered (the same pass, *look up*
-stays the tab's), so the author sees the world the reader will see, not a studio behind it. The HDRI then no longer
-lights: the reader lights the AR content with the engine's own ambient and sun (and the content's light nodes) – its
-world is a pass under the scene and lights nothing –, so the stage does too. Where the reader shows its camera picture
-– the window around the experience, the open roof – the world's pass leaves the frame transparent; the stage fills it with the
-HDRI, drawn behind the world (destination-alpha blending, `behindWorld` in `mock-stage.ts`) as a background only – the
-camera picture's stand-in, like the desk. An experience without one keeps the HDRI as sky and light. The decision is one pure
-function, `editor/src/lib/stage/sky.ts` (`experienceEnvironment`, `showsWorld`, `stageLook` – which sky, which light).
+**The stage does not draw it** (#371, Tilman 2026-11-25: *"looking in the sky is not needed anymore and can go and the
+environments world can also go"* · *"we refactor it out. only thing that can stay is a custom world hdri slot"*): the
+stage's sky and light are the View menu's **HDRI** while the shading is rendered (`stage/sky.ts`, `stageLook`) – a bundled
+studio, or one of the **experience's own**: any `.hdr` file in its Library (the kind `hdri`, never content – readers
+never load it) is listed under *This experience's* in the HDRI picker. The choice is this browser's (`PreviewSettings.hdri`:
+a bundled id or the file's URL, `StageHdri`); the files are the experience's, so everyone editing it can pick them. The
+former preview – the engine's look-around world under the stage, *look up*, the HDRI behind the world's window – is gone,
+and with it the engine's editor-only `ArScene.previewEnvironment` / `LookAround.setPreview`.
 
 ### Library
 

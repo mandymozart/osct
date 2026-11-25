@@ -129,8 +129,6 @@ export class Stage {
   get pickFilter() { return this.core.pickFilter; }
   /** The viewport's shading (stored with the preview settings) */
   get shading() { return this.core.shading; }
-  /** The environment's world is drawn under the stage now (the toolbar says so) */
-  get world() { return this.core.world; }
   /** The tool in hand (the toolbar shows it): select – no gizmo – or a gizmo mode */
   get tool() { return this.core.tool; }
   /** The plugins' variables with their scopes (the Inspector lists them) */
@@ -330,16 +328,6 @@ export class Stage {
     }
     void this.override(targetId, removeNode(base, path));
     return path.slice(0, -1);
-  }
-
-  /** The experience's environment on the stage (it replaces the HDRI sky box); `previewing` while the Environment tab is open */
-  showEnvironment(environment: EnvironmentData | null, previewing = false): void {
-    this.core.showEnvironment(environment, previewing);
-  }
-
-  /** How far the previewing camera looks up from the experience (degrees) */
-  setLookUp(degrees: number): void {
-    this.core.setLookUp(degrees);
   }
 
   /** The gizmo and the light helpers follow the selection (null = none) */

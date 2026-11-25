@@ -48,6 +48,20 @@ export type HdriId = (typeof HDRIS)[number]["id"];
 export const isHdriId = (value: unknown): value is HdriId => HDRIS.some(h => h.id === value);
 
 /**
+ * The stage's HDRI (#371): a bundled one by its id, or the experience's own – an HDRI of its Library, by the file's URL
+ * (Tilman: *"only thing that can stay is a custom world hdri slot"*). The choice is this device's; the files are the
+ * experience's, so everyone editing it can pick them.
+ */
+export type StageHdri = HdriId | string;
+/** A Library HDRI's URL: an absolute or root-relative address of a `.hdr` file */
+export const isCustomHdri = (value: unknown): value is string =>
+  typeof value === "string" && /^(https?:\/\/|\/)/.test(value) && /\.hdr(\?.*)?$/i.test(value);
+export const isStageHdri = (value: unknown): value is StageHdri => isHdriId(value) || isCustomHdri(value);
+/** An HDRI's name: a bundled one's, else the file's */
+export const hdriName = (hdri: StageHdri): string =>
+  HDRIS.find(h => h.id === hdri)?.name ?? decodeURIComponent(hdri.split("?")[0].split("/").pop() ?? hdri);
+
+/**
  * The stage's desk (our own low-poly model – `editor/static/models/README.md`; designers' furniture, so the designers
  * who use the tool feel at home): Egon Eiermann's table frame with one of two tops of the same size (#226) – its own
  * screen-printed plywood top, or blue-grey linoleum on an oak-faced plywood board. The setting switches only the top.
@@ -67,17 +81,16 @@ export const storedTop = (stored: { top?: unknown }): TopId => (isTopId(stored.t
 /**
  * The stage toolbar's *view* group in a few words (#229 – the Stage tab's closed *stage* head until then): the desk and
  * its top, the origin, the hand shake and the sky – "Eiermann · plywood · origin top left · no shake · sky Wooden
- * Studio 17"; with the experience's environment the sky is its world ("· the environment's sky"). The group's tooltip; the
+ * Studio 17". The group's tooltip; the
  * grid and snapping are the *grid & snap* group's own.
  */
 export const viewSummary = (
   settings: Pick<PreviewSettings, "top" | "wobble" | "origin" | "hdri"> & { desk?: boolean },
-  { environment = false }: { environment?: boolean } = {},
 ): string => [
   ...(settings.desk === false ? ["no desk"] : [DESK_NAME, TOPS.find(t => t.id === settings.top)?.name ?? settings.top]),
   `origin ${originLabel(settings.origin)}`,
   settings.wobble > 0 ? `shake ${Math.round(settings.wobble * 100) / 100}` : "no shake",
-  environment ? "the environment's sky" : `sky ${HDRIS.find(h => h.id === settings.hdri)?.name ?? settings.hdri}`,
+  `sky ${hdriName(settings.hdri)}`,
 ].join(" · ");
 
 /** A free view of the stage: distance from the looked-at point in mm, tilt from the vertical and yaw in degrees */
@@ -124,7 +137,7 @@ export interface PreviewSettings {
   /** A free orbit (dragged, zoomed) replaces the preset until the next preset is chosen */
   orbit: PreviewOrbit | null;
   /** The HDRI shown as sky and used as light (while the shading is rendered) */
-  hdri: HdriId;
+  hdri: StageHdri;
   /** The HDRI on (#327): off = no sky and no HDRI light while rendered – the scene's own lights, as in solid / textured */
   hdriOn: boolean;
   /** The desk under the scene (#358): off = no table – the scene floats over the sky, for work that lies on none */
@@ -300,7 +313,7 @@ export const parseSettings = (parsed: unknown): PreviewSettings => {
     view: PREVIEW_VIEWS.includes(stored.view as PreviewView) ? (stored.view as PreviewView) : DEFAULTS.view,
     shading: isShadingMode(stored.shading) ? stored.shading : DEFAULTS.shading,
     orbit: isOrbit(stored.orbit) ? stored.orbit : null,
-    hdri: isHdriId(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
+    hdri: isStageHdri(stored.hdri) ? stored.hdri : DEFAULTS.hdri,
     hdriOn: stored.hdriOn !== false,
     desk: stored.desk !== false,
     meshLines: stored.meshLines === true,

@@ -112,20 +112,6 @@ describe("LookAround", () => {
     lookAround.dispose();
   });
 
-  it("the editor's preview draws the world whatever the switches say, turned by its orientation, and ends at once", () => {
-    const { lookAround, set } = setup();
-    set({ onionSky: false, surroundings: false });
-    lookAround.start();
-    const orientation = vi.fn(() => new Quaternion());
-    lookAround.setPreview({ orientation });
-    for (let i = 0; i < 40; i++) lookAround.update(0.1, camera, [page]);
-    expect(orientation).toHaveBeenCalled();
-    expect(lookAround.active).toBe(true);
-    lookAround.setPreview(null);
-    expect(lookAround.active).toBe(false);
-    lookAround.dispose();
-  });
-
   it("loads the environment's files only once something is drawn", () => {
     const { lookAround, set, loaders } = setup();
     set({ onionSky: false, surroundings: false });

@@ -32,6 +32,8 @@ final class Assets
         'mp3' => 'audio', 'm4a' => 'audio', 'ogg' => 'audio', 'wav' => 'audio',
         'glsl' => 'shader', 'frag' => 'shader', 'vert' => 'shader', 'wgsl' => 'shader',
         'vtt' => 'subtitles',
+        // The editor stage's own sky and light (#371) – never content
+        'hdr' => 'hdri',
     ];
     public const MIMES = [
         'glb' => 'model/gltf-binary', 'gltf' => 'model/gltf+json',
@@ -40,6 +42,7 @@ final class Assets
         'mp3' => 'audio/mpeg', 'm4a' => 'audio/mp4', 'ogg' => 'audio/ogg', 'wav' => 'audio/wav',
         'glsl' => 'text/x-glsl; charset=utf-8', 'frag' => 'text/x-glsl; charset=utf-8', 'vert' => 'text/x-glsl; charset=utf-8', 'wgsl' => 'text/wgsl; charset=utf-8',
         'vtt' => 'text/vtt; charset=utf-8',
+        'hdr' => 'image/vnd.radiance',
     ];
     /** The kinds whose files are text – source code, a video's subtitles (`Subtitles`): checked as text, at most TEXT_MAX_BYTES */
     public const TEXT_KINDS = ['shader', 'subtitles'];

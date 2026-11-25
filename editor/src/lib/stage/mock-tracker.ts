@@ -285,9 +285,6 @@ export const wobbled = (orbit: Orbit, wobble: number, t: number): { orbit: Orbit
   };
 };
 
-/** The stage's frame (z up, the reader on −y) turned into a world with y up and the scene ahead on −z: −90° about x */
-const STAGE_TO_WORLD = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
-const LOOK_UP = new Matrix4();
 
 /** What the stage draws – set by the tracker, which owns the layout and the camera */
 export interface StageView {
@@ -440,8 +437,6 @@ export class MockTracker implements IImageTracker {
   private lastPinch = 0;
   private cameraWorld = new Matrix4();
   private cameraInverse = new Matrix4();
-  /** Degrees the camera looks up from where the orbit points it (the environment's preview: the world above the scene) */
-  private lookUp = 0;
   private pose = new Matrix4();
 
   constructor(
@@ -606,19 +601,6 @@ export class MockTracker implements IImageTracker {
     publishEngineState(EMPTY_ENGINE_STATE);
   }
 
-  /** Look up from the orbit's direction by this many degrees (0 = at the scene); the targets stay found */
-  setLookUp(degrees: number): void {
-    this.lookUp = Math.min(90, Math.max(-30, degrees));
-  }
-
-  /**
-   * The camera's orientation in a world with y up (the stage's +z), as a phone's gyroscope would report it: what turns
-   * the engine's look-around world in the environment's preview
-   */
-  worldOrientation(out = new Quaternion()): Quaternion {
-    return out.setFromRotationMatrix(this.cameraWorld).premultiply(STAGE_TO_WORLD);
-  }
-
   /** A fixed field of view; the aspect follows the container, as the engine's intrinsics would */
   fit(camera: PerspectiveCamera): void {
     this.camera = camera;
@@ -643,7 +625,6 @@ export class MockTracker implements IImageTracker {
     const lens = this.lens(nowMs, orbit.distance);
     cameraMatrix({ ...orbit, distance: lens.eye }, this.focus(), this.cameraWorld);
     if (offset.lengthSq() > 0) this.cameraWorld.setPosition(new Vector3().setFromMatrixPosition(this.cameraWorld).add(offset));
-    if (this.lookUp) this.cameraWorld.multiply(LOOK_UP.makeRotationX((this.lookUp * Math.PI) / 180));
     this.cameraInverse.copy(this.cameraWorld).invert();
     const hidden = new Set(this.preview.hidden);
     for (const target of this.targets) {

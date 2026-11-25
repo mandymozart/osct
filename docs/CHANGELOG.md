@@ -8,6 +8,20 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.22.0 – 2026-11-25
+
+### Added
+- **The experience's own HDRI on the stage** (#371): an `.hdr` file in the Library (the new kind `hdri` – the editor's
+  only, never content) is listed under *This experience's* in the View menu's HDRI picker, beside the studio HDRIs. The
+  choice is this browser's; the files are the experience's, so everyone editing it can pick them.
+
+### Removed
+- **The environment's world on the stage and *look up*** (#371, Tilman: *"we refactor it out. only thing that can stay is
+  a custom world hdri slot"*): the stage no longer draws the experience's look-around world (in the Environment tab and,
+  while rendered, in place of the HDRI), and the Environment tab's *preview · look up* is gone. The Environment tab still
+  edits what readers get; the stage's sky is the View menu's HDRI. The engine's editor-only `ArScene.previewEnvironment`
+  and `LookAround.setPreview` went with it – the reader is unchanged.
+
 ## 6.21.0 – 2026-11-25
 
 ### Added

@@ -610,7 +610,9 @@ says nothing (`application/octet-stream`, none) or as JavaScript / TypeScript, U
 by its URL (`api.loadText`, [plugins](plugins.md) "A shader file"). **Subtitles** (vtt – the kind `subtitles`, #257) are
 text too, checked and limited like a shader and served as `text/vtt`: a file named `<video name>.<language>.vtt` belongs
 to every video of that name in the experience, uploaded or imported, and the draft and a publish list it in the
-configuration's `subtitles` (`Subtitles`, [content](content.md) "Subtitles of a video"). A script (`.ts`, `.js`) is no asset: it is a
+configuration's `subtitles` (`Subtitles`, [content](content.md) "Subtitles of a video"). **HDRIs** (hdr – the kind
+`hdri`, #371) are the editor stage's own sky and light, served as `image/vnd.radiance`: the View menu lists them, no
+content names them and readers never load them. A script (`.ts`, `.js`) is no asset: it is a
 plugin source ("Plugin sources" – the 400 says so). They live in the content store under the pseudo environment `assets`:
 `assets/<experience>/<asset id>/v<n>.<ext>` – in the content store's folder for the local store, served (for every experience id the
 editor accepts, capitals and `_` included) by `GET /content/assets/…` with the file's type, a year's cache and `Access-Control-Allow-Origin: *` (the reader's

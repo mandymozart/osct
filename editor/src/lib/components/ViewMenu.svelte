@@ -4,25 +4,30 @@
   import ScrubNumber from "./ScrubNumber.svelte";
   import ToolMenu from "./ToolMenu.svelte";
   import Toggle from "./Toggle.svelte";
-  import { getPreview, HDRIS, isHdriId, isTextureQuality, subscribePreview, TEXTURE_QUALITIES, TOPS, updatePreview, viewSummary, type PreviewState } from "#lib/stage/preview.js";
+  import { getPreview, hdriName, HDRIS, isStageHdri, isTextureQuality, subscribePreview, TEXTURE_QUALITIES, TOPS, updatePreview, viewSummary, type PreviewState } from "#lib/stage/preview.js";
   import { isOriginId, ORIGIN_SPOTS, ORIGINS, originHelp, originLabel } from "#lib/stage/origin.js";
-  import { stageEnvironment } from "#lib/environment.svelte.js";
+  import { content } from "#lib/content.svelte.js";
   import { library } from "#lib/library.svelte.js";
-  import { environmentSkyLabel } from "#lib/stage/sky.js";
 
   /**
    * The stage toolbar's **view** group (#229 – the Stage tab's *stage* section until then), next to *grid & snap*: one
    * button (`ToolMenu`, the gear) opening a panel with how the editor shows the scene – the hand shake, the origin
-   * every x / y is counted from (a 3 × 3 alignment square), the desk's top and the sky (the studio HDRI; with the experience's
-   * environment its world is the sky and the HDRI waits for an experience without one, #185). Stored in this browser, not in
+   * every x / y is counted from (a 3 × 3 alignment square), the desk's top and the sky – a studio HDRI, or one of the
+   * experience's own (#371: an HDRI of its Library). Stored in this browser, not in
    * the content (`stage/preview.ts`); the button's tooltip is `viewSummary`. `open()` opens it from the stage's menu.
    */
   let preview = $state<PreviewState>(getPreview());
   onMount(() => subscribePreview(state => (preview = state)));
 
-  /** The experience's environment replaces the HDRI as the sky (#185): the picker says so and stays for experiences without one */
-  const environment = $derived(stageEnvironment.current);
-  const summary = $derived(viewSummary(preview, { environment: !!environment }));
+  const summary = $derived(viewSummary(preview));
+  /** The experience's own HDRIs (#371): its Library's `.hdr` files – loaded with the Library */
+  const ownHdris = $derived(library.experienceId === content.experienceId ? library.assets.filter(asset => asset.kind === "hdri") : []);
+  /** The chosen one is another experience's (picked there, kept on this device): listed by its name so the picker shows it */
+  const foreign = $derived(isStageHdri(preview.hdri) && !HDRIS.some(h => h.id === preview.hdri) && !ownHdris.some(a => a.url === preview.hdri));
+  $effect(() => {
+    const id = content.experienceId;
+    if (id && library.experienceId !== id) void library.load(id);
+  });
 
   let menu = $state<{ open: () => Promise<void> }>();
   /** Open the panel (the stage's menu: *View settings…*) */
@@ -65,22 +70,21 @@
     </span>
   </div>
 
-  {#if environment}
-    <div class="row" data-help="The sky: the experience's environment (the Environment tab) – while rendered its world replaces the HDRI, and the scene's own lights light the stage, as in the reader.">
-      <span class="label">sky</span>
-      <span class="controls"><span class="small sky">{environmentSkyLabel(environment, url => library.byUrl(url)?.name)}</span></span>
-    </div>
-  {/if}
-  <div class="row" data-help={environment
-    ? "The studio HDRI – overridden by the experience's environment, used again for an experience without one (Environment tab → Use the default)."
-    : "The sky and its light: a studio HDRI, shown while the shading is rendered – the switch turns it off (no sky, the scene's own lights). An experience's environment replaces it (the Environment tab)."}>
-    <span class="label">{environment ? "HDRI" : "sky"}</span>
+  <div class="row" data-help="The sky and its light while the shading is rendered: a studio HDRI, or one of this experience's own – add an .hdr file to the Library and it is listed here (the choice is this browser's, the files are the experience's, so everyone editing it can pick them). The switch turns it off: no sky, the scene's own lights. Readers never see it.">
+    <span class="label">sky</span>
     <span class="controls">
       <Toggle on={preview.hdriOn} label="HDRI on or off" title={preview.hdriOn ? "Switch the HDRI off – the scene's own lights only" : "Switch the HDRI on"} onchange={hdriOn => updatePreview({ hdriOn })} />
-      <select class="field" class:overridden={!!environment} aria-label="HDRI" disabled={!preview.hdriOn} value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isHdriId(id)) updatePreview({ hdri: id }); }}>
-        {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
+      <select class="field" aria-label="HDRI" disabled={!preview.hdriOn} value={preview.hdri} onchange={e => { const id = (e.currentTarget as HTMLSelectElement).value; if (isStageHdri(id)) updatePreview({ hdri: id }); }}>
+        <optgroup label="Studio">
+          {#each HDRIS as hdri (hdri.id)}<option value={hdri.id}>{hdri.name}</option>{/each}
+        </optgroup>
+        {#if ownHdris.length || foreign}
+          <optgroup label="This experience's">
+            {#each ownHdris as asset (asset.id)}<option value={asset.url}>{asset.name}</option>{/each}
+            {#if foreign}<option value={preview.hdri}>{hdriName(preview.hdri)} (another experience's)</option>{/if}
+          </optgroup>
+        {/if}
       </select>
-      {#if environment}<span class="small muted">without an environment</span>{/if}
     </span>
   </div>
   <div class="row" data-help="Texture quality: the size models with a texture set show their map at – auto as a reader's device would choose, or one size to see what readers on that quality see. Only models with a texture set change (Inspector → textures).">
@@ -97,8 +101,6 @@
 <style>
   .w { width: 5rem; display: inline-flex; }
   .w :global(.scrub) { width: 100%; }
-  .overridden { opacity: .6; }
-  .sky { max-width: 14rem; overflow-wrap: anywhere; }
   .origin { display: inline-grid; grid-template-columns: repeat(3, .75rem); grid-template-rows: repeat(3, .75rem); gap: .125rem; padding: .125rem;
     border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--control-background); }
   .spot { width: .75rem; height: .75rem; padding: 0; border: 1px solid var(--muted); border-radius: 50%; background: none; cursor: pointer; }

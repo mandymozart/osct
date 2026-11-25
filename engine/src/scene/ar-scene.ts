@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Box3, Group, type Matrix4, type Object3D, type Quaternion, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from "three";
+import { Box3, Group, type Matrix4, type Object3D, SRGBColorSpace, type Texture, TextureLoader, Vector3 } from "three";
 import {
   type ArError, ArSceneError, type ArSceneEvents, type ArStatus, type EntityData, ErrorCode, type GraphicsSource, type IArScene, type TextureQuality, type MediaQuality, type PassData, type SceneInspection, ArState, type Target,
 } from "../types/index";
@@ -68,15 +68,6 @@ export interface ArSceneOptions {
   navigate?: (address: string) => void;
 }
 
-/**
- * The editor's preview of the experience's environment (`ArScene.previewEnvironment`): the values being edited, and the
- * camera's orientation in the world (y up) that turns the world instead of the gyroscope
- */
-export interface EnvironmentPreview {
-  environment: EnvironmentData;
-  orientation: () => Quaternion;
-}
-
 /** A tap this close to an entity's on-screen bounds still hits it (small models) */
 const TAP_MARGIN_PX = 24;
 
@@ -105,7 +96,6 @@ export class ArScene implements IArScene {
   private view: ArView | null = null;
   /** The world around the reader + its sky (3DoF, anchored to the found surfaces) (off per the reader's graphics options) */
   private lookAround: LookAround | null = null;
-  private environmentPreview: EnvironmentPreview | null = null;
   private tracker: IImageTracker | null = null;
   /** Models with a texture set show their map at the size the reader's texture quality asks for on this device (#260) */
   private assets = new AssetStore(
@@ -190,20 +180,9 @@ export class ArScene implements IArScene {
     return this.reconcile();
   }
 
-  /**
-   * The editor's environment preview (not part of `IArScene` – the reader never previews): the look-around world drawn
-   * with these values instead of the experience's, whatever the graphics switches say, turned by the preview's orientation;
-   * `null` ends it (the experience's environment and the switches again)
-   */
-  previewEnvironment(preview: EnvironmentPreview | null): void {
-    this.environmentPreview = preview;
-    this.lookAround?.setPreview(preview ? { orientation: preview.orientation } : null);
-    this.lookAround?.setEnvironment(this.environment());
-  }
-
-  /** The environment the look-around draws: the editor's preview, else the experience's */
+  /** The environment the look-around draws: the experience's */
   private environment(): EnvironmentData {
-    return this.environmentPreview?.environment ?? environmentOf(getExperience());
+    return environmentOf(getExperience());
   }
 
   /** The first find's animation, the reveal (called by the bridge right after `targetFound`; replaces the found one) */
@@ -510,7 +489,6 @@ export class ArScene implements IArScene {
         this.textureQuality = settings.textureQuality;
         this.assets.refreshTextures();
       }) ?? null;
-      if (this.environmentPreview) this.lookAround.setPreview({ orientation: this.environmentPreview.orientation });
       view.underlay = this.lookAround;
       // A simulated tracker's stage is drawn every frame (the page is always in view)
       view.needsRender = () =>

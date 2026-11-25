@@ -23,7 +23,7 @@ export type DropFit =
 
 /** A kind in words, for the refusals */
 const KIND_WORDS: Record<AssetKind, string> = {
-  image: "picture", video: "video", glb: "3D model", gltf: "3D model", audio: "sound", shader: "shader", subtitles: "subtitle file",
+  image: "picture", video: "video", glb: "3D model", gltf: "3D model", audio: "sound", shader: "shader", subtitles: "subtitle file", hdri: "HDRI",
 };
 export const kindWord = (kind: AssetKind): string => KIND_WORDS[kind] ?? kind;
 const article = (word: string) => (/^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`);
