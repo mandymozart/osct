@@ -4,6 +4,22 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-25 – Sound design: a modular sound engine from samarecordings (#373, concept)
+- Tilman: *"apply the sound design engine i made for samarecordings into our osct editor"* · *"we do have sounds, but i want a
+  more modular approach"* · *"events get triggered … hooks or direct events send to a sound module or slot … a base sound
+  engine and … plugins for special synths. same as our other plugins"* · *"some stuff is part of the 2d app … on the
+  experience level and then we got in place on targets"* · *"we go for stereo. but spatialisation basics are needed"* →
+  asked about ambisonics, then *"3D/HRTF is maybe better for our purpose"* · *"overlaps … with our audio engine for video
+  playbacks and voice overs … a common solution"* · *"presets … to the library as well as samples … convert samples from
+  wav to mp3 into our quality resolutions"*.
+- Concept `agents/research/2026-11-25-sound-design.md`, drafts `agents/design/sound-design.html` (#flow #app #preset #target),
+  epic #373 (Proposals, `decide`). Shape: bus events → slots (listens / direct) in two homes (experience, target) → base
+  engine (`engine/src/audio/`: chain, LFO, `sample` + `oscillator`) + synth plugins (`registerSynth`); stereo base, 3D =
+  `PannerNode` HRTF (headphones setting) / equalpower; one AudioContext with buses UI / Sounds / Media / Voice (videos via
+  `createMediaElementSource`, voice ducks); presets = Library kind `sound`, samples = audio assets with MP3 levels made in
+  the browser. Ambisonics later, for AmbiX recordings.
+- [ ] Open: decisions D1–D13 (concept §8) and the priority against #322 / the logic follow-ups.
+
 ## 2026-11-25 – The stage's environment world and look up refactored out, the experience's own HDRI (6.22.0, #371)
 - Tilman, during #369: *"looking in the sky is not needed anymore and can go and the environments world can also go. its
   stupid"* · *"we refactor it out. only thing that can stay is a custom world hdri slot"*; where the slot lives: *"Experience

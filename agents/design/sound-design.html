@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound design – design drafts</title>
+<style>
+  /*
+   * Design drafts for #373 (concept: agents/research/2026-11-25-sound-design.md). The editor's night look, measured as in
+   * plugin-files.html: panel 300px, controls 28px, 12px system-ui, body #2c2c2c, monochrome (RULES #38).
+   * Frames: #flow #app #preset #target. ?shot hides the draft bar and the notes.
+   */
+  :root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, Consolas, monospace;
+    --text: #ffffff; --muted: #a3a3a3; --line: #444444; --surface: #2c2c2c; --surface-head: #1e1e1e;
+    --control-background: #383838; --pressed: #5a5a5a; --code: #1e1e1e; --danger: #ff6b5b; --stage: #0c0c0c;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 12px/1.3 var(--font); color: var(--text); background: var(--stage); }
+  .draftbar { position: sticky; top: 0; z-index: 50; display: flex; gap: 4px; align-items: center; padding: 6px 12px;
+              background: #ffe9a8; color: #1e1e1e; font-size: 11px; border-bottom: 1px solid #e6cf85; }
+  .draftbar a { color: inherit; padding: 2px 8px; text-decoration: none; }
+  .draftbar a.on { background: #1e1e1e; color: #ffe9a8; }
+  body.shot .draftbar, body.shot .notes { display: none; }
+  .notes { background: #fff7da; color: #1e1e1e; border-top: 1px solid #e6cf85; padding: 10px 16px; font-size: 11px; line-height: 1.45; }
+  .notes ul { margin: 4px 0 0; padding-left: 18px; }
+  .frame { display: none; } .frame.on { display: flex; }
+  .stage { min-height: 600px; padding: 24px; gap: 24px; align-items: flex-start; justify-content: flex-end;
+           background: linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px) 0 0/40px 40px, var(--stage); }
+
+  /* --- flow --- */
+  .flow { flex-direction: column; padding: 24px; gap: 20px; background: var(--stage); }
+  .cols { display: grid; grid-template-columns: 1fr 40px 1.1fr 40px 1.3fr; align-items: stretch; }
+  .col h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .box { border: 1px solid var(--line); background: var(--surface); padding: 8px 10px; margin-bottom: 8px; }
+  .box b { display: block; margin-bottom: 2px; }
+  .box small { color: var(--muted); display: block; }
+  .box.dashed { border-style: dashed; background: transparent; }
+  .arrow { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; }
+  .home { border: 1px solid var(--line); padding: 8px; margin-bottom: 10px; }
+  .home > span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  pre { margin: 0; background: var(--code); border: 1px solid var(--line); padding: 12px; font: 11px/1.45 var(--mono);
+        color: #d6d6d6; white-space: pre; overflow-x: auto; }
+  pre i { color: #8a8a8a; font-style: normal; }
+  .apis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .apis h4 { margin: 0 0 6px; font-size: 11px; color: var(--muted); font-weight: 600; }
+
+  /* --- panels --- */
+  .panel { width: 300px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; }
+  .tabs { display: flex; height: 28px; border-bottom: 1px solid var(--line); background: var(--surface-head); }
+  .tabs span { padding: 0 10px; display: flex; align-items: center; color: var(--muted); }
+  .tabs span.on { color: var(--text); background: var(--surface); }
+  .sec { border-bottom: 1px solid var(--line); }
+  .sec-head { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; background: var(--surface-head); }
+  .sec-head .chev { color: var(--muted); width: 10px; }
+  .sec-head .t { font-weight: 600; }
+  .sec-head .sum { color: var(--muted); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .sec-body { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .row { display: flex; align-items: center; gap: 6px; height: 28px; }
+  .row .l { width: 78px; color: var(--muted); flex: none; }
+  .ctl { height: 24px; background: var(--control-background); border: 1px solid var(--line); display: flex; align-items: center;
+         padding: 0 6px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .num { flex: 1; min-width: 0; height: 24px; background: var(--control-background); border: 1px solid var(--line); position: relative; display: flex;
+         align-items: center; padding: 0 6px; justify-content: space-between; }
+  .num .fill { position: absolute; left: 0; top: 0; bottom: 0; background: #4a4a4a; z-index: 0; }
+  .num .sweep { position: absolute; top: 0; bottom: 0; border-left: 1px dashed #bbb; border-right: 1px dashed #bbb; background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(255,255,255,.12) 3px 5px); }
+  .num span { position: relative; z-index: 1; }
+  .num span:last-child { color: var(--muted); }
+  .seg { display: flex; flex: 1; } .seg span { flex: 1; height: 24px; display: flex; align-items: center; justify-content: center;
+         border: 1px solid var(--line); margin-left: -1px; background: var(--control-background); color: var(--muted); }
+  .seg span.on { background: var(--pressed); color: var(--text); }
+  .tog { width: 26px; height: 14px; border: 1px solid var(--muted); border-radius: 7px; position: relative; flex: none; }
+  .tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .tog.on { background: #e0e0e0; border-color: #e0e0e0; } .tog.on::after { left: 14px; background: #1e1e1e; }
+  .ib { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line);
+        background: var(--control-background); flex: none; color: var(--text); }
+  .chip { height: 22px; padding: 0 8px; border: 1px solid var(--line); background: var(--control-background); display: inline-flex; align-items: center; gap: 4px; }
+  .chip.on { background: var(--pressed); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  /* slot rows: the mixer */
+  .slot { display: grid; grid-template-columns: 20px minmax(0,1fr) 58px 52px 24px; gap: 4px; align-items: center; height: 30px; padding: 0 8px;
+          border-bottom: 1px solid #383838; }
+  .slot.sel { background: #383838; }
+  .slot .name b { display: block; font-weight: 500; } .slot .name small { color: var(--muted); font-size: 10px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slot.muted .name, .slot.muted .ctl { opacity: .45; }
+  .m { width: 20px; height: 20px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); }
+  .m.on { background: #e0e0e0; color: #1e1e1e; }
+  .meter { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .meter div { height: 4px; background: #383838; position: relative; } .meter div::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; background: #d0d0d0; }
+  .meter div:first-child::after { width: 62%; } .meter div:last-child::after { width: 48%; }
+  .scope { height: 46px; border: 1px solid var(--line); background: var(--code); }
+  .flowline { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .flowline span { padding: 2px 6px; border: 1px solid var(--line); color: var(--text); }
+  .flowline span.off { color: var(--muted); border-style: dashed; }
+  .foot { display: flex; gap: 6px; padding: 8px; align-items: center; }
+  .pill { height: 28px; padding: 0 10px; border: 1px solid var(--line); background: var(--control-background); display: inline-flex; align-items: center; }
+  .plug { font-size: 10px; color: var(--muted); border: 1px solid var(--line); padding: 0 4px; margin-left: 4px; }
+  /* target stage */
+  .ar { flex: 1; align-self: stretch; position: relative; border: 1px solid #222; min-height: 552px;
+        background: radial-gradient(ellipse at 40% 55%, #2b2b2b, #111 70%); }
+  .page { position: absolute; left: 18%; top: 22%; width: 230px; height: 300px; background: #d8d4cc; transform: perspective(600px) rotateX(18deg) rotateZ(-6deg);
+          box-shadow: 0 20px 40px rgba(0,0,0,.6); }
+  .page::after { content: "P. 42"; position: absolute; left: 10px; top: 8px; color: #555; font-size: 10px; }
+  .ring { position: absolute; left: calc(18% + 115px); top: calc(22% + 150px); border: 1px dashed rgba(255,255,255,.5); border-radius: 50%; transform: translate(-50%,-50%); }
+  .lr { position: absolute; bottom: 16px; left: 16px; right: 16px; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 11px; }
+  .lr .bar { flex: 1; height: 6px; background: #333; position: relative; } .lr .bar i { position: absolute; top: -3px; width: 2px; height: 12px; background: #fff; left: 38%; }
+  .badge { position: absolute; left: calc(18% + 210px); top: calc(22% + 20px); background: rgba(30,30,30,.9); border: 1px solid var(--line); padding: 4px 8px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="draftbar"><b>Sound design drafts (#373)</b>
+  <a href="#flow">Flow &amp; interfaces</a><a href="#app">Experience: the 2D app's slots</a><a href="#preset">Preset</a><a href="#target">Target: in place</a>
+</div>
+
+<!-- ============ FLOW ============ -->
+<section class="frame flow" id="flow">
+  <div class="cols">
+    <div class="col"><h3>Events: the bus</h3>
+      <div class="box"><b>ui.*</b><small>the 2D app emits: ui.tap, ui.tick, ui.entryOpen, ui.entryClose, ui.sceneChange, ui.cardFlip</small></div>
+      <div class="box"><b>Core events</b><small>the scene emits: targetFound, targetLost, targetUnlocked, targetTapped, sceneChanged, varChanged</small></div>
+      <div class="box"><b>Node events</b><small>a target's own found / lost / tap / unlocked</small></div>
+      <div class="box"><b>Named events</b><small>rules and plugins emit: doorOpens, chapterTwo …</small></div>
+      <div class="box dashed"><b>Direct</b><small>sound.play("found") · rule { sound: "unlock" } · api.sound.play("hum")</small></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col"><h3>Slots: listen or are played</h3>
+      <div class="home"><span>Experience · experience.sound: stereo, across scenes</span>
+        <div class="box"><b>tap</b><small>listens ui.tap · Blip · vib 10</small></div>
+        <div class="box"><b>found</b><small>listens targetFound · Pew · cooldown 4 s per target</small></div>
+        <div class="box"><b>unlock</b><small>listens targetUnlocked · Jingle · vib 22·70·22·70·45</small></div>
+        <div class="box"><b>room</b><small>loop · listens sceneChanged · Air</small></div>
+      </div>
+      <div class="home"><span>Target · target.sound: in place, stereo or 3D (HRTF)</span>
+        <div class="box"><b>hum</b><small>loop while found · Hum · 3D · full within 0.4 m</small></div>
+        <div class="box"><b>creak</b><small>listens found · replaces "found" · Creak</small></div>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="col"><h3>Base engine → master</h3>
+      <div class="box"><b>Voice per play</b><small>source → drive → filter (+ env) → delay (ping-pong) → reverb → slot gain → space (stereo: pan, distance, muffle · 3D: PannerNode HRTF, listener = camera pose) → master</small></div>
+      <div class="box"><b>LFO per preset</b><small>sine · triangle · square · random – routes to any number knob, the synth's own included</small></div>
+      <div class="box"><b>Built-in synths</b><small>sample (an audio asset) · oscillator (sine, triangle, square, saw, noise)</small></div>
+      <div class="box dashed"><b>Synth plugins</b><small>api.registerSynth(name, SPEC, factory) · first: sama synths: fm, pluck, grain, wind, noise colours</small></div>
+      <div class="box"><b>One mixer</b><small>buses UI · Sounds · Media (videos via createMediaElementSource) · Voice (ducks Sounds + Media) → master → limiter</small></div>
+      <div class="box"><b>Library</b><small>presets = kind "sound" (JSON) · samples = audio assets, WAV → MP3 64/128/192 kbps in the browser</small></div>
+      <div class="box"><b>Lifecycle</b><small>no context while sound is off · unlock on the first gesture · suspend after the last tail · samples only for live slots</small></div>
+    </div>
+  </div>
+  <div class="apis">
+    <div><h4>Content (shared/types/sound.ts)</h4>
+<pre>interface SoundData {
+  master?: number;
+  slots: Record&lt;string, SoundSlot&gt;;
+  presets?: Record&lt;string, SoundPreset&gt;;
+}
+interface SoundSlot {
+  preset: string | SoundPreset;
+  listens?: (string | { event; where? })[];
+  volume?; muted?; loop?; cooldown?;
+  haptic?: number | number[];
+  replaces?: string;      <i>// target: instead of an
+                          //  experience slot</i>
+  space?: { mode?: "stereo" | "3d";
+            pan; distance; rolloff; muffle };
+}                         <i>// space: target slots only</i>
+interface SoundPreset {
+  source: { synth; params?; asset? };
+  filter?; delay?; reverb?; lfo?;  <i>// each enabled?</i>
+}</pre></div>
+    <div><h4>Plugin API: a synth, like every register*</h4>
+<pre>const SPEC = {
+  label: "FM bell",
+  params: {
+    pitch: { kind: "number", min: 40, max: 8000,
+             log: true, default: 880 },
+    ratio: { kind: "number", min: .5, max: 8,
+             default: 3.5 },
+    index: { kind: "number", min: 0, max: 20 },
+  },
+};
+api.registerSynth("fm", SPEC,
+  ({ params, audio, time, destination }) =&gt; {
+    <i>// build nodes into destination</i>
+    return {
+      stop: at =&gt; carrier.stop(at),
+      pitched: [carrier.detune],  <i>// LFO pitch</i>
+      tail: 1.2,                  <i>// s after stop</i>
+    };
+  });</pre></div>
+    <div><h4>Plugin API: playing and listening</h4>
+<pre><i>// direct: a slot by name</i>
+api.sound.play("hum", { key: target.id });
+api.sound.stop("hum");
+
+<i>// the hook is the slot's own `listens` –
+// any plugin event reaches it:</i>
+api.events.emit("doorOpens");
+
+<i>// a rule (behaviour action, MINOR)</i>
+{ on: "tap", do: [{ sound: "creak" }] }
+
+<i>// the reader (FeedbackService)</i>
+feedback("tap")  <i>// emits ui.tap + vibration
+                 // from the slot's haptic</i></pre></div>
+  </div>
+</section>
+
+<!-- ============ APP: experience slots ============ -->
+<section class="frame stage" id="app">
+  <div class="panel">
+    <div class="tabs"><span>Scenes</span><span>Look</span><span class="on">Sound</span><span>Logic</span><span>Code</span></div>
+    <div class="row" style="padding:0 8px;margin-top:4px"><span class="l">Master</span><div class="num"><div class="fill" style="width:80%"></div><span>80</span><span>%</span></div></div>
+    <div class="row" style="padding:0 8px"><span class="l">Out</span><div class="meter"><div></div><div></div></div><span class="ib">▶</span></div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">Experience slots</span><span class="sum">the 2D app · 7</span><span class="ib" title="Add a slot">+</span></div>
+      <div class="slot"><span class="m">M</span><span class="name"><b>tap</b><small>ui.tap · vib 10</small></span><span class="ctl">Blip</span><div class="num"><div class="fill" style="width:47%"></div><span>70</span><span>%</span></div><span class="ib">▶</span></div>
+      <div class="slot"><span class="m">M</span><span class="name"><b>tick</b><small>ui.tick · vib 8</small></span><span class="ctl">Tick</span><div class="num"><div class="fill" style="width:33%"></div><span>50</span><span>%</span></div><span class="ib">▶</span></div>
+      <div class="slot sel"><span class="m">M</span><span class="name"><b>found</b><small>targetFound · 4 s / target</small></span><span class="ctl">Pew</span><div class="num"><div class="fill" style="width:53%"></div><span>80</span><span>%</span></div><span class="ib">▶</span></div>
+      <div class="slot"><span class="m">M</span><span class="name"><b>unlock</b><small>targetUnlocked · vib ··–</small></span><span class="ctl">Jingle</span><div class="num"><div class="fill" style="width:60%"></div><span>90</span><span>%</span></div><span class="ib">▶</span></div>
+      <div class="slot"><span class="m">M</span><span class="name"><b>entryOpen</b><small>ui.entryOpen</small></span><span class="ctl">Rise</span><div class="num"><div class="fill" style="width:40%"></div><span>60</span><span>%</span></div><span class="ib">▶</span></div>
+      <div class="slot muted"><span class="m on">M</span><span class="name"><b>entryClose</b><small>ui.entryClose</small></span><span class="ctl">Fall</span><div class="num"><div class="fill" style="width:40%"></div><span>60</span><span>%</span></div><span class="ib">▶</span></div>
+      <div class="slot"><span class="m">M</span><span class="name"><b>room</b><small>loop · sceneChanged</small></span><span class="ctl">Air</span><div class="num"><div class="fill" style="width:20%"></div><span>30</span><span>%</span></div><span class="ib">■</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">found</span><span class="sum">slot</span></div>
+      <div class="sec-body">
+        <div class="row"><span class="l">Listens to</span><div class="chips"><span class="chip on">targetFound ×</span><span class="chip">+ event</span></div></div>
+        <div class="row"><span class="l">Preset</span><span class="ctl">Pew · sample found.wav</span><span class="ib" title="Open the preset">→</span></div>
+        <div class="row"><span class="l">Cooldown</span><div class="num"><div class="fill" style="width:40%"></div><span>4</span><span>s / target</span></div></div>
+        <div class="row"><span class="l">Vibration</span><span class="ctl">18</span></div>
+        <div class="row"><span class="l">Loop</span><span class="tog"></span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▸</span><span class="t">Presets</span><span class="sum">Blip, Tick, Pew, Jingle, Rise, Fall, Air</span><span class="ib">+</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRESET ============ -->
+<section class="frame stage" id="preset">
+  <div class="panel">
+    <div class="tabs"><span>Scenes</span><span>Look</span><span class="on">Sound</span><span>Logic</span><span>Code</span></div>
+    <div class="row" style="padding:0 8px;margin-top:4px"><span class="ib">←</span><span class="ctl" style="font-weight:600">Jingle</span><span class="ib" title="Copy">⧉</span><span class="ib" title="Delete">🗑</span></div>
+    <div class="flowline"><span>FM bell</span>→<span>Filter</span>→<span>Delay</span>→<span>Reverb</span>→<span>Out</span></div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">Source</span><span class="sum"></span></div>
+      <div class="sec-body">
+        <div class="row"><span class="l">Synth</span><span class="ctl">FM bell <span class="plug">sama synths</span></span></div>
+        <div class="row"><span class="l">Pitch</span><div class="num"><div class="fill" style="width:62%"></div><div class="sweep" style="left:55%;width:14%"></div><span>1320</span><span>Hz</span></div></div>
+        <div class="row"><span class="l">Ratio</span><div class="num"><div class="fill" style="width:40%"></div><span>3.5</span><span></span></div></div>
+        <div class="row"><span class="l">Index</span><div class="num"><div class="fill" style="width:25%"></div><span>5</span><span></span></div></div>
+        <div class="row"><span class="l">Length</span><div class="num"><div class="fill" style="width:36%"></div><span>0.9</span><span>s</span></div></div>
+        <div class="row"><span class="l">Volume</span><div class="num"><div class="fill" style="width:55%"></div><span>55</span><span>%</span></div></div>
+        <div class="row"><span class="l">Pan</span><div class="num"><div class="fill" style="width:50%"></div><span>0</span><span>C</span></div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">Filter</span><span class="sum"></span><span class="tog on"></span></div>
+      <div class="sec-body">
+        <div class="row"><span class="l">Drive</span><div class="num"><div class="fill" style="width:10%"></div><span>0.1</span><span></span></div></div>
+        <div class="row"><span class="l">Cutoff</span><div class="num"><div class="fill" style="width:70%"></div><div class="sweep" style="left:50%;width:35%"></div><span>9000</span><span>Hz</span></div></div>
+        <div class="row"><span class="l">Resonance</span><div class="num"><div class="fill" style="width:8%"></div><span>0.7</span><span></span></div></div>
+        <div class="row"><span class="l">Envelope</span><div class="num"><div class="fill" style="width:50%"></div><span>0</span><span>oct</span></div></div>
+      </div>
+    </div>
+    <div class="sec"><div class="sec-head"><span class="chev">▸</span><span class="t">Delay</span><span class="sum">0.33 s · fb 35 % · mix 30 % · width 60 %</span><span class="tog on"></span></div></div>
+    <div class="sec"><div class="sec-head"><span class="chev">▸</span><span class="t">Reverb</span><span class="sum">2 s · mix 100 % · width 80 %</span><span class="tog on"></span></div></div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">LFO</span><span class="sum"></span><span class="tog on"></span></div>
+      <div class="sec-body">
+        <div class="row"><span class="l">Shape</span><div class="seg"><span class="on">∿</span><span>⋀</span><span>⊓</span><span>⁓</span></div></div>
+        <div class="row"><span class="l">Rate</span><div class="num"><div class="fill" style="width:30%"></div><span>1.5</span><span>Hz</span></div></div>
+        <div class="scope"></div>
+        <div class="row"><span class="l">→ Pitch</span><div class="num"><div class="fill" style="width:58%"></div><span>±12</span><span>%</span></div><span class="ib">×</span></div>
+        <div class="row"><span class="l">→ Cutoff</span><div class="num"><div class="fill" style="width:70%"></div><span>±40</span><span>%</span></div><span class="ib">×</span></div>
+      </div>
+    </div>
+    <div class="foot"><span class="pill">▶ Play</span><span class="pill">A/B</span><span style="flex:1"></span><span class="pill">Undo edits</span></div>
+  </div>
+</section>
+
+<!-- ============ TARGET ============ -->
+<section class="frame stage" id="target">
+  <div class="ar">
+    <div class="page"></div>
+    <div class="ring" style="width:160px;height:160px"></div>
+    <div class="ring" style="width:320px;height:320px;opacity:.5"></div>
+    <div class="badge">♪ hum · 3D · HRTF</div>
+    <div class="lr"><span>L</span><div class="bar"><i></i></div><span>R</span><span style="margin-left:12px">0.62 m · az −28° · el 12° · −4 dB</span></div>
+  </div>
+  <div class="panel">
+    <div class="tabs"><span>Target</span><span>Tree</span><span class="on">Sound</span><span>Logic</span></div>
+    <div class="row" style="padding:0 8px;margin-top:4px"><span class="l">Target</span><span class="ctl">P. 42 · The onion</span></div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">In place</span><span class="sum">this target · 2</span><span class="ib">+</span></div>
+      <div class="slot sel"><span class="m">M</span><span class="name"><b>hum</b><small>loop · while found</small></span><span class="ctl">Hum</span><div class="num"><div class="fill" style="width:33%"></div><span>50</span><span>%</span></div><span class="ib">■</span></div>
+      <div class="slot"><span class="m">M</span><span class="name"><b>creak</b><small>found · replaces found</small></span><span class="ctl">Creak</span><div class="num"><div class="fill" style="width:53%"></div><span>80</span><span>%</span></div><span class="ib">▶</span></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">hum</span><span class="sum">slot</span></div>
+      <div class="sec-body">
+        <div class="row"><span class="l">Plays</span><div class="seg"><span>on event</span><span class="on">while found</span></div></div>
+        <div class="row"><span class="l">Preset</span><span class="ctl">Hum · grain <span class="plug">sama synths</span></span><span class="ib">→</span></div>
+        <div class="row"><span class="l">Fade</span><div class="num"><div class="fill" style="width:30%"></div><span>0.6</span><span>s</span></div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><span class="chev">▾</span><span class="t">Space</span><span class="sum"></span><span class="tog on"></span></div>
+      <div class="sec-body">
+        <div class="row"><span class="l">Mode</span><div class="seg"><span>Stereo</span><span class="on">3D</span></div></div>
+        <div class="row"><span class="l">Rendering</span><span class="ctl">HRTF with headphones, else stereo</span></div>
+        <div class="row"><span class="l">Distance</span><div class="num"><div class="fill" style="width:20%"></div><span>0.4</span><span>m full</span></div></div>
+        <div class="row"><span class="l">Rolloff</span><div class="num"><div class="fill" style="width:50%"></div><span>1</span><span></span></div></div>
+        <div class="row"><span class="l">Muffle</span><div class="num"><div class="fill" style="width:35%"></div><span>35</span><span>%</span></div></div>
+        <div class="row"><span class="l">Cone</span><div class="num"><div class="fill" style="width:50%"></div><span>180</span><span>° out of the page</span></div></div>
+      </div>
+    </div>
+    <div class="sec"><div class="sec-head"><span class="chev">▸</span><span class="t">Experience slots here</span><span class="sum">found → replaced by creak · others as set</span></div></div>
+  </div>
+</section>
+
+<div class="notes" id="notes"></div>
+
+<script>
+  const NOTES = {
+    flow: ["Three layers: events (the one bus, the 2D app's ui.* added), slots (two homes: experience and target), the base engine with synth plugins.",
+           "A slot is reached two ways: it <b>listens to</b> events (the hook), or something plays it <b>directly</b> (the reader, a rule's sound action, api.sound.play).",
+           "Synth plugins use the same pattern as every register*: name, SPEC (its params draw the editor's rows and are LFO targets), factory."],
+    app: ["The experience's Sound tab: the 2D app's slots as a mixer (M = mute, the preset, volume, ▶). Closed, a slot row shows what it listens to.",
+          "The opened slot: listens to (events from the bus vocabulary), preset, cooldown, vibration, loop. Autosave, no Save button.",
+          "With no sound data, these defaults are today's four WAV sounds."],
+    preset: ["A preset in signal-flow order. The Source rows come from the synth's spec (here: a plugin synth, marked with its plugin).",
+             "Each stage is a section with its toggle in the head; closed, it shows its values in one line. The LFO's swept range shows as hatching on the mapped knob (greys, no colour: RULES #38).",
+             "A/B plays the saved version against the edit, and Undo edits resets the preset to its baseline."],
+    target: ["A target's own sounds, in place: stereo pan from where the target sits left/right of the camera, volume from its distance, optional muffle. No 3D/HRTF panner.",
+             "Plays: on an event (found, tap …) or while found (a loop that fades in and out with tracking). replaces: \"found\" swaps out the experience's find sound for this target.",
+             "On the stage, the rings show the full-volume distance and the rolloff; the bar shows the current pan.",
+             "Mode 3D: the listener is the camera (its pose each AR frame) and the slot a PannerNode at the target. It uses HRTF when the reader turns on Headphones (3D sound), and equalpower on the phone speaker. Distance and rolloff are the panner's own; muffle is our low-pass. Ambisonics comes later, for recorded AmbiX ambience."],
+  };
+  const params = new URLSearchParams(location.search);
+  if (params.has("shot")) document.body.classList.add("shot");
+  function show() {
+    const id = (location.hash || "#flow").slice(1);
+    document.querySelectorAll(".frame").forEach(f => f.classList.toggle("on", f.id === id));
+    document.querySelectorAll(".draftbar a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + id));
+    document.getElementById("notes").innerHTML = "<ul>" + (NOTES[id] || []).map(n => "<li>" + n + "</li>").join("") + "</ul>";
+  }
+  addEventListener("hashchange", show); show();
+</script>
+</body>
+</html>
