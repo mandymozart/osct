@@ -18,7 +18,7 @@ import { appLinks, fetchUser, servicesOf, type Services, type User } from "./ser
 import { Versions } from "./update.ts";
 
 /** = mcp/package.json version (RULES #10: one version with the app) */
-export const VERSION = "6.22.1";
+export const VERSION = "6.24.1";
 
 /**
  * `versions` compares this server with its instance (#367): `main` checks it before, so an outdated server says so in
