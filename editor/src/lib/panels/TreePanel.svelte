@@ -7,6 +7,7 @@
   import { Stage } from "#lib/stage/stage.svelte.js";
   import { getPreview, isNodeHidden, nodeKey as hiddenKey, setNodeHidden, setTargetHidden, subscribePreview, type PreviewState } from "#lib/stage/preview.js";
   import { selection } from "#lib/selection.svelte.js";
+  import { itemOf, type SelectionItem } from "#lib/selection.js";
   import { duplicateNode, groupNode, indentNode, isWithin, moveNode, nodeLabel, outdentNode, shiftNode, visiblePaths, type DropZone, type TreeEdit } from "#lib/tree.js";
   import { isRowOn, parentRow, rowSelection, stepRow, treeRows, type TreeRow } from "#lib/tree-rows.js";
   import { entryRowHelp } from "#lib/entry-view.js";
@@ -83,10 +84,29 @@
     return override ?? target.entity;
   };
 
-  /** A tap (or Enter) on a row: it is selected, the workspace shows its panel */
-  const pick = (row: TreeRow) => {
+  /** The thing a row stands for in a multi-selection (#369); null for the scene's row */
+  const rowItem = (row: TreeRow): SelectionItem | null => itemOf(rowSelection(row));
+  /**
+   * A tap (or Enter) on a row: it is selected, the workspace shows its panel. With Ctrl (#369, Blender's outliner) it is
+   * added to the selection or taken out of it, with Shift the rows from the active one to it are selected.
+   */
+  const pick = (row: TreeRow, event?: MouseEvent) => {
+    const item = rowItem(row);
+    if (event && item && (event.ctrlKey || event.metaKey)) {
+      selection.toggle(item);
+      return;
+    }
+    if (event && item && event.shiftKey) {
+      selection.range(item, rows.flatMap(r => rowItem(r) ?? []));
+      return;
+    }
     selection.set(rowSelection(row));
     onselect?.(row.kind);
+  };
+  /** Selected but not the active one (#369): marked lighter than the active row */
+  const isOther = (row: TreeRow) => {
+    const item = rowItem(row);
+    return !!item && selection.isOther(item);
   };
   const entryRow = (entry: Entry): TreeRow => ({ kind: "entry", entryId: entry.id, targetId: entry.target?.id ?? null });
   const hasTree = (targetId: string) => {
@@ -267,9 +287,9 @@
     swallowSurfaceClick = true;
     if (onto && event.type === "pointerup") void moveToOther(d.targetId, onto);
   };
-  const surfaceTargetClick = (targetId: string) => {
+  const surfaceTargetClick = (targetId: string, event?: MouseEvent) => {
     if (swallowSurfaceClick) { swallowSurfaceClick = false; return; }
-    pick({ kind: "target", targetId });
+    pick({ kind: "target", targetId }, event);
   };
   const surfaceTargetMenu = (targetId: string, surfaceId: string) => menuTrigger({
     open: at => { selection.selectTarget(targetId); menu = { at, kind: "surface-target", targetId, surfaceId }; },
@@ -582,7 +602,7 @@
   {@const dropZone = drop?.key === key ? drop.zone : null}
   {@const own = preview.hiddenNodes.includes(hiddenKey(target.id, path))}
   {@const drawn = shown && !isNodeHidden(preview.hiddenNodes, target.id, path)}
-  <div class="node" class:on class:within={isWithinOn(target, path)} class:pressing={pressing === key} class:dragged={!!drag?.active && drag.target.id === target.id && isWithin(path, drag.from)}
+  <div class="node" class:on class:other={isOther({ kind: "node", targetId: target.id, path })} class:within={isWithinOn(target, path)} class:pressing={pressing === key} class:dragged={!!drag?.active && drag.target.id === target.id && isWithin(path, drag.from)}
     class:drop-before={dropZone === "before"} class:drop-inside={dropZone === "inside"} class:drop-after={dropZone === "after"}
     role="treeitem" aria-expanded={children.length ? open : undefined} aria-selected={on} aria-level={depth + 1}
     data-target={target.id} data-path={path.join(".")} data-drop="node" data-node-type={n.type} style:padding-left="calc(.25rem + {depth} * var(--indent))">
@@ -593,7 +613,7 @@
       <span class="chevron"></span>
     {/if}
     <span class="type" class:handle={path.length > 0} title={path.length ? "Drag to move the node: onto a row = its child, between rows = its sibling" : undefined}><Icon name={nodeIcon(n)} size="1em" stroke={2} /></span>
-    <button type="button" class="pick" class:muted={!drawn} onclick={() => pick({ kind: "node", targetId: target.id, path })} aria-haspopup="menu" {@attach rowMenu(target, path, "node")}
+    <button type="button" class="pick" class:muted={!drawn} onclick={e => pick({ kind: "node", targetId: target.id, path }, e)} aria-haspopup="menu" {@attach rowMenu(target, path, "node")}
       title={path.length
         ? `${n.type} – a tap selects this node: the Inspector shows its values, the gizmo sits on it on the stage`
         : `${n.type} – a tap selects the entity (its root node): the Inspector shows its values, the gizmo sits on it on the stage`}>
@@ -650,7 +670,7 @@
         {@const on = isOn(row)}
         {@const lying = targetsOn(surface.id)}
         {@const open = surfaceOpen(surface.id)}
-        <div class="node depth-2" class:on class:pressing={pressing === `surface:${surface.id}`} class:drop-inside={surfaceDrop === surface.id}
+        <div class="node depth-2" class:on class:other={isOther(row)} class:pressing={pressing === `surface:${surface.id}`} class:drop-inside={surfaceDrop === surface.id}
           role="treeitem" aria-selected={on} aria-expanded={lying.length ? open : undefined} aria-level={3} data-surface-drop={surface.id}>
           {@render guides(2)}
           {#if lying.length}
@@ -660,7 +680,7 @@
             <span class="chevron"></span>
           {/if}
           <span class="type"><Icon name="surface" size="1em" stroke={2} /></span>
-          <button type="button" class="pick" onclick={() => pick(row)} aria-haspopup="menu" {@attach surfaceMenu(surface.id)}
+          <button type="button" class="pick" onclick={e => pick(row, e)} aria-haspopup="menu" {@attach surfaceMenu(surface.id)}
             title="{surface.id}, {Math.round(surface.widthMm)} × {Math.round(surface.heightMm)} mm – a tap selects it: the Inspector shows its fields, the stage highlights it{sceneSurfaces.length > 1 ? '; drop a target from another surface here to move it onto this one' : ''}">
             <span class="name">{surfaceName(surface)}</span>{#if lying.length}<span class="small muted">{lying.length}</span>{/if}
           </button>
@@ -671,13 +691,13 @@
             {@const targetOn = isTargetOn(target)}
             <!-- A target on the surface: a tap selects it, a drag onto another surface's row moves it there (its button takes the focus) -->
             <!-- svelte-ignore a11y_interactive_supports_focus -->
-            <div class="node depth-3 surface-target" class:on={targetOn} class:pressing={pressing === `surface-target:${target.id}`}
+            <div class="node depth-3 surface-target" class:on={targetOn} class:other={isOther({ kind: "target", targetId: target.id })} class:pressing={pressing === `surface-target:${target.id}`}
               class:dragged={!!surfaceDrag?.active && surfaceDrag.targetId === target.id} role="treeitem" aria-selected={targetOn} aria-level={4}
               onpointerdown={e => surfaceDragDown(e, target.id, surface.id)} onpointermove={surfaceDragMove} onpointerup={surfaceDragUp} onpointercancel={surfaceDragUp}>
               {@render guides(3)}
               <span class="chevron"></span>
               <span class="type" class:handle={sceneSurfaces.length > 1}><Icon name="target" size="1em" stroke={2} /></span>
-              <button type="button" class="pick" onclick={() => surfaceTargetClick(target.id)} aria-haspopup="menu" {@attach surfaceTargetMenu(target.id, surface.id)}
+              <button type="button" class="pick" onclick={e => surfaceTargetClick(target.id, e)} aria-haspopup="menu" {@attach surfaceTargetMenu(target.id, surface.id)}
                 title="{target.id} on {surfaceName(surface)} – a tap selects it{sceneSurfaces.length > 1 ? '; drag it onto another surface to move it there (its menu too)' : ''}">
                 <span class="name">{title}</span>
               </button>
@@ -694,7 +714,7 @@
       {@const shown = !!target && !preview.hidden.includes(target.id)}
       {@const tree = target ? treeOf(target) : undefined}
       {@const entryOn = isOn(entryRow(entry))}
-      <div class="node depth-1" class:on={entryOn} class:within={!!target && (isTargetOn(target) || isWithinOn(target, null))} class:pressing={pressing === `entry:${entry.id}`}
+      <div class="node depth-1" class:on={entryOn} class:other={isOther(entryRow(entry))} class:within={!!target && (isTargetOn(target) || isWithinOn(target, null))} class:pressing={pressing === `entry:${entry.id}`}
         role="treeitem" aria-expanded={target ? open : undefined} aria-selected={entryOn} aria-level={2}>
         {@render guides(1)}
         {#if target}
@@ -703,7 +723,7 @@
           <span class="chevron"></span>
         {/if}
         <span class="type"><Icon name="entry" size="1em" stroke={2} /></span>
-        <button type="button" class="pick" class:muted={!!target && !shown} onclick={() => pick(entryRow(entry))} aria-haspopup="menu" {@attach entryMenu(entry)}
+        <button type="button" class="pick" class:muted={!!target && !shown} onclick={e => pick(entryRow(entry), e)} aria-haspopup="menu" {@attach entryMenu(entry)}
           title={entryRowHelp(entry, !!target?.imageSrc)}>
           <span class="name">{entry.title}</span>
           {#if target && !isTargetEnabled(target)}<span class="off muted" title="Switched off: not in the reader's experience (the Inspector's In the experience switch)" aria-label="Switched off"><Icon name="slash" size="1em" stroke={2} /></span>{/if}
@@ -718,12 +738,12 @@
       </div>
       {#if target && open}
         {@const on = isTargetOn(target)}
-        <div class="node depth-2" class:on class:within={isWithinOn(target, null)} class:pressing={pressing === target.id} role="treeitem" aria-selected={on} aria-level={3}
+        <div class="node depth-2" class:on class:other={isOther({ kind: "target", targetId: target.id })} class:within={isWithinOn(target, null)} class:pressing={pressing === target.id} role="treeitem" aria-selected={on} aria-level={3}
           data-drop="target" data-target={target.id}>
           {@render guides(2)}
           <span class="chevron"></span>
           <span class="type"><Icon name="target" size="1em" stroke={2} /></span>
-          <button type="button" class="pick" class:muted={!shown} onclick={() => pick({ kind: "target", targetId: target.id })} aria-haspopup="menu" {@attach rowMenu(target, [], "target")}
+          <button type="button" class="pick" class:muted={!shown} onclick={e => pick({ kind: "target", targetId: target.id }, e)} aria-haspopup="menu" {@attach rowMenu(target, [], "target")}
             title={tree
               ? "The target – a tap selects it: the Inspector shows its printed image and placement, the stage outlines its print"
               : "The target, no AR content yet – a tap selects it: the Inspector shows its printed image and placement and adds a node, the stage outlines its print"}>
@@ -779,6 +799,8 @@
   }
   .node.pressing { background: var(--hover-background); }
   .node.on { background: var(--selected-background); color: var(--pressed-color); box-shadow: inset 2px 0 0 var(--text); }
+  /* The rest of a multi-selection (#369): lighter than the active row, as Blender's outliner */
+  .node.other { background: var(--within-background); box-shadow: inset 2px 0 0 var(--muted, var(--line)); }
   .tree:focus-visible .node.on { box-shadow: inset 2px 0 0 var(--text), inset 0 0 0 1px var(--text); }
   .node.dragged { opacity: .45; }
   .node.drop-before { box-shadow: inset 0 2px 0 var(--text); }

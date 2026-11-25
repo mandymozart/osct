@@ -1049,17 +1049,42 @@ The camera is moved on the stage itself: **drag** orbits (any tilt – level wit
 returns to the reader's view (35 cm above the page, tilted 30°; the free orbit is kept on the device). The panel's former
 view presets and found chips doubled these and are gone.
 
-The **camera** (#335) – three buttons in a column at the stage's bottom right corner (#364: out of the toolbar; moved
-left past any panel lying in that corner, `clearCorner` in `floats.ts`, so no panel hides them) – says what the camera
-turns around – the looked-at point, a point in space:
-- **Home** (the Home key, a double tap): the reader's view around the scene's origin on the table.
-- **Focus** (F): the camera flies to the selection and turns around its middle – a surface (a standing poster, a wall)
-  front-on and whole, a printed target front-on, a node by its box from where the camera looks; with nothing selected
-  the whole scene from the reader's side. A chip left of the camera's buttons names it (✕ = Home).
-- **Fixed / free**: fixed (the default), a pan slides the point along the plane of the surface it was focused on (the
-  table without one). Free, a pan moves it along the screen – up, down, anywhere within 10 m. Back to fixed, the point
-  slides along the line of sight onto that surface, so the view does not move.
-All of it is stored on the device with the orbit (`PreviewOrbit`: `pan.z`, `surface`, `label`, `free`).
+The **camera control** (#335, #369 – Blender's navigation gizmo) sits at the stage's **top right** (moved left past any
+panel lying there, `clearTopCorner` in `floats.ts`): the **view gizmo** floats over the stage, unframed and without a
+hover state (`ViewGizmo.svelte`, its math `view-gizmo.ts`) – the stage's axes as the camera sees them, x red, y green, z
+blue (a stage helper's colours, RULES #38). A click on a ball turns the camera to that view (`AXIS_VIEWS`: +z top, −z
+bottom, −y front, +y back, +x right, −x left), the ball already facing you to the opposite; a drag on it orbits. Under it
+one square group:
+- **Zoom** and **pan** – drag on them (down = nearer); the wheel, a pinch, Shift + drag and the middle button stay.
+- **Reader's view** (Home, numpad 0, a double tap): the reader's view around the scene's origin, in perspective.
+- **Perspective / orthographic** (numpad 5). A snap to a view goes ortho by itself and orbiting away goes back to
+  perspective (`autoOrtho`, Blender's Auto Perspective); ortho switched on by hand stays. Ortho is the editor's only and
+  is emulated (`orthoLens` in `mock-tracker.ts`): the engine's camera stays perspective – plugins, picking and the
+  transform gizmos hold it – so the eye moves 200 m back and the field of view narrows until the looked-at point's plane
+  shows as large as before (what is 1 m nearer shows < 1 % larger); the switch blends in 250 ms.
+- **Focus** (F): the camera flies to the selection and turns around its middle – a surface front-on and whole, a printed
+  target front-on, a node by its box; several selected, the box around them all; nothing selected, the whole scene.
+- **Fixed / free**: fixed (the default), a pan slides the point along the plane of the surface it is fixed to; free, along
+  the screen – anywhere within 10 m. Back to fixed, the point slides along the line of sight onto that surface, so the
+  view does not move. **The surface follows the last click** (#369): the active selection's surface, the table when
+  nothing is selected (`lockTo`) – the view does not move. Where that plane is seen edge-on (the table from the front, a
+  wall from above, within 10°) a pan moves along the screen.
+The chip to the left of the gizmo names the view (Top, Front …), the projection and what the camera is fixed to
+("Top · ortho · on Poster 3"; with several selected their count); ✕ = Home. Numpad 1 / 3 / 7 snap to front / right /
+top (Ctrl: the opposite), 9 to the opposite of the view now.
+All of it is stored on the device with the orbit (`PreviewOrbit`: `pan.z`, `surface`, `label`, `free`, `ortho`,
+`autoOrtho`, `axisView`).
+
+**Multi-select** (#369, cloned from Blender – `selection.ts` for the rules, `selection.svelte.ts` holds `others` beside
+the active one): on the stage (the viewport) a click selects one thing, **Shift + click** adds a thing and makes it the
+active one, makes a selected one active, or takes the active one away; **B** then a drag selects what lies in the box
+(the prints' middles; Shift + drag removes), **A** selects every target's entity (or print) of the open scene, **Alt + A**
+none, **Ctrl + I** inverts. In the Tree (the outliner) **Ctrl + click** adds or removes a row, **Shift + click** selects
+the rows from the active one to it. Surfaces, entries, targets and nodes can be selected together; the scene, a group
+and the experience are selected alone. The last click is the **active** one: the Inspector shows it ("3 selected ·
+showing the last clicked"), the transform gizmo holds it, its outline is the selection's orange; the others are outlined
+a darker orange (`OTHER_SELECTION_COLOR`) and marked lighter in the Tree. Any single selection lets the others go.
+Not yet (#370): circle select, Alt + click through overlaps, moving or deleting several at once.
 
 The toolbar's **view** group – how the editor shows the scene, stored on the device: **shake**: 0 = still, 1 = a hand
 holding a phone. **origin**: the 3 × 3 alignment square ([below](#grid-origin-and-snapping)). **desk**: a switch and the Eiermann

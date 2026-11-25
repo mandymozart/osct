@@ -14,11 +14,12 @@ import type { SurfaceReferences } from "./surfaces";
 import type { GizmoPlacement, StageTool } from "./gizmo";
 import type { PickFilter, StagePick } from "./pick";
 import { runPluginCode } from "./plugin-run";
-import { type CameraFocus, type GhostPlace, StageCore } from "./stage-core.svelte";
+import { type CameraFocus, type GhostPlace, type PickKeys, StageCore } from "./stage-core.svelte";
+import type { AxisView } from "./preview";
 
 export type { StageEvent } from "./event-log";
 export type { PickFilter, PickKind, StagePick } from "./pick";
-export type { GhostPlace } from "./stage-core.svelte";
+export type { CameraFocus, GhostPlace, PickKeys } from "./stage-core.svelte";
 
 /** A console argument as text for the Code tab's log */
 const textOf = (value: unknown): string => {
@@ -53,13 +54,13 @@ export class Stage {
   static readonly REMOVED: EntityData = REMOVED_ENTITY;
 
   /** A tap on the stage picked something (the Inspector selects it) – or nothing (null) */
-  onPick: ((hit: StagePick | null) => void) | null = null;
+  onPick: ((hit: StagePick | null, keys?: PickKeys) => void) | null = null;
   /** A right click on the stage: what lies there (null = the page or the table) and where (the page's client px) */
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
   /** The form or the panel editing a placement listens: a handle moved it */
   onGhostChange: ((place: TargetPlace) => void) | null = null;
   /** A tap on the stage hit a surface of the open scene (#314: the Surface mode selects by it), mm from its top left corner – or none */
-  onSurfacePick: ((hit: SurfacePick) => void) | null = null;
+  onSurfacePick: ((hit: SurfacePick, keys?: PickKeys) => void) | null = null;
   /** A drag of the surface gizmo ended (#314): the surface's new place in its scene – the page saves it */
   onSurfacePlace: ((surfaceId: string, place: Required<SurfacePlace>) => void) | null = null;
   /** Entities shown with other values than the draft's, by target id: edits not saved yet (the panels mark them) */
@@ -97,10 +98,10 @@ export class Stage {
     this.host.className = "stage-host";
     container.prepend(this.host);
     const c = (this.core = core(this.host));
-    c.onPick = hit => this.onPick?.(hit);
+    c.onPick = (hit, keys) => this.onPick?.(hit, keys);
     c.onContextMenu = (hit, x, y) => this.onContextMenu?.(hit, x, y);
     c.onGhostChange = place => this.onGhostChange?.(place);
-    c.onSurfacePick = hit => this.onSurfacePick?.(hit);
+    c.onSurfacePick = (hit, keys) => this.onSurfacePick?.(hit, keys);
     // Only the surface the page put the gizmo on
     c.onSurfacePlace = (surfaceId, place) => {
       if (surfaceId === this.surfaceGizmoAsked.surfaceId) this.onSurfacePlace?.(surfaceId, place);
@@ -412,6 +413,59 @@ export class Stage {
   /** The camera turns around the selection – a surface, a node, a target – shown whole; none = the whole scene */
   focusCamera(on: CameraFocus): void {
     this.core.focusCamera(on);
+  }
+
+  /** The camera shows several things whole (#369, a multi-selection), its point fixed to `surface` (the active one's) */
+  focusCameraOn(things: readonly CameraFocus[], label: string, surface?: string): void {
+    this.core.focusCameraOn(things, label, surface);
+  }
+
+  /** The camera control (#369): what the camera's point is fixed to follows the active selection's surface (none: the table) */
+  lockCamera(surface: string | undefined): void {
+    this.core.lockCamera(surface);
+  }
+
+  /** Snap to a view (#369): top, bottom, front, back, right, left – ortho with it, as Blender's Auto Perspective */
+  snapView(view: AxisView): void {
+    this.core.snapView(view);
+  }
+
+  /** Orthographic or perspective by hand (#369): it stays while the camera orbits */
+  setOrtho(ortho: boolean): void {
+    this.core.setOrtho(ortho);
+  }
+
+  /** The camera control's drags (#369): the gizmo orbits, the zoom and pan buttons zoom and pan (px) */
+  orbitBy(dx: number, dy: number): void {
+    this.core.orbitBy(dx, dy);
+  }
+
+  zoomBy(dy: number): void {
+    this.core.zoomBy(dy);
+  }
+
+  panBy(dx: number, dy: number): void {
+    this.core.panBy(dx, dy);
+  }
+
+  /** The camera's direction now (the gizmo draws from it every frame); null before the stage runs */
+  cameraTurn(): { tilt: number; yaw: number } | null {
+    return this.core.cameraTurn();
+  }
+
+  /** The surface a printed target lies on (#369: the camera's lock follows the selection) */
+  surfaceOf(targetId: string): string | undefined {
+    return this.core.surfaceOf(targetId);
+  }
+
+  /** The rest of a multi-selection (#369): outlined darker than the active one */
+  selectOthers(picks: readonly StagePick[]): void {
+    this.core.selectOthers(picks);
+  }
+
+  /** What a box on the stage holds (#369, B + drag), in client px */
+  picksInRect(rect: { left: number; top: number; right: number; bottom: number }): StagePick[] {
+    return this.core.picksInRect(rect);
   }
 
   /** The Live switch (#269): off holds the entities' clock on the stage, on lets it run */

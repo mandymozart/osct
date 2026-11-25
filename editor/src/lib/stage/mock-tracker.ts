@@ -2,7 +2,7 @@ import { Box3, Matrix4, type Object3D, type PerspectiveCamera, Quaternion, type 
 import type { Target } from "@engine/types";
 import { getScene } from "@engine/content/game-config";
 import { EMPTY_ENGINE_STATE, publishEngineState } from "@engine/utils/tracker-debug";
-import { getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, type SurfaceGrid, updatePreview } from "./preview";
+import { type AxisView, getPreview, type PreviewOrbit, type PreviewState, type PreviewView, subscribePreview, type SurfaceGrid, updatePreview } from "./preview";
 import type { IImageTracker, ImageTrackerOptions, TrackedScene } from "@engine/scene/tracker-types";
 import { onAppUi } from "@engine/scene/ui";
 import { framesOf, type LivePlacement, type PlaceBox, placeCentre, placeHeight, surfaceAxes, surfaceLeft, type Surfaces, withLivePlacement } from "./placement";
@@ -64,6 +64,40 @@ const TILT_DEGREES_PER_PX = 0.3;
 const WHEEL_STEP = 0.08;
 /** The free orbit is stored this long after the last change */
 const STORE_DELAY_MS = 300;
+
+/**
+ * Orthographic (#369), the editor's only – the engine's camera stays perspective (plugins, picking and the transform
+ * gizmos hold it): the eye moves this far back (mm) and the field of view narrows so the looked-at point's plane shows as
+ * large as before. What is 1 m nearer or farther then shows 0.5 % larger or smaller – a parallel view to the eye.
+ */
+const ORTHO_EYE_MM = 200_000;
+/** Ortho and perspective blend into each other in this long (ms): a dolly zoom, the looked-at plane keeps its size */
+const ORTHO_BLEND_MS = 250;
+/** A drag on the zoom button: the distance's factor per pixel (down = nearer, as Blender's) */
+const ZOOM_PER_PX = 0.01;
+/** A plane counts as edge-on (a pan moves along the screen, #369) when the line of sight is within ~10° of it */
+const EDGE_ON = Math.sin((10 * Math.PI) / 180);
+
+/**
+ * The six views the gizmo snaps to (#369, Blender's numpad views) in the stage's frame (z up, the reader on −y): top
+ * looks down with the page's top up, bottom looks up (y pointing down, as Blender's), front from the reader's side,
+ * back from the far side, right from +x, left from −x.
+ */
+export const AXIS_VIEWS = {
+  top: { tilt: 0, yaw: 0 },
+  bottom: { tilt: 180, yaw: 0 },
+  front: { tilt: 90, yaw: 0 },
+  back: { tilt: 90, yaw: 180 },
+  right: { tilt: 90, yaw: 90 },
+  left: { tilt: 90, yaw: -90 },
+} as const satisfies Record<AxisView, { tilt: number; yaw: number }>;
+
+/** A view's opposite (the gizmo's ball already facing you, Ctrl + numpad, numpad 9) */
+export const OPPOSITE_VIEW: Record<AxisView, AxisView> = { top: "bottom", bottom: "top", front: "back", back: "front", right: "left", left: "right" };
+
+/** Which view a gizmo ball snaps to: the axis and its sign (+z = top, −y = front, +x = right) */
+export const axisViewOf = (axis: "x" | "y" | "z", positive: boolean): AxisView =>
+  axis === "z" ? (positive ? "top" : "bottom") : axis === "y" ? (positive ? "back" : "front") : positive ? "right" : "left";
 
 /** Hand shake at wobble 1: a few millimetres and half a degree, slow and fast parts */
 const WOBBLE_MM = 2;
@@ -585,12 +619,14 @@ export class MockTracker implements IImageTracker {
   /** A fixed field of view; the aspect follows the container, as the engine's intrinsics would */
   fit(camera: PerspectiveCamera): void {
     this.camera = camera;
-    camera.fov = PREVIEW_FOV;
+    // Ortho (#369) narrows the field and moves the planes – as drawn now, so a resize keeps the lens
+    const lens = orthoLens(this.orbit.distance, this.orthoBlend * this.orthoBlend * (3 - 2 * this.orthoBlend));
+    camera.fov = lens.fov;
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
     if (width && height) camera.aspect = width / height;
-    camera.near = NEAR;
-    camera.far = FAR;
+    camera.near = Math.max(NEAR, (lens.eye - this.orbit.distance) / 1000 - 20);
+    camera.far = lens.eye / 1000 + FAR;
     camera.updateProjectionMatrix();
   }
 
@@ -600,7 +636,8 @@ export class MockTracker implements IImageTracker {
     const t = (nowMs - this.startedAt) / 1000;
     this.fly(nowMs);
     const { orbit, offset } = wobbled(this.orbit, this.preview.wobble, t);
-    cameraMatrix(orbit, this.focus(), this.cameraWorld);
+    const lens = this.lens(nowMs, orbit.distance);
+    cameraMatrix({ ...orbit, distance: lens.eye }, this.focus(), this.cameraWorld);
     if (offset.lengthSq() > 0) this.cameraWorld.setPosition(new Vector3().setFromMatrixPosition(this.cameraWorld).add(offset));
     if (this.lookUp) this.cameraWorld.multiply(LOOK_UP.makeRotationX((this.lookUp * Math.PI) / 180));
     this.cameraInverse.copy(this.cameraWorld).invert();
@@ -622,6 +659,40 @@ export class MockTracker implements IImageTracker {
     }
     this.stage?.setHiddenPrints?.(hidden);
     this.stage?.update(this.cameraInverse);
+  }
+
+  /** How far ortho is blended in (0…1, #369) and when it was last stepped */
+  private orthoBlend = 0;
+  private lensAt = 0;
+
+  /**
+   * The lens at `nowMs` (#369): ortho blends in or out over `ORTHO_BLEND_MS`, the camera's field of view and clip
+   * planes follow – the eye far back in ortho, the planes around what lies within 20 m of the looked-at point
+   */
+  private lens(nowMs: number, distance: number): { eye: number; fov: number } {
+    const step = this.lensAt ? Math.max(0, nowMs - this.lensAt) / ORTHO_BLEND_MS : 1;
+    this.lensAt = nowMs;
+    const goal = this.orbit.ortho ? 1 : 0;
+    this.orthoBlend = goal > this.orthoBlend ? Math.min(goal, this.orthoBlend + step) : Math.max(goal, this.orthoBlend - step);
+    const k = this.orthoBlend * this.orthoBlend * (3 - 2 * this.orthoBlend);
+    const lens = orthoLens(distance, k);
+    const camera = this.camera;
+    if (camera) {
+      const near = Math.max(NEAR, (lens.eye - distance) / 1000 - 20);
+      const far = lens.eye / 1000 + FAR;
+      if (camera.fov !== lens.fov || camera.near !== near || camera.far !== far) {
+        camera.fov = lens.fov;
+        camera.near = near;
+        camera.far = far;
+        camera.updateProjectionMatrix();
+      }
+    }
+    return lens;
+  }
+
+  /** Ortho now, as drawn (#369): the blend has arrived */
+  get orthographic(): boolean {
+    return this.orthoBlend >= 1;
   }
 
   /**
@@ -651,30 +722,120 @@ export class MockTracker implements IImageTracker {
     const height = this.container.clientHeight || 1;
     const distance = Math.min(MAX_DISTANCE, Math.max(MIN_DISTANCE, fitDistance(Math.max(spot.width, 1), Math.max(spot.height, 1), width / height)));
     const { x, y, z } = spot.centre;
-    const to: Orbit = { distance, ...direction, pan: { x, y, z }, label: spot.label, ...(spot.surface ? { surface: spot.surface } : {}) };
+    // Ortho chosen by hand stays (#369); a snapped view and the ortho that came with it are left
+    const byHand = !!this.orbit.ortho && !this.orbit.autoOrtho;
+    const to: Orbit = { distance, ...direction, pan: { x, y, z }, label: spot.label, ...(spot.surface ? { surface: spot.surface } : {}), ...(byHand ? { ortho: true } : {}) };
     this.flyTo(to, true);
     updatePreview({ orbit: { ...to } });
   }
 
   /** Focus on a surface of the open scene by id: its middle, front-on, the surface whole */
   focusSurface(id: string, label = id): boolean {
+    const spot = this.surfaceSpot(id, label);
+    if (spot) this.focusOn(spot);
+    return !!spot;
+  }
+
+  /** A surface of the open scene as a spot: its middle, its size, its normal (null: no such surface) */
+  surfaceSpot(id: string, label = id): CameraSpot | null {
     const frame = this.frames.find(f => f.id === id);
-    if (!frame) return false;
+    if (!frame) return null;
     const [x, y, z] = toStage(frame, frame.widthMm / 2, frame.heightMm / 2);
-    this.focusOn({ centre: { x, y, z }, width: frame.widthMm, height: frame.heightMm, normal: frame.normal, surface: id, label });
-    return true;
+    return { centre: { x, y, z }, width: frame.widthMm, height: frame.heightMm, normal: frame.normal, surface: id, label };
   }
 
   /** Focus on a printed target by id: its image's middle, front-on to its surface */
   focusTarget(id: string, label = id): boolean {
+    const spot = this.targetSpot(id, label);
+    if (spot) this.focusOn(spot);
+    return !!spot;
+  }
+
+  /** A printed target as a spot: its image's middle and size, its surface's normal (null: not on the stage) */
+  targetSpot(id: string, label = id): CameraSpot | null {
     const target = this.targets.find(t => t.id === id);
-    if (!target) return false;
+    if (!target) return null;
     const surfaces = this.placeSurfaces();
     const height = placeHeight(target, this.printedAspect(id));
     const centre = placeCentre(target, surfaces, this.printedAspect(id));
     const frame = this.frames.find(f => f.id === target.surface);
-    this.focusOn({ centre, width: target.width, height, ...(frame ? { normal: frame.normal } : {}), surface: target.surface, label });
-    return true;
+    return { centre, width: target.width, height, ...(frame ? { normal: frame.normal } : {}), surface: target.surface, label };
+  }
+
+  /**
+   * Focus on several things at once (#369, a multi-selection): the box around them all, from where the camera looks now,
+   * the point fixed to `surface` (the active one's) – none = the table
+   */
+  focusSpots(spots: readonly CameraSpot[], label: string, surface?: string): void {
+    const box = spotsBox(spots);
+    if (!box) return;
+    this.focusOn({ centre: box.centre, width: box.size, height: box.size, label, ...(surface ? { surface } : {}) });
+  }
+
+  // ── The camera control (#369): the views, ortho, the lock following the selection, the buttons' drags ──
+
+  /** Snap to one of the six views around the looked-at point (Blender's numpad, the gizmo's balls); ortho with it */
+  snapView(view: AxisView): void {
+    this.landFlight();
+    const to = snappedTo(this.orbit, view);
+    this.flyTo(to, true);
+    updatePreview({ orbit: { ...to } });
+  }
+
+  /** The view the camera is snapped to (null: none – orbited, or never snapped) */
+  get axisView(): AxisView | null {
+    return (this.flight?.to ?? this.orbit).axisView ?? null;
+  }
+
+  /** Orthographic or perspective, by hand: it stays when the camera orbits */
+  setOrtho(ortho: boolean): void {
+    this.landFlight();
+    const { autoOrtho: _auto, ortho: _ortho, ...rest } = this.orbit;
+    this.orbit = ortho ? { ...rest, ortho: true } : rest;
+    window.clearTimeout(this.storeTimer);
+    updatePreview({ orbit: { ...this.orbit } });
+  }
+
+  /**
+   * What the camera's point is fixed to follows the selection (#369, the last click): the active one's surface – none =
+   * the table. The view does not move; a pan slides along the new plane from where the point is.
+   */
+  lockTo(surface: string | undefined): void {
+    const orbit = this.flight?.to ?? this.orbit;
+    if (orbit.surface === surface) return;
+    const { surface: _surface, ...rest } = this.orbit;
+    this.orbit = surface ? { ...rest, surface } : rest;
+    if (this.flight) {
+      const { surface: _s, ...to } = this.flight.to;
+      this.flight.to = surface ? { ...to, surface } : to;
+    }
+    this.orbitChanged();
+  }
+
+  /** A drag on the gizmo (#369): orbits as a drag on the stage does */
+  orbitBy(dx: number, dy: number): void {
+    this.stopFlight();
+    this.turn(dx, dy);
+  }
+
+  /** A drag on the zoom button (#369): down = nearer, up = farther */
+  zoomBy(dy: number): void {
+    this.stopFlight();
+    this.zoom(Math.exp(-dy * ZOOM_PER_PX));
+  }
+
+  /** A drag on the pan button (#369): the stage follows the pointer, as Shift + drag */
+  panBy(dx: number, dy: number): void {
+    this.stopFlight();
+    this.pan(dx, dy);
+  }
+
+  /** Orbit by a pointer movement (px): the view snapped to is left, ortho that came with it goes */
+  private turn(dx: number, dy: number): void {
+    this.orbit = leftView(this.orbit);
+    this.orbit.yaw += dx * ORBIT_DEGREES_PER_PX;
+    this.orbit.tilt = wrapTilt(this.orbit.tilt + dy * TILT_DEGREES_PER_PX);
+    this.orbitChanged();
   }
 
   /** Focus on the whole scene: every surface – a standing poster too – from the reader's side */
@@ -812,7 +973,10 @@ export class MockTracker implements IImageTracker {
     const turn = cameraTurn(this.orbit);
     let right = new Vector3(1, 0, 0).applyQuaternion(turn);
     let up = new Vector3(0, 1, 0).applyQuaternion(turn);
-    if (!this.orbit.free) {
+    const sight = new Vector3(0, 0, -1).applyQuaternion(turn);
+    // A plane seen edge-on (#369 – the table from the front, a wall from above) has no screen direction to slide along:
+    // the pan moves along the screen there, as free
+    if (!this.orbit.free && Math.abs(sight.dot(this.fixedNormal())) >= EDGE_ON) {
       const n = this.fixedNormal();
       right = alongPlane(right, n);
       up = alongPlane(up, n);
@@ -887,9 +1051,7 @@ export class MockTracker implements IImageTracker {
         // Shift + drag or the middle button: pan (as in every 3D tool); plain drag: orbit
         this.pan(dx, dy);
       } else {
-        this.orbit.yaw += dx * ORBIT_DEGREES_PER_PX;
-        this.orbit.tilt = wrapTilt(this.orbit.tilt + dy * TILT_DEGREES_PER_PX);
-        this.orbitChanged();
+        this.turn(dx, dy);
       }
     }
     pointer.x = event.clientX;
@@ -943,4 +1105,43 @@ export class MockTracker implements IImageTracker {
 
 const sameOrbit = (a: Orbit, b: Orbit) =>
   a.distance === b.distance && a.tilt === b.tilt && a.yaw === b.yaw && (a.pan?.x ?? 0) === (b.pan?.x ?? 0) && (a.pan?.y ?? 0) === (b.pan?.y ?? 0)
-  && (a.pan?.z ?? 0) === (b.pan?.z ?? 0) && a.surface === b.surface && a.label === b.label && !!a.free === !!b.free;
+  && (a.pan?.z ?? 0) === (b.pan?.z ?? 0) && a.surface === b.surface && a.label === b.label && !!a.free === !!b.free
+  && !!a.ortho === !!b.ortho && !!a.autoOrtho === !!b.autoOrtho && a.axisView === b.axisView;
+
+/** An orbit that has left its snapped view (#369): no view any more, and ortho that came with the snap is perspective again */
+export const leftView = (orbit: Orbit): Orbit => {
+  if (!orbit.axisView && !orbit.autoOrtho) return orbit;
+  const { axisView: _view, autoOrtho, ortho, ...rest } = orbit;
+  return autoOrtho || !ortho ? rest : { ...rest, ortho };
+};
+
+/** The orbit snapped to a view (#369): its direction, the view named, ortho – automatically unless it was ortho by hand */
+export const snappedTo = (orbit: Orbit, view: AxisView): Orbit => {
+  const byHand = !!orbit.ortho && !orbit.autoOrtho;
+  return { ...orbit, ...AXIS_VIEWS[view], axisView: view, ortho: true, ...(byHand ? { autoOrtho: undefined } : { autoOrtho: true }) };
+};
+
+/**
+ * Where the eye is (mm from the looked-at point) and the field of view (degrees) for an orbit `distance` away at ortho
+ * blend `k` (0 = perspective, 1 = ortho, #369): the eye moves back evenly in scale, the field narrows so the looked-at
+ * plane keeps its size
+ */
+export const orthoLens = (distance: number, k: number): { eye: number; fov: number } => {
+  if (k <= 0) return { eye: distance, fov: PREVIEW_FOV };
+  const eye = k <= 0 ? distance : distance * Math.pow(Math.max(1, ORTHO_EYE_MM / distance), Math.min(1, k));
+  const fov = (2 * Math.atan((Math.tan(degrees(PREVIEW_FOV) / 2) * distance) / eye) * 180) / Math.PI;
+  return { eye, fov };
+};
+
+/** A box (mm, the stage frame) around spots: their centres, each grown by half its larger side */
+export const spotsBox = (spots: readonly CameraSpot[]): { centre: { x: number; y: number; z: number }; size: number } | null => {
+  if (!spots.length) return null;
+  const box = new Box3();
+  for (const spot of spots) {
+    const half = Math.max(spot.width, spot.height) / 2;
+    const { x, y, z } = spot.centre;
+    box.expandByPoint(new Vector3(x - half, y - half, z - half)).expandByPoint(new Vector3(x + half, y + half, z + half));
+  }
+  const centre = box.getCenter(new Vector3());
+  return { centre: { x: centre.x, y: centre.y, z: centre.z }, size: Math.max(20, box.getSize(new Vector3()).length()) };
+};

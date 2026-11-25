@@ -95,7 +95,17 @@ export interface PreviewOrbit {
   label?: string;
   /** Free (#335): the looked-at point is fixed to nothing – a pan moves it along the screen, anywhere in the room */
   free?: boolean;
+  /** Orthographic (#369): a parallel view, the editor's only (the reader always sees in perspective) */
+  ortho?: boolean;
+  /** Ortho came with a snap to a view (Blender's Auto Perspective): orbiting away goes back to perspective */
+  autoOrtho?: boolean;
+  /** The view the gizmo or the numpad snapped to (#369); orbiting away leaves it */
+  axisView?: AxisView;
 }
+
+/** The six views the camera snaps to (#369, Blender's numpad views) */
+export const AXIS_VIEW_NAMES = ["top", "bottom", "front", "back", "right", "left"] as const;
+export type AxisView = (typeof AXIS_VIEW_NAMES)[number];
 
 /**
  * The viewport's shading, after Blender's: **wireframe** (every entity as lines), **solid** (one matte grey, the
@@ -324,7 +334,9 @@ const isOrbit = (value: unknown): value is PreviewOrbit => {
   const panOk = pan === undefined || (!!pan && typeof pan === "object" && Number.isFinite(pan.x) && Number.isFinite(pan.y)
     && (pan.z === undefined || Number.isFinite(pan.z)));
   const optional = (key: string, type: string) => orbit[key] === undefined || typeof orbit[key] === type;
-  return panOk && optional("surface", "string") && optional("label", "string") && optional("free", "boolean");
+  return panOk && optional("surface", "string") && optional("label", "string") && optional("free", "boolean")
+    && optional("ortho", "boolean") && optional("autoOrtho", "boolean")
+    && (orbit.axisView === undefined || AXIS_VIEW_NAMES.includes(orbit.axisView as AxisView));
 };
 
 const writeSettings = (settings: PreviewSettings): void => {

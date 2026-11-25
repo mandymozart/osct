@@ -1,4 +1,4 @@
-import { parentSelection, selectionLevel, settledSelection, type SelectionLevel, type SelectionState, type SurfaceRef } from "./selection";
+import { added, allItems, extended, inverted, itemKey, itemOf, itemSelection, type MultiSelection, parentSelection, ranged, removed, type SelectionItem, selectionLevel, settledSelection, toggled, type SelectionLevel, type SelectionState, type SurfaceRef } from "./selection";
 
 /**
  * The workspace's one selection (#162): a target, its entity or a node – or the scene or an entry from the tree's
@@ -23,6 +23,11 @@ class Selection implements SelectionState {
   group = $state<string | null>(null);
   /** A surface of a scene is selected (#314): the Inspector shows it, the stage highlights it */
   surface = $state<SurfaceRef | null>(null);
+  /**
+   * The rest of a multi-selection (#369, Blender's): selected besides the active one – the fields above, which the
+   * Inspector shows and the gizmo holds. Any single selection (`set`) clears it.
+   */
+  others = $state<SelectionItem[]>([]);
   /** Goes up whenever something asks the workspace to show the selection in the Inspector (the search, the experience's ⚙) */
   reveal = $state(0);
   /** A selection asked for on a scene whose workspace is not open yet */
@@ -82,8 +87,13 @@ class Selection implements SelectionState {
     else this.reset();
   }
 
-  /** Any selection; one of nothing is the scene's */
+  /** Any selection; one of nothing is the scene's. One thing: the rest of a multi-selection is let go */
   set(next: SelectionState): void {
+    this.others = [];
+    this.assign(next);
+  }
+
+  private assign(next: SelectionState): void {
     const settled = settledSelection(next);
     this.target = settled.target;
     this.node = settled.node;
@@ -93,6 +103,76 @@ class Selection implements SelectionState {
     this.experience = settled.experience ?? false;
     this.group = settled.group ?? null;
     this.surface = settled.surface ?? null;
+  }
+
+  // ── Multi-select (#369): the rules are `selection.ts`'s, Blender's viewport and outliner ──
+
+  /** The selection as active one and the rest */
+  multi(): MultiSelection {
+    return { active: itemOf(this.snapshot()), others: [...this.others] };
+  }
+
+  /** Every selected item, the active one first; empty = the scene (or a group, the experience) */
+  items(): SelectionItem[] {
+    return allItems(this.multi());
+  }
+
+  /** Several things are selected */
+  get many(): boolean {
+    return this.others.length > 0;
+  }
+
+  /** The item is selected, active or not */
+  has(item: SelectionItem): boolean {
+    const key = itemKey(item);
+    return this.items().some(other => itemKey(other) === key);
+  }
+
+  /** The item is selected but not the active one (the tree marks it lighter, the stage outlines it darker) */
+  isOther(item: SelectionItem): boolean {
+    const key = itemKey(item);
+    return this.others.some(other => itemKey(other) === key);
+  }
+
+  /** Set a multi-selection: the active one into the fields, the rest beside it; none active = the scene */
+  apply(multi: MultiSelection): void {
+    if (!multi.active) {
+      this.set({ target: null, node: [], onTarget: true, scene: true });
+      return;
+    }
+    this.assign(itemSelection(multi.active));
+    const key = itemKey(multi.active);
+    this.others = multi.others.filter(item => itemKey(item) !== key);
+  }
+
+  /** Shift + click on the stage (Blender's viewport) */
+  extend(item: SelectionItem): void {
+    this.apply(extended(this.multi(), item));
+  }
+
+  /** Ctrl + click in the tree (Blender's outliner) */
+  toggle(item: SelectionItem): void {
+    this.apply(toggled(this.multi(), item));
+  }
+
+  /** Shift + click in the tree: the rows from the active one to `item`, in the tree's order */
+  range(item: SelectionItem, rows: readonly SelectionItem[]): void {
+    this.apply(ranged(this.multi(), item, rows));
+  }
+
+  /** A box (B + drag): added, or removed with Shift */
+  box(items: readonly SelectionItem[], remove: boolean): void {
+    this.apply(remove ? removed(this.multi(), items) : added(this.multi(), items));
+  }
+
+  /** A: everything of the open scene (`all`) selected, the active one stays */
+  selectAll(all: readonly SelectionItem[]): void {
+    this.apply(added(this.multi(), all));
+  }
+
+  /** Ctrl + I: the selection inverted among `all` */
+  invert(all: readonly SelectionItem[]): void {
+    this.apply(inverted(this.multi(), all));
   }
 
   /** A click on the stage that picks nothing: the scene is selected (the tree, the stage and the Inspector follow) */

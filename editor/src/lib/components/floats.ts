@@ -490,3 +490,15 @@ export const clearCorner = (box: Size, panels: readonly Rect[], area: Size, marg
   }
   return { right: margin, bottom: margin };
 };
+
+/**
+ * The same from the stage's top right corner (#369: the camera control, where Blender has its gizmo): along the top
+ * wall leftwards past the panels in the way, then just below each panel's bottom edge, highest first. The answer is
+ * the distances from the stage's right and top walls.
+ */
+export const clearTopCorner = (box: Size, panels: readonly Rect[], area: Size, margin: number): { right: number; top: number } => {
+  // Upside down: a panel's top becomes its bottom, so the bottom corner's search finds the top corner's place
+  const flipped = panels.map(p => ({ ...p, y: area.h - p.y - p.h }));
+  const { right, bottom } = clearCorner(box, flipped, area, margin);
+  return { right, top: bottom };
+};
