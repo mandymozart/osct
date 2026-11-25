@@ -62,6 +62,10 @@ describe("the stage's stand-in (#372)", () => {
     expect(COVER_SHARE).toBeCloseTo(0.444, 3);
   });
 
+  it("replaces the skeleton's box on the stage – no grey block behind the cover", () => {
+    expect(renderLanding(source())).toContain(".stage.loading::after { content: none; }");
+  });
+
   it("is a blank cover with a common book's shape without a picture or a hero", () => {
     const html = renderLanding(source());
     expect(html).toContain(`<div class="cover blank" style="width:44.43%;aspect-ratio:${(0.5 / DEFAULT_COVER_ASPECT).toFixed(4)}"></div>`);

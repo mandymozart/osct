@@ -8,6 +8,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.23.1 – 2026-11-25
+
+### Fixed
+- **No grey square on the landing's stage while it loads** (#372, Tilman: *"there is still a weird initial large grey
+  rectangle before anything loads"*): 6.23.0 took the loading circle's own shape away, so the skeleton's box filled the
+  whole stage behind the cover; the stage's placeholder is now the cover alone.
+
 ## 6.23.0 – 2026-11-25
 
 ### Added
