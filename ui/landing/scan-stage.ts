@@ -15,6 +15,7 @@ import { loadPlugins } from "@engine/scene/plugins";
 import type { AssetData, EntityData } from "@shared/types/game-config";
 import { entityMomentAppearance, type ExperienceAppearance, type Moment } from "@shared/types/appearance";
 import type { PluginData } from "@shared/types/plugins";
+import { LIFT, PAGE_WIDTH, PAGES, PICTURE_HEIGHT, STAGE_FOV } from "./cover-view";
 import type { ScanPrint, ScanStageData } from "./scan-stage-data";
 
 /**
@@ -62,7 +63,6 @@ const INTRO = { hold: 1.8, move: 1.7, cover: 1.6, page: 0.85, stagger: 0.38, set
 const COVER_AT = INTRO.hold + INTRO.move * 0.55;
 /** A leaf counts as lifted off its block within this share of its turn, and as landed on the other within the same */
 const LANDING = 0.15;
-const PAGES = 3;
 /** The autopilot's loop (s): in from the side, a while on the target, off to the other side, back */
 const LOOP_S = 15;
 /** A click takes the phone; the mouse rests this long (s), leaves the stage or clicks again: the autopilot takes over */
@@ -133,9 +133,6 @@ const BOOK = { thickness: 0.05, cover: 0.0025, opened: 0.16 };
 /** The pages dip into the gutter (this deep at the fold, level again about `reach` from it) and are a shade darker there */
 const GUTTER = { dip: 0.006, reach: 0.045, shade: 0.14, shadeReach: 0.018 };
 const dipAt = (distance: number): number => -GUTTER.dip * Math.exp(-((distance / GUTTER.reach) ** 2));
-/** The leaves lie this far above one another (no flicker, no visible step) */
-const LIFT = 0.00025;
-const FOV = 30;
 const GOLD = "#b8914a";
 /** The spread's picture, this many px across */
 const CANVAS_WIDTH = 2048;
@@ -437,7 +434,7 @@ const edgeTexture = (): CanvasTexture => {
 export class ScanStage {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
-  private readonly camera = new PerspectiveCamera(FOV, 1, 0.1, 20);
+  private readonly camera = new PerspectiveCamera(STAGE_FOV, 1, 0.1, 20);
   /**
    * The section the canvas fills (the landing's hero; else the stage's own box): the picture ends at the section's
    * line and nowhere before ("the 3d scene should end at the section bar, so we wont run into cut of 3d wehn draggin
@@ -474,7 +471,7 @@ export class ScanStage {
   private readonly cameraHome = new Vector3(0, -1.55, 1.85);
   private readonly look = new Vector3(0.02, 0.02, 0);
   /** The picture view: straight down onto the closed book's cover (it lies on the right half), upright */
-  private readonly pictureView = { position: new Vector3(0.25, 0, 2.15), look: new Vector3(0.25, 0, 0), up: new Vector3(0, 1, 0) };
+  private readonly pictureView = { position: new Vector3(PAGE_WIDTH / 2, 0, PICTURE_HEIGHT), look: new Vector3(PAGE_WIDTH / 2, 0, 0), up: new Vector3(0, 1, 0) };
   private readonly stageUp = new Vector3(0, 0, 1);
   private readonly raycaster = new Raycaster();
   private readonly page = new Plane(new Vector3(0, 0, 1), 0);
@@ -638,6 +635,7 @@ export class ScanStage {
     const count = PAGES + 1;
     // On the right the cover lies on top; on the left the last page turned does
     const lift = (i: number): [number, number] => [(count - i) * LIFT, (i + 1) * LIFT];
+    // The closed cover lies at lift(0) = COVER_LIFT: the HTML stand-in is sized from it (cover-view.ts)
     const printed = coverImage ? lacquerCover(coverImage, this.environment) : null;
     const cover = printed?.material ?? page(canvasTexture(paintCover(this.extras, aspect)));
     const coverLeaf = new Leaf(0.5, aspect, cover, page(endpaper), lift(0), 0.25);
