@@ -110,6 +110,13 @@ const PHONE_REST = { position: new Vector3(0, -0.62, -0.012), quaternion: new Qu
 const PHONE_ARRIVAL = { at: INTRO.hold, slide: 2.8, from: new Vector3(0, -0.9, 0) };
 const PHONE_RISE = 2;
 /**
+ * The scroll's parallax (#372, Tilman 2026-11-25: "the stage camera moves down... when scrolling down. i give the vibe
+ * of going down under the 'table'"): how far the camera has sunk – still looking at the book, so it ends under the
+ * page's plane looking up at the book from below – once the hero has scrolled this share of its height out of the
+ * window, and how quickly it follows the scroll (1/s)
+ */
+const SCROLL_DROP = { depth: 2.3, reach: 0.6, follow: 8 };
+/**
  * The app's scanning indicator on the screen (agents/DESIGN.md §6, `.gold-scanning`): a thin circle, 62 % of the
  * screen's width, whose gold fades in from transparent and sweeps around once in `turn` seconds
  */
@@ -492,6 +499,10 @@ export class ScanStage {
   private frame = 0;
   private visible = true;
   private stopped = false;
+  /** How far the camera has sunk with the scroll (0 = the hero in full view, 1 = all the way), smoothed */
+  private sunk = 0;
+  /** Where the camera looks this frame (`view`) – the sinking camera keeps looking there */
+  private readonly looking = new Vector3();
 
   constructor(private readonly container: HTMLElement, private readonly data: ScanStageData, private readonly extras: ScanStageExtras) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true, stencil: true, powerPreference: "low-power" });
@@ -1034,7 +1045,7 @@ export class ScanStage {
     const k = smooth(t);
     this.camera.position.lerpVectors(this.pictureView.position, this.cameraHome, k);
     this.camera.up.lerpVectors(this.pictureView.up, this.stageUp, k).normalize();
-    this.camera.lookAt(new Vector3().lerpVectors(this.pictureView.look, this.look, k));
+    this.camera.lookAt(this.looking.lerpVectors(this.pictureView.look, this.look, k));
   }
 
   /** The book opens: the cover, then the pages one after the other; the camera comes down meanwhile */
@@ -1058,6 +1069,22 @@ export class ScanStage {
     }
   }
 
+  /**
+   * The scroll's parallax (`SCROLL_DROP`): as the hero leaves the window upwards the camera sinks, still looking at the
+   * book – down to the table's height and under it. Read from the hero's box, so it follows whatever scrolls the page
+   * (the landing's host, the window, the editor's stage). Not with reduced motion.
+   */
+  private sink(delta: number) {
+    if (this.still) return;
+    const box = this.section.getBoundingClientRect();
+    const wanted = box.height ? MathUtils.clamp(-box.top / (box.height * SCROLL_DROP.reach), 0, 1) : 0;
+    this.sunk += (wanted - this.sunk) * Math.min(1, delta * SCROLL_DROP.follow);
+    if (this.sunk < 1e-4) return;
+    this.camera.position.z -= SCROLL_DROP.depth * this.sunk;
+    this.camera.lookAt(this.looking);
+    this.camera.updateMatrixWorld();
+  }
+
   /** The autopilot's page point over one loop: in from the side onto the target, a while there, off, back */
   private autopilot(seconds: number): Vector2 {
     const hold = new Vector2(this.target.x + Math.sin(seconds * 1.3) * 0.006, this.target.y + AIM_UP + Math.sin(seconds * 0.9) * 0.005);
@@ -1075,6 +1102,7 @@ export class ScanStage {
   private render(delta: number) {
     const seconds = this.still ? this.introEnd + LOOP_S * 0.4 : this.clock.elapsedTime;
     if (!this.still) this.playIntro(seconds);
+    this.sink(delta);
     const scanning = seconds >= this.introEnd;
     // While the view moves and the book opens, the phone glides in and lies in front of the book
     const arrival = (seconds - PHONE_ARRIVAL.at) / PHONE_ARRIVAL.slide;

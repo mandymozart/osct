@@ -2,7 +2,7 @@ import { DESIGN_PRIMITIVES_CSS } from "../brand/design-css";
 import { ONBOARDING_ICON_SRC } from "../brand/marks";
 import type { LandingData } from "./data";
 import type { IQRCodeStatic } from "./qrcode";
-import { CONTAINED_ATTRIBUTE, type LandingTexts, renderKeyOf, renderLanding, SKELETON_ATTRIBUTE } from "./landing-html";
+import { anchorHandler, CONTAINED_ATTRIBUTE, type LandingTexts, renderKeyOf, renderLanding, SKELETON_ATTRIBUTE } from "./landing-html";
 
 /** The QR code library the dev tools load too (`public/assets/deps/qrcode.js`, davidshimjs/qrcodejs) */
 const QR_SCRIPT = "/assets/deps/qrcode.js";
@@ -48,7 +48,7 @@ const KEPT = [".stage", ".qr-code"] as const;
 
 const renderInput = (input: LandingInput): string => renderLanding({
   shop: input.data.shop, texts: input.texts, title: input.data.title, author: input.data.author, publisher: input.data.publisher,
-  images: input.data.images, privacyHref: input.privacyHref,
+  images: input.data.images, privacyHref: input.privacyHref, cover: input.data.cover, coverAspect: input.data.hero?.aspect,
 });
 
 /** What needs the page's data after a render: the address, and the book's cover on the shop's cover items */
@@ -95,6 +95,8 @@ export const mountLanding = (host: HTMLElement, input: LandingInput, options: La
     });
   };
   host.addEventListener("pointermove", drift);
+  // "Get the app ↓" (#372): the static page's script handles it already – this one where there is none (the editor)
+  root.addEventListener("click", anchorHandler);
 
   const loaded = (selector: string) => root.querySelector(selector)?.classList.remove("loading");
   const qrCode = drawQrCode(root, input.qrUrl, texts.qrAlt).finally(() => loaded(".qr-code"));
@@ -106,6 +108,8 @@ export const mountLanding = (host: HTMLElement, input: LandingInput, options: La
       .then(started => {
         if (stopped) started?.stop();
         else stage = started;
+        // The stage runs: the cover's stand-in makes way (#372)
+        if (started && !stopped) box.classList.add("running");
       })
       .catch(error => console.warn("[landing] scan stage:", error))
     : Promise.resolve();
@@ -127,6 +131,7 @@ export const mountLanding = (host: HTMLElement, input: LandingInput, options: La
     stop() {
       stopped = true;
       host.removeEventListener("pointermove", drift);
+      root.removeEventListener("click", anchorHandler);
       cancelAnimationFrame(frame);
       stage?.stop();
       stage = null;

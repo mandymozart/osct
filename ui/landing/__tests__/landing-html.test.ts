@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DESIGN_PRIMITIVES_CSS } from "../../brand/design-css";
 import en from "../locales/en/landing.json";
 import { isEntryInExperience } from "@shared/types/game-config";
 import { LANDING_CONFIG } from "../landing-config";
 import {
-  fillTexts, LANDING_ATTRIBUTE, landingImages, renderKeyOf, renderLanding, renderStaticLanding, SCATTER_COUNT,
+  anchorHandler, COVER_SHARE, DEFAULT_COVER_ASPECT, fillTexts, LANDING_ATTRIBUTE, landingImages, renderKeyOf, renderLanding, renderStaticLanding, SCATTER_COUNT,
   SKELETON_ATTRIBUTE, STATIC_LANDING_ID, type LandingSource,
 } from "../landing-html";
 
@@ -47,11 +47,58 @@ describe("the landing page's markup (#343)", () => {
   it("has the stage, the QR card, the shop and the footer; the address is filled at runtime", () => {
     const html = renderLanding(source());
     expect(html).not.toContain('class="mark"');   // the Mark sits on the stage's phone screen (#354)
-    expect(html).toContain(`<aside class="stage loading" role="img" aria-label="${en.previewAlt}"></aside>`);
+    expect(html).toContain(`<aside class="stage loading" role="img" aria-label="${en.previewAlt}"><div class="cover blank"`);
     expect(html).toContain('<div class="qr-code loading" role="img"');
     LANDING_CONFIG.shop.forEach(item => expect(html).toContain(`href="${item.url}"`));
     expect(html).toContain(`<span class="slot">Onion Skin &amp; Crocodile Tears · Kévin &lt;Bray&gt;</span>\n            <span><span class="slot">Building Fictions</span> · <a href="/privacy">${en.privacy}</a></span>`);
     expect(html).toContain('<span class="address gold"></span>');
+  });
+});
+
+describe("the stage's stand-in (#372)", () => {
+  it("is the closed book's cover where the 3D intro first shows it: its picture, the hero's page aspect", () => {
+    const html = renderLanding(source({ cover: "/c/cover.webp?a=1&b=2", coverAspect: 0.75 }));
+    expect(html).toContain(`<div class="cover" style="width:${(COVER_SHARE * 100).toFixed(2)}%;aspect-ratio:${(0.5 / 0.75).toFixed(4)}"><img src="/c/cover.webp?a=1&amp;b=2" alt="" decoding="async" /></div>`);
+    expect(COVER_SHARE).toBeCloseTo(0.444, 3);
+  });
+
+  it("is a blank cover with a common book's shape without a picture or a hero", () => {
+    const html = renderLanding(source());
+    expect(html).toContain(`<div class="cover blank" style="width:44.43%;aspect-ratio:${(0.5 / DEFAULT_COVER_ASPECT).toFixed(4)}"></div>`);
+  });
+});
+
+describe("the in-page links (#372)", () => {
+  const page = () => {
+    const host = document.body.appendChild(document.createElement("div"));
+    const root = host.attachShadow({ mode: "open" });
+    root.innerHTML = renderLanding(source());
+    return root;
+  };
+
+  it("scroll the shadow root's section into view instead of looking for it in the document", () => {
+    const root = page();
+    const section = root.getElementById("get")!;
+    const scroll = vi.fn();
+    section.scrollIntoView = scroll;
+    root.addEventListener("click", anchorHandler);
+    const event = new MouseEvent("click", { bubbles: true, composed: true, cancelable: true, button: 0 });
+    root.querySelector<HTMLAnchorElement>('a[href="#get"]')!.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ block: "start" }));
+  });
+
+  it("leave a click with a modifier, and one handled already, alone", () => {
+    const root = page();
+    const scroll = vi.fn();
+    root.getElementById("get")!.scrollIntoView = scroll;
+    root.addEventListener("click", anchorHandler);
+    root.querySelector('a[href="#get"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true }));
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("are handled by the static page's script before any code loads", () => {
+    expect(renderStaticLanding(source())).toContain(' root.addEventListener("click", function anchorHandler(');
   });
 });
 
