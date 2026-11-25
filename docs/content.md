@@ -812,7 +812,7 @@ is: no decoding, drawing or encoding on the phone, and a smaller download than a
 what is recognised – stays the same in principle: the frame is the same picture the reader makes itself (the geometry
 and the builder are one module, `engine/src/scene/target-frame.ts`, used by the reader, the editor and the CLI).
 
-**Original stays the default** (Tilman, 2026-11-20): the runtime path is tested with every target, small black-and-white
+**Original stays the default** (2026-11-20): the runtime path is tested with every target, small black-and-white
 ones included. Made-ahead frames are used only where the experience says so (content schema 4.2):
 
 | Setting | Where | Effect |
@@ -1148,7 +1148,7 @@ current schema (a test checks that it matches `CONTENT_SCHEMA_VERSION`, so a new
 | 5.1 | 4.1.0 | in develop | **ports from the specs** (#334 L-T6, plugin API 3.1, [plugins](plugins.md) "Typed specs and the Logic view"): a plugin's recorded spec (`registered` – components, node types, passes, materials, textures, looks) may carry `actions` (the rule verbs it answers: `play`, `pause`, `stop`, `show`, `hide`), `events` (the scene events it emits) and `uses` (`{ hears, emits, reads, sets }` of the bus and the variables); a number parameter `slider` (its soft range inside `min … max`) and `integer`; a logic canvas `exposed` (box id → port ids). The editor's Logic view draws a node's ports from the specs and prefers the declared uses over reading a plugin's code | ignored: a 5.0 app reads a recorded spec's kinds and parameters only (a whole-number or slider field is not checked there); a canvas never reaches a reader |
 | 5.2 | 4.6.0 | in develop | **the deck's canvas** (#334 L-T7, [editor](editor.md) "The deck's canvas"): a logic canvas may carry `positions` (box id → `{ x, y }`: boxes pinned over the automatic layout, on the 1rem grid) and a canvas group `colour` (`#rrggbb`) and `folded` (true: drawn as one pill). Authoring data only – the editor's database and its export carry it, the content build and a publish leave the canvas out | not touched: a canvas never reaches a reader |
 | 5.3 | 4.11.0 | in develop | **notes on the Logic canvas** (#334, [editor](editor.md) "Notes"): a canvas note may carry `box` (it stands beside that box; its `x`, `y` are then the offset from the box), `author` (who wrote it) and `view` (the target's level of a scene's canvas it belongs to: `<target>` or `<target>/<node path>`). Authoring data only, like 5.2 | not touched: a canvas never reaches a reader |
-| 6.0 | 6.0.0 | in develop | **listen, not hear** (#341, plugin API 4.0 – Tilman, 2026-11-21: *"you use the word hear for events. i think it is listen"*): a plugin's recorded spec names what its code listens to `uses.listens` (was `uses.hears`: `{ listens, emits, reads, sets }`). A plugin source is rewritten with `osct plugins listen` (`--dir <content folder>`; `--experience <id>` / `--all` the instance's database through the editor API, `--dry-run` first), the server's rows by `Migration6` (the deploy's `Db::migrate`: 5.x experiences → 6.0, the declared plugins' recorded `uses`; a dry run: `php server/deploy/migrate.php --plan-6`) | refused: an app since 6.0 reads 6.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 6) and refuses plugins built against plugin API 3.x; a 5.x app refuses 6.0 content – every published experience is published again after the migration |
+| 6.0 | 6.0.0 | in develop | **listen, not hear** (#341, plugin API 4.0 – an event is listened to, not heard): a plugin's recorded spec names what its code listens to `uses.listens` (was `uses.hears`: `{ listens, emits, reads, sets }`). A plugin source is rewritten with `osct plugins listen` (`--dir <content folder>`; `--experience <id>` / `--all` the instance's database through the editor API, `--dry-run` first), the server's rows by `Migration6` (the deploy's `Db::migrate`: 5.x experiences → 6.0, the declared plugins' recorded `uses`; a dry run: `php server/deploy/migrate.php --plan-6`) | refused: an app since 6.0 reads 6.x only (`OLDEST_READABLE_SCHEMA_MAJOR` 6) and refuses plugins built against plugin API 3.x; a 5.x app refuses 6.0 content – every published experience is published again after the migration |
 | 6.1 | 6.10.0 | in develop | **the landing's hero** (#355, [editor](editor.md) "The landing's hero"): the experience's optional `landing` – `{ scene, target }` by id, a target with AR content (a model, a video, a component) on that scene (its surface is the hero's), and what the editor (or the content build, or the MCP's `put_experience_landing`) extracted from it: `hero` (the `LandingHeroData` of `landing.json`) and the print layout's `cover`. Publish writes the version's `landing.json` from it | ignored: the landing derives its hero from the configuration as before |
 | 6.2 | 6.11.0 | in develop | **a plugin is a folder of files** (#352, [plugins](plugins.md) "A plugin of several files"): `index.ts` and the TypeScript and shader files next to it (`shared/types/plugins.ts` the names and limits, `shared/types/plugin-shader-files.d.ts` a shader import's type). The content build bundles the folder (a shader as a string) and writes `files.json` next to `plugin.js`; the configuration's `plugins` list is unchanged | not touched: a plugin still arrives as one module |
 | 6.3 | 6.16.0 | in develop | **the card look** (#361, "How the card is picked up" above): the experience's `appearance.card` – how the marginalia card is picked up, `{ type, …parameters }`: the built-in `cardFlight` with its values (`near`, `far`, `fill`, `lift`, `spins`, `impact`, `rumble`) or a plugin's card look (`registered.cardLooks`, plugin API 4.1 `registerCardLook`) | dropped (forward compatibility): the app flies its own card |
@@ -1281,8 +1281,8 @@ entries:
     tags: [artwork]                     # a new entry's tags (optional)
 ```
 
-`printed:` and `note:` of older mappings are read and ignored (`printed` is unused since #32; the note is not stored –
-Tilman, 2026-11-20). Run in `scripts/` (`OSCT_API_URL` – default the local dev API – and `OSCT_EDITOR_TOKEN`, a token
+`printed:` and `note:` of older mappings are read and ignored (`printed` is unused since #32; the note is not stored
+since 2026-11-20). Run in `scripts/` (`OSCT_API_URL` – default the local dev API – and `OSCT_EDITOR_TOKEN`, a token
 from the editor's experiences page, as for `content export`):
 
 ```bash
@@ -1465,9 +1465,9 @@ where the configuration names URLs (a server publish names the import's files be
 
 ### The landing's hero: `experience.landing` (schema 6.1, #355)
 
-Tilman, 2026-11-23: *"the landing page hero needs only a specific target on a surface on a scene to show of how they
-work. so that data can be extracted in the editor to fill in the data needed to build the landing page."* – *"or video
-or component. marginalia and links wouldnt work."*
+Since 2026-11-23 (#355): the landing page's hero needs only one target on a surface of a scene to show how the
+experience works; the editor extracts from it the data the landing page is built from. The target carries a model, a
+video or a component – marginalia and links do not work as a hero.
 
 ```yaml
 # experience.yaml
@@ -1500,7 +1500,7 @@ the texts and the shop.
 
 ### The landing's texts and shop (schema 6.4, #365)
 
-Tilman, 2026-11-23 (concept `agents/design/landing-texts.html`, *"Yes, as recommended"*): texts per language, an empty
+Since 2026-11-23 (concept `agents/design/landing-texts.html`): texts per language, an empty
 field is the app's text; the shop up to four items, one label for all languages; stored in the experience.
 
 ```yaml

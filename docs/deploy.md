@@ -12,10 +12,10 @@ switch) and keeps **MariaDB** next to it as an accessory. Nothing is uploaded fi
 
 A push to `main` runs `.github/workflows/deploy-production.yml`; `deploy-staging.yml` runs by hand only for now (see
 Transition). Both call `deploy.yml` (API tests → `kamal deploy -d <destination>` → `/api/health`). `main` only changes
-when Tilman says so (`agents/RULES.md` #11). `tag-version.yml` still tags every version on `main`.
+when the project owner says so (`agents/RULES.md` #11). `tag-version.yml` still tags every version on `main`.
 
 **Transition:** while a GitHub environment has no `SSH_HOST`, its Kamal deploy is skipped with a warning. Staging
-stays on the all-inkl shared host (no Docker) until Tilman moves it to the server (Tilman, 2026-11-05) –
+stays on the all-inkl shared host (no Docker) until it is moved to the server (decided 2026-11-05) –
 `deploy-staging-ftps.yml` uploads `develop` there over FTPS (the old way: `server/deploy/write-config.php` writes
 `config.local.php`), and the Kamal `deploy-staging.yml` has no push trigger, since the repository's `SSH_HOST` would
 otherwise send every `develop` push to the server. Once staging moves and DNS points at it, give `deploy-staging.yml`
@@ -272,7 +272,7 @@ or the temporary FTPS upload) or **Deployed** (production), with a comment namin
 
 - Deployed commits = since the previous successful run of the same deploy workflow on that branch. A Kamal run that
   skipped its Deploy step (no `SSH_HOST`) does not count.
-- Only forward: an issue that is already Deployed or Done stays. `Refs #N` (a step) moves nothing. Done is Tilman's.
+- Only forward: an issue that is already Deployed or Done stays. `Refs #N` (a step) moves nothing. Done is the project owner's.
 - **Repo secret `PROJECT_TOKEN`** (Settings → Secrets → Actions): a classic personal access token with the scope
   `project` – the workflow token cannot write to a user-owned project. Without it the run notes that and stays green.
 - GitHub starts `workflow_run` workflows only from the default branch: it runs once `board-status.yml` is on `main`.

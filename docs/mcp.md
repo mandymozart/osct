@@ -301,7 +301,7 @@ itself: the answer is the picture (an MCP image content block, which the agent s
   instance's API** – the API takes a Bearer token before the cookie and needs no CSRF token for it – and **refuses every
   write** there (`requestAction`: the render view reads, it never saves; the answer counts a refused write as
   `blockedWrites`, which should never happen). The token is never in a URL, a file or an answer, and goes nowhere else:
-  not to the CDN, not to another origin a plugin asks. Every plugin runs in the render view, also code someone else saved last – it writes nothing (#340, Tilman 2026-11-22). The editor must be served
+  not to the CDN, not to another origin a plugin asks. Every plugin runs in the render view, also code someone else saved last – it writes nothing (#340, 2026-11-22). The editor must be served
   next to the API (one origin – a deployed instance, `OSCT_EDITOR_URL` left at its default) or both local (the dev
   editor passes its `/api` to the local API); an editor on another host is refused (`tokenScope`). No server change.
 - **Where it works** – any instance whose editor has the render view (deployed with #89), staging included, with no local

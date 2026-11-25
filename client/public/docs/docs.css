@@ -12,9 +12,9 @@
   color-scheme: light;
 }
 /* Night only when asked for (`data-scheme="dark"` on <html>): the docs' default is day, whatever the system says
-   (Tilman, 2026-11-21) */
+   (2026-11-21) */
 :root[data-scheme="dark"] {
-  /* The reader's contrasts: black ground, white text – not the editor's greys (Tilman, 2026-11-21) */
+  /* The reader's contrasts: black ground, white text – not the editor's greys (2026-11-21) */
   --bg: #000000; --text: #ffffff; --muted: #8b8d8c; --line: #2a2a2a; --surface: #141414;
   --hover: #222222; --selected: #3a3a3a; --danger: #ff6b5b;
   color-scheme: dark;

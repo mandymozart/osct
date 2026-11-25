@@ -67,8 +67,8 @@ generator in the debug overlay makes them for the current scene; the admin's *A 
 with `index.html` – except Privacy & terms (below): `client/public/.htaccess` does that (Apache – the Docker image,
 [deploy](deploy.md)); Vite does it in dev and preview.
 
-<a id="privacy"></a>**Privacy & terms** (#353; a static page since #355 – Tilman, 2026-11-23: *"privacy and terms make it
-static. we can link to it from the app, so we wont have duplicate pages"*) is `privacy.html`, built by Vite next to
+<a id="privacy"></a>**Privacy & terms** (#353; a static page since #355, 2026-11-23 – the app links
+to it, so there is no duplicate page) is `privacy.html`, built by Vite next to
 index.html (`client/privacy.html`, `src/privacy/privacy-html.ts`) from the app's `privacy` texts in all four languages –
 no app, no i18next. The server answers it for `/privacy` and `/<experience>/privacy` (`public/.htaccess`; the dev and
 preview servers too; the service worker serves the precached copy offline, never the app's shell); `privacy` is one of
@@ -90,8 +90,8 @@ instead of the app (`isDesktopVisitor`: no installed app, no touch-first pointer
 or tablet (QR code and address). Only developers get the app on a computer: `sessionStorage["osct-desktop-landing-skipped"]
 = "1"` in the browser's dev tools, for the tab.
 
-**The skeleton delegates** (#355, Tilman 2026-11-23: *"it basically does not need to load the app at all if its on
-desktop. including debugging and everything. a skeleton script could handle that right?"*). index.html's head runs, in
+**The skeleton delegates** (#355, 2026-11-23): on a desktop the app does not need to load at all, debugging included –
+a skeleton script handles it. index.html's head runs, in
 order: the legacy redirect, the manifest link, the landing's decision (`landing-decision-html.ts`, the twin of
 `desktop-visitor.ts`'s `landingMode` – a test keeps both equal on every path), and the early preload of the chosen
 entry's files. Then one loader module imports **either** the app (`src/main.ts`) **or** the landing's entry

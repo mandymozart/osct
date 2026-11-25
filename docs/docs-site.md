@@ -46,15 +46,15 @@ next links. **A new page is a folder with an `index.html` and one line in `PAGES
 
 Building blocks of `docs.css`: `.beside` (text with a panel screenshot at its side, `.wide` for a wider one),
 `figure` with `figcaption`, `.table` around a table, `ol.steps` (numbered tutorial steps), `.note`, `.cards` on the hub,
-`kbd` for keys. **The look is the editor's** (Tilman, 2026-11-21: "style the docs in the way the creator and deck editor are
-styled"): `editor/src/app.css`'s palette – monochrome, **day by default** (night only with `data-scheme="dark"` on `<html>`, and then in the reader's contrasts – black ground, white text, not the editor's greys) –, the system's type, square
+`kbd` for keys. **The look is the editor's** (since 2026-11-21, styled like the creator and the deck
+editor): `editor/src/app.css`'s palette – monochrome, **day by default** (night only with `data-scheme="dark"` on `<html>`, and then in the reader's contrasts – black ground, white text, not the editor's greys) –, the system's type, square
 corners, borders instead of shadows, labels in small capitals, hover only where a pointer hovers. No gold: that is the
 reader's. The long walkthrough keeps its older, darker look until it is redone.
 
 ## Reference pages (generated)
 
-Tilman, 2026-11-21: *"the apis should have reference pages. otherwise it is hard to find a specific one"* and
-*"generated whenever anything in the apis updates"*. Three pages are written by generators from the code, never by
+Since 2026-11-21 every API has reference pages, so a specific one is easy to find, and they are regenerated whenever
+an API changes. Three pages are written by generators from the code, never by
 hand (each says so in a comment at its top); the guides link to them and the search finds every row.
 
 | Page | Generator | Read from | Runs with |

@@ -2,9 +2,8 @@
 
 > Temporary runbook: it ends when the content has left the repository and its history (#5). Delete it then.
 
-The book content leaves this repository, history included (Tilman, 2026-10-28: "there will not be any content in
-git", "aus dem Git … raus purgen, auch in der History, dass das Repository wieder klein und handelbar wird"). The
-app loads the built content from the CDN ([content on the CDN](content-cdn.md)); the content source lives in a
+The book content leaves this repository, history included (2026-10-28): no content in git, purged from the history
+too, so the repository is small and manageable again. The app loads the built content from the CDN ([content on the CDN](content-cdn.md)); the content source lives in a
 folder of its own; CI and the tests build the small test fixture `fixtures/content/`.
 
 The repository is **public**: everything in its history can be downloaded by anyone until it is rewritten – and on
@@ -35,7 +34,7 @@ Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixtur
    `builder.args`, `deploy.yml`) and the FTPS staging deploy build with `VITE_CONTENT_BASE_URL` =
    `OSCT_CONTENT_BASE_URL` of the GitHub environment. Still to do with step 3: the `Dockerfile` drops `COPY content content`
    and `.dockerignore` its `!content/` line – until then an image without `OSCT_CONTENT_BASE_URL` still bundles the content.
-2. **A home for the source.** Decided (Tilman, 2026-10-30): **kept locally** in `C:\Development\osct\osct-content\content`,
+2. **A home for the source.** Decided (2026-10-30): **kept locally** in `C:\Development\osct\osct-content\content`,
    next to the mirror backup of step 5 – those two are the only copies; neither is deleted. Was: Decide where `osct-content` is kept safe – a private repository
    of its own, or a `source/` folder on the storage zone – before the history that holds the only other copy is
    rewritten.
@@ -53,7 +52,7 @@ Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixtur
    `claude/laughing-wright-hrt8zy`, `claude/heuristic-varahamihira-4faefe` – and their pull requests. Nobody
    pushes until step 6 is done. Every branch that survives is rewritten too; work that is not pushed is lost to it.
 5. **Rewrite a fresh mirror clone** (never a working checkout). The same run also drops the old Claude attribution
-   (#30): `--mailmap` maps `Claude <noreply@anthropic.com>` to Tilman, `--message-callback` drops `Co-Authored-By: Claude…`
+   (#30): `--mailmap` maps `Claude <noreply@anthropic.com>` to the repository's owner, `--message-callback` drops `Co-Authored-By: Claude…`
    and `Claude-Session:` lines. Keep a backup first – it holds the whole content
    history, keep it off GitHub:
 
@@ -79,7 +78,7 @@ Done in this repository (1.7.6, #5): the fixture, CI and the tests on the fixtur
    tool the git project recommends (`pip install git-filter-repo`). On Windows the repack after the rewrite fails
    in a deep folder ("Filename too long") – `core.longpaths` or a short path avoids it; the history is rewritten
    either way, then `git gc --prune=now --aggressive` finishes it.
-6. **Force push** (Tilman). filter-repo removes the remote on purpose:
+6. **Force push** (the repository's owner). filter-repo removes the remote on purpose:
 
    ```bash
    git remote add origin https://github.com/mandymozart/osct.git

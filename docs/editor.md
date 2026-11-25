@@ -130,7 +130,7 @@ There is no History here: the instance has no history across its experiences but
   with a **Manage** button centred under it, and a dashed **+** card (*New*) at the end. A click on the cover or **Enter**
   opens it in the editor; **Manage** (or **Space** on a focused cover) selects the book (outlined, the button filled) and
   its sheet opens in the Inspector – Manage again closes it. **Tab** goes from cover to cover (the Manage buttons are no tab
-  stops – Tilman 2026-11-23, #348); the arrows move the focus too (↑ ↓ a row), Home / End the first / last; an open sheet
+  stops – 2026-11-23, #348); the arrows move the focus too (↑ ↓ a row), Home / End the first / last; an open sheet
   follows the focus; **Esc** closes it. Where a panel lies along the stage's left or right side over at least half its
   height, the books keep clear of it (`shelfInsets`); in a window too narrow for that (an iPad upright) they reflow under
   the panels. Under the books: the empty state (no experience yet, with the link to the tutorial), a load error, and a line
@@ -211,8 +211,8 @@ is live (*live on staging, production* or *draft only*). Wherever this server is
 stands next to it (its help in the Info view has the whole line). Another environment is published from its own editor
 (the API refuses it, 403 `other-environment`).
 
-**Publish** opens one overlay in the middle of the dimmed page (#345, Tilman 2026-11-22: *"this first dropdown dialog
-should be much more on point"*; `PublishButton.svelte`, its words in `publish-overlay.ts`) – no browser dialog. Three states:
+**Publish** opens one overlay in the middle of the dimmed page (#345, 2026-11-22: more to the point than the dropdown
+dialog before; `PublishButton.svelte`, its words in `publish-overlay.ts`) – no browser dialog. Three states:
 
 1. **Confirm** – *Publish “Test Experience” to staging?* and *Last published: today 07:53* (local time, from where the
    experience is live; *Not published on staging yet.* before the first). Warnings only when they matter, set apart by
@@ -237,8 +237,8 @@ should be much more on point"*; `PublishButton.svelte`, its words in `publish-ov
    the overlay finds the publish's job (the experience's newest, one that was not there before the click) and follows it;
    only when none turns up does it say *Publish outcome unknown* – never *504*.
 
-**The log** shows only on **Ctrl+L** while the overlay is open – no visible toggle (Tilman, 2026-11-22: *"not intended
-to be visible to everybody"*; the Library's key stays with the overlay). It is a small log with a time per line: what used to be on the step – the target with its backend, the draft's build, the build it
+**The log** shows only on **Ctrl+L** while the overlay is open – no visible toggle (2026-11-22: it is not meant
+for everybody; the Library's key stays with the overlay). It is a small log with a time per line: what used to be on the step – the target with its backend, the draft's build, the build it
 replaces, *6 plugins transpiled, not type-checked*, the No CDN line – then every change the polls bring: *build written (3
 files)*, *live on staging*, *archive 412/1522*, files already on the store, *export archive written*, errors. The overlay
 keeps the keyboard while it is open (no key reaches the page; Tab stays inside) and gives the focus back to the Publish
@@ -287,7 +287,7 @@ has two views of its own:
 
 ## The experience page
 
-> **Since 1.105.0 (Tilman, 2026-11-18):** the experience page and its Pages view are gone. An experience's address opens the scene
+> **Since 1.105.0 (2026-11-18):** the experience page and its Pages view are gone. An experience's address opens the scene
 > last open in this browser, else the first; the Scenes panel under the stage has the scenes, their order and groups. An
 > experience without scenes offers its first one. The editor says **Experiences** where it said Books.
 
@@ -317,7 +317,7 @@ reference image (#314, fitted as it says) and the prints of the targets lying on
 - **Removing a scene** (`deleteScene`, `DELETE …/scenes/{id}`) takes the two steps of a removal (#198,
   `RemovalConfirm.svelte`, words in `removal.ts` – *Removes scene “4–5” with …*); the scene the experience opens on
   (`initialScene`) cannot go.
-- **Gone with schema 3.0** (no backward compatibility – Tilman, 2026-11-18): the page images and the Pages view (#251 –
+- **Gone with schema 3.0** (no backward compatibility – 2026-11-18): the page images and the Pages view (#251 –
   a surface's reference image is the editor's picture of it), the matter scenes (#296), the titles pages gave (#298's
   scene titles), the scene grid and the layout sheets as the cards' and the stage's pictures, the formats and the
   fixed / free layouts. The book's layout (`content/layout/`) is no longer read by the editor: its sheets become surface
@@ -359,7 +359,7 @@ translated with the app (#236, `docs/content.md` "Onboarding screens").
 
 `/editor/<experience>/<scene>/`: on a desktop and an iPad the **stage** is the whole window and the panels **float** over
 it ([Floating panels](#floating-panels), #308) – the **Tree**, the **Inspector** with its tabs, the **Scenes** filmstrip,
-**Info** and the stage's **Tools**. The editor is for desktop and iPad only (Tilman, 2026-11-18): the phone's layout –
+**Info** and the stage's **Tools**. The editor is for desktop and iPad only (since 2026-11-18): the phone's layout –
 a sheet at the bottom with the tree as a tab, ‹ › over the stage – is gone (#317). The Inspector's tabs (#229, `lib/panel-tabs.ts`): **Inspector** (what is selected), **Environment**,
 **Library**, **Code** – no Stage tab: the scene is the Inspector's, the preview settings are the stage toolbar's; a tab
 stored before (`stage`, `entity`) opens the Inspector, as does a first visit.
@@ -396,8 +396,8 @@ closed by default, **essential** (it folds but never closes) and **inline** (a t
 | Logic | bottom right, closed ([the Logic panel](#the-logic-panel-239)) | |
 
 - **Move** by the head (its grip, icon and name; ← ↑ → ↓ on the focused handle, Shift for larger steps): the panel
-  follows the pointer over the others; let go, it **stays where it was dropped** (#364, Tilman 2026-11-23: *"remove the
-  snapping of windows. only limit them to not go out of the stage area"*) – over another panel too, the one in front on
+  follows the pointer over the others; let go, it **stays where it was dropped** (#364, 2026-11-23: no snapping,
+  only kept inside the stage area) – over another panel too, the one in front on
   top – only kept inside the stage. It is then **free** (`Place.free`): the layout neither pushes it nor makes room for
   it, and it keeps the size it had (a toolbar follows its content). **Moving a panel moves nothing else** (#368): while
   it is held the others keep their places (the hand's views, no layout), and let go, a panel the layout would move
@@ -589,7 +589,7 @@ only the names a plugin could not set or emit are said. The level logic is pure 
 cases, which node types fit; `logic-homes` – scene and experience rules, goto, `when` wires, type problems; `canvas` – the
 signal table, the cards, pins, groups and their ops; `live` – the live feedback below).
 
-**Live feedback** (#334, Tilman 2026-11-21: *"when a event fire that cable should light up. or when a variable changes"*):
+**Live feedback** (#334, 2026-11-21: a wire lights up when an event fires or a variable changes):
 while the stage runs, the canvas shows what happens on it. The panel reads the stage's timeline (`stage.events` – the Log
 tab's lines) and matches each **new** line to the level drawn (`logic/live.ts`, pure: `liveIndex` maps event names,
 variable names and rules to wire and box ids once per flow; `liveHit` per line):
@@ -613,8 +613,8 @@ in the Log tab starts again. **Trace** in the bar's **…** view settings (besid
 The engine numbers a rule from 1 in its `behaviour` line (`rule 1`), the documents from 0 – `liveHit` takes one off (5.1.0;
 before, Trace pulsed the rule after the one that ran).
 
-**Testing on the stage** (#334, Tilman 2026-11-21: *"is there a way i can manually trigger an event from the nodes to test
-what firing them would look like down the line?"*): a box's right-click menu sets things off on the **running** stage –
+**Testing on the stage** (#334, 2026-11-21: trigger an event from the boxes by hand to see what firing it does down
+the line): a box's right-click menu sets things off on the **running** stage –
 the items come from `logic/fire.ts` (`stageItems`, pure and tested), the panel asks the stage:
 
 | Box | Item | What it does |
@@ -706,7 +706,7 @@ writes is type-checked first (B8).
   on them; Delete removes the selected wires, then the selected rules from the last one up, in one go (a node, an event
   or a variable stays). Panning moves to the **middle button**, **Space + drag** and the wheel or the trackpad. Copy and
   paste are graph fragments (L-T16), not here yet.
-- **A plugin's pins and rows** (#334, Tilman 2026-11-21: *"ja nur anzeige ist gut"*): only a port whose other end is an
+- **A plugin's pins and rows** (#334, 2026-11-21: everything else is display only): only a port whose other end is an
   editable document stays a pin. **emits** (outlet) into a rule's **on**: the rule listens to one of the plugin's events;
   a rule's **do** into **listens** (inlet): the rule emits one of the events the plugin listens to (no core event). With several
   events a small menu picks one (the op's `event`); a wire let go on the empty canvas offers a new rule per event. What
@@ -758,12 +758,12 @@ choice of what a box previews is L-T15).
 - **A plugin's bus use** is what its specs declare (`uses`, `events` – recorded in `registered`, schema 5.1); a plugin box
   says *plugin · declared*. Only for a plugin that declares nothing is its source read (`plugin-code.ts`, the regex reading
   of `api.events.on("x")` and the like).
-- **A wire's word** (Tilman, 2026-11-21: *"values on wires need an outline so they stick out more"*): in its signal's
+- **A wire's word** (2026-11-21: outlined, so it stands out): in its signal's
   colour, weight 500, on a chip of the canvas's background with a ring of it round the letters – it reads where wires
   cross, day and night.
 
-**The deck's canvas** (content schema 5.2, #334 L-T7 / L-T8 – Tilman: *"free placement on canvas. and grouping like we
-have in the scutoons deck. also adopt the node styles we already established in the deck. including the coloring."*):
+**The deck's canvas** (content schema 5.2, #334 L-T7 / L-T8 – free placement on the canvas and
+grouping as in the SCUTOONS deck, with the deck's node styles and colouring):
 
 - **Cards** (`LogicBox.svelte`, the deck's `node_card.rs`): 14rem wide, radius 0.54rem, the control fill, one 1px border
   in the kind's colour (55 %, far 35 %), no shadow; a 2rem head tinted with the kind's colour (9 %) over a 1px line (22 %),
@@ -791,15 +791,14 @@ have in the scutoons deck. also adopt the node styles we already established in 
   boxes were; their wires to the rest end on the pill, the ones between them are hidden; its chevron (or a double-click)
   opens it again. Groups are kept per canvas: the scene's (its scene and entity levels) or the experience's; the group level
   has none.
-- **Selecting and ungrouping a group** (#334, Tilman 2026-11-21: *"how to ungroup or select a group?"*): a **click on the
+- **Selecting and ungrouping a group** (#334, 2026-11-21): a **click on the
   frame's head** – its free area, not the chevron, the swatch or the name, and not the end of a drag – selects the group's
   boxes, **Shift** adds them to the selection; then Delete, Ctrl+G and a drag act on them as on any selection. A **right
   click on the head** (or on a folded group's pill) opens the group's menu: *Select its boxes*, *Rename…*, *Next colour*,
   *Fold to one pill* / *Open the group* and **Ungroup** (the `ungroup` edit – its boxes stay where they are; an empty name
   still removes the group too). **Ctrl+Shift+G** ungroups the groups of the selected boxes, as in the Scenes strip. Where
   the level is not editable, the menu's items are greyed with the reason.
-- **Notes** (#334, schema 5.3 – the SCUTOONS deck's notes; Tilman 2026-11-21: *"we are missing notes on these graphs, for
-  annotations"*): a note is an annotation on the canvas, **no logic** – no ports, no wires; the issues, the layout and Tidy
+- **Notes** (#334, schema 5.3 – the SCUTOONS deck's notes; 2026-11-21): a note is an annotation on the canvas, **no logic** – no ports, no wires; the issues, the layout and Tidy
   never see it. *Add note* on the empty canvas's right-click menu puts one there; on a box's right-click menu **beside the
   box** (it moves with it, joined by a fine dotted line, and a second note on the same box stands below the first); **N**
   with the pointer over the canvas puts one at the pointer. A new note opens for typing: **Ctrl+Enter** or leaving the field
@@ -983,8 +982,8 @@ workspace is open). Nothing of the reader's store, progress or routes is involve
 
 The **Tools** panel (#180, #308 – an inline [floating panel](#floating-panels) at the stage's top left: it moves,
 resizes like the others, a row or – its button, #315 – a column, and never folds; `components/ToolGroup.svelte`,
-`lib/tool-groups.ts`), icons only (its menus add the names), every button's label its tooltip. Since #364 (Tilman,
-2026-11-23: *"we are running into a massive amount of options in the toolbar"*) it holds only the stage's own tools –
+`lib/tool-groups.ts`), icons only (its menus add the names), every button's label its tooltip. Since #364
+(2026-11-23 – the toolbar had grown too many options) it holds only the stage's own tools –
 undo / redo / history went to the top bar, the camera onto the stage:
 
 - **the tool** – **select** (a plain pointer, **Q**: a click picks what the filters allow, the selection is outlined, no
@@ -1029,7 +1028,7 @@ Tab out of it or a tap outside closes it; every control has the touch height wit
 view. All of it are preview settings, stored in this browser (`stage/preview.ts`), never in the content; the Info view
 shows each button's tooltip.
 
-**What does not fit goes behind the …** (#342, Tilman 2026-11-22): when the Tools panel is shorter than its groups –
+**What does not fit goes behind the …** (#342, 2026-11-22): when the Tools panel is shorter than its groups –
 a narrow window, the panel resized, or a column along a short stage – the groups that do not fit leave the toolbar from
 the end (live first, then view, grid & snap, …) and a **…** button (*More tools*) takes their place at its end. Its menu
 (top layer, below the … in a row, beside it in a column, kept on the screen) holds them below each other, each a row
@@ -1072,7 +1071,7 @@ one square group:
   view does not move. **The surface follows the last click** (#369): the active selection's surface, the table when
   nothing is selected (`lockTo`) – the view does not move. Where that plane is seen edge-on (the table from the front, a
   wall from above, within 10°) a pan moves along the screen.
-No label on the stage (Tilman chose the tooltips over an overlay, a caption or a toast): the persp / ortho button's
+No label on the stage (the tooltips were chosen over an overlay, a caption or a toast): the persp / ortho button's
 tooltip names the projection and the view ("Orthographic · Top"), the lock's what the camera is fixed to ("Fixed on
 Poster 3"); the Inspector says how many are selected. Numpad 1 / 3 / 7 snap to front / right /
 top (Ctrl: the opposite), 9 to the opposite of the view now.
@@ -1271,10 +1270,9 @@ lights; a light node keeps the author's intensity in every shading.
 
 ### The stage in the page and the plugin guard (#340)
 
-The stage runs **in the editor's own page** (5.0, Tilman 2026-11-21, #340: *"we can drop the sandbox. since we trust the
-user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is fine. it is
-a huge security risk but only to the user who is logged in and their scope."* · *"performance will definitely
-increase."*). From 1.58.0 to 4.x it ran in a sandboxed iframe (#234: no `allow-same-origin`, its own Content Security
+The stage runs **in the editor's own page** (5.0, 2026-11-21, #340): the signed-in person is
+trusted – that is why they have access to the API – so a plugin may change the database's game state; the risk is limited
+to that person and their scope, and the stage runs faster without the frame. From 1.58.0 to 4.x it ran in a sandboxed iframe (#234: no `allow-same-origin`, its own Content Security
 Policy, a postMessage protocol, the draft copied in as text, the plugin registry mirrored back as specs); all of that is
 gone.
 
@@ -1305,7 +1303,7 @@ gone.
 - **What plugin code can do now**: it runs with the signed-in editor's session – `fetch("/api/…")` carries the cookie,
   so it reads whatever that person may (the draft, the experience's data, an admin's users), and `GET /api/user` answers
   the session's CSRF token, so it can write what the person may write too. Treat it as
-  **the person's own rights in the plugin's hands**: scoped to the signed-in user, accepted by Tilman. Hence the guard.
+  **the person's own rights in the plugin's hands**: scoped to the signed-in user, an accepted risk. Hence the guard.
 
 #### The plugin guard
 
@@ -1325,8 +1323,8 @@ asking.
   status line says *not loaded: ben saved it last and you chose Don't run – Run in the Code tab runs it now*), a declared
   module is not loaded (`keepPlugin`), and the Log tab has a line per plugin. **Run** in the Code tab still runs one: the
   person's own click on code they can read.
-- **The render view** (`?render`, the MCP's `render_scene` – nobody to ask) runs every plugin without asking (Tilman,
-  2026-11-22): it writes nothing, so a plugin there cannot act with anyone's rights; nothing is kept.
+- **The render view** (`?render`, the MCP's `render_scene` – nobody to ask) runs every plugin without asking
+  (2026-11-22): it writes nothing, so a plugin there cannot act with anyone's rights; nothing is kept.
 - Code saved through the MCP with a person's token is saved *by that person* (`updated_by`): their own browser runs it
   without asking.
 
@@ -1426,7 +1424,7 @@ view menu has *textures*: auto, or one size, to see the stage as readers on that
 its largest map, and **One file → levels…** takes one picture, uploads it at its size and makes every smaller one from
 it: drawn on a canvas here in the browser, WebP at the image rule's quality, named `<map>-<size>.webp`, uploaded and
 put in the set (`lib/texture-levels.ts`). Maps upload with the image rule's `texture` fit and keep up to 4096 px. Only
-pictures: video levels are made beforehand, never encoded in the browser (Tilman, 2026-11-19).
+pictures: video levels are made beforehand, never encoded in the browser (2026-11-19).
 
 **Media levels** (#331 step 3, content schema 4.3). A node whose file is a picture, a video or a sound has a *levels*
 section: one chip per level of its kind – 512 / 1024 / 2048 px (a picture's longest side), 480p / 720p / 1080p (a
@@ -1675,7 +1673,7 @@ The narrative of an experience like the demo ([plugins](plugins.md) "Across node
 eyes and two tabs of the workspace (#88, #337; `stage/event-log.ts`, `stage/narrative.ts`, `stage/log-entries.ts`) – both
 in the Inspector's panel at first, floatable like every tab; the scene Inspector's *narrative* line opens them.
 
-Long lists are sections that close (Tilman, 2026-11-21: closed by default where a list gets long), each with a summary
+Long lists are sections that close (since 2026-11-21: closed by default where a list gets long), each with a summary
 that still tells what is in it.
 
 **Variables** (`StageVariables.svelte`) – a section per scope (scene, stage, session, experience; closed: the count and the
@@ -1725,8 +1723,8 @@ an equirectangular image, with *Library…* (the Library as the picker), *Upload
 [saved by themselves](#autosave) (`PUT /editor/experiences/{id}/environment`); *Undo edits* takes the environment back,
 *Use the default* removes it.
 
-**The stage does not draw it** (#371, Tilman 2026-11-25: *"looking in the sky is not needed anymore and can go and the
-environments world can also go"* · *"we refactor it out. only thing that can stay is a custom world hdri slot"*): the
+**The stage does not draw it** (#371, 2026-11-25: the look into the sky and the environment's world
+are gone; what stays is a slot for the experience's own HDRI): the
 stage's sky and light are the View menu's **HDRI** while the shading is rendered (`stage/sky.ts`, `stageLook`) – a bundled
 studio, or one of the **experience's own**: any `.hdr` file in its Library (the kind `hdri`, never content – readers
 never load it) is listed under *This experience's* in the HDRI picker. The choice is this browser's (`PreviewSettings.hdri`:
@@ -1773,7 +1771,7 @@ A picture's, video's or sound's **media levels** (a node's *levels*) are a stack
 a missing one a slot that shows the node (whose *levels* in the Inspector add it). A model's mesh and its map stacks
 stand in a **frame** (its name, parts, files, weight; a click folds it), a video and
 its subtitles too (by language – `speak.en.vtt` belongs to `speak.mp4`). A model file shows what it carries inside, dotted
-– `◧ map`, `◧ 2 clips` – read from the start of the file. **The Library makes no link** (Tilman, 2026-11-19): files no
+– `◧ map`, `◧ 2 clips` – read from the start of the file. **The Library makes no link** (since 2026-11-19): files no
 node names stay single tiles; levels and parts are linked where the content is edited. The browser's **levels:
 stacked / single** shows every file alone; the list shows every file.
 
@@ -1891,8 +1889,8 @@ the content build – opening one reads its files next to the compiled module, `
 A plugin is a folder of files (#352, 6.11.0): **one tab per file** under the picker, like Shadertoy's – `index.ts` first
 (the entry: no close cross, no rename), the others after it – the editor's own `pill tab`s, as in a panel's head, each
 file but the entry with the drawn close cross; a double-click (or F2, or the tab's menu – right click) renames one. The
-close cross **deletes the file at once as its own saved change** (Tilman: *"the delete is instant. that is dangerous and
-it is not undoable"*): the stored files without it go to the API, so the editor's **Undo** (and History) brings it
+close cross **deletes the file at once as its own saved change** (an instant delete must be
+undoable): the stored files without it go to the API, so the editor's **Undo** (and History) brings it
 back; the other files' unsaved edits stay edits; a file never saved just goes (asked first when it holds text). After an
 undo or a revert the plugins follow like the draft (`plugins.afterRevert`: the list, the stage's copies, the open plugin
 unless it holds edits). **+** (an icon button at the right edge, the shared context menu) adds a TypeScript file, a
