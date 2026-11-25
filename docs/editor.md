@@ -1058,10 +1058,13 @@ one square group:
 - **Zoom** and **pan** – drag on them (down = nearer); the wheel, a pinch, Shift + drag and the middle button stay.
 - **Reader's view** (Home, numpad 0, a double tap): the reader's view around the scene's origin, in perspective.
 - **Perspective / orthographic** (numpad 5). A snap to a view goes ortho by itself and orbiting away goes back to
-  perspective (`autoOrtho`, Blender's Auto Perspective); ortho switched on by hand stays. Ortho is the editor's only and
-  is emulated (`orthoLens` in `mock-tracker.ts`): the engine's camera stays perspective – plugins, picking and the
-  transform gizmos hold it – so the eye moves 200 m back and the field of view narrows until the looked-at point's plane
-  shows as large as before (what is 1 m nearer shows < 1 % larger); the switch blends in 250 ms.
+  perspective (`autoOrtho`, Blender's Auto Perspective); ortho switched on by hand stays. Ortho is the editor's only (the
+  reader never needs it) and **true**: the editor's tracker takes over the engine's camera's projection
+  (`takeProjection`, `applyOrtho` in `mock-tracker.ts`) – three's orthographic matrix, the camera flagged
+  `isOrthographicCamera` with its sides, so three's ray casting, `TransformControls` and the renderer treat it as an
+  orthographic camera; the engine is unchanged. The way there and back (250 ms) is a dolly zoom (`orthoLens`: the eye
+  moves 200 m back, the field narrows, the looked-at plane keeps its size), which meets true ortho where it arrives. In
+  ortho the sky sphere steps aside for a plain ground (`MockStage.setOrtho`).
 - **Focus** (F): the camera flies to the selection and turns around its middle – a surface front-on and whole, a printed
   target front-on, a node by its box; several selected, the box around them all; nothing selected, the whole scene.
 - **Fixed / free**: fixed (the default), a pan slides the point along the plane of the surface it is fixed to; free, along

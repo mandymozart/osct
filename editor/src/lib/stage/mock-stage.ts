@@ -293,6 +293,14 @@ export class MockStage implements StageView {
   private world = false;
 
   /** The environment's world is drawn under the stage (true) or not: the HDRI steps aside – sky and light – while it is */
+  /** Ortho (#369): no sky sphere – the camera is far outside it and a parallel view has no sky; a plain ground instead */
+  setOrtho(on: boolean): void {
+    if (this.ortho === on) return;
+    this.ortho = on;
+    this.setHdri(this.hdri);
+  }
+  private ortho = false;
+
   setWorld(world: boolean): void {
     if (this.world === world) return;
     this.world = world;
@@ -920,7 +928,7 @@ export class MockStage implements StageView {
     this.sky.material.color.setScalar(exposure);
     behindWorld(this.sky.material, look.behindWorld);
     this.sky.material.needsUpdate = true;
-    this.sky.visible = look.sky === "hdri" || look.behindWorld;
+    this.sky.visible = !this.ortho && (look.sky === "hdri" || look.behindWorld);
     this.dimLights(look.light === "hdri");
   }
 
