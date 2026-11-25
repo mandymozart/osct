@@ -50,7 +50,7 @@
     {:else if rows.length === 0}<p class="small muted">Nothing yet – the places you and others work on show here.</p>
     {:else}
       <ul>
-        {#each rows as row (row.path + row.when)}
+        {#each rows as row (row.key)}
           <li>
             <a href={href(row.path)}>
               <span class="where"><b>{row.book}</b>{" · "}{row.place}{#if row.detail}<span class="muted">{" · "}{row.detail}</span>{/if}</span>

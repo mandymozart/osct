@@ -8,6 +8,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.23.2 – 2026-11-25
+
+### Fixed
+- **The editor's Experiences page no longer breaks with a 500** (#374, Tilman: *"nothing loads on dashboard"*): *Last
+  worked on* keyed its rows by their link and the relative time, and two places share a link (a change on no scene opens
+  the first scene, as a change on that scene does) – two of them in the same minute broke the page. The rows are keyed by
+  their place now.
+
 ## 6.23.1 – 2026-11-25
 
 ### Fixed

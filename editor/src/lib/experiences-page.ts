@@ -26,6 +26,8 @@ export const addressPreview = (origin: string, slug: string): { text: string; pl
 
 /** A row of *Last worked on*: where, when, who – and the editor's path that opens it */
 export interface RecentPlace {
+  /** The place's own key (`<experience>/scene/<id>` or `<experience>/kind/<panel>`): one row per key – the list's key (#374) */
+  key: string;
   experience: string;
   book: string;
   /** The scene's label, or what the change was of when it is on no scene (`Code`, `Experience`, …) */
@@ -35,7 +37,10 @@ export interface RecentPlace {
   when: string;
   /** Who, when it is not the person looking (an AI connection's name in brackets) */
   who: string | null;
-  /** The path below the editor's base: `<experience>/<scene>/` (with `?tab=` for a panel), or `<experience>/` */
+  /**
+   * The path below the editor's base: `<experience>/<scene>/` (with `?tab=` for a panel), or `<experience>/` – not unique:
+   * a change on no scene opens the first scene, as a change on that scene does
+   */
   path: string;
 }
 
@@ -66,6 +71,7 @@ export const recentPlaces = (changes: readonly RecentChange[], me: string | null
     const path = sceneId ? `${c.experience}/${sceneId}/${tab}` : `${c.experience}/`;
     const who = c.user && c.user === me ? null : c.token ? `${c.user ?? "?"} (${c.token})` : c.user;
     rows.push({
+      key,
       experience: c.experience,
       book: c.experienceTitle || c.experience,
       place: c.scene ? (c.sceneLabel ?? c.scene) : panel?.name ?? kindWord(c.kind),
