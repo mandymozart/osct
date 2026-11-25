@@ -8,6 +8,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.23.3 – 2026-11-25
+
+### Fixed
+- **The landing's cover stand-in is exactly the 3D cover's size** (#372, Tilman: *"match the size of the overlay exactly
+  please"*): it was sized for a cover lying on the block's top (2.3 % too large); both are sized now from one set of numbers
+  (`ui/landing/cover-view.ts` – the stage's field of view, the picture view's height, the cover's width and its lift), its
+  corners square as the 3D cover's, and the blank cover's gold frame where the 3D paints it.
+
 ## 6.23.2 – 2026-11-25
 
 ### Fixed

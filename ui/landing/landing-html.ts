@@ -17,6 +17,7 @@ import { goldButton } from "../brand/gold-button";
 import { escapeHtml } from "../brand/html";
 import type { LandingConfig, ShopItem } from "./landing-config";
 import { seededPick } from "../../shared/api/landing";
+import { coverWidthShare } from "./cover-view";
 
 /** The static landing's element in index.html: the landing's page mounts into it (`mount.ts`) */
 export const STATIC_LANDING_ID = "static-landing";
@@ -68,12 +69,8 @@ export interface LandingSource extends Pick<LandingConfig, "shop"> {
   coverAspect?: number;
 }
 
-/**
- * Where the closed book's cover lies in the stage's box when the 3D intro begins (scan-stage.ts: the picture view, 2.15
- * over the page, looking down at the cover's middle with a 30° field; the cover 0.5 wide, its top ≈ 0.05 over the page):
- * its width as a share of the box. The HTML stand-in lies exactly there, so the 3D takes over without a jump (#372).
- */
-export const COVER_SHARE = 0.5 / (2 * 2.1 * Math.tan((15 * Math.PI) / 180));
+/** The cover's width as a share of the stage's box when the 3D intro begins (cover-view.ts) – the stand-in lies exactly there (#372) */
+export const COVER_SHARE = coverWidthShare();
 /** A page's height over the spread's width when the hero's data does not say yet (a common book: 1.4 high per width) */
 export const DEFAULT_COVER_ASPECT = 0.7;
 
@@ -85,7 +82,7 @@ export const DEFAULT_COVER_ASPECT = 0.7;
  */
 const coverStandIn = (cover: string | null | undefined, aspect: number | undefined): string => {
   const ratio = 0.5 / (aspect && aspect > 0 ? aspect : DEFAULT_COVER_ASPECT);
-  const style = `width:${(COVER_SHARE * 100).toFixed(2)}%;aspect-ratio:${ratio.toFixed(4)}`;
+  const style = `width:${(COVER_SHARE * 100).toFixed(3)}%;aspect-ratio:${ratio.toFixed(4)}`;
   return cover
     ? `<div class="cover" style="${style}"><img src="${escapeHtml(cover)}" alt="" decoding="async" /></div>`
     : `<div class="cover blank" style="${style}"></div>`;
@@ -269,14 +266,15 @@ export const LANDING_CSS = /* css */ `
           top: 50%;
           translate: -50% -50%;
           overflow: hidden;
-          border-radius: .125rem;
           background: #0b0a08;
           box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, .55);
           transition: opacity .5s ease .45s;  /* after the canvas has mostly faded in (scan-stage.ts, .7s) – no dip between them */
           pointer-events: none;
         }
         .cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
-        .cover.blank { box-shadow: inset 0 0 0 .35rem #0b0a08, inset 0 0 0 .45rem #b8914a, 0 1.5rem 3rem rgba(0, 0, 0, .55); }
+        /* As the 3D paints a cover without a picture (scan-stage.ts paintCover: a gold frame 40/1024 in, 6/1024 wide) */
+        .cover.blank { container-type: inline-size; }
+        .cover.blank::before { content: ""; position: absolute; inset: 3.906cqw; border: .586cqw solid #b8914a; }
         .stage.loading .cover.blank::after { content: ""; position: absolute; inset: 0; background: var(--skeleton-shine) 0 0 / 300% 100% no-repeat; animation: skeleton 1.6s ease-in-out infinite; }
         .stage.running .cover { opacity: 0; }
         @keyframes skeleton { from { background-position: 100% 0, 0 0; } to { background-position: -50% 0, 0 0; } }

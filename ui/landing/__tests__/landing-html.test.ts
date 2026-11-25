@@ -58,8 +58,8 @@ describe("the landing page's markup (#343)", () => {
 describe("the stage's stand-in (#372)", () => {
   it("is the closed book's cover where the 3D intro first shows it: its picture, the hero's page aspect", () => {
     const html = renderLanding(source({ cover: "/c/cover.webp?a=1&b=2", coverAspect: 0.75 }));
-    expect(html).toContain(`<div class="cover" style="width:${(COVER_SHARE * 100).toFixed(2)}%;aspect-ratio:${(0.5 / 0.75).toFixed(4)}"><img src="/c/cover.webp?a=1&amp;b=2" alt="" decoding="async" /></div>`);
-    expect(COVER_SHARE).toBeCloseTo(0.444, 3);
+    expect(html).toContain(`<div class="cover" style="width:${(COVER_SHARE * 100).toFixed(3)}%;aspect-ratio:${(0.5 / 0.75).toFixed(4)}"><img src="/c/cover.webp?a=1&amp;b=2" alt="" decoding="async" /></div>`);
+    expect(COVER_SHARE).toBeCloseTo(0.4342, 4);   // 0.5 / (2 · (2.15 − 0.001) · tan 15°)
   });
 
   it("replaces the skeleton's box on the stage – no grey block behind the cover", () => {
@@ -68,7 +68,7 @@ describe("the stage's stand-in (#372)", () => {
 
   it("is a blank cover with a common book's shape without a picture or a hero", () => {
     const html = renderLanding(source());
-    expect(html).toContain(`<div class="cover blank" style="width:44.43%;aspect-ratio:${(0.5 / DEFAULT_COVER_ASPECT).toFixed(4)}"></div>`);
+    expect(html).toContain(`<div class="cover blank" style="width:${(COVER_SHARE * 100).toFixed(3)}%;aspect-ratio:${(0.5 / DEFAULT_COVER_ASPECT).toFixed(4)}"></div>`);
   });
 });
 
