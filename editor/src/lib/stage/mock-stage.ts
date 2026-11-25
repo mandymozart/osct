@@ -14,7 +14,7 @@ import { linoleumTexture } from "./linoleum";
 import { oakTexture } from "./oak";
 import { plywoodEdgeTexture } from "./plywood";
 import { applyShading, ownMaterial } from "./shading";
-import type { HdriId, ShadingMode, TopId } from "./preview";
+import { isHdriId, type ShadingMode, type StageHdri, type TopId } from "./preview";
 import { stageLook, type StageLook } from "./sky";
 
 /**
@@ -66,20 +66,6 @@ const HDRI_EXPOSURE_DEFAULT = 0.4;
 const LIGHTS_WITH_HDRI = 0.35;
 /** The sky sphere's radius (metres) – far beyond the table, near enough for the depth buffer */
 const SKY_RADIUS = 30;
-/**
- * The sky sphere behind the environment's world (#185): the world's pass is drawn first and leaves its camera window
- * transparent (alpha 0, premultiplied soft edges), so the sphere adds itself only where the frame is not yet covered –
- * `(1 − destination alpha) · sky + frame` – and fills the window as a stand-in for the reader's camera picture. Off: the
- * sphere draws normally (the HDRI as the sky).
- */
-export const behindWorld = (material: Material, on: boolean): void => {
-  material.blending = on ? CustomBlending : NormalBlending;
-  material.blendEquation = AddEquation;
-  material.blendSrc = OneMinusDstAlphaFactor;
-  material.blendDst = OneFactor;
-  material.blendSrcAlpha = OneMinusDstAlphaFactor;
-  material.blendDstAlpha = OneFactor;
-};
 /** The ghost's corner handle (mm) */
 const GHOST_HANDLE = 8;
 const GRID_COLOR = 0x2d7ff9;
@@ -288,11 +274,7 @@ export class MockStage implements StageView {
   /** The sky: the HDRI on a sphere inside the stage's group, so it turns with the stage by construction */
   private sky: Mesh<SphereGeometry, MeshBasicMaterial> | null = null;
   private shading: ShadingMode = "rendered";
-  private hdri: HdriId | null = null;
-  /** The experience's environment is drawn under the stage (the engine's look-around world): it replaces the HDRI (#185) */
-  private world = false;
-
-  /** The environment's world is drawn under the stage (true) or not: the HDRI steps aside – sky and light – while it is */
+  private hdri: StageHdri | null = null;
   /** Ortho (#369): no sky sphere – the camera is far outside it and a parallel view has no sky; a plain ground instead */
   setOrtho(on: boolean): void {
     if (this.ortho === on) return;
@@ -301,15 +283,9 @@ export class MockStage implements StageView {
   }
   private ortho = false;
 
-  setWorld(world: boolean): void {
-    if (this.world === world) return;
-    this.world = world;
-    this.setHdri(this.hdri);
-  }
-
   /** Which sky and which light now (`sky.ts`) */
   private look(): StageLook {
-    return stageLook({ shading: this.shading, hdri: this.hdri, world: this.world });
+    return stageLook({ shading: this.shading, hdri: this.hdri });
   }
 
   /** The viewport's shading: the sky and the HDRI's light belong to "rendered" only; wireframe and solid reach the boards and the desk too (#137) */
@@ -806,7 +782,7 @@ export class MockStage implements StageView {
    * The sky and the light: the HDRI while rendered, else the scene's own lights over the editor's dark ground – or the
    * environment's world (drawn by the engine under the stage) with the scene's own lights (`sky.ts`)
    */
-  setHdri(hdri: HdriId | null): void {
+  setHdri(hdri: StageHdri | null): void {
     this.hdri = hdri;
     this.wantedHdri = this.look().hdri;
     if (!this.wantedHdri) {
@@ -822,7 +798,8 @@ export class MockStage implements StageView {
       return;
     }
     const id = this.wantedHdri;
-    new RGBELoader().load(this.assetUrl(`hdri/${id}_1k.hdr`), texture => {
+    // A bundled HDRI from the editor's static files, the experience's own from its Library (#371)
+    new RGBELoader().load(isHdriId(id) ? this.assetUrl(`hdri/${id}_1k.hdr`) : id, texture => {
       texture.mapping = EquirectangularReflectionMapping;
       this.hdris.set(id, texture);
       if (this.wantedHdri === id) this.applyHdri(texture);
@@ -926,9 +903,8 @@ export class MockStage implements StageView {
     this.sky.material.map?.dispose();
     this.sky.material.map = map;
     this.sky.material.color.setScalar(exposure);
-    behindWorld(this.sky.material, look.behindWorld);
     this.sky.material.needsUpdate = true;
-    this.sky.visible = !this.ortho && (look.sky === "hdri" || look.behindWorld);
+    this.sky.visible = !this.ortho && look.sky === "hdri";
     this.dimLights(look.light === "hdri");
   }
 

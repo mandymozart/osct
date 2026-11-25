@@ -19,7 +19,7 @@
   import LibraryPanel from "#lib/panels/LibraryPanel.svelte";
   import CodePanel from "#lib/panels/CodePanel.svelte";
   import EnvironmentPanel from "#lib/panels/EnvironmentPanel.svelte";
-  import { environmentEdit, stageEnvironment } from "#lib/environment.svelte.js";
+  import { environmentEdit } from "#lib/environment.svelte.js";
   import { logicEdit } from "#lib/logic-edit.svelte.js";
   import NewTargetForm from "#lib/panels/NewTargetForm.svelte";
   import NewEntryForm from "#lib/panels/NewEntryForm.svelte";
@@ -376,11 +376,6 @@
     void stage?.refresh().catch(() => {});
   };
   $effect(() => {
-    const previewing = environmentShown;
-    const environment = previewing ? environmentEdit.edited : stageEnvironment.current;
-    stage?.showEnvironment(environment ? $state.snapshot(environment) : null, previewing);
-  });
-  $effect(() => {
     if (!environmentShown) environmentEdit.picking = null;
   });
   // ── surface reference images (#314): the scenes list has each surface's (`scenes.references`, read again whenever the
@@ -724,10 +719,7 @@
     { value: "textured", name: "Textured", icon: "shade-textured", label: "Textured – the content's materials, no sky" },
     { value: "rendered", name: "Rendered", icon: "shade-rendered", label: "Rendered – the HDRI's sky and light" },
   ] satisfies (ToolGroupOption & { value: ShadingMode })[];
-  /** With the experience's environment, *rendered* shows its world instead of the HDRI (#185) – the button's label says so */
-  const shadingOptions = $derived<ToolGroupOption[]>(stageEnvironment.current
-    ? SHADING_OPTIONS.map(option => (option.value === "rendered" ? { ...option, label: "Rendered – the environment's sky, the reader's light" } : option))
-    : SHADING_OPTIONS);
+  const shadingOptions: ToolGroupOption[] = SHADING_OPTIONS;
   /** The groups' shapes in the toolbar's order (render quality, grid & snap and view are one button each) */
   const TOOL_SHAPES: GroupShape[] = [{ options: TOOL_OPTIONS.length }, { options: FILTER_OPTIONS.length }, { options: 1 }, { options: 1 }, { options: 1 }];
   /** The view group: the stage's menu opens it (*View settings…*) */
@@ -1372,7 +1364,7 @@
     {#if selection.many}<p class="many-selected small muted">{selection.others.length + 1} selected · showing the last clicked</p>{/if}
     <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} ontab={openTab} /></div>
   {:else if shown === "environment"}
-    <div class="body"><EnvironmentPanel {stage} {experienceId} /></div>
+    <div class="body"><EnvironmentPanel {experienceId} /></div>
   {:else if shown === "library"}
     <div class="body"><LibraryPanel {experienceId} nodeType={selectedNodeType} targetId={selection.target} onuse={useAsset} onusetarget={useAsTargetImage} onchanged={reloadContent} onopencode={() => openTab("code")} /></div>
   {:else if shown === "code"}

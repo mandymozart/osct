@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  Box3, type Color, CustomBlending, DirectionalLight, type Group, type LineSegments, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, NormalBlending, OneFactor,
-  OneMinusDstAlphaFactor, Raycaster, Scene, type SphereGeometry, Texture, Vector3,
+  Box3, type Color, DataTexture, DirectionalLight, type Group, type LineSegments, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial,
+  Raycaster, Scene, type SphereGeometry, Texture, Vector3,
 } from "three";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { dashes, MockStage } from "../mock-stage";
 import { sceneSurfaces } from "../surfaces";
 import type { StageGrids } from "../mock-tracker";
@@ -390,8 +391,8 @@ describe("mock stage: switching the top switches only the top (#226)", () => {
   });
 });
 
-describe("mock stage: the environment replaces the HDRI (#185)", () => {
-  it("takes the HDRI's light away while the world is drawn and keeps it only behind the world's window, and gives both back after", () => {
+describe("mock stage: the HDRI's sky and light, and ortho (#369)", () => {
+  it("lights the stage with the HDRI while rendered; in ortho the sky sphere steps aside, the light stays", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
     const scene = new Scene();
@@ -404,30 +405,28 @@ describe("mock stage: the environment replaces the HDRI (#185)", () => {
     stage.setHdri("wooden_studio_17");
     expect(scene.environment).toBe(texture);
     expect(sky()?.visible).toBe(true);
-    expect(sky()?.material.blending).toBe(NormalBlending);
     expect(sun.intensity).toBeCloseTo(0.6 * 0.35);
 
-    stage.setWorld(true);
-    expect(scene.environment).toBeNull();
-    expect(sun.intensity).toBeCloseTo(0.6);
-    // the sphere stays as the camera window's stand-in, added only where the world left the frame uncovered
+    stage.setOrtho(true);
+    expect(sky()?.visible).toBe(false);
+    expect(scene.environment).toBe(texture);
+    stage.setOrtho(false);
     expect(sky()?.visible).toBe(true);
-    expect(sky()?.material.blending).toBe(CustomBlending);
-    expect(sky()?.material.blendSrc).toBe(OneMinusDstAlphaFactor);
-    expect(sky()?.material.blendDst).toBe(OneFactor);
-    // the HDRI chosen meanwhile stays out of the light
-    stage.setHdri("wooden_studio_17");
-    expect(scene.environment).toBeNull();
-    // other shadings: no window stand-in (as no HDRI sky there without a world)
+
     stage.setShading("solid");
     expect(sky()?.visible).toBe(false);
-    stage.setShading("rendered");
+    expect(scene.environment).toBeNull();
+  });
 
-    stage.setWorld(false);
-    expect(scene.environment).toBe(texture);
-    expect(sky()?.visible).toBe(true);
-    expect(sky()?.material.blending).toBe(NormalBlending);
-    expect(sun.intensity).toBeCloseTo(0.6 * 0.35);
+  it("loads the experience's own HDRI from its Library URL (#371)", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const load = vi.spyOn(RGBELoader.prototype, "load").mockImplementation(() => new DataTexture());
+    const stage = new MockStage(new Scene(), path => `/${path}`);
+    stage.setHdri("https://cdn.test/demo/assets/night.hdr");
+    expect(load.mock.calls[0][0]).toBe("https://cdn.test/demo/assets/night.hdr");
+    stage.setHdri("ferndale_studio_04");
+    expect(load.mock.calls[1][0]).toBe("/hdri/ferndale_studio_04_1k.hdr");
+    load.mockRestore();
   });
 });
 

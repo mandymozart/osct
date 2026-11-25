@@ -4,6 +4,15 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-25 – The stage's environment world and look up refactored out, the experience's own HDRI (6.22.0, #371)
+- Tilman, during #369: *"looking in the sky is not needed anymore and can go and the environments world can also go. its
+  stupid"* · *"we refactor it out. only thing that can stay is a custom world hdri slot"*; where the slot lives: *"Experience
+  Library asset"*.
+- Built: the editor stage no longer draws the environment's world; *look up* is gone; the engine's editor-only preview
+  (`previewEnvironment`, `LookAround.setPreview`) removed – the reader's look-around unchanged. New Library kind `hdri`
+  (`.hdr`, `Assets::KINDS`, `ASSET_KINDS`) – the editor's only, never content. The View menu lists the experience's HDRIs;
+  the choice is per device (`PreviewSettings.hdri` = a bundled id or the file's URL).
+
 ## 2026-11-25 – The camera control and multi-select, Blender style (#369)
 - Tilman asked for a perspective/orthographic switch and a view gizmo that snaps to top · bottom · left · right · front ·
   back, *"like blender"*, redesigned together with the camera's Home · Focus · fixed/free. Sketched in the chat, his

@@ -3,8 +3,6 @@
   import { library } from "#lib/library.svelte.js";
   import { pickAccept, type LibraryPick } from "#lib/library-pick.js";
   import { fileNameOf } from "#lib/library-place.js";
-  import type { Stage } from "#lib/stage/stage.svelte.js";
-  import ScrubNumber from "#lib/components/ScrubNumber.svelte";
   import Toggle from "#lib/components/Toggle.svelte";
   import FileField from "#lib/components/FileField.svelte";
   import Section from "#lib/components/Section.svelte";
@@ -12,23 +10,18 @@
 
   /**
    * The experience's **environment** on the stage: the sky around the reader while scanning and the onion sky – the world
-   * model is gone (Tilman, 2026-11-18, #310): no world row, a content's `worldSrc` is ignored. While this tab is open the stage shows the engine's look-around world with the values being
-   * edited, under the desk and the experience, turned by the view (*look up* raises the camera from the experience to the horizon).
-   * Once the experience has an environment (or edits start one) its world is the stage's sky in the other tabs too, while
-   * rendered – it replaces the HDRI, sky and light (#185, `stage/sky.ts`).
-   * **Sky**: none, or an equirectangular image. *Library…* opens the Library here as a picker (a sky image – the stage keeps
-   * previewing). Every edit reaches the draft by itself a moment later (#259); *Undo edits* goes back to the environment
+   * model is gone (Tilman, 2026-11-18, #310): no world row, a content's `worldSrc` is ignored. The stage does not show it (#371, Tilman: *"the environments
+   * world can also go"*) – its sky is the HDRI of the View menu; this tab edits what readers get.
+   * **Sky**: none, or an equirectangular image. *Library…* opens the Library here as a picker (a sky image). Every edit reaches the draft by itself a moment later (#259); *Undo edits* goes back to the environment
    * the draft had before the first edit in this page, *Use the default* removes it (nothing around the experience).
-   * Experience-level only; the reader's Graphics switches (Info → Settings) still apply on top. Two collapsible sections: the
-   * environment open on the first visit, the stage's *preview* (look up) closed, its head naming the angle.
+   * Experience-level only; the reader's Graphics switches (Info → Settings) still apply on top.
    */
-  let { stage, experienceId }: { stage: Stage | null; experienceId: string } = $props();
+  let { experienceId }: { experienceId: string } = $props();
 
   const edit = environmentEdit;
   const BUILT_IN: Record<EnvironmentSlot, string> = { sky: "none" };
   const SOURCE: Record<EnvironmentSlot, "skySrc"> = { sky: "skySrc" };
 
-  let lookUp = $state(0);
   let notice = $state<string | null>(null);
   /** The Library as the picker of the slot being chosen (`edit.picking`) */
   const pick = $derived.by<LibraryPick | null>(() => {
@@ -42,7 +35,6 @@
     void edit.load(experienceId);
     if (library.experienceId !== experienceId) void library.load(experienceId);
   });
-  $effect(() => stage?.setLookUp(lookUp));
 
   /** A slot's file as a name: the library's, else the URL's last part */
   const nameOf = (url: string): string => library.byUrl(url)?.name ?? fileNameOf(url);
@@ -66,7 +58,7 @@
 <LibraryPanel {experienceId} {pick} />
 {:else}
 {#snippet whose()}
-  <span class="small muted">{edit.saved ? "this experience's · the stage's sky" : "the default"}</span>
+  <span class="small muted">{edit.saved ? "this experience's" : "the default"}</span>
 {/snippet}
 
 {#snippet slotRow(slot: EnvironmentSlot)}
@@ -83,7 +75,7 @@
 {/snippet}
 
 <Section id="environment.world" label="environment" aside={whose}
-  help="The experience's sky around the reader while scanning and the onion sky – shown on the stage while this tab is open: the reader's own look-around pass, anchored to the experience, turned by the view. Once the experience has one, its sky replaces the HDRI as the stage's sky (rendered), lit by the scene's own lights as in the reader. The reader's Graphics switches (Info → Settings) still apply on top.">
+  help="The experience's sky around the reader while scanning and the onion sky – what readers see; the stage shows the View menu's HDRI instead. The reader's Graphics switches (Info → Settings) still apply on top.">
 {@render slotRow("sky")}
 <div class="row" class:changed={edit.edited.onionSky !== (edit.saved?.onionSky ?? true)}
   data-help="Looking up, sky-like parts of the camera picture show the environment's sky. It needs a camera picture, so only the reader shows it.">
@@ -96,13 +88,6 @@
 </div>
 {#if library.error}<div class="row"><span class="small danger">{library.error}</span></div>{/if}
 {#if library.uploading.length}<div class="row"><span class="small muted">Uploading {library.uploading.join(", ")}…</span></div>{/if}
-</Section>
-
-<Section id="environment.preview" label="preview" open={false} summary="look up {lookUp}°" help="How the stage shows the sky – not saved.">
-<div class="row" data-help="Raise the stage's camera from the experience towards the horizon and the sky (the experience stays found, as in the reader).">
-  <span class="label">look up</span>
-  <span class="w"><ScrubNumber value={lookUp} min={-30} max={90} step={1} fallback={0} unit="°" label="look up" strict oninput={v => (lookUp = v)} /></span>
-</div>
 </Section>
 
 {#if edit.canUndo || edit.saved || notice || edit.error}
@@ -119,8 +104,6 @@
 {/if}
 
 <style>
-  .w { width: 6rem; display: inline-flex; }
-  .w :global(.scrub) { width: 100%; }
   .actions { display: flex; align-items: center; gap: .5rem; margin-top: .5rem; border-top: 1px solid var(--line); padding-top: .5rem; }
   .grow { flex: 1; }
   /* The sky as a block of its own: its label at the top, beside its picture */

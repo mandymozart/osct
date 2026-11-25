@@ -1,4 +1,4 @@
-import { type Matrix4, PerspectiveCamera, type Quaternion, type ShaderMaterial, Vector2, Vector3, type WebGLRenderer } from "three";
+import { type Matrix4, PerspectiveCamera, type ShaderMaterial, Vector2, Vector3, type WebGLRenderer } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { DEFAULT_ENVIRONMENT, type EnvironmentData } from "@shared/types/environment";
 import { type GraphicsSettings, type GraphicsSource, NO_GRAPHICS } from "../../types/index";
@@ -42,15 +42,6 @@ export interface LookAroundSettings {
   floorSoftness: number;
 }
 
-/**
- * The editor's preview of the environment (`IArScene.previewEnvironment`): the world is drawn whatever the reader's
- * switches say (the onion sky needs a camera picture – not in the preview), turned by `orientation` – the camera's
- * orientation in the world (y up) – instead of the gyroscope
- */
-export interface LookAroundPreview {
-  orientation: () => Quaternion;
-}
-
 export const DEFAULT_LOOK_AROUND: LookAroundSettings = {
   worldOpacity: 0.92,
   skyStrength: 1,
@@ -75,7 +66,6 @@ export class LookAround {
   /** The reader's switches, and what is drawn of them (`effectiveGraphics`, the experience's environment applied) */
   private reader: GraphicsSettings;
   private options: GraphicsSettings;
-  private preview: LookAroundPreview | null = null;
   /** The environment's sky image and world model, loaded while something is drawn */
   private assets: EnvironmentAssets;
   private unsubscribe: () => void;
@@ -125,15 +115,6 @@ export class LookAround {
     this.followOptions();
   }
 
-  /** The editor's preview on (the world drawn, turned by its orientation) or off (`null`: the reader's switches again) */
-  setPreview(preview: LookAroundPreview | null): void {
-    // The preview ends at once (the editor's studio returns), it does not fade
-    if (this.preview && !preview) this.presence = 0;
-    this.preview = preview;
-    this.options = this.drawn();
-    this.followOptions();
-  }
-
   /** Something to draw this frame */
   get active(): boolean {
     return this.running && (this.presence > 0.002 || (this.options.onionSky && this.skyInView));
@@ -163,7 +144,7 @@ export class LookAround {
       return;
     }
     this.time += delta;
-    const orientation = this.preview?.orientation() ?? this.orientation.quaternion;
+    const orientation = this.orientation.quaternion;
     if (anchors.length) this.anchor.see(anchors, orientation, this.settings.windowMargin, this.settings.windowSoftness);
     else this.anchor.unseen(delta);
 
@@ -217,18 +198,17 @@ export class LookAround {
     return this.options.onionSky || this.options.surroundings;
   }
 
-  /** The reader's switches on the experience's environment – in the editor's preview the world whatever they say */
+  /** The reader's switches on the experience's environment */
   private drawn(): GraphicsSettings {
-    return this.preview ? { onionSky: false, surroundings: true } : effectiveGraphics(this.reader, this.environment);
+    return effectiveGraphics(this.reader, this.environment);
   }
 
   /**
-   * The gyroscope (and on iOS its permission prompt) only while an option is on and scan mode runs – the preview turns
-   * the world by its own orientation. The environment's assets load once something is drawn (never for a reader with
+   * The gyroscope (and on iOS its permission prompt) only while an option is on and scan mode runs. The environment's assets load once something is drawn (never for a reader with
    * both switches off) and follow the environment from then on.
    */
   private followOptions(): void {
-    if (this.running && this.anyOption() && !this.preview) this.orientation.listen();
+    if (this.running && this.anyOption()) this.orientation.listen();
     else this.orientation.stop();
     if (this.running && this.anyOption()) void this.assets.set(this.environment);
   }

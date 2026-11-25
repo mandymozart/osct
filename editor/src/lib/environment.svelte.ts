@@ -2,7 +2,6 @@ import { DEFAULT_ENVIRONMENT, environmentOf, referenceExtension, SKY_IMAGE_EXTEN
 import { errorText, getExperience, putEnvironment, type Asset } from "./api";
 import { autosave } from "./autosave.svelte";
 import { baselineOf, differsFromBaseline, noteBaseline } from "./baselines";
-import { experienceEnvironment } from "#lib/stage/sky.js";
 
 /** The environment's file: the sky image. The world model is gone (#310) – a content's `worldSrc` is kept, never set here */
 export type EnvironmentSlot = "sky";
@@ -124,14 +123,3 @@ class EnvironmentEdit {
 }
 
 export const environmentEdit = new EnvironmentEdit();
-
-/**
- * The experience's environment as the stage shows it in place of the HDRI (#185, `stage/sky.ts`): the edited values once the
- * experience has one or the author has started one, null while it has none (the reader's default world is not drawn then –
- * the HDRI stays). Reactive: the toolbar, the Inspector and the stage follow it.
- */
-export const stageEnvironment = {
-  get current(): EnvironmentData | null {
-    return environmentEdit.experienceId ? experienceEnvironment(environmentEdit.saved, environmentEdit.edited, environmentEdit.dirty) : null;
-  },
-};

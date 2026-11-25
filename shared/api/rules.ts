@@ -10,9 +10,10 @@ export { ENV_NAME, ID_PATTERN } from "./names";
 
 /**
  * The kinds of a Library file (`Assets::KINDS`): the content contract's asset types, `shader` (a source file a plugin
- * loads) and `subtitles` (a video's WebVTT file, `<video name>.<language>.vtt` – shared/types/subtitles.ts)
+ * loads), `subtitles` (a video's WebVTT file, `<video name>.<language>.vtt` – shared/types/subtitles.ts) and `hdri` (an
+ * equirectangular Radiance `.hdr` – the editor stage's own sky and light, #371; never content, readers never load it)
  */
-export const ASSET_KINDS = [...ASSET_TYPES, "shader", "subtitles"] as const;
+export const ASSET_KINDS = [...ASSET_TYPES, "shader", "subtitles", "hdri"] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 
 /** The file extensions of each kind, with the dot (`Assets::KINDS`, extension → kind) */
@@ -24,6 +25,7 @@ export const ASSET_KIND_EXTENSIONS: Record<AssetKind, readonly string[]> = {
   audio: [".mp3", ".m4a", ".ogg", ".wav"],
   shader: [".glsl", ".frag", ".vert", ".wgsl"],
   subtitles: [".vtt"],
+  hdri: [".hdr"],
 };
 
 /** What a plugin source registers, by kind → the plugin API's function (`Plugins::REGISTERS`) */

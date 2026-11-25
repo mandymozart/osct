@@ -173,10 +173,6 @@ describe("the view group's summary", () => {
     expect(viewSummary({ ...view, origin: "centre" })).toContain("origin scene centre");
   });
 
-  it("says the experience's environment is the sky, not the HDRI (#185)", () => {
-    expect(viewSummary(view, { environment: true })).toBe("Eiermann · plywood · origin top left · no shake · the environment's sky");
-  });
-
   it("leaves the grid and snapping to the grid & snap group", () => {
     expect(viewSummary(view)).not.toMatch(/grid|snap/);
   });
