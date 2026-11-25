@@ -1,5 +1,6 @@
 import { Box3, type Camera, Matrix4, type Mesh, type Object3D, type PerspectiveCamera, Quaternion, Vector3 } from "three";
 import type { PlaceBox } from "./placement";
+import type { SurfaceFrame } from "./surfaces";
 import { frameRects } from "./origin";
 import type { PreviewSettings } from "./preview";
 import { pickable } from "./pick";
@@ -13,7 +14,14 @@ import {
  * collects what they may snap to – the origin's axes, the pages' edges, the other printed targets, the other objects'
  * boxes and pivots – and turns the snapped result back. The math is `snap.ts`; the stage (`stage.svelte.ts`) hands in
  * where everything is.
+ *
+ * A node snaps in **its target's frame** (#375): on a flat surface that is the table's (the stage frame, as before); on a
+ * wall or a turned surface it is that surface's own plane – its top left corner at 0, x along its width, y up it, z off
+ * its face (the axes the target's anchor has). There the lines are the surface's edges, its prints and the other nodes'
+ * boxes and pivots measured in that plane, the steps are its own grid's, and the guides are drawn on it.
  */
+
+const MM = 1000;
 
 /** Where the snapper finds the stage's parts (the stage hands them in) */
 export interface SnapSource {
@@ -38,11 +46,39 @@ export interface SnapSource {
   prints(): Array<{ id: string; place: PlaceBox; height: number }>;
   /** The camera and the stage's height in CSS px (the threshold is a few pixels) */
   view(): { camera: Camera; height: number } | null;
-  /** Draw the lines something snapped to (empty = none) */
-  guides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void;
+  /**
+   * Draw the lines something snapped to (empty = none): in the stage frame, or with `surface` in that surface's own
+   * plane (mm from its top left corner, y up – a wall's or a turned surface's)
+   */
+  guides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>, surface?: string): void;
+  /** The surface a target's print lies on (#375; none: the table's frame) */
+  surfaceOf?(targetId: string): string | undefined;
+  /** A surface of the scene where it lies (stage mm) */
+  surface?(id: string): SurfaceFrame | undefined;
 }
 
-const MM = 1000;
+/**
+ * Where a drag snaps (#375): `toWorld` turns the frame's metres into the world, `stage` is its 2D frame (the table's
+ * surfaces, or one surface's own rectangle – `local`), `surface` that surface's id
+ */
+interface SnapSpace {
+  toWorld: Matrix4;
+  inverse: Matrix4;
+  stage: StageFrame;
+  surface?: string;
+}
+
+/**
+ * A surface's own plane as a frame (metres of the stage frame): its top left corner at 0, x along its width, y up it
+ * (against `down`), z its face's normal – the axes a target's anchor on it has (`targetTurn`)
+ */
+export const surfacePlane = (surface: SurfaceFrame): Matrix4 => {
+  const up = new Vector3(-surface.down[0], -surface.down[1], -surface.down[2]);
+  return new Matrix4()
+    .makeBasis(new Vector3(...surface.right), up, new Vector3(...surface.normal))
+    .setPosition(surface.origin[0] / MM, surface.origin[1] / MM, surface.origin[2] / MM);
+};
+
 const X = new Vector3(1, 0, 0);
 const Y = new Vector3(0, 1, 0);
 const Z = new Vector3(0, 0, 1);
@@ -77,6 +113,7 @@ export const boxInFrame = (object: Object3D, frameInverse: Matrix4): StageBox | 
 
 /** A move under way: the lines, the anchors and the axes the handle may change, fixed when the drag starts */
 interface MoveDrag {
+  space: SnapSpace;
   lines: PerAxis<SnapLine[]>;
   offsets: PerAxis<number[]>;
   free: PerAxis<boolean>;
@@ -104,45 +141,44 @@ export class SceneSnapper {
   }
 
   /**
-   * A move of the gizmo starts: `axis` is the handle (`X`, `XY`, `XYZ` … in the node's own space). The lines to snap to,
-   * the node's anchors (its box's edges and centre around its pivot) and the stage axes the handle may change are fixed
-   * now; the other objects do not move while it lasts.
+   * A move of the gizmo starts: `axis` is the handle (`X`, `XY`, `XYZ` … in the node's own space). The frame it snaps in
+   * (its target's, #375), the lines to snap to, the node's anchors (its box's edges and centre around its pivot) and the
+   * frame's axes the handle may change are fixed now; the other objects do not move while it lasts.
    */
   beginMove(object: Object3D, axis: string | null): void {
     this.drag = null;
-    const frame = this.source.frame();
-    if (!frame || !object.parent || !axis) return;
-    const inverse = frame.matrixWorld.clone().invert();
+    const space = this.spaceOf(object);
+    if (!space || !object.parent || !axis) return;
+    const { inverse } = space;
     const pivot = this.pivotOf(object, inverse);
     const box = boxInFrame(object, inverse);
     const offsets = [0, 1, 2].map(k => (box ? [box.min[k] - pivot[k], (box.min[k] + box.max[k]) / 2 - pivot[k], box.max[k] - pivot[k]] : [])) as PerAxis<number[]>;
-    // The handle's directions in the stage frame: the node's own axes as the gizmo draws them (local space)
-    const toFrame = frame.getWorldQuaternion(new Quaternion()).invert().multiply(object.getWorldQuaternion(new Quaternion()));
+    // The handle's directions in the snap frame: the node's own axes as the gizmo draws them (local space)
+    const toFrame = new Quaternion().setFromRotationMatrix(new Matrix4().extractRotation(space.toWorld)).invert()
+      .multiply(object.getWorldQuaternion(new Quaternion()));
     const directions = [...axis].flatMap(letter => (letter === "X" ? [X] : letter === "Y" ? [Y] : letter === "Z" ? [Z] : []))
       .map(d => d.clone().applyQuaternion(toFrame).toArray() as unknown as Vec3);
-    // The centre handle moves in the screen's plane: it snaps on the page, not in height
+    // The centre handle moves in the screen's plane: it snaps on the page (the surface), not off it
     const free = axis === "XYZ" ? ([true, true, false] as PerAxis<boolean>) : freeAxes(directions);
-    this.drag = { lines: this.lines({ moving: object }), offsets, free, threshold: this.threshold(object) };
+    this.drag = { space, lines: this.lines({ moving: object, frame: space.stage, inverse }), offsets, free, threshold: this.threshold(object) };
   }
 
   /** The gizmo moved the node (in its parent's space): snap it, when snapping is on, and draw what it snapped to */
   move(object: Object3D): void {
-    const frame = this.source.frame();
-    if (!this.drag || !frame || !object.parent || !this.active()) {
+    if (!this.drag || !object.parent || !this.active()) {
       this.source.guides([]);
       return;
     }
-    const inverse = frame.matrixWorld.clone().invert();
-    const pivot = this.pivotOf(object, inverse);
-    const settings = this.source.settings();
+    const { space } = this.drag;
+    const pivot = this.pivotOf(object, space.inverse);
     const { point, guides } = snapMove({
       point: pivot, offsets: this.drag.offsets, lines: this.drag.lines, free: this.drag.free, threshold: this.drag.threshold,
-      increments: moveIncrements(pivot[0], settings, this.source.stageFrame()),
+      increments: moveIncrements(pivot[0], this.settingsOn(space.surface), space.stage),
     });
-    const world = new Vector3(point[0] / MM, point[1] / MM, point[2] / MM).applyMatrix4(frame.matrixWorld);
+    const world = new Vector3(point[0] / MM, point[1] / MM, point[2] / MM).applyMatrix4(space.toWorld);
     object.parent.updateWorldMatrix(true, false);
     object.position.copy(object.parent.worldToLocal(world));
-    this.showGuides(guides);
+    this.showGuides(guides, space.surface);
   }
 
   /** The drag ended: no guides, nothing held */
@@ -162,17 +198,42 @@ export class SceneSnapper {
       return place;
     }
     // The surface's own grid (#316, #314): its step (spacing over subdivisions) is the step of a print on it; snap off there: the move step
-    const settings = surfaceSnapSettings(all, this.source.surfaceGrid ? this.source.surfaceGrid(place.surface) : undefined);
+    const settings = this.settingsOn(place.surface);
     const frame = this.source.stageFrame(place.surface);
     const result = snapPlace(place, height, kind, {
       frame, lines: this.lines({ targetId, frame }), threshold: this.threshold(null), settings,
     });
-    // The guides are drawn on the table: a print snapped in a wall's own plane shows none
-    this.showGuides(frame.local ? [] : result.guides);
+    // A print snapped in a wall's own plane shows its guides on that wall (#375)
+    this.showGuides(result.guides, frame.local ? place.surface : undefined);
     return result.place;
   }
 
-  /** The pivot of a node (its position in its parent's space) in the stage frame, mm */
+  /**
+   * Where a node snaps (#375): its target's surface's own plane when that is a wall or a turned surface, else the
+   * table's frame (the stage frame); null before the stage is built
+   */
+  private spaceOf(object: Object3D): SnapSpace | null {
+    const frame = this.source.frame();
+    if (!frame) return null;
+    frame.updateWorldMatrix(true, false);
+    const table = (): SnapSpace => ({ toWorld: frame.matrixWorld.clone(), inverse: frame.matrixWorld.clone().invert(), stage: this.source.stageFrame() });
+    const targetId = this.source.objects().find(entry => entry.object === object)?.targetId;
+    const surfaceId = targetId !== undefined ? this.source.surfaceOf?.(targetId) : undefined;
+    if (surfaceId === undefined) return table();
+    const stage = this.source.stageFrame(surfaceId);
+    const surface = this.source.surface?.(surfaceId);
+    if (!stage.local || !surface) return table();
+    const toWorld = frame.matrixWorld.clone().multiply(surfacePlane(surface));
+    return { toWorld, inverse: toWorld.clone().invert(), stage, surface: surfaceId };
+  }
+
+  /** The snap settings on a surface: its own grid's step (#316, #314); none named: the settings as they are */
+  private settingsOn(surface: string | undefined): PreviewSettings {
+    const all = this.source.settings();
+    return surface !== undefined && this.source.surfaceGrid ? surfaceSnapSettings(all, this.source.surfaceGrid(surface)) : all;
+  }
+
+  /** The pivot of a node (its position in its parent's space) in the snap frame, mm */
   private pivotOf(object: Object3D, frameInverse: Matrix4): Vec3 {
     object.parent?.updateWorldMatrix(true, false);
     const at = object.position.clone();
@@ -195,14 +256,17 @@ export class SceneSnapper {
   /**
    * The lines of the chosen snap targets: the axes, the pages' edges and the printed targets (outlines), the other
    * objects' boxes and pivots. A moving node leaves out itself and what hangs below it, and of its parents the boxes
-   * (they hold it) – their pivots stay; a dragged print leaves out its own outline and its target's entity.
+   * (they hold it) – their pivots stay; a dragged print leaves out its own outline and its target's entity. `inverse`
+   * turns the world into the snap frame (default: the stage frame's). In a surface's own plane (`local`) the origin's
+   * axes count not; a moving node there still snaps to the objects (measured in that plane), a print only to the
+   * surface's edges and prints.
    */
-  private lines(skip: { moving?: Object3D; targetId?: string | null; frame?: StageFrame }): PerAxis<SnapLine[]> {
+  private lines(skip: { moving?: Object3D; targetId?: string | null; frame?: StageFrame; inverse?: Matrix4 }): PerAxis<SnapLine[]> {
     const settings = this.source.settings();
     const frame = this.source.frame();
     const stage = skip.frame ?? this.source.stageFrame();
     const sources: PerAxis<readonly SnapLine[]>[] = [];
-    // A wall's own plane has its edges and its prints only: the axes and the objects count on the table
+    // The origin's axes count on the table only
     if (settings.snapTo.includes("axes") && !stage.local) sources.push(axisLines(settings.origin, stage));
     if (settings.snapTo.includes("outlines")) {
       sources.push(surfaceLines(stage));
@@ -213,8 +277,8 @@ export class SceneSnapper {
         }
       }
     }
-    if (settings.snapTo.includes("objects") && frame && !stage.local) {
-      const inverse = frame.matrixWorld.clone().invert();
+    if (settings.snapTo.includes("objects") && frame && (!stage.local || skip.moving)) {
+      const inverse = skip.inverse ?? frame.matrixWorld.clone().invert();
       for (const { targetId, object } of this.source.objects()) {
         if (skip.targetId && targetId === skip.targetId) continue;
         if (skip.moving && within(object, skip.moving)) continue;
@@ -228,7 +292,10 @@ export class SceneSnapper {
     return chosenLines(joinLines(...sources), settings.snapTo);
   }
 
-  private showGuides(guides: readonly SnapGuide[]): void {
-    this.source.guides(guides.map(guide => ({ axis: guide.axis, at: guide.line.at })));
+  /** Draw the guides: in the stage frame, or on `surface`'s own plane */
+  private showGuides(guides: readonly SnapGuide[], surface?: string): void {
+    const lines = guides.map(guide => ({ axis: guide.axis, at: guide.line.at }));
+    if (surface !== undefined) this.source.guides(lines, surface);
+    else this.source.guides(lines);
   }
 }

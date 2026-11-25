@@ -8,6 +8,15 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.24.0 – 2026-11-25
+
+### Added
+- **Nodes snap in their target's frame** (#375): a node on a wall or a turned surface now moves and snaps along that
+  surface – to its edges, the prints on it and the other nodes' boxes, by that surface's grid – with the guides drawn on
+  the surface. Before, it only snapped in the table's frame, where a wall's prints were missing and a node turned with
+  its surface did not snap at all. A print dragged on a wall shows its guides there too. Nodes on flat surfaces snap as
+  before.
+
 ## 6.23.3 – 2026-11-25
 
 ### Fixed

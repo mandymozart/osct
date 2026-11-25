@@ -753,9 +753,22 @@ export class MockStage implements StageView {
   /**
    * The snap guides: a line across the row for each line a drag snapped to (x = a line up the page, y = one across
    * it, in mm of the stage frame); an empty list clears them. They lie on the page and show through the entities.
+   * With `surface` (#375: a wall or a turned surface) they are in that surface's own plane – mm from its top left
+   * corner, y up – and are drawn across it.
    */
-  setGuides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void {
+  setGuides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>, surface?: string): void {
     clearLines(this.guideGroup);
+    const on = surface !== undefined ? this.frames.find(frame => frame.id === surface) : undefined;
+    if (on) {
+      const o = GUIDE_OVERHANG_MM;
+      // A guide's two ends on the surface (mm from its top left corner, y down), into the stage frame (metres)
+      const across = (a: [number, number], b: [number, number]) => [...toStage(on, ...a), ...toStage(on, ...b)].map(v => v / 1000);
+      const lines = guides.flatMap(({ axis, at }) =>
+        axis === 0 ? across([at, -o], [at, on.heightMm + o]) : axis === 1 ? across([-o, -at], [on.widthMm + o, -at]) : []);
+      addLines(this.guideGroup, lines, GUIDE_COLOR, 1, true);
+      this.toBackdropLayer();
+      return;
+    }
     const box = frameBox(this.gridFrame());
     const [left, right] = [box.left - GUIDE_OVERHANG_MM, box.left + box.width + GUIDE_OVERHANG_MM];
     const [high, low] = [box.top + GUIDE_OVERHANG_MM, box.top - box.height - GUIDE_OVERHANG_MM];

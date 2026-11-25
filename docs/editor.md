@@ -1124,7 +1124,8 @@ Each surface shows its **reference image** (the frame's `surfaceReferences` inpu
 meets inside its edges (else the one whose edge is nearest, so a drag past an edge stays on it); the ghost, its handles
 and the snapping work on it, and a placement writes the surface's id into `place.surface` only while the scene has
 several surfaces (`placeOnChoice`). The 2D snapping counts on the surfaces lying flat on the table, each at its size; a
-print on a wall or a turned surface snaps in that surface's own plane, to its edges and the prints on it (no guides).
+print on a wall or a turned surface snaps in that surface's own plane, to its edges and the prints on it, its guides
+drawn on that surface (#375).
 
 For the Surface mode: `Stage.setSurfaceMarks(outlined, highlighted)` outlines surfaces by id (grey; the highlighted one
 white with a black line just inside, monochrome – RULES #38), the `surfacePick` event names the surface a tap hit (mm
@@ -1191,6 +1192,13 @@ y away from the reader, z up):
   line near, the pivot (a print: its top left corner) rounds to the **grid** – every step of its surface's grid from the
   origin's zero – when the grid is a snap target, else to the **move step**. Only the axes a handle may change snap. The
   lines it snapped to are drawn as magenta **guides** while the drag lasts.
+- **In the target's frame** (#375): a node moves and snaps in its target's frame. On a flat surface that is the table's
+  (above). On a wall or a turned surface it is that surface's own plane – its top left corner at 0, x along its width,
+  y up it, z off its face, the axes the target's anchor has – so a node on a standing poster snaps along the poster:
+  to its edges, the prints on it and the other nodes' boxes and pivots measured in that plane, by that surface's grid
+  (the origin's axes count on the table only), its guides drawn on the surface (`surfacePlane`, `SceneSnapper.spaceOf`
+  in `stage/snap-scene.ts`). A handle snaps only along an axis of that frame: a node turned with its surface snaps, one
+  turned against it does not.
 - **Rotate** snaps the angle turned since the drag started to whole steps of the rotate step (15° by default), about
   the drag's own axis; **scale** snaps each factor to whole steps of the scale step (0.1), never below one step.
 - **On / off**: the toolbar's switch (stored per browser, off at first); holding **Shift or Ctrl** while dragging turns

@@ -311,8 +311,11 @@ export interface StageView {
   targetPlanes?(): Object3D[];
   /** The grids: the surfaces' own (spacing per surface, counted from the origin, its vertical axis), the floor grid, the vertical grid */
   setGrid?(grid: StageGrids): void;
-  /** The lines a drag snapped to (mm of the stage frame), drawn while it lasts; empty = none */
-  setGuides?(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void;
+  /**
+   * The lines a drag snapped to (mm of the stage frame – with `surface`, of that surface's own plane: from its top left
+   * corner, y up), drawn while it lasts; empty = none
+   */
+  setGuides?(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>, surface?: string): void;
   /** The stage's frame (metres, origin at the scene's origin, z up) */
   frame?(): Object3D;
   /** The viewport's shading: the sky and the HDRI's light show only while rendered */
@@ -415,9 +418,9 @@ export class MockTracker implements IImageTracker {
     return this.stage?.frame?.() ?? null;
   }
 
-  /** Draw the lines a drag snapped to (mm of the stage frame); empty = none */
-  setGuides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>): void {
-    this.stage?.setGuides?.(guides);
+  /** Draw the lines a drag snapped to (mm of the stage frame, or of `surface`'s own plane); empty = none */
+  setGuides(guides: ReadonlyArray<{ axis: 0 | 1 | 2; at: number }>, surface?: string): void {
+    this.stage?.setGuides?.(guides, surface);
   }
 
   /**
