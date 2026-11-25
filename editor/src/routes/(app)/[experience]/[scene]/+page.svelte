@@ -1234,7 +1234,7 @@
     <div class="camera" data-app-ui bind:clientWidth={cameraBox.w} bind:clientHeight={cameraBox.h}
       style:right="{cameraAt.right}px" style:top="{cameraAt.top}px">
       <p class="camera-corner" data-help-name="View" data-help="What the camera shows: the view it snapped to (Top, Front …), perspective or ortho, and what its point is fixed to – the surface of what you clicked last, the table when nothing is selected, or free. ✕ goes back to the reader's view.">
-        <span class="what">{cameraCorner}</span>
+        <span class="what" title={cameraCorner}>{cameraCorner}</span>
         {#if cameraOrbit}
           <button type="button" class="icon-button" aria-label="Home" title="Home: the reader's view around the scene's origin" onclick={() => stage?.cameraHome()}><Icon name="close" /></button>
         {/if}
@@ -1429,7 +1429,8 @@
   .camera-rule { height: 0; margin: .125rem 0; border-top: 1px solid var(--line); }
   .camera-corner { position: absolute; right: calc(100% + .375rem); top: .25rem; margin: 0; display: flex; align-items: center; gap: .25rem;
     padding: .125rem .375rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: .75rem; white-space: nowrap; }
-  .camera-corner .what { overflow: hidden; text-overflow: ellipsis; max-width: 18rem; }
+  /* A long surface name ends in … (#369); the whole line is its tooltip */
+  .camera-corner .what { display: block; min-width: 0; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .many-selected { margin: 0; padding: .25rem .5rem; border-bottom: 1px solid var(--line); }
   /* B (#369): the box select's layer over the stage and the box drawn on it */
   .box-select { position: absolute; inset: 0; z-index: 2; cursor: crosshair; touch-action: none; }
