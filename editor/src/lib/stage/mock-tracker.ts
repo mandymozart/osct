@@ -331,6 +331,8 @@ export interface StageView {
   setSurfaceMarks?(outlined: readonly string[], highlighted: string | null): void;
   /** The target marks (#323): every target's place framed with its id, green / orange for on / switched off */
   setTargetMarks?(on: boolean): void;
+  /** Ortho shown or on the way (#369): the sky sphere steps aside for a plain ground */
+  setOrtho?(on: boolean): void;
   /** Every frame: the stage's frame relative to the camera (the camera stays at the origin) */
   update(cameraInverse: Matrix4): void;
   dispose(): void;
@@ -477,6 +479,7 @@ export class MockTracker implements IImageTracker {
     stage.setGrid?.(gridOf(this.preview));
     stage.setGhost?.(this.ghost, this.ghostOptions);
     stage.setSurfaceMarks?.(this.marks.outlined, this.marks.highlighted);
+    stage.setOrtho?.(this.orthoShown);
   }
 
   private stageScene(): StageScene {
@@ -619,6 +622,7 @@ export class MockTracker implements IImageTracker {
   /** A fixed field of view; the aspect follows the container, as the engine's intrinsics would */
   fit(camera: PerspectiveCamera): void {
     this.camera = camera;
+    this.takeProjection(camera);
     // Ortho (#369) narrows the field and moves the planes – as drawn now, so a resize keeps the lens
     const lens = orthoLens(this.orbit.distance, this.orthoBlend * this.orthoBlend * (3 - 2 * this.orthoBlend));
     camera.fov = lens.fov;
@@ -676,18 +680,55 @@ export class MockTracker implements IImageTracker {
     this.orthoBlend = goal > this.orthoBlend ? Math.min(goal, this.orthoBlend + step) : Math.max(goal, this.orthoBlend - step);
     const k = this.orthoBlend * this.orthoBlend * (3 - 2 * this.orthoBlend);
     const lens = orthoLens(distance, k);
+    // Arrived: true ortho (#369) – the projection three's orthographic camera has, half as high as the looked-at plane
+    // shows; on the way the telephoto lens blends (the two look the same where they meet)
+    const ortho = this.orthoBlend >= 1;
+    const half = ortho ? orthoHalfHeight(distance) : 0;
     const camera = this.camera;
     if (camera) {
       const near = Math.max(NEAR, (lens.eye - distance) / 1000 - 20);
       const far = lens.eye / 1000 + FAR;
-      if (camera.fov !== lens.fov || camera.near !== near || camera.far !== far) {
+      if (camera.fov !== lens.fov || camera.near !== near || camera.far !== far || ortho !== this.trueOrtho || half !== this.orthoHalf) {
         camera.fov = lens.fov;
         camera.near = near;
         camera.far = far;
+        this.trueOrtho = ortho;
+        this.orthoHalf = half;
         camera.updateProjectionMatrix();
       }
     }
+    // The sky sphere around the stage has no place in a parallel view (nor in the far-back eye on the way): a plain ground
+    const showing = this.orthoBlend > 0;
+    if (showing !== this.orthoShown) {
+      this.orthoShown = showing;
+      this.stage?.setOrtho?.(showing);
+    }
     return lens;
+  }
+
+  /** True ortho now (#369): the camera's projection is orthographic, three's flags say so */
+  private trueOrtho = false;
+  /** Its half height (m, at the looked-at point) */
+  private orthoHalf = 0;
+  /** Ortho shown or on the way: the stage's sky steps aside */
+  private orthoShown = false;
+  /** The cameras whose projection this tracker takes over (once each) */
+  private patched = new WeakSet<PerspectiveCamera>();
+
+  /**
+   * Take over the camera's projection (#369): every `updateProjectionMatrix` – the tracker's and the view's on a resize –
+   * is followed by the ortho one while true ortho is on. The camera then says it is orthographic (`isOrthographicCamera`,
+   * `top` / `bottom` …), so three's ray casting, the transform gizmos and the renderer treat it as one. The editor's
+   * only: the reader's camera is never handed to this tracker.
+   */
+  private takeProjection(camera: PerspectiveCamera): void {
+    if (this.patched.has(camera)) return;
+    this.patched.add(camera);
+    const perspective = camera.updateProjectionMatrix.bind(camera);
+    camera.updateProjectionMatrix = () => {
+      perspective();
+      applyOrtho(camera, this.trueOrtho ? this.orthoHalf : null);
+    };
   }
 
   /** Ortho now, as drawn (#369): the blend has arrived */
@@ -1131,6 +1172,25 @@ export const orthoLens = (distance: number, k: number): { eye: number; fov: numb
   const eye = k <= 0 ? distance : distance * Math.pow(Math.max(1, ORTHO_EYE_MM / distance), Math.min(1, k));
   const fov = (2 * Math.atan((Math.tan(degrees(PREVIEW_FOV) / 2) * distance) / eye) * 180) / Math.PI;
   return { eye, fov };
+};
+
+/** The half height (m) a true ortho view shows: as much as the perspective view shows at the looked-at point (#369) */
+export const orthoHalfHeight = (distance: number): number => (distance / 1000) * Math.tan(degrees(PREVIEW_FOV) / 2);
+
+/**
+ * Make a perspective camera orthographic (#369), or perspective again (`half` null): the projection three's
+ * `OrthographicCamera` builds and the flags and sides its code reads – the ray caster, `TransformControls` and the renderer
+ * then treat it as orthographic. Called right after the camera's own `updateProjectionMatrix`.
+ */
+export const applyOrtho = (camera: PerspectiveCamera, half: number | null): void => {
+  const flags = camera as unknown as { isPerspectiveCamera: boolean; isOrthographicCamera: boolean; left: number; right: number; top: number; bottom: number };
+  flags.isPerspectiveCamera = half === null;
+  flags.isOrthographicCamera = half !== null;
+  if (half === null) return;
+  const width = half * camera.aspect;
+  Object.assign(flags, { left: -width, right: width, top: half, bottom: -half });
+  camera.projectionMatrix.makeOrthographic(-width, width, half, -half, camera.near, camera.far);
+  camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
 };
 
 /** A box (mm, the stage frame) around spots: their centres, each grown by half its larger side */

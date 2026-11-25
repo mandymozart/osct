@@ -14,7 +14,10 @@ outcome in the line (or move it into a dated decision block).
   view (= Home) · persp/ortho | Focus · fixed/free. The chip at the stage's top left names the view and what the camera
   is fixed to. Axes in red/green/blue (a stage helper, RULES #38's exception), the stage's own axes.
 - **Auto ortho** (Blender's Auto Perspective, Tilman: "yes"): a snap switches to ortho, orbiting away back to
-  perspective; ortho set by hand stays. Ortho is the editor's only – the reader always sees in perspective.
+  perspective; ortho set by hand stays. Ortho is the editor's only – the reader always sees in perspective (Tilman:
+  *"the reader never needs the ortho camera"*). First built as a telephoto trick; Tilman: *"can we not do true ortho? three
+  js supports this"* · *"fake the inbetween"* – so true ortho at rest (the editor's tracker takes over the shared camera's
+  projection and flags it orthographic; the engine unchanged) and the telephoto dolly zoom only on the way.
 - **The lock follows the last click** (Tilman: *"last click makes sense. if nothing is selected the scene"*): the
   active item's surface; nothing selected = the scene (the table's plane). In a view where that plane is edge-on, a pan
   moves along the screen.

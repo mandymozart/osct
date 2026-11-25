@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AXIS_VIEWS, leftView, orthoLens, PREVIEW_FOV, snappedTo, spotsBox } from "../mock-tracker";
+import { PerspectiveCamera, Raycaster, Vector2 } from "three";
+import { applyOrtho, AXIS_VIEWS, leftView, orthoHalfHeight, orthoLens, PREVIEW_FOV, snappedTo, spotsBox } from "../mock-tracker";
 import { ballAt, clickedView, gizmoBalls } from "../view-gizmo";
 import { clearTopCorner } from "#lib/components/floats.js";
 
@@ -39,6 +40,42 @@ describe("the ortho lens", () => {
     expect(height(lens.eye, lens.fov)).toBeCloseTo(height(350, PREVIEW_FOV), 6);
     // 1 m in front of the plane shows less than 1 % larger: a parallel view
     expect(lens.eye / (lens.eye - 1000)).toBeLessThan(1.01);
+  });
+});
+
+describe("true ortho", () => {
+  const camera = () => {
+    const c = new PerspectiveCamera(PREVIEW_FOV, 2, 0.1, 400);
+    c.position.set(0, 0, 200);
+    c.updateMatrixWorld();
+    return c;
+  };
+
+  it("gives the camera three's orthographic projection: a click's ray runs parallel to the view", () => {
+    const c = camera();
+    applyOrtho(c, orthoHalfHeight(350));
+    expect((c as unknown as { isOrthographicCamera: boolean }).isOrthographicCamera).toBe(true);
+    const ray = (x: number, y: number) => {
+      const caster = new Raycaster();
+      caster.setFromCamera(new Vector2(x, y), c);
+      return caster.ray;
+    };
+    // The corner's ray points straight ahead as the middle's does, and meets the looked-at plane half the view away
+    expect(ray(0.8, 0.5).direction.toArray().map(v => Math.round(v * 1e9) / 1e9)).toEqual([0, 0, -1]);
+    const corner = ray(1, 1).origin;
+    expect(corner.y).toBeCloseTo(orthoHalfHeight(350), 9);
+    expect(corner.x).toBeCloseTo(orthoHalfHeight(350) * 2, 9);
+  });
+
+  it("is perspective again without a half height", () => {
+    const c = camera();
+    applyOrtho(c, 0.2);
+    c.updateProjectionMatrix();
+    applyOrtho(c, null);
+    expect(c.isPerspectiveCamera).toBe(true);
+    const caster = new Raycaster();
+    caster.setFromCamera(new Vector2(1, 1), c);
+    expect(caster.ray.direction.z).toBeGreaterThan(-0.99);
   });
 });
 

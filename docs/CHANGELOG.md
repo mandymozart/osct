@@ -15,8 +15,9 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
   camera sees them; a click on a ball turns the camera to that view (top, bottom, front, back, right, left), the ball
   already facing you to the opposite, a drag orbits. Under it one square group: **zoom** and **pan** (drag on them),
   the **reader's view** (Home), **perspective / orthographic** | Focus, fixed / free. A snap goes orthographic by itself
-  and orbiting away goes back to perspective; ortho switched on by hand stays (Blender's Auto Perspective). Ortho is the
-  editor's only – the reader always sees in perspective. The chip beside the gizmo names the view, the projection and
+  and orbiting away goes back to perspective; ortho switched on by hand stays (Blender's Auto Perspective). Ortho is true
+  orthographic (three's projection – picking and the transform gizmos follow it), the way there a dolly zoom, the sky a
+  plain ground meanwhile; the editor's only – the reader always sees in perspective. The chip beside the gizmo names the view, the projection and
   what the camera is fixed to. Numpad 1 / 3 / 7 (Ctrl: the opposite), 9, 5 and 0 as in Blender.
 - **Multi-select, cloned from Blender** (#369): on the stage Shift + click adds a thing, makes a selected one the
   active one or takes the active one away; **B** + drag selects in a box (Shift + drag removes), **A** all, **Alt + A**
