@@ -33,7 +33,7 @@ describe("Last worked on", () => {
     ];
     const rows = recentPlaces(changes, "ana@osct.test", NOW);
     expect(rows).toHaveLength(5);
-    expect(rows[0]).toEqual({ experience: "osct", book: "Onion Skin", place: "Page 1", detail: "The onion", when: "just now", who: null, path: "osct/p1/" });
+    expect(rows[0]).toEqual({ key: "osct/scene/p1", experience: "osct", book: "Onion Skin", place: "Page 1", detail: "The onion", when: "just now", who: null, path: "osct/p1/" });
     expect(rows[1]).toMatchObject({ place: "Page 2", detail: null, when: "1 h ago", who: "rudy@example.com", path: "osct/p2/" });
     expect(rows[2]).toMatchObject({ book: "The Demo Book", place: "The key", when: "yesterday", path: "demo/the-key/" });
     expect(rows.map(r => r.place)).not.toContain("p6");
@@ -49,6 +49,17 @@ describe("Last worked on", () => {
       expect.objectContaining({ place: "Code", detail: null, who: "ana@osct.test (laptop-claude)", path: "osct/p1/?tab=code" }),
       expect.objectContaining({ place: "Experience", path: "osct/" }),
     ]);
+  });
+
+  it("keys each row by its place, unique even where two places share a link in the same minute (#374)", () => {
+    const rows = recentPlaces([
+      change({ kind: "appearance", ref: "osct", scene: null, sceneLabel: null, entry: null }),
+      change({ kind: "appearance", ref: "p1", entry: null }),
+      change({ kind: "other-kind", ref: "a", scene: null, sceneLabel: null, entry: null }),
+      change({ kind: "another-kind", ref: "b", scene: null, sceneLabel: null, entry: null }),
+    ], "ana@osct.test", NOW, 5, { osct: "p1" });
+    expect(rows).toHaveLength(4);
+    expect(new Set(rows.map(row => row.key)).size).toBe(rows.length);
   });
 });
 
