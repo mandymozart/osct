@@ -94,3 +94,115 @@ export const breadcrumb = (selection: SelectionState, tree: EntityData | undefin
   }
   return crumbs;
 };
+
+// ── Multi-select (#369), Blender's: several things selected, the last click the active one ──
+
+/**
+ * One thing of a multi-selection: a surface, an entry (its target's print outlined), a target's print or a node of its
+ * entity. The scene, a group and the experience are selected alone.
+ */
+export type SelectionItem =
+  | { kind: "surface"; scene: string; id: string }
+  | { kind: "entry"; entry: string; target: string | null }
+  | { kind: "target"; target: string }
+  | { kind: "node"; target: string; path: number[] };
+
+/** A multi-selection: the active one (what the Inspector shows, the gizmo holds – the last click) and the rest */
+export interface MultiSelection {
+  active: SelectionItem | null;
+  others: SelectionItem[];
+}
+
+/** An item's identity, for comparing and as a key */
+export const itemKey = (item: SelectionItem): string => {
+  switch (item.kind) {
+    case "surface": return `surface:${item.scene}:${item.id}`;
+    case "entry": return `entry:${item.entry}`;
+    case "target": return `target:${item.target}`;
+    case "node": return `node:${item.target}:${item.path.join(".")}`;
+  }
+};
+
+/** The item a selection stands for; null for the scene, a group and the experience (they are selected alone) */
+export const itemOf = (selection: SelectionState): SelectionItem | null => {
+  const settled = settledSelection(selection);
+  if (settled.experience || settled.group || settled.scene) return null;
+  if (settled.surface) return { kind: "surface", scene: settled.surface.scene, id: settled.surface.id };
+  if (settled.entry) return { kind: "entry", entry: settled.entry, target: settled.target };
+  if (!settled.target) return null;
+  return settled.onTarget ? { kind: "target", target: settled.target } : { kind: "node", target: settled.target, path: [...settled.node] };
+};
+
+/** The selection one item stands for */
+export const itemSelection = (item: SelectionItem): SelectionState => {
+  switch (item.kind) {
+    case "surface": return { target: null, node: [], onTarget: true, surface: { scene: item.scene, id: item.id } };
+    case "entry": return { target: item.target, node: [], onTarget: true, entry: item.entry };
+    case "target": return { target: item.target, node: [], onTarget: true };
+    case "node": return { target: item.target, node: [...item.path], onTarget: false };
+  }
+};
+
+const has = (items: readonly SelectionItem[], item: SelectionItem) => items.some(other => itemKey(other) === itemKey(item));
+const without = (items: readonly SelectionItem[], item: SelectionItem) => items.filter(other => itemKey(other) !== itemKey(item));
+/** The active one joins the rest (when there is one) */
+const withActive = (multi: MultiSelection): SelectionItem[] => (multi.active && !has(multi.others, multi.active) ? [...multi.others, multi.active] : [...multi.others]);
+
+/** Every selected item, the active one first */
+export const allItems = (multi: MultiSelection): SelectionItem[] => (multi.active ? [multi.active, ...without(multi.others, multi.active)] : [...multi.others]);
+
+/**
+ * Shift + click on the stage (Blender's viewport): a thing not selected is added and becomes the active one; a selected
+ * one that is not active becomes the active one; the active one is deselected – the last of the rest takes its place
+ */
+export const extended = (multi: MultiSelection, item: SelectionItem): MultiSelection => {
+  if (multi.active && itemKey(multi.active) === itemKey(item)) {
+    const others = without(multi.others, item);
+    return { active: others.at(-1) ?? null, others: others.slice(0, -1) };
+  }
+  return { active: item, others: without(withActive(multi), item) };
+};
+
+/**
+ * Ctrl + click in the tree (Blender's outliner): a row not selected is added and becomes the active one; a selected
+ * one is deselected (the active one: the last of the rest takes its place)
+ */
+export const toggled = (multi: MultiSelection, item: SelectionItem): MultiSelection => {
+  if (multi.active && itemKey(multi.active) === itemKey(item)) return extended(multi, item);
+  if (has(multi.others, item)) return { active: multi.active, others: without(multi.others, item) };
+  return { active: item, others: withActive(multi) };
+};
+
+/**
+ * Shift + click in the tree (Blender's outliner): the rows from the active one to the clicked one (in the tree's
+ * order, `rows`) are the selection, the clicked one active. Without an active one in the rows: the clicked one alone.
+ */
+export const ranged = (multi: MultiSelection, item: SelectionItem, rows: readonly SelectionItem[]): MultiSelection => {
+  const from = multi.active ? rows.findIndex(row => itemKey(row) === itemKey(multi.active!)) : -1;
+  const to = rows.findIndex(row => itemKey(row) === itemKey(item));
+  if (from < 0 || to < 0) return { active: item, others: [] };
+  const span = rows.slice(Math.min(from, to), Math.max(from, to) + 1);
+  return { active: item, others: without(span, item) };
+};
+
+/** Several added at once (a box, B + drag): the active one stays; none before = the last added becomes it */
+export const added = (multi: MultiSelection, items: readonly SelectionItem[]): MultiSelection => {
+  const all = [...withActive(multi)];
+  for (const item of items) if (!has(all, item)) all.push(item);
+  const active = multi.active ?? all.at(-1) ?? null;
+  return { active, others: active ? without(all, active) : all };
+};
+
+/** Several removed at once (a box with Shift): the active one among them goes too – the last of the rest takes its place */
+export const removed = (multi: MultiSelection, items: readonly SelectionItem[]): MultiSelection => {
+  const all = withActive(multi).filter(item => !has(items, item));
+  const active = multi.active && has(all, multi.active) ? multi.active : (all.at(-1) ?? null);
+  return { active, others: active ? without(all, active) : all };
+};
+
+/** Ctrl + I (Blender's): what was selected is not, what was not is – of `all` (the open scene's things); the active one goes */
+export const inverted = (multi: MultiSelection, all: readonly SelectionItem[]): MultiSelection => {
+  const selected = withActive(multi);
+  const rest = all.filter(item => !has(selected, item));
+  return { active: rest.at(-1) ?? null, others: rest.slice(0, -1) };
+};

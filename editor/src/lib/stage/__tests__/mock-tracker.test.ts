@@ -496,7 +496,7 @@ describe("MockTracker camera: Home, Focus, fixed or free (#335)", () => {
   });
 
   it("fixed: a pan slides the point along its surface; free: along the screen, up off the table", () => {
-    updatePreview({ orbit: { distance: 400, tilt: 90, yaw: 0 } }); // level with the table
+    updatePreview({ orbit: { distance: 400, tilt: 60, yaw: 0 } });
     drag(0, 50, true);
     expect(tracker.currentOrbit.pan!.z).toBeCloseTo(0, 6); // fixed to the table
     tracker.setFree(true);
@@ -505,6 +505,13 @@ describe("MockTracker camera: Home, Focus, fixed or free (#335)", () => {
     expect(tracker.currentOrbit.pan!.z).toBeGreaterThan(10); // the scene follows the pointer down: the point goes up
     drag(0, -100, true);
     expect(tracker.currentOrbit.pan!.z).toBeLessThan(-10);
+  });
+
+  it("fixed, a surface seen edge-on: the pan moves along the screen (#369 – the table from the front)", () => {
+    updatePreview({ orbit: { distance: 400, tilt: 90, yaw: 0 } }); // level with the table
+    drag(0, 50, true);
+    expect(tracker.currentOrbit.pan!.z).toBeGreaterThan(10);
+    expect(tracker.currentOrbit.free).toBeFalsy();
   });
 
   it("back to fixed, the point lands on its surface along the line of sight – the camera does not move", () => {

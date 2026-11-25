@@ -8,6 +8,28 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.21.0 – 2026-11-25
+
+### Added
+- **The camera control, Blender style** (#369): the view gizmo floats at the stage's top right – the stage's axes as the
+  camera sees them; a click on a ball turns the camera to that view (top, bottom, front, back, right, left), the ball
+  already facing you to the opposite, a drag orbits. Under it one square group: **zoom** and **pan** (drag on them),
+  the **reader's view** (Home), **perspective / orthographic** | Focus, fixed / free. A snap goes orthographic by itself
+  and orbiting away goes back to perspective; ortho switched on by hand stays (Blender's Auto Perspective). Ortho is the
+  editor's only – the reader always sees in perspective. The chip beside the gizmo names the view, the projection and
+  what the camera is fixed to. Numpad 1 / 3 / 7 (Ctrl: the opposite), 9, 5 and 0 as in Blender.
+- **Multi-select, cloned from Blender** (#369): on the stage Shift + click adds a thing, makes a selected one the
+  active one or takes the active one away; **B** + drag selects in a box (Shift + drag removes), **A** all, **Alt + A**
+  none, **Ctrl + I** inverts. In the Tree Ctrl + click adds or removes a row, Shift + click selects the rows from the
+  active one. The last click is the active one: the Inspector shows it ("3 selected"), the transform gizmo holds it,
+  the others are outlined darker on the stage and marked lighter in the Tree. F frames them all.
+
+### Changed
+- The camera's point follows the last click (#369): it is fixed to the surface of the active thing – the table when
+  nothing is selected – instead of only to what was focused. A pan in a view where that surface is seen edge-on (the
+  table from the front) moves along the screen.
+- The camera control moved from the stage's bottom right to its top right, where Blender has its gizmo.
+
 ## 6.20.1 – 2026-11-24
 
 ### Fixed

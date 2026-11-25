@@ -15,12 +15,12 @@ import { deviceStorage } from "#lib/storage.js";
 import { Gizmo, isGizmoTool, type GizmoPlacement, type GizmoSelection, type StageTool } from "./gizmo";
 import { SurfaceGizmo, type SurfaceGizmoMode } from "./surface-gizmo";
 import { LightHelpers } from "./light-helper";
-import { applyShading, HOVER_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
-import { getPreview, parseNodeKey, setPreviewActive, setTargetHidden, subscribePreview, surfaceGridOf, type ShadingMode } from "./preview";
+import { applyShading, HOVER_COLOR, OTHER_SELECTION_COLOR, outline, SELECTION_COLOR, type Outline } from "./shading";
+import { type AxisView, getPreview, parseNodeKey, setPreviewActive, setTargetHidden, subscribePreview, surfaceGridOf, type ShadingMode } from "./preview";
 import { NodeHiding } from "./node-hiding";
 import { MockStage } from "./mock-stage";
 import { showsWorld } from "./sky";
-import { MockTracker } from "./mock-tracker";
+import { type CameraSpot, MockTracker } from "./mock-tracker";
 import { StageProgress } from "./progress";
 import { describePayload, logEvent, type StageEvent } from "./event-log";
 import { REMOVED_ENTITY } from "./stage-types";
@@ -74,6 +74,12 @@ export interface GhostPlace {
 }
 
 /** What the camera focuses on (#335): the selection's surface, node or target, each by id; none = the whole scene */
+/** The keys held with a click on the stage (#369: Shift extends the selection) */
+export interface PickKeys {
+  shift: boolean;
+  ctrl: boolean;
+}
+
 export interface CameraFocus {
   surface?: string;
   node?: { targetId: string; path: number[] };
@@ -94,9 +100,9 @@ export class StageCore {
   /** The subtitle line of the video that plays, null when there is none */
   subtitle = $state<string | null>(null);
   /** A tap on the stage picked something (the Inspector selects it) – or nothing (null) */
-  onPick: ((hit: StagePick | null) => void) | null = null;
+  onPick: ((hit: StagePick | null, keys?: PickKeys) => void) | null = null;
   /** A tap on the stage hit a surface of the scene (its id, mm from its top left corner) – or none (null) */
-  onSurfacePick: ((hit: { surfaceId: string; x: number; y: number } | null) => void) | null = null;
+  onSurfacePick: ((hit: { surfaceId: string; x: number; y: number } | null, keys?: PickKeys) => void) | null = null;
   /** A right click on the stage: what lies there (null = the page or the table) and where */
   onContextMenu: ((hit: StagePick | null, clientX: number, clientY: number) => void) | null = null;
   /** A gizmo drag moved the selected node: the page writes the placement into its override and sends it back */
@@ -244,9 +250,11 @@ export class StageCore {
     const onClick = (event: MouseEvent) => {
       if (onAppUi(event) || this.gizmo?.recentlyDragged() || this.surfaceGizmo?.recentlyDragged() || this.ghostHandleAt(event.clientX, event.clientY) || !container.contains(event.target as Node)) return;
       // The Surface mode (#314) picks surfaces only: no target, no node
-      if (this.tool !== "surface") this.onPick?.(this.pick(event.clientX, event.clientY));
+      // The keys held (#369): Shift extends the selection, Blender's viewport
+      const keys: PickKeys = { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey };
+      if (this.tool !== "surface") this.onPick?.(this.pick(event.clientX, event.clientY), keys);
       // Which surface the click hit (#314: the Surface mode selects by it), nothing when none
-      this.onSurfacePick?.(this.surfaceAt(event.clientX, event.clientY));
+      this.onSurfacePick?.(this.surfaceAt(event.clientX, event.clientY), keys);
     };
     const onContext = (event: MouseEvent) => {
       if (onAppUi(event) || !container.contains(event.target as Node)) return;
@@ -526,6 +534,7 @@ export class StageCore {
     // tree's eye stay hidden through every rebuild of their entity (#311)
     this.cleanups.push(inspection.onFrame(() => {
       this.syncTargetOutline();
+      if (this.otherPicks.length || this.others.length) this.syncOthers();
       this.hideNodes();
       // The surface gizmo follows the draft (a saved place, a rebuilt scene) – only while one is asked for or shown
       if (this.surfaceGizmoAsked.surfaceId || this.surfaceGizmo) this.syncSurfaceGizmo();
@@ -583,6 +592,62 @@ export class StageCore {
     if (plane === (this.targetOutline?.plane ?? null)) return;
     this.targetOutline?.outline.remove();
     this.targetOutline = plane ? { plane, outline: outline(plane, SELECTION_COLOR) } : null;
+  }
+
+  // ── The rest of a multi-selection (#369): outlined darker than the active one, as Blender's ──
+
+  private others: Array<{ key: string; object: Object3D; outline: Outline }> = [];
+  private otherPicks: StagePick[] = [];
+
+  /** The selected things besides the active one: their prints or nodes wear the darker outline */
+  selectOthers(picks: readonly StagePick[]): void {
+    this.otherPicks = picks.map(pick => ({ ...pick, path: [...pick.path] }));
+    this.syncOthers();
+  }
+
+  /** Outline the others – again when their objects were built anew (the layout, an entity's override) */
+  private syncOthers(): void {
+    const wanted = new Map<string, Object3D>();
+    for (const pick of this.otherPicks) {
+      const object = this.pickedObject(pick);
+      if (object) wanted.set(`${pick.printed ? "p" : "n"}:${pick.targetId}:${pick.path.join(".")}`, object);
+    }
+    this.others = this.others.filter(other => {
+      if (wanted.get(other.key) === other.object) return true;
+      other.outline.remove();
+      return false;
+    });
+    for (const [key, object] of wanted) {
+      if (!this.others.some(other => other.key === key)) this.others.push({ key, object, outline: outline(object, OTHER_SELECTION_COLOR, { opacity: 0.9 }) });
+    }
+  }
+
+  /**
+   * What a box drawn on the stage holds (#369, B + drag): every target whose print's middle lies in the rectangle (client
+   * px) – as its entity when it shows one and the filter allows entities, else as its print
+   */
+  picksInRect(rect: { left: number; top: number; right: number; bottom: number }): StagePick[] {
+    const inspection = this.arScene.inspect();
+    const container = this.container;
+    if (!inspection || !container) return [];
+    const bounds = container.getBoundingClientRect();
+    const camera = inspection.camera;
+    camera.updateMatrixWorld();
+    const entities = !this.pickFilter.length || this.pickFilter.some(kind => kind !== "target");
+    const prints = !this.pickFilter.length || this.pickFilter.includes("target");
+    const picks: StagePick[] = [];
+    for (const plane of this.tracker?.targetPlanes() ?? []) {
+      const targetId = plane.userData.targetId as string | undefined;
+      if (!targetId) continue;
+      const middle = plane.getWorldPosition(new Vector3()).project(camera);
+      if (middle.z > 1) continue;
+      const x = bounds.left + ((middle.x + 1) / 2) * bounds.width;
+      const y = bounds.top + ((1 - middle.y) / 2) * bounds.height;
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+      if (entities && this.treeOf(targetId)) picks.push({ targetId, path: [] });
+      else if (prints) picks.push({ targetId, path: [], printed: true });
+    }
+    return picks;
   }
 
   /** The tool in hand: select hides the gizmo's handles (the selection stays outlined), a mode shows them */
@@ -907,11 +972,76 @@ export class StageCore {
     tracker.focusScene();
   }
 
+  /**
+   * Focus on several things (#369, a multi-selection): the box around all of those on the stage, the point fixed to
+   * `surface` (the active one's); none on the stage = the whole scene
+   */
+  focusCameraOn(things: readonly CameraFocus[], label: string, surface?: string): void {
+    const tracker = this.tracker;
+    if (!tracker) return;
+    const spots = things.map(on => this.spotOf(on)).filter((spot): spot is CameraSpot => !!spot);
+    if (spots.length) tracker.focusSpots(spots, label, surface);
+    else tracker.focusScene();
+  }
+
+  /** One thing as a camera spot: a surface, a node's box, a printed target – the first that is on the stage */
+  private spotOf(on: CameraFocus): CameraSpot | null {
+    const tracker = this.tracker;
+    if (!tracker) return null;
+    return (on.surface ? tracker.surfaceSpot(on.surface) : null) ?? (on.node ? this.nodeSpot(on.node) : null) ?? (on.target ? tracker.targetSpot(on.target) : null);
+  }
+
+  /** The camera's surface follows the selection (#369, the last click): its id, none = the table */
+  lockCamera(surface: string | undefined): void {
+    this.tracker?.lockTo(surface);
+  }
+
+  /** Snap to a view (#369): top, bottom, front, back, right, left – ortho with it */
+  snapView(view: AxisView): void {
+    this.tracker?.snapView(view);
+  }
+
+  /** Orthographic or perspective by hand (#369) */
+  setOrtho(ortho: boolean): void {
+    this.tracker?.setOrtho(ortho);
+  }
+
+  /** The camera control's drags (#369): the gizmo orbits, the zoom and pan buttons zoom and pan */
+  orbitBy(dx: number, dy: number): void {
+    this.tracker?.orbitBy(dx, dy);
+  }
+
+  zoomBy(dy: number): void {
+    this.tracker?.zoomBy(dy);
+  }
+
+  panBy(dx: number, dy: number): void {
+    this.tracker?.panBy(dx, dy);
+  }
+
+  /** The camera's direction now, flights included (the gizmo draws from it every frame); null before the stage runs */
+  cameraTurn(): { tilt: number; yaw: number } | null {
+    const orbit = this.tracker?.currentOrbit;
+    return orbit ? { tilt: orbit.tilt, yaw: orbit.yaw } : null;
+  }
+
+  /** The surface a printed target lies on (#369: the camera's lock follows it) */
+  surfaceOf(targetId: string): string | undefined {
+    return this.tracker?.placeOf(targetId)?.surface;
+  }
+
   /** A node's box on the stage (the stage frame, mm): its middle, the camera from where it looks now */
   private focusNode(node: { targetId: string; path: number[] }, label = node.targetId): boolean {
+    const spot = this.nodeSpot(node, label);
+    if (spot) this.tracker?.focusOn(spot);
+    return !!spot;
+  }
+
+  /** A node's box as a camera spot (the stage frame, mm), fixed to its target's surface; null: not on the stage */
+  private nodeSpot(node: { targetId: string; path: number[] }, label = node.targetId): CameraSpot | null {
     const object = this.arScene.inspect()?.nodeObject(node.targetId, node.path);
     const frame = this.tracker?.stageFrame();
-    if (!object || !frame || !this.tracker) return false;
+    if (!object || !frame || !this.tracker) return null;
     const box = new Box3().setFromObject(object);
     if (box.isEmpty()) box.setFromCenterAndSize(object.getWorldPosition(new Vector3()), new Vector3(0.05, 0.05, 0.05));
     frame.updateWorldMatrix(true, false);
@@ -921,8 +1051,7 @@ export class StageCore {
     const centre = local.getCenter(new Vector3());
     const size = Math.max(20, local.getSize(new Vector3()).length());
     const surface = this.tracker.placeOf(node.targetId)?.surface;
-    this.tracker.focusOn({ centre: { x: centre.x, y: centre.y, z: centre.z }, width: size, height: size, label, ...(surface ? { surface } : {}) });
-    return true;
+    return { centre: { x: centre.x, y: centre.y, z: centre.z }, width: size, height: size, label, ...(surface ? { surface } : {}) };
   }
 
   resetNarrative(): void {
@@ -1000,6 +1129,8 @@ export class StageCore {
     this.hover(null);
     this.gizmo?.dispose();
     this.targetOutline?.outline.remove();
+    this.others.forEach(other => other.outline.remove());
+    this.others = [];
     this.targetOutline = null;
     this.gizmo = null;
     this.lightHelpers?.dispose();

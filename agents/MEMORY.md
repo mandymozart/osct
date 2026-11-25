@@ -4,6 +4,26 @@ Decisions and context that are not obvious from the code. Newest first.
 Add new entries at the top with a date. Tick `[x]` open items when resolved and note the
 outcome in the line (or move it into a dated decision block).
 
+## 2026-11-25 – The camera control and multi-select, Blender style (#369)
+- Tilman asked for a perspective/orthographic switch and a view gizmo that snaps to top · bottom · left · right · front ·
+  back, *"like blender"*, redesigned together with the camera's Home · Focus · fixed/free. Sketched in the chat, his
+  corrections: *"in blender the gizmo is top of the screen. kevin is used to this"* · *"keep the square style of our ui.
+  and make it one group"* · *"the gizmo can float"* · *"no hover state for the gismo"*.
+- Result: the gizmo floats unframed at the stage's **top right** (no hover state; click an axis = that view, the axis
+  already facing you = the opposite, drag = orbit), under it **one square group**: zoom (drag) · pan (drag) · reader's
+  view (= Home) · persp/ortho | Focus · fixed/free. The chip at the stage's top left names the view and what the camera
+  is fixed to. Axes in red/green/blue (a stage helper, RULES #38's exception), the stage's own axes.
+- **Auto ortho** (Blender's Auto Perspective, Tilman: "yes"): a snap switches to ortho, orbiting away back to
+  perspective; ortho set by hand stays. Ortho is the editor's only – the reader always sees in perspective.
+- **The lock follows the last click** (Tilman: *"last click makes sense. if nothing is selected the scene"*): the
+  active item's surface; nothing selected = the scene (the table's plane). In a view where that plane is edge-on, a pan
+  moves along the screen.
+- **Multi-select, cloned from Blender** (*"multi selecting. clone blender style"*): stage = viewport rules (click,
+  Shift+click add / make active / remove the active, B box (Shift+drag removes), A all, Alt+A none, Ctrl+I invert);
+  tree = outliner rules (Ctrl+click toggle, Shift+click range). The last click is the active one: the Inspector shows
+  it ("3 selected"), the transform gizmo stays on it, F frames all. Numpad 1/3/7 (Ctrl = opposite), 5 persp/ortho.
+- Left out on purpose, follow-up **#370**: circle select (C), Alt+click through overlaps, moving / deleting several.
+
 ## 2026-11-23 – A leaner stage toolbar, free panels (6.19.0, #364)
 - Tilman (2026-11-23, on a screenshot of the vertical toolbar): *"we are running into a massive amount of options in the
   toolbar. perhapse its time to move some into the menu. and rethink our toolbar"*. Three drafts (A: Edit · View ·

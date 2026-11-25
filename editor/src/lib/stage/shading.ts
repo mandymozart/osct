@@ -218,4 +218,6 @@ export const outline = (object: Object3D, color: number, { width = 2, opacity = 
 
 /** The active selection's orange (Blender's); the hover's neutral grey (what a click would pick), seen on the paper and on an entity alike */
 export const SELECTION_COLOR = 0xffa028;
+/** The rest of a multi-selection (#369): a darker orange than the active one, as Blender's selected and active */
+export const OTHER_SELECTION_COLOR = 0xd2550f;
 export const HOVER_COLOR = 0x8c8c8c;

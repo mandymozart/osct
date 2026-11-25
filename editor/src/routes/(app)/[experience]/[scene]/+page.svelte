@@ -5,10 +5,10 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { content } from "#lib/content.svelte.js";
-  import { Stage, type StagePick } from "#lib/stage/stage.svelte.js";
+  import { type CameraFocus, Stage, type StagePick } from "#lib/stage/stage.svelte.js";
   import { PICK_KINDS, toggleKind, type PickKind } from "#lib/stage/pick.js";
   import { STAGE_TOOLS, TOOL_KEYS, type StageTool } from "#lib/stage/gizmo.js";
-  import { getPreview, subscribePreview, updatePreview, type PreviewOrbit, type ShadingMode } from "#lib/stage/preview.js";
+  import { type AxisView, getPreview, subscribePreview, updatePreview, type PreviewOrbit, type ShadingMode } from "#lib/stage/preview.js";
   import Icon, { type IconName } from "#lib/components/Icon.svelte";
   import ToolGroup, { type ToolGroupOption } from "#lib/components/ToolGroup.svelte";
   import GridSnapMenu from "#lib/components/GridSnapMenu.svelte";
@@ -56,7 +56,10 @@
   import FloatingPanel from "#lib/components/FloatingPanel.svelte";
   import Workspace from "#lib/components/Workspace.svelte";
   import { Floats } from "#lib/components/floats.svelte.js";
-  import { at, chromeOf, clearCorner, type PanelSpec } from "#lib/components/floats.js";
+  import { at, chromeOf, clearTopCorner, type PanelSpec } from "#lib/components/floats.js";
+  import ViewGizmo from "#lib/components/ViewGizmo.svelte";
+  import { itemOf, type SelectionItem } from "#lib/selection.js";
+  import { OPPOSITE_VIEW } from "#lib/stage/mock-tracker.js";
   import type { TabSpec } from "#lib/components/float-tabs.js";
   import HistoryPanel from "#lib/panels/HistoryPanel.svelte";
   import LogicPanel from "#lib/panels/LogicPanel.svelte";
@@ -407,7 +410,9 @@
     if (!s) return;
     const own = (scenes.scene(sceneId)?.surfaces ?? []).map(surface => surface.id);
     // Outside the Surface mode a surface selected in the Tree or the Inspector is still highlighted
-    s.setSurfaceMarks(surfaceMode ? own : [], selectedSurface);
+    // …and the other surfaces of a multi-selection (#369)
+    const others = selection.others.flatMap(item => (item.kind === "surface" && item.scene === sceneId ? [item.id] : []));
+    s.setSurfaceMarks(surfaceMode ? own : others, selectedSurface);
     s.setSurfaceGizmo(surfaceMode ? selectedSurface : null, surfaceTool.gizmo);
   });
   const placeSurface = (surfaceId: string, place: Required<SurfacePlace>) => {
@@ -589,8 +594,13 @@
         if (disposed || !container || stage) return;
         stage = new Stage(container);
         // A click picks by the pick mode; nothing of its kind there clears the selection (tree, stage and panel alike)
-        stage.onPick = hit => {
+        stage.onPick = (hit, keys) => {
           stageMenu = null;
+          // Shift + click (#369, Blender's viewport): add it / make it the active one / take the active one away; on nothing: nothing
+          if (keys?.shift) {
+            if (hit) selection.extend(hitItem(hit));
+            return;
+          }
           if (!hit) {
             selection.clear();
             return;
@@ -603,10 +613,14 @@
           stageMenu = { hit, x, y };
         };
         // The Surface mode (#314): a tap selects the scene's surface there; on none the scene
-        stage.onSurfacePick = hit => {
+        stage.onSurfacePick = (hit, keys) => {
           if (stage?.tool !== "surface") return;
           stageMenu = null;
           const own = hit && scenes.scene(sceneId)?.surfaces?.some(surface => surface.id === hit.surfaceId);
+          if (keys?.shift) {
+            if (hit && own) selection.extend({ kind: "surface", scene: sceneId, id: hit.surfaceId });
+            return;
+          }
           if (!hit || !own) {
             selection.clear();
             return;
@@ -719,23 +733,63 @@
   /** The view group: the stage's menu opens it (*View settings…*) */
   let viewMenu = $state<{ open: () => void }>();
 
-  // ── the camera (#335): Home, Focus on the selection (nothing: the whole scene), the point fixed to a surface or free ──
+  // ── the camera control (#335, #369): the view gizmo floating at the stage's top right and under it one group – zoom and pan
+  // (drag), the reader's view (Home), perspective / orthographic | Focus, fixed / free. Blender's navigation gizmo. ──
   let cameraOrbit = $state<PreviewOrbit | null>(getPreview().orbit);
   onMount(() => subscribePreview(state => (cameraOrbit = state.orbit)));
   const cameraFree = $derived(!!cameraOrbit?.free);
-  /** What the stage's corner says the camera turns around: a focused thing, free – nothing at Home */
-  const cameraCorner = $derived(cameraOrbit?.free ? "Free camera" : (cameraOrbit?.label ?? null));
-  /** Focus on what is selected on this scene's stage: a surface, a node, a target – else the whole scene */
-  /** The camera's corner on the stage (#364): its size as drawn, moved left of the panels that lie in the corner */
+  const cameraOrtho = $derived(!!cameraOrbit?.ortho);
+  const surfaceLabel = (id: string) => content.scene(sceneId)?.surfaces?.find(s => s.id === id)?.label || id;
+  /** The chip beside the gizmo: the view (snapped or not), the projection, what the camera's point is fixed to – Blender's "Top Orthographic" */
+  const cameraCorner = $derived.by(() => {
+    const view = cameraOrbit?.axisView;
+    const lock = cameraOrbit?.free ? "free" : cameraOrbit?.surface ? `on ${surfaceLabel(cameraOrbit.surface)}` : "on the table";
+    return [
+      ...(selection.many ? [`${selection.others.length + 1} selected`] : []),
+      view ? `${view[0].toUpperCase()}${view.slice(1)}` : null,
+      cameraOrtho ? "ortho" : "persp",
+      lock,
+    ].filter(Boolean).join(" · ");
+  });
+  /** The camera's place on the stage (#369): its top right corner, moved left of the panels that lie there */
   const cameraBox = $state({ w: 0, h: 0 });
-  const cameraAt = $derived(clearCorner(cameraBox, Object.values(floats.views).map(v => v.rect),
+  const cameraAt = $derived(clearTopCorner(cameraBox, Object.values(floats.views).map(v => v.rect),
     { w: floats.area.x * 2 + floats.area.w, h: floats.area.y * 2 + floats.area.h }, (floats.metrics.rem || 16) / 2));
+
+  /** What the camera can show of one selected thing on this scene's stage (null: not on this stage) */
+  const itemFocus = (item: SelectionItem): CameraFocus | null => {
+    switch (item.kind) {
+      case "surface": return item.scene === sceneId ? { surface: item.id, label: surfaceLabel(item.id) } : null;
+      case "entry": return item.target ? { target: item.target, label: item.target } : null;
+      case "target": return { target: item.target, label: item.target };
+      case "node": return { node: { targetId: item.target, path: [...item.path] }, target: item.target, label: item.path.length ? `${item.target} › ${item.path.join(" › ")}` : item.target };
+    }
+  };
+  /** The surface a selected thing lies on: the camera's point is fixed to it (#369, the last click) */
+  const itemSurface = (item: SelectionItem | null): string | undefined => {
+    if (!item || !stage) return undefined;
+    if (item.kind === "surface") return item.scene === sceneId ? item.id : undefined;
+    return item.target ? stage.surfaceOf(item.target) : undefined;
+  };
+  // The lock follows the last click (#369, Tilman: "last click makes sense. if nothing is selected the scene"): the active
+  // thing's surface, nothing selected = the table. The view does not move.
+  $effect(() => {
+    const active = itemOf(selection.snapshot());
+    if (stage?.status !== "running") return;
+    stage.lockCamera(itemSurface(active));
+  });
+  /** Focus (F): what is selected on this scene's stage – several: the box around them all – else the whole scene */
   const focusSelection = () => {
     if (!stage) return;
+    if (selection.many) {
+      const items = selection.items();
+      const things = items.map(itemFocus).filter((on): on is CameraFocus => !!on);
+      stage.focusCameraOn(things, `${items.length} selected`, itemSurface(items[0] ?? null));
+      return;
+    }
     const surface = selection.surface && selection.surface.scene === sceneId ? selection.surface.id : undefined;
     if (surface) {
-      const label = content.scene(sceneId)?.surfaces?.find(s => s.id === surface)?.label || surface;
-      stage.focusCamera({ surface, label });
+      stage.focusCamera({ surface, label: surfaceLabel(surface) });
     } else if (selection.target && !selection.onTarget) {
       const label = selection.node.length ? `${selection.target} › ${selection.node.join(" › ")}` : selection.target;
       stage.focusCamera({ node: { targetId: selection.target, path: [...selection.node] }, target: selection.target, label });
@@ -744,6 +798,104 @@
     } else {
       stage.focusCamera({});
     }
+  };
+  /** A button dragged (#369: zoom and pan, Blender's): the pointer's movement in px, captured until it is let go */
+  const dragging = (move: (dx: number, dy: number) => void) => (button: Element) => {
+    let last: { id: number; x: number; y: number } | null = null;
+    const down = (event: Event) => {
+      const e = event as PointerEvent;
+      if (e.button !== 0) return;
+      last = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      button.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    };
+    const drag = (event: Event) => {
+      const e = event as PointerEvent;
+      if (!last || last.id !== e.pointerId) return;
+      move(e.clientX - last.x, e.clientY - last.y);
+      last = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    };
+    const up = () => (last = null);
+    button.addEventListener("pointerdown", down);
+    button.addEventListener("pointermove", drag);
+    button.addEventListener("pointerup", up);
+    button.addEventListener("pointercancel", up);
+    return () => {
+      button.removeEventListener("pointerdown", down);
+      button.removeEventListener("pointermove", drag);
+      button.removeEventListener("pointerup", up);
+      button.removeEventListener("pointercancel", up);
+    };
+  };
+  /** Blender's numpad (#369): 1 front, 3 right, 7 top (Ctrl: the opposite), 9 the opposite of now, 5 ortho, 0 the reader's view */
+  const NUMPAD_VIEWS: Record<string, [AxisView, AxisView]> = { Numpad1: ["front", "back"], Numpad3: ["right", "left"], Numpad7: ["top", "bottom"] };
+  const numpad = (event: KeyboardEvent): boolean => {
+    if (!stage || event.altKey) return false;
+    const views = NUMPAD_VIEWS[event.code];
+    if (views) stage.snapView(views[event.ctrlKey || event.metaKey ? 1 : 0]);
+    else if (event.code === "Numpad5") stage.setOrtho(!cameraOrtho);
+    else if (event.code === "Numpad9" && cameraOrbit?.axisView) stage.snapView(OPPOSITE_VIEW[cameraOrbit.axisView]);
+    else if (event.code === "Numpad0") stage.cameraHome();
+    else return false;
+    return true;
+  };
+
+  // ── multi-select (#369, cloned from Blender's viewport): Shift + click extends, B a box, A all, Alt + A none, Ctrl + I inverts ──
+  /** A pick on the stage as a selected thing: the print = the target, else the node */
+  const hitItem = (hit: StagePick): SelectionItem => (hit.printed ? { kind: "target", target: hit.targetId } : { kind: "node", target: hit.targetId, path: [...hit.path] });
+  /** Everything of the open scene a click could pick, Blender's "all": each target's entity, or its print without one */
+  const sceneItems = (): SelectionItem[] => (content.scene(sceneId)?.entries ?? []).flatMap((entry): SelectionItem[] => {
+    const target = entry.target;
+    if (!target?.imageSrc) return [];
+    return [stage?.treeOf(target.id) ? { kind: "node", target: target.id, path: [] } : { kind: "target", target: target.id }];
+  });
+  // The rest of a multi-selection on the stage: their prints and nodes outlined darker than the active one
+  $effect(() => {
+    const others = selection.others;
+    stage?.selectOthers(others.flatMap((item): StagePick[] => {
+      if (item.kind === "node") return [{ targetId: item.target, path: [...item.path] }];
+      if (item.kind === "target") return [{ targetId: item.target, path: [], printed: true }];
+      if (item.kind === "entry" && item.target) return [{ targetId: item.target, path: [], printed: true }];
+      return [];
+    }));
+  });
+  /** B (Blender's box select): the next drag on the stage draws a box – what lies in it is added, with Shift removed */
+  let boxing = $state(false);
+  let box = $state<{ x0: number; y0: number; x1: number; y1: number; remove: boolean } | null>(null);
+  let boxOrigin = $state({ left: 0, top: 0 });
+  const boxDown = (event: PointerEvent) => {
+    if (event.button !== 0) {
+      boxing = false;
+      return;
+    }
+    const overlay = event.currentTarget as HTMLElement;
+    const bounds = overlay.getBoundingClientRect();
+    boxOrigin = { left: bounds.left, top: bounds.top };
+    overlay.setPointerCapture(event.pointerId);
+    box = { x0: event.clientX, y0: event.clientY, x1: event.clientX, y1: event.clientY, remove: event.shiftKey };
+  };
+  const boxMove = (event: PointerEvent) => {
+    if (box) box = { ...box, x1: event.clientX, y1: event.clientY };
+  };
+  const boxUp = () => {
+    const drawn = box;
+    box = null;
+    boxing = false;
+    if (!drawn || !stage) return;
+    const rect = { left: Math.min(drawn.x0, drawn.x1), top: Math.min(drawn.y0, drawn.y1), right: Math.max(drawn.x0, drawn.x1), bottom: Math.max(drawn.y0, drawn.y1) };
+    selection.box(stage.picksInRect(rect).map(hitItem), drawn.remove);
+  };
+  /** The selection keys on the stage (not in a field): B, A, Alt + A, Ctrl + I – true when one was taken */
+  const selectKeys = (event: KeyboardEvent): boolean => {
+    const key = event.key.toLowerCase();
+    const ctrl = event.ctrlKey || event.metaKey;
+    if (key === "b" && !ctrl && !event.altKey && !event.shiftKey && stage?.tool !== "surface") boxing = true;
+    else if (key === "a" && event.altKey && !ctrl) selection.clear();
+    else if (key === "a" && !ctrl && !event.altKey && !event.shiftKey) selection.selectAll(sceneItems());
+    else if (key === "i" && ctrl && !event.altKey && !event.shiftKey) selection.invert(sceneItems());
+    else if (event.key === "Escape" && boxing) boxing = false;
+    else return false;
+    return true;
   };
 
   // ── the stage's menu (right click): what lies there decides the actions ──
@@ -969,6 +1121,11 @@
     if (event.key === "ArrowRight") step(1);
     const tool = TOOL_KEYS[event.key.toLowerCase()];
     if (tool && !event.ctrlKey && !event.metaKey && !event.altKey) stage?.setTool(tool);
+    // The camera (#369): Blender's numpad; the selection keys (B, A, Alt + A, Ctrl + I)
+    if (numpad(event) || selectKeys(event)) {
+      event.preventDefault();
+      return;
+    }
     // The camera (#335): F focuses on the selection, Home goes back to the reader's view
     if (!event.ctrlKey && !event.metaKey && !event.altKey) {
       if (event.key === "f" || event.key === "F") focusSelection();
@@ -1072,28 +1229,52 @@
     {/if}
   {/if}
   {#if stage && stage.status === "running"}
-    <!-- #364: the camera on the stage, its bottom-right corner clear of the panels – what it turns around (#335) beside it -->
+    <!-- #369: the camera control at the stage's top right, clear of the panels – the gizmo floating, one square group under it,
+      the view and what the camera is fixed to in the chip to its left -->
     <div class="camera" data-app-ui bind:clientWidth={cameraBox.w} bind:clientHeight={cameraBox.h}
-      style:right="{cameraAt.right}px" style:bottom="{cameraAt.bottom}px">
-      {#if cameraCorner}
-        <p class="camera-corner">
-          <Icon name={cameraFree ? "unlock" : "crosshair"} /> <span class="what">{cameraCorner}</span>
+      style:right="{cameraAt.right}px" style:top="{cameraAt.top}px">
+      <p class="camera-corner" data-help-name="View" data-help="What the camera shows: the view it snapped to (Top, Front …), perspective or ortho, and what its point is fixed to – the surface of what you clicked last, the table when nothing is selected, or free. ✕ goes back to the reader's view.">
+        <span class="what">{cameraCorner}</span>
+        {#if cameraOrbit}
           <button type="button" class="icon-button" aria-label="Home" title="Home: the reader's view around the scene's origin" onclick={() => stage?.cameraHome()}><Icon name="close" /></button>
-        </p>
-      {/if}
+        {/if}
+      </p>
+      <ViewGizmo turn={() => stage?.cameraTurn() ?? null} current={cameraOrbit?.axisView ?? null}
+        onsnap={view => stage?.snapView(view)} onorbit={(dx, dy) => stage?.orbitBy(dx, dy)} />
       <span class="camera-tools" role="toolbar" aria-orientation="vertical" aria-label="Camera">
-        <button type="button" class="icon-button" onclick={() => stage?.cameraHome()} aria-label="Home" title="Home (Home key, double click): the reader's view around the scene's origin"
-          data-help-name="Home" data-help="Back to the start view: the reader's view, turning around the scene's origin on the table. The Home key and a double click on the stage do the same.">
-          <Icon name="home" /></button>
-        <button type="button" class="icon-button" onclick={focusSelection} aria-label="Focus" title="Focus (F): turn around the selection – a surface, a target, a node; nothing selected: the whole scene"
-          data-help-name="Focus" data-help="The camera faces the selection and turns around its middle: a surface (a standing poster, a wall) front-on and whole, a printed target, a node of an entity. With nothing selected it shows the whole scene. A pan then slides along that surface.">
+        <button type="button" class="icon-button drag" aria-label="Zoom" title="Zoom: drag up or down (the wheel and a pinch do the same)" {@attach dragging((_dx, dy) => stage?.zoomBy(dy))}
+          data-help-name="Zoom" data-help="Drag on it: down brings the camera nearer, up takes it farther away – Blender's zoom button. The wheel and a pinch on the stage do the same.">
+          <Icon name="zoom" /></button>
+        <button type="button" class="icon-button drag" aria-label="Pan" title="Pan: drag (Shift + drag or the middle button on the stage do the same)" {@attach dragging((dx, dy) => stage?.panBy(dx, dy))}
+          data-help-name="Pan" data-help="Drag on it: the stage follows the pointer – Blender's pan button. Fixed, the camera's point slides along its surface (along the screen where that surface is seen edge-on); free, anywhere.">
+          <Icon name="hand" /></button>
+        <button type="button" class="icon-button" onclick={() => stage?.cameraHome()} aria-label="Reader's view" title="The reader's view (Home, numpad 0, double click): around the scene's origin, in perspective"
+          data-help-name="Reader's view" data-help="Back to the start view: what a reader holding the phone sees, around the scene's origin on the table, in perspective. The Home key, numpad 0 and a double click on the stage do the same.">
+          <Icon name="phone" /></button>
+        <button type="button" class="icon-button" class:on={cameraOrtho} aria-pressed={cameraOrtho} onclick={() => stage?.setOrtho(!cameraOrtho)}
+          aria-label={cameraOrtho ? "Orthographic" : "Perspective"} title={cameraOrtho ? "Orthographic (numpad 5) – click for perspective" : "Perspective (numpad 5) – click for orthographic"}
+          data-help-name="Perspective / ortho" data-help="Orthographic shows parallel lines true – for lining things up. A click on the gizmo turns it on by itself and orbiting away turns it off again; switched on here it stays while you orbit. Only the editor shows it: a reader always sees in perspective.">
+          <Icon name={cameraOrtho ? "ortho" : "perspective"} /></button>
+        <span class="camera-rule" aria-hidden="true"></span>
+        <button type="button" class="icon-button" onclick={focusSelection} aria-label="Focus" title="Focus (F): show the selection whole – several: all of them; nothing selected: the whole scene"
+          data-help-name="Focus" data-help="The camera faces the selection and turns around its middle: a surface (a standing poster, a wall) front-on and whole, a printed target, a node of an entity; several selected, the box around them all. With nothing selected it shows the whole scene.">
           <Icon name="crosshair" /></button>
         <button type="button" class="icon-button" class:on={cameraFree} aria-pressed={cameraFree} onclick={() => stage?.cameraFree(!cameraFree)}
           aria-label={cameraFree ? "Camera: free" : "Camera: fixed"} title={cameraFree ? "Free: a pan moves the camera's point along the screen, anywhere – click to fix it to its surface again" : "Fixed: a pan slides the camera's point along its surface – click to free it"}
-          data-help-name="Fixed / free" data-help="Fixed: the point the camera turns around stays on its surface (the table, or the surface you focused) and a pan slides it along. Free: a pan moves it along the screen – up, down, anywhere in the room. Back to fixed, it lands on the surface along your line of sight, so the view does not jump.">
+          data-help-name="Fixed / free" data-help="Fixed: the point the camera turns around stays on the surface of what you clicked last (the table when nothing is selected) and a pan slides it along. Free: a pan moves it along the screen – up, down, anywhere in the room. Back to fixed, it lands on the surface along your line of sight, so the view does not jump.">
           <Icon name={cameraFree ? "unlock" : "lock"} /></button>
       </span>
     </div>
+    <!-- #369: B on the stage – the next drag draws a box (Blender's box select); app UI, so the camera does not orbit -->
+    {#if boxing}
+      <div class="box-select" data-app-ui role="presentation" onpointerdown={boxDown} onpointermove={boxMove} onpointerup={boxUp} onpointercancel={boxUp}
+        oncontextmenu={e => { e.preventDefault(); boxing = false; box = null; }}>
+        {#if box}
+          <span class="box" class:remove={box.remove} style:left="{Math.min(box.x0, box.x1) - boxOrigin.left}px" style:top="{Math.min(box.y0, box.y1) - boxOrigin.top}px"
+            style:width="{Math.abs(box.x1 - box.x0)}px" style:height="{Math.abs(box.y1 - box.y0)}px"></span>
+        {/if}
+      </div>
+    {/if}
   {/if}
   {#if stage?.subtitle}
     <p class="subtitle" data-help-name="Subtitle" data-help="What the playing video says: the cue of its subtitle file – a WebVTT file named like the video with a language, speak.en.vtt beside speak.mp4. The stage shows English; a reader sees their own language.">{stage.subtitle}</p>
@@ -1187,6 +1368,8 @@
   {:else if shown === "inspector" && addingEntry && scene}
     <div class="body"><NewEntryForm {experienceId} {scene} oncreated={entryCreated} oncancel={() => (addingEntry = false)} /></div>
   {:else if shown === "inspector"}
+    <!-- #369: several selected – the Inspector shows the active one (the last click), as Blender's properties -->
+    {#if selection.many}<p class="many-selected small muted">{selection.others.length + 1} selected · showing the last clicked</p>{/if}
     <div class="body"><EntityPanel bind:this={entityPanel} {stage} {experienceId} {sceneId} selected={selection.target} bind:node={selection.node} {pickColour} ontargetchanged={reloadContent} oncode={() => openTab("code")} ontab={openTab} /></div>
   {:else if shown === "environment"}
     <div class="body"><EnvironmentPanel {stage} {experienceId} /></div>
@@ -1238,13 +1421,20 @@
   :global(.workspace > .stage .stage-host) { position: absolute; inset: 0; overflow: hidden; }
   :global(.workspace > .stage .stage-host canvas) { display: block; }
   .subtitle { position: absolute; left: 50%; bottom: 3rem; transform: translateX(-50%); z-index: 1; margin: 0; max-width: min(34rem, calc(100% - 2rem)); padding: .25rem .75rem; border: 1px solid var(--line); border-radius: var(--control-radius); background: var(--surface); color: var(--text); text-align: center; white-space: pre-line; pointer-events: none; }
-  /* #335: what the camera turns around, bottom right of the stage – the docked panels' tabs keep the left (Home clears it) */
-  /* The camera (#364): its buttons in a column at the stage's corner, what it turns around beside them */
-  .camera { position: absolute; z-index: 1; display: flex; align-items: flex-end; gap: .375rem; max-width: calc(100% - 1rem); }
+  /* The camera control (#369): at the stage's top right – the gizmo floating, one square group under it, the chip to its left */
+  .camera { position: absolute; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: .25rem; }
   .camera-tools { display: flex; flex-direction: column; gap: .125rem; padding: .125rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
-  .camera-corner { margin: 0; display: flex; align-items: center; gap: .375rem; min-width: 0;
-    padding: 0 0 0 .5rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: .8125rem; }
-  .camera-corner .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .camera-tools .drag { cursor: grab; touch-action: none; }
+  .camera-tools .drag:active { cursor: grabbing; }
+  .camera-rule { height: 0; margin: .125rem 0; border-top: 1px solid var(--line); }
+  .camera-corner { position: absolute; right: calc(100% + .375rem); top: .25rem; margin: 0; display: flex; align-items: center; gap: .25rem;
+    padding: .125rem .375rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: .75rem; white-space: nowrap; }
+  .camera-corner .what { overflow: hidden; text-overflow: ellipsis; max-width: 18rem; }
+  .many-selected { margin: 0; padding: .25rem .5rem; border-bottom: 1px solid var(--line); }
+  /* B (#369): the box select's layer over the stage and the box drawn on it */
+  .box-select { position: absolute; inset: 0; z-index: 2; cursor: crosshair; touch-action: none; }
+  .box-select .box { position: absolute; border: 1px dashed var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+  .box-select .box.remove { border-style: dotted; }
   .notice { position: absolute; left: 50%; top: 1rem; transform: translateX(-50%); margin: 0; padding: .25rem .75rem; border-radius: var(--control-radius); background: var(--surface); }
   .picker { position: absolute; inset: 0; z-index: 2; cursor: crosshair; outline: none; touch-action: none; }
   .pick-chip { position: absolute; pointer-events: none; display: inline-flex; align-items: center; gap: .375rem; height: var(--control-height); padding: 0 .5rem;
