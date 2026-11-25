@@ -62,7 +62,34 @@ export interface LandingSource extends Pick<LandingConfig, "shop"> {
   images: readonly string[];
   /** The footer's "Privacy & terms": the static page (#355) below the experience's path */
   privacyHref?: string;
+  /** The book's front cover (the print layout's `cover-front` sheet), null / missing without – the stage's stand-in shows it (#372) */
+  cover?: string | null;
+  /** The hero's page aspect (`LandingHeroData.aspect`: a page's height over the open spread's width), missing without a hero */
+  coverAspect?: number;
 }
+
+/**
+ * Where the closed book's cover lies in the stage's box when the 3D intro begins (scan-stage.ts: the picture view, 2.15
+ * over the page, looking down at the cover's middle with a 30° field; the cover 0.5 wide, its top ≈ 0.05 over the page):
+ * its width as a share of the box. The HTML stand-in lies exactly there, so the 3D takes over without a jump (#372).
+ */
+export const COVER_SHARE = 0.5 / (2 * 2.1 * Math.tan((15 * Math.PI) / 180));
+/** A page's height over the spread's width when the hero's data does not say yet (a common book: 1.4 high per width) */
+export const DEFAULT_COVER_ASPECT = 0.7;
+
+/**
+ * The stage's stand-in while the 3D loads (#372, Tilman 2026-11-25: "a rectangle with a placeholder cover image ... which
+ * stays only there until the 3d is loaded and can start animating"): the closed book's cover as the intro first shows it,
+ * the cover picture when there is one, else a black cover in a gold frame with the skeleton's shine. It fades out once
+ * the stage runs (`.running`, mount.ts); without a hero, or when the stage fails, it stays – a still of the book.
+ */
+const coverStandIn = (cover: string | null | undefined, aspect: number | undefined): string => {
+  const ratio = 0.5 / (aspect && aspect > 0 ? aspect : DEFAULT_COVER_ASPECT);
+  const style = `width:${(COVER_SHARE * 100).toFixed(2)}%;aspect-ratio:${ratio.toFixed(4)}`;
+  return cover
+    ? `<div class="cover" style="${style}"><img src="${escapeHtml(cover)}" alt="" decoding="async" /></div>`
+    : `<div class="cover blank" style="${style}"></div>`;
+};
 
 /** The book's images of a game configuration as `getScenes()` lists its targets: scene order, switched-off targets left out */
 export const landingImages = (
@@ -234,12 +261,28 @@ export const LANDING_CSS = /* css */ `
         :host([data-skeleton]) .scatter { display: none; }
         .qr-code.loading { position: relative; }
         .qr-code.loading::after { inset: 0; }
-        .stage.loading::after { inset: 18%; border-radius: 50%; opacity: .6; }
+        /* The closed book's cover where the 3D intro first shows it (#372) – gone once the stage runs */
+        .cover {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          translate: -50% -50%;
+          overflow: hidden;
+          border-radius: .125rem;
+          background: #0b0a08;
+          box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, .55);
+          transition: opacity .5s ease .45s;  /* after the canvas has mostly faded in (scan-stage.ts, .7s) – no dip between them */
+          pointer-events: none;
+        }
+        .cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .cover.blank { box-shadow: inset 0 0 0 .35rem #0b0a08, inset 0 0 0 .45rem #b8914a, 0 1.5rem 3rem rgba(0, 0, 0, .55); }
+        .stage.loading .cover.blank::after { content: ""; position: absolute; inset: 0; background: var(--skeleton-shine) 0 0 / 300% 100% no-repeat; animation: skeleton 1.6s ease-in-out infinite; }
+        .stage.running .cover { opacity: 0; }
         @keyframes skeleton { from { background-position: 100% 0, 0 0; } to { background-position: -50% 0, 0 0; } }
 
         @media (prefers-reduced-motion: reduce) {
           .float { animation: none; transition: none; }
-          :host([data-skeleton]) .slot::after, .loading::after { animation: none; }
+          :host([data-skeleton]) .slot::after, .loading::after, .cover::after { animation: none; }
         }
         @media (${MEDIA_QUERY.TABLET}) {
           .hero-grid { grid-template-columns: minmax(0, 1fr); }
@@ -253,6 +296,26 @@ export const LANDING_CSS = /* css */ `
  * The page: its styles and `<main>` (with its `renderKey`). What needs the browser is filled in afterwards – the address (`.address`, the
  * page's host), the QR code (`.qr-code`), the book's cover.
  */
+/**
+ * The page's in-page links (`href="#get"`, #372): they lie in a shadow root, where the browser finds no target – and
+ * what scrolls is the host, not the window. A click scrolls the host to the section instead (smooth unless reduced
+ * motion). The static landing's inline script adds it (its source) before any code loads, `mount.ts` the same one
+ * where there is no static page (the editor); a handled click is `defaultPrevented`.
+ */
+export function anchorHandler(this: ShadowRoot, event: Event): void {
+  if (!(event instanceof MouseEvent) || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = (event.target as Element | null)?.closest?.('a[href^="#"]');
+  const id = link ? (link.getAttribute("href") ?? "").slice(1) : "";
+  const target = id ? this.getElementById(id) : null;
+  if (!target) return;
+  event.preventDefault();
+  const still = !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+}
+
+/** The handler's source for the inline script – self-contained, so its text runs as it is */
+export const ANCHOR_HANDLER_SOURCE = anchorHandler.toString();
+
 /** A short checksum of a rendered page: the landing keeps the static page when its own render is the same (`mount.ts`) */
 export const renderKey = (html: string): string => {
   let hash = 5381;
@@ -286,7 +349,7 @@ const renderMarkup = (source: LandingSource): string => {
                 <a class="scroll-hint muted" href="#get">${texts.getApp} ↓</a>
               </div>
             </div>
-            <aside class="stage loading" role="img" aria-label="${texts.previewAlt}"></aside>
+            <aside class="stage loading" role="img" aria-label="${texts.previewAlt}">${coverStandIn(source.cover, source.coverAspect)}</aside>
           </div>
         </section>
 
@@ -366,5 +429,6 @@ export const renderStaticLanding = (source: LandingSource): string => [
   ` var host = document.getElementById(${JSON.stringify(STATIC_LANDING_ID)}); var root = host && host.shadowRoot; if (!root) return;`,
   ` var address = root.querySelector(".address"); if (address) address.textContent = location.host;`,
   ` if (document.documentElement.getAttribute(${JSON.stringify(LANDING_ATTRIBUTE)}) === "skeleton") host.setAttribute(${JSON.stringify(SKELETON_ATTRIBUTE)}, "");`,
+  ` root.addEventListener("click", ${ANCHOR_HANDLER_SOURCE});`,
   `} catch (e) {} })();</script>`,
 ].join("");

@@ -255,6 +255,9 @@ function staticLanding(experience, config, contentBase) {
           author: fields.author,
           publisher: fields.publisher,
           images: landingImages(config, url),
+          // The stage's stand-in (#372): the book's cover as the landing data has it – the same render the landing mounts
+          cover: typeof shellLanding?.cover === 'string' ? url(shellLanding.cover) : null,
+          coverAspect: typeof shellLanding?.hero?.aspect === 'number' ? shellLanding.hero.aspect : undefined,
           privacyHref: experience ? `/${experience}/privacy` : '/privacy',
         }));
     },

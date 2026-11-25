@@ -57,7 +57,7 @@ describe("mountLanding", () => {
     const element = host();
     element.attachShadow({ mode: "open" }).innerHTML = `<style>${DESIGN_PRIMITIVES_CSS}</style>${renderLanding({
       shop: DATA.shop, texts: input().texts, title: DATA.title, author: DATA.author, publisher: DATA.publisher, images: DATA.images,
-      privacyHref: "/osct/privacy",
+      privacyHref: "/osct/privacy", cover: DATA.cover,   // the build's static page has the cover too (#372)
     })}`;
     element.setAttribute(SKELETON_ATTRIBUTE, "");
     const main = element.shadowRoot!.querySelector("main");
@@ -82,8 +82,11 @@ describe("mountLanding", () => {
     const box = element.shadowRoot!.querySelector(".qr-code")!;
     expect(box.classList.contains("loading")).toBe(false);
     expect(box.querySelector("img")!.getAttribute("alt")).toBe("QR code that opens the app on your phone");
-    // no hero in the data: the stage stops its placeholder and stays its quiet glow
-    expect(element.shadowRoot!.querySelector(".stage")!.classList.contains("loading")).toBe(false);
+    // no hero in the data: the stage stops its placeholder and keeps the book's cover as a still (#372)
+    const stage = element.shadowRoot!.querySelector(".stage")!;
+    expect(stage.classList.contains("loading")).toBe(false);
+    expect(stage.classList.contains("running")).toBe(false);
+    expect(stage.querySelector<HTMLImageElement>(".cover img")!.getAttribute("src")).toBe(DATA.cover);
     view.stop();
   });
 

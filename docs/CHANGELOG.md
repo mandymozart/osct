@@ -8,6 +8,25 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.23.0 – 2026-11-25
+
+### Added
+- **The landing's stage sinks with the scroll** (#372, Tilman: *"the stage camera moves down... when scrolling down. i give
+  the vibe of going down under the 'table'"*): as the hero leaves the window, the scan stage's camera sinks while it keeps
+  looking at the book – to the table's height and under it (`SCROLL_DROP` in `ui/landing/scan-stage.ts`; not with reduced
+  motion).
+
+### Changed
+- **The book's cover in place of the stage's loading circle** (#372, Tilman: *"a rectangle with a placeholder cover image
+  ... which stays only there until the 3d is loaded"*): the hero's stage shows the closed book's cover – its picture from
+  the landing data, else a black cover in a gold frame – exactly where the 3D intro first shows it, and fades out once the
+  stage runs. The static page in index.html has it from the first paint when the content's `landing.json` gives the cover.
+  Without a hero, or when the stage fails, the cover stays as a still.
+
+### Fixed
+- **"Get the app ↓" scrolls to its section** (#372): the link lies in the landing's shadow root, where the browser found no
+  `#get`; a click now scrolls the landing to the section (the static page's script and `mountLanding`).
+
 ## 6.22.0 – 2026-11-25
 
 ### Added
