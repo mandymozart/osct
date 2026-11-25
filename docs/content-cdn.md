@@ -33,7 +33,7 @@ and in it **one immutable folder per content version**, served through the pull 
   (the CLI refuses a demo build there). Since #322 decision (b) the staging editor's Publish writes it, like the book's;
   `fixtures/demo` is its committed export.
 
-**Several experiences per environment** (Tilman, 2026-11-20 – needed for Kévin's further works): a publish or sync
+**Several experiences per environment** (2026-11-20 – needed for Kévin's further works): a publish or sync
 writes only its experience's store, so it never replaces another experience for its readers; the editor's Publish
 asks nothing about other experiences any more. `latest.json` and each `versions.json` entry still name the experience
 (`experience`). `<build>` is the first 12 hex digits of the content build checksum: the same content is the same
@@ -50,7 +50,7 @@ the reader build's `VITE_CONTENT_BASE_URL` – is `<pull zone>/<title>/<env>`, e
 
 Every publish of an experience writes the **export of the build it published** into the same store:
 `<title>/<env>/<experience>/exports/<build>/` (`<env>/<experience>/exports/<build>/` in the directory store of an instance
-without CDN) – Tilman, 2026-11-21: the archive follows the CDN's rules. One folder per published build, **immutable**: a
+without CDN) – since 2026-11-21 the archive follows the CDN's rules. One folder per published build, **immutable**: a
 folder whose `export.json` is there is never written again (a publish of a build that has its archive writes nothing;
 `export.json` is written last, so a folder without it is incomplete and the next publish of that build writes it). It
 holds what `osct content export` writes – `experience.yaml`, `scenes/`, `entries/`, `entities/`, `groups.yaml`,
@@ -63,8 +63,8 @@ person. The directory store does not serve it (`GET /content/…` serves the ver
 
 ### How a publish writes (#345)
 
-A publish writes few files to make a version live and many for its archive: the osct book's build b49f09610206 (Tilman,
-2026-11-22) was 3 plugin modules, `files.json` (430 KB) and `game.config.json` (793 KB) – on the zone within a second –
+A publish writes few files to make a version live and many for its archive: the osct book's build b49f09610206
+(2026-11-22) was 3 plugin modules, `files.json` (430 KB) and `game.config.json` (793 KB) – on the zone within a second –
 then `versions.json` and `latest.json`, and then **1522 archive files** (1376 `entries/<id>/entry.yaml`, 135 scenes, 6
 plugins, 5 at the top, 1.2 MB together), written one PUT after another over a new TLS connection each: ~0.43 s a file,
 11 minutes. The request outlived the gateway (504 in the editor) while it wrote on; the retry wrote the same archive a
@@ -238,7 +238,7 @@ first paint shows one of them, and the page then loads **either** the app **or**
 ([pages, "The desktop landing"](pages.md#desktop-landing)).
 
 <a id="the-installed-app-pwa"></a>**The installed app (PWA).** **Every experience links its own manifest, the default too**
-(Tilman, 2026-11-22: *"ja, ein eigenes manifest pro experience why not"*): `/api/experiences/<id>/manifest.webmanifest`
+(since 2026-11-22): `/api/experiences/<id>/manifest.webmanifest`
 (server `ReaderManifest.php`) with `id`, `start_url` and `scope` `/<id>/`, its title once published, the build's icons –
 so installing the app from `/osct/` installs osct and from `/demo/` the demo, each starting at its own path. The link is
 set by an inline script in `index.html`'s head right after the legacy redirect, before the browser reads a manifest
@@ -323,7 +323,7 @@ a workflow can do it.
 
 Until #87 the zone had one folder per environment at its root – `staging/`, `demo/` (the demo's environment) and,
 once used, `production/` – each holding one experience. The new layout does not read them. The move copies each into
-its experience's store; nothing is deleted unless asked for, and it runs **only after Tilman's approval** (the
+its experience's store; nothing is deleted unless asked for, and it runs **only after the project owner's approval** (the
 orchestrator runs it, by hand: Actions → Content → `move`, or `osct content move` where `scripts/.env` has the zone's
 read/write key).
 

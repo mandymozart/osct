@@ -107,7 +107,7 @@ translates the codes (`account:errors.*`).
 
 ### Sessions, cookies and CSRF
 
-Tilman, 2026-10-30 (#207): the browser's session is an **HttpOnly cookie** with a CSRF token, so no script on the page –
+Since 2026-10-30 (#207) the browser's session is an **HttpOnly cookie** with a CSRF token, so no script on the page –
 an experience's plugin in the editor, anything injected – can read the session and carry it off. `Auth.php` holds it all.
 
 - **Browser and non-browser sign-ins.** A sign-in (`POST /auth/verify`, `POST /auth/password`) with
@@ -149,14 +149,14 @@ an experience's plugin in the editor, anything injected – can read the session
   carried off**. It does not, by itself, separate code that runs on the site's own pages from the session: such code is
   in the same origin and could make requests that go with the cookie while the page is open – and read the CSRF token
   from `GET /user` like the app does.
-  - **The editor** (5.0, #340, Tilman 2026-11-21: *"we can drop the sandbox. since we trust the user, thats why we gave
-    them access to the api. … it is a huge security risk but only to the user who is logged in and their scope."*):
+  - **The editor** (5.0, #340, 2026-11-21: the signed-in person is trusted – that is why they have
+    access to the API; the risk is limited to that person and their scope):
     experience plugins – the draft's and the Code tab's – run in the editor's own page, with the signed-in editor's
     session; they can read and write what that person may. The stage frame of #234 (an iframe sandboxed without
     `allow-same-origin`, 1.58.0 to 4.x) is gone. What stays is a **guard**: plugin code someone other than the signed-in
     editor saved last runs only after a prompt that names who saved it, kept per experience and source version
     ([editor](editor.md) "The plugin guard"). RULES #35.
-  - **The reader** runs plugins in its page too (Tilman, 2026-10-29: the review before a release is the protection): a published
+  - **The reader** runs plugins in its page too (since 2026-10-29: the review before a release is the protection): a published
     experience's plugins run in the reader's page, with the reader's session – and since the cookie is one for the site, with
     the session of an editor or admin who opens the reader in the same browser. A published plugin is compiled by the content build from a source an editor stored and reaches readers only
     through a person's publish, but it is code of the same kind. The reader's scene in a frame needs the camera
@@ -312,7 +312,7 @@ The editor's keys:
   the `Retry-After` header) and the minutes in its message – the reader and the editor show them. **A limit of -1 is
   no limit** (`Config::limit`; 0 allows nothing), for local testing (`config.local.php.example`) – the same for
   `LOGIN_MAX_ATTEMPTS` (5 wrong codes) and `PASSWORD_MAX_FAILS_PER_EMAIL_HOUR` / `PASSWORD_MAX_FAILS_PER_IP_HOUR`
-  (10 / 30). Tilman: "-1 ist besser als Limit für aus" (#83).
+  (10 / 30) – -1 rather than a separate off switch (#83).
 - `PUBLISH_STEP_SECONDS` (`15`): how long a publish writes in its POST and in each poll before it answers ([Publish
   jobs](#publish-jobs)) – keep it well below the gateway's timeout and PHP's `max_execution_time`; `0` = one slice per
   request (the API test).
@@ -490,7 +490,7 @@ editor keeps one row per experience and scene.
 
 A publish of a big experience writes for minutes (the osct book: 1529 files, mostly its export archive – [Content and
 CDN](content-cdn.md) "How a publish writes"); no gateway waits that long, and an answer that never comes (504) must not
-stand for a publish that runs on (#345, Tilman 2026-11-22). So `POST …/publish` checks the draft as before (every 4xx
+stand for a publish that runs on (#345, 2026-11-22). So `POST …/publish` checks the draft as before (every 4xx
 stays an answer of the POST), then writes what it will write into a row of **`publish_jobs`** (`plan_json`: the version
 folder's files, the export archive's files; emptied when the job ends) and runs it for at most **`PUBLISH_STEP_SECONDS`**
 (15) – done in that time, it answers 200 with the outcome as before (a small experience, the tests); else 202 `{ job }`.
@@ -681,7 +681,7 @@ by its name).
   `key_model-1024.webp`); a surface's reference image (#314) `<scene>_<surface>` (`s118-119_surface`); a shared
   entity's file `<ref>_<asset id>.<ext>`; the environment's `environment_world` / `environment_sky`. The extension is
   the stored file's. An **upload** among the entry's, entity's or shared entity's files keeps **its own name** after the
-  place instead of the asset id (Tilman, 2026-11-17): `fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg`
+  place instead of the asset id (since 2026-11-17): `fight_2_remesh_4096.jpg` → `p010-3_fight-2-remesh-4096.jpg`
   (lower case, words joined by `-`, a place prefix it already has is not doubled – a second plan changes nothing).
 - **First use**: a file used in several places takes its first use in the scenes' order (per scene the target before
   the entry, the entity, the reference); a shared entity sits on the scene of its first target; uses without a scene

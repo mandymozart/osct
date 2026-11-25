@@ -57,7 +57,7 @@ tracker keeps its image targets per session. The row also says how many targets 
 *original only*. The engine load test's report names the path it ran with (`- Recognition: …`, and whether it was the
 phone's override).
 
-The test run before any experience is switched to Prepared (Tilman, 2026-11-20): a test experience with a few targets –
+The test run before any experience is switched to Prepared (2026-11-20): a test experience with a few targets –
 small and black-and-white ones among them – each with its frame (the editor makes them; `osct targets prepare` for many).
 On the S22 and an iPhone, on the same printed page:
 1. Debug overlay → Recognition *Original*; scan each target: found at all, time to find, steady while held (no flicker),

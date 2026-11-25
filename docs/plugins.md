@@ -7,8 +7,8 @@ tab is where you try it. This is the guide and the reference of the plugin API; 
 registers is in [content](content.md), the editor's tab in [editor](editor.md) "Code", the decision in
 `agents/research/2026-10-29-code-in-the-editor.md`.
 
-**Plugin API 4.0** (content schema 6.0, #341 – Tilman, 2026-11-21: *"you use the word hear for events. i think it is
-listen"*): what a spec's code listens to is `uses.listens` (was `uses.hears`). The engine refuses a module built against
+**Plugin API 4.0** (content schema 6.0, #341 – an event is listened to, not
+heard): what a spec's code listens to is `uses.listens` (was `uses.hears`). The engine refuses a module built against
 another MAJOR ("… was built against plugin API 3.1, this engine runs 4.0 – not loaded"), so every experience is published
 again; stored sources are rewritten with `osct plugins listen` (`--dir` a content source, `--experience` / `--all` the
 instance's database – [content](content.md) "Schema and app versions").
@@ -499,9 +499,8 @@ without it). Nothing else may be imported – no package, no folder below the pl
 
 ## One type check: the Code tab, Publish, CI and osct plugins check (#366)
 
-Tilman, 2026-11-23, after code made with *Make it code* stopped a publish: *"So what do we need to prevent this in the
-future? And with older plugins as well."* – then *"Yes do all of the type checks too. Makes total sense to not let stuff
-slip through and to fix if it encounters one during publish."*
+Since 2026-11-23, after code made with *Make it code* stopped a publish: every type check runs before a publish, for
+older plugins as well, so nothing slips through – and a publish that meets an error says what to fix.
 
 - **One definition, two runtimes** – `shared/plugins/type-check.ts`: the compiler options (strict, ES2020, ES modules
   resolved as a bundler does, the DOM), the declarations (the checked-in `plugin-api.d.ts` as `osct-plugin-api`, the shader
@@ -566,8 +565,8 @@ history, the published module carries its hash; semver, if you want one, lives i
 ## Plugin development with an agent (#363)
 
 An artist who tunes an animation or an effect can work with an AI agent – Claude Code, Codex, Cursor, any agent that
-edits files and runs commands – on their own computer. There is no kit or sandbox repository to download (Tilman,
-2026-11-23: *"we can put this in the docs as a tutorial rather than an entire repo"*): the agent builds the small
+edits files and runs commands – on their own computer. There is no kit or sandbox repository to download
+(since 2026-11-23 a tutorial in the docs takes its place): the agent builds the small
 preview it needs in minutes, and the plugin's API types come from the editor, so nothing goes stale. This section is
 the tutorial – the agent reads it as `osct://guides/plugins` through the MCP server; the artists' version is the
 documentation site's `/docs/tutorials/plugins/` ([docs-site](docs-site.md)).
@@ -1140,9 +1139,9 @@ from Rendered.
 
 ## Where it runs: the page, with the session (5.0)
 
-In the editor a plugin runs **in the editor's own page** (#340, Tilman 2026-11-21: *"we can drop the sandbox. since we
-trust the user, thats why we gave them access to the api. if we got plugins that need to change db game state, that is
-fine. it is a huge security risk but only to the user who is logged in and their scope."*). The sandboxed stage frame of
+In the editor a plugin runs **in the editor's own page** (#340, 2026-11-21): the person who
+signed in is trusted – that is why they have access to the API – so a plugin may change the database's game state. The
+risk is real but limited to the signed-in person and their scope. The sandboxed stage frame of
 #234 (1.58.0 to 4.x) is gone, and with it its limits: a plugin may use the page's `fetch` – **with the session of the
 editor who has the experience open**:
 

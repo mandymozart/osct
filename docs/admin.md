@@ -3,8 +3,8 @@
 A small admin page inside the editor app (`editor/src/routes/(app)/admin/`, served at `/editor/admin` – the same build and
 the same `.htaccess` fallback as the editor, so both deploys serve it without new infrastructure; the editor app owns
 everything under its base `/editor`, a root `/admin` would be a second app). **`/admin`** is the short address: the
-site's `.htaccess` redirects it to `/editor/admin/`. It is for the instance's admin – decided with Tilman on
-2026-10-29 (issue #65): own and small, a feature set of the white-label core (`agents/STRATEGY.md`), modelled on
+site's `.htaccess` redirects it to `/editor/admin/`. It is for the instance's admin – decided on
+2026-10-29 (#65): own and small, a feature set of the white-label core (`agents/STRATEGY.md`), modelled on
 SCUTOONS' roles so the two can be unified later ([server, "Roles"](server.md#roles)).
 
 ## Who may use it

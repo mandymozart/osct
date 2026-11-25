@@ -8,6 +8,14 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 1.1.2 are in the git history.
 
 
+## 6.24.2 – 2026-11-25
+
+### Changed
+- The developer documentation (`docs/`) states its decisions plainly – with the version, the date or the issue – and
+  no longer quotes the people who made them; the docs site's stylesheet comments too (#377, RULES #40). Dated quotes
+  stay in this changelog and in the agents' notes.
+
+
 ## 6.24.1 – 2026-11-25
 
 ### Changed

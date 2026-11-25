@@ -377,7 +377,8 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     each `docs/*.md` owns one topic (how it works, how to use it) and the rule that governs it lives here, with a
     pointer each way – never the same paragraph in both. `agents/` is for agents only (plan, rules, memory,
     design measurements, research); readers' and developers' documentation goes to `docs/`. Remove a section
-    when the code it describes is gone; a temporary runbook says so in its first line.
+    when the code it describes is gone; a temporary runbook says so in its first line. The documentation sources quote
+    and name no one – RULES #40.
 
 32. **Engine, reader, editor** (Tilman, 2026-10-29, #61 – `agents/research/2026-10-29-editor-architecture.md`):
     a clear separation. **`engine/`** is the base – the content runtime (`loadGameConfiguration`, the accessors,
@@ -495,3 +496,11 @@ issues cite them (`RULES #10`), so a new rule gets the next free number and a re
     forever** – never removed, never pointed elsewhere, also not in a white-label rework. The experience `osct` keeps its
     id (slugs are never renamed once published). An experience's id never takes one of the site's own paths
     (`RESERVED_PATHS`, enforced by the API, the editor's form and the MCP).
+
+40. **The documentation sources say what, not who said it** (since 6.24.2, 2026-11-25, #377): `docs/*.md` except `docs/CHANGELOG.md`,
+    `client/public/docs/`, the MCP's resources (`mcp/src/resources.ts`) and the JSDoc that
+    `editor/tools/plugin-api/generate.mjs` turns into `plugin-api.d.ts` never quote or name Tilman (or anyone else as the
+    source of a decision). They are what documentation is built from, and `docs/plugins.md` reaches external authors'
+    AI agents as-is (`osct://guides/plugins`). A decision is stated plainly, as a fact; when it was made is said with the
+    version, the date or the issue – `(since 6.0, #341)`, `(#364, 2026-11-23)`. A role, where one is needed, is named as
+    a role (*the project owner*). Dated quotes stay allowed – and useful – in `agents/` and `docs/CHANGELOG.md`.

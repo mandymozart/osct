@@ -12,7 +12,7 @@ geometry nodes or booleans: whatever those do must be baked or applied before th
 
 ## Kévin's remesh flow
 
-Kévin's way to turn a heavy model into an even quad mesh with the same shape (Kévin via Tilman, 2026-11-14):
+Kévin's way to turn a heavy model into an even quad mesh with the same shape (Kévin's method, 2026-11-14):
 
 1. **Quad Remesher 1.2** (Exoside's add-on) on the high-resolution model, target quad count **500**. The result is a
    new, simplified object.
@@ -24,11 +24,10 @@ Kévin's way to turn a heavy model into an even quad mesh with the same shape (K
 
 The subdivided, shrinkwrapped levels **regain the original's quality** on clean, evenly scene quads. They are not what
 the reader gets: they are the source for the **normals** – baked from the high levels onto the 500-quad base, which is
-what the reader draws (Tilman, 2026-11-14: *"its regaining the quality – if use this for the normals"*). Two outputs:
+what the reader draws (2026-11-14). Two outputs:
 
 - **Separate**: each part keeps its own low mesh and its own baked maps (normals, colour) – the full version.
-- **One** (the lower version): everything baked into one mesh and one set of maps (*"a lower version we just bake
-  everything into one"*).
+- **One** (the lower version): everything baked into one mesh and one set of maps.
 
 | Parameter | Kévin's value | Note |
 |---|---|---|
@@ -77,7 +76,7 @@ What the automation must do that the hand flow does not say:
 - **glTF has no quads**: every export is triangles (the GLB above is 5,976 triangles = 2,988 quads in Blender). The quad
   meshes stay in the `.blend` saved with the results, for further work by hand.
 
-**Light from the camera, baked** (Tilman, 2026-11-14): a sun along the camera's view and a soft grey world as fill,
+**Light from the camera, baked** (2026-11-14): a sun along the camera's view and a soft grey world as fill,
 baked into the colour map (Cycles *Diffuse*: direct, indirect, colour), exported **unlit** (the colour map straight into
 the material output – the exporter writes `KHR_materials_unlit`), so the reader shows the bake as it is and the stage's
 light does not add to it. Only the high models may cast light and shadow during that bake: the lows and earlier bakes
@@ -123,7 +122,7 @@ Per model; steps 2–6 for every object of it, one after another.
 
 ## The batch: many models in one command
 
-Tilman's hand-made version of *face against face* (2026-11-14) is the reference the batch matches: each object remeshed
+The hand-made version of *face against face* (2026-11-14) is the reference the batch matches: each object remeshed
 to its base (no Multiresolution level exported), one 1024 map per object, baked *Combined* under the scene's own light (a
 sunset HDRI and two point lights), exported unlit and double-sided – 3,056 triangles, 1.6 MB.
 
@@ -168,11 +167,10 @@ the size of *face against face*), except the island margin (from the padding, be
 
 Close up, the 8K-to-4K bake is a little smoother than the plain 4K one; neither shows seam lines on this model.
 
-**Texture sizes** (Tilman: the mesh once, the texture by the reader's quality setting – #260, in the app since
+**Texture sizes** (the mesh once, the texture by the reader's quality setting – #260, in the app since
 1.66.0: `docs/content.md` "A model's map by texture quality", the editor's *textures* section): `--texture-sizes
 512,1024,2048,4096` writes the map at each size, every one scaled down from the full bake, the 8K master PNG, and
-`<name>_mesh.glb` with the 512 map embedded. The maps are **WebP** (quality 85) since 2026-11-15 (Tilman: *"okay, we go
-webp for images"* – #13; `--map-format jpeg` gives JPEG 90 back), and the mesh GLB carries its map as WebP too
+`<name>_mesh.glb` with the 512 map embedded. The maps are **WebP** (quality 85) since 2026-11-15 (#13; `--map-format jpeg` gives JPEG 90 back), and the mesh GLB carries its map as WebP too
 (`EXT_texture_webp`, which three.js reads). *face against face*: mesh GLB 124 KB; maps 26 KB, 75 KB, 244 KB, 756 KB –
 as JPEG 48 KB, 156 KB, 536 KB, 1.78 MB. Measured on the 2048 map against one lossless reference, at the same PSNR
 (44 dB): JPEG 290 KB, WebP 218 KB, AV1 / AVIF about 172 KB – AVIF saves another 30 %, but took 42–48 s per map to
@@ -180,7 +178,7 @@ encode here and Safari reads it only from iOS 16. For a model that is already ba
 same from its map (fight_2: mesh GLB 269 KB; maps as JPEG 72 KB, 206 KB, 595 KB, 1.69 MB, against 14.3 MB for the GLB
 with its 4K PNG); a map within 5 % of a size (4000 px) is brought to it, since OSCT's texture sets are exact sizes.
 
-**The workflow in two steps** (Tilman, 2026-11-14). Step one is the remesh and the bake at full size. Step two makes
+**The workflow in two steps** (2026-11-14). Step one is the remesh and the bake at full size. Step two makes
 what OSCT imports: the texture sizes (now the default – `--texture-sizes ""` turns them off; a size above the bake is
 left out), `<name>_mesh.glb` with the smallest map inside, and `<name>_import.json` – the mesh, its texture sets (one
 for every material of a model baked into one map, one per material otherwise, the material named after its object),
@@ -208,8 +206,8 @@ UV islands with their seams in hidden places (a hand unwrap instead of Smart UV)
 two islands lie 8 px apart at 512, so each gets about 4 px of padding between them however large the bake margin).
 `compare_maps.py` renders one mesh with each of its maps (close-up and full, unlit) to check this.
 
-**Island spacing follows the padding** (2026-11-15, Tilman: *"why not bake again? the uv unwrap only gets the new
-expanding that way"*). A bake margin cannot be larger than half the gap between two islands. So the batch sets Smart
+**Island spacing follows the padding** (2026-11-15): the batch bakes again rather than expanding the islands after
+the UV unwrap. A bake margin cannot be larger than half the gap between two islands. So the batch sets Smart
 UV's island margin from the padding: twice `--padding` at the smallest map, 0.031 with a 512 version (`--uv-margin`
 sets another one; Kévin's is 0.01–0.02). `island_gaps.py` measures the room the islands of a GLB leave each other.
 *face against face*, 42 islands, in the 512 map:

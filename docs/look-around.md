@@ -1,6 +1,6 @@
 # Look-around: scene around the surfaces + onion sky
 
-> **Since 1.107.0 there is no world at all (#310, Tilman 2026-11-18):** 1.104.0 removed the built-in café, 1.107.0 the
+> **Since 1.107.0 there is no world at all (#310, 2026-11-18):** 1.104.0 removed the built-in café, 1.107.0 the
 > world model too. Only an experience's sky image (`skySrc`) and the onion sky are drawn; without a sky nothing is drawn
 > around the surfaces. `world` and `worldSrc` stay valid content but are ignored; the Environment tab has no world row.
 > What follows about the café and world models is history.
