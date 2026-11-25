@@ -157,7 +157,10 @@ export class StageCore {
       const inspection = this.arScene.inspect();
       return inspection ? { camera: inspection.camera, height: this.container.clientHeight } : null;
     },
-    guides: guides => this.tracker?.setGuides(guides),
+    guides: (guides, surface) => this.tracker?.setGuides(guides, surface),
+    // A node snaps in its target's frame (#375): its surface's own plane on a wall or a turned surface
+    surfaceOf: targetId => this.surfaceOf(targetId),
+    surface: id => this.surfaceFrames().find(frame => frame.id === id),
   });
 
   constructor(container: HTMLElement) {
