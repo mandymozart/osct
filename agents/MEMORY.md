@@ -18,7 +18,11 @@ outcome in the line (or move it into a dated decision block).
   `PannerNode` HRTF (headphones setting) / equalpower; one AudioContext with buses UI / Sounds / Media / Voice (videos via
   `createMediaElementSource`, voice ducks); presets = Library kind `sound`, samples = audio assets with MP3 levels made in
   the browser. Ambisonics later, for AmbiX recordings.
-- [ ] Open: decisions D1–D13 (concept §8) and the priority against #322 / the logic follow-ups.
+- Then: *"a master sound panel where we can mix and apply perhaps some effect … patchable so we can create audio bed
+  effects like in radio when someone speaks we can lower the volume of the effects … or of a second video"* → §2d:
+  named buses with inserts (built-in + `registerSoundEffect` plugins), master + limiter, patches `duck` (playing / level
+  follower) and `send`; a Mix view with strips, patches also as Logic wires.
+- [ ] Open: decisions D1–D15 (concept §8) and the priority against #322 / the logic follow-ups.
 
 ## 2026-11-25 – The stage's environment world and look up refactored out, the experience's own HDRI (6.22.0, #371)
 - Tilman, during #369: *"looking in the sky is not needed anymore and can go and the environments world can also go. its

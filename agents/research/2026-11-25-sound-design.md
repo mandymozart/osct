@@ -188,22 +188,87 @@ the browser makes the levels of light media applies – *"images and maps (and l
 - **MP3, not Opus/AAC** for samples: `decodeAudioData` reads MP3 on every target browser incl. older iOS, and lamejs
   encodes it in the browser; #301's Opus/AAC plan concerns the app's own UI sounds and long media – D12 aligns them.
 
+## 2d · The master mixer: buses, effects and patches
+
+Tilman, 2026-11-25: *"we will also need a master sound panel where we can mix and apply perhaps some effect. these should
+be patchable so we can create audio bed effects like in radio when someone speaks we can lower the volume of the
+effects for example or of a second video"*.
+
+§2b's four fixed buses become a **patchable mixer**:
+
+```
+ slot "found" ─┐                       ┌──────── patch: duck ────────┐
+ slot "tap"  ──┼▶ [UI]    ─ inserts ─┐ │  from: voice   level −30 dB │
+ slot "hum"  ──┼▶ [Sounds]─ inserts ─┤ │  to:   bed, sounds  −12 dB  │
+ video P.12 (voice) ▶ [Voice] ─ EQ, comp ─┤ └───────────────────────┘
+ video P.14 (2nd) ──▶ [Bed]   ─ filter ──┤──▶ [Master] ─ EQ ─ comp ─ limiter ─▶ out
+ any bus ── send 20 % ─▶ [Room] (reverb, return) ─┘
+```
+
+- **Buses** are named and the author adds their own: the four defaults (`ui`, `sounds`, `media`, `voice`) plus any
+  (`bed`, `music`, `room`). Each has volume, mute, solo (editor only), pan, an **insert chain** and an output (master or
+  another bus – a group).
+- **Every source names its bus**: a slot (`bus`, default `sounds`, the 2D app's `ui`), a video node (`bus`, default
+  `media`, `voice` when it is a voice – D10). A second video goes to `bed` and is ducked by the first.
+- **Inserts** are effects in order, each a toggled section (`enabled`): built-in `eq` (3 bands + low/high cut),
+  `compressor`, `limiter`, `filter`, `delay`, `reverb`, `gate` – the preset chain's stages reused, plus the dynamics.
+  **Special effects are plugins** – `api.registerSoundEffect(name, SPEC, factory)`, the same pattern as synths (§4);
+  so §7's "FX plugins later" moves into this epic.
+- **Patches** connect what the chain alone cannot:
+  - `duck` – the radio audio bed: *while `from` sounds, lower `to` by `amount`*, with attack / hold / release.
+    `from` and `to` are buses, slots or video nodes. Two ways to know "sounds" (D15): **playing** (the engine knows
+    when a video or slot plays – no analysis, cheapest, the default) or **level** (an envelope follower on `from`, an
+    `AudioWorklet` – ducks only while the voice actually speaks, rises in its pauses, as a radio's sidechain does;
+    `threshold` in dB).
+  - `send` – a share of a bus or slot to another bus used as a return (one reverb `room` for many sources instead of
+    one per preset – cheaper than per-voice reverbs).
+  - Later, same shape: `follow` (a bus level drives a parameter – a filter opens with the voice), `gate` sidechains.
+- **Master**: volume, its inserts (EQ, compressor, **limiter last, always on**), the L/R meter.
+- Content: `experience.sound.mix` (§3); the target home has no mixer of its own – a target's slots and videos name buses of
+  the experience.
+
+**Editor**
+- A **Mix** view (a free panel/workspace beside Logic, since panels are free – #364 – the sheet's 300 px is too narrow for
+  strips): one vertical strip per bus – name, meter, fader (`<scrub-number>` drawn upright), M / S, inserts as a short
+  list (click → its section), output. The master strip at the right.
+- **Patches** as rows under the strips (*Voice ducks Bed, Sounds −12 dB · level −30 dB · 80 / 200 / 600 ms*) and as
+  **wires on the Logic canvas** with the `audio` signal colour (RULES #38's exception) – patchable by dragging from a
+  bus's out-pin to another bus's duck-pin; the same data, two views (as slots and rules).
+- Solo and the meters are editor-only (no analysers in the reader, except a level patch's follower).
+
+**Performance**
+- Buses are `GainNode`s; an insert costs only while enabled; a send to one shared reverb replaces per-voice reverbs.
+- `playing` ducking is gain automation on an event – free. `level` ducking is one small worklet per patch source (a
+  few per experience at most); the editor warns from 4 on.
+- The compressor/limiter on the master is one `DynamicsCompressorNode`.
+
 ## 3 · Model (contract, `shared/types/sound.ts`)
 
 ```ts
 interface SoundData {                         // ExperienceData.sound and TargetData.sound
-  mix?: { ui?; sounds?; media?; voice?; duck?: { amount; attack; release } };   // experience only (§2b) – optional, schema MINOR
                                               // (a target's: slots only, presets optional – it may name the experience's)
   master?: number;                            // 0–1
   slots: Record<string, SoundSlot>;           // slot name (camelCase) → slot
   presets: Record<string, SoundPreset>;       // built from the Library's `sound` items the slots use (§2c)
+  mix?: MixData;                              // experience only (§2d)
 }
+interface MixData {
+  buses: Record<string, { volume?; muted?; pan?; inserts?: InsertData[]; output?: string }>;  // + ui sounds media voice
+  master?: { volume?; inserts?: InsertData[] };                                              // limiter last, always
+  patches?: (
+    | { duck: { from: string; to: string[]; amount: number /* dB */; attack?; hold?; release?;
+               detect?: "playing" | "level"; threshold?: number } }
+    | { send: { from: string; to: string; amount: number } }
+  )[];
+}
+interface InsertData { effect: string /* eq compressor limiter filter delay reverb gate | a plugin's */; enabled?; params? }
 interface SoundSlot {
   preset: string;
   listens?: (string | { event: string; where?: Record<string, BehaviourValue> })[];   // the hook
   volume?: number; muted?: boolean; loop?: boolean;
   cooldown?: number;                          // ms, per key (found: per target)
   haptic?: number | number[];                 // vibration pattern, same row
+  bus?: string;                               // default sounds (experience: ui for the 2D app's)
 }
 interface SoundPreset {
   name?: string;
@@ -247,8 +312,10 @@ api.registerSynth("fm", SPEC, ({ params, audio, time, destination, preset }) => 
 - The plugin gets the `AudioContext` and a destination, never the master or another slot – a plugin's voice is disposed
   when it ends or when the plugin is uninstalled (the editor's Run), as feedback buffers are (`feedback.ts`).
 - Also on the API: `api.sound.play(slot, opts)` / `api.sound.stop(slot)` – plugin code triggers slots directly.
+- **Effect plugins** the same way (§2d): `api.registerSoundEffect(name, SPEC, ({ params, audio }) => ({ input, output, dispose? }))`
+  – an insert on a bus or the master; its SPEC draws the insert's rows.
 - First plugin: **sama synths** – `fm`, `pluck` (Karplus), `grain`, `wind`, the noise colours – ported from
-  `motion.js` with its tuned defaults. A later seam, not in this epic: `registerSoundEffect` (an FX stage as a plugin).
+  `motion.js` with its tuned defaults.
 
 ## 5 · Reader
 
@@ -275,8 +342,7 @@ api.registerSynth("fm", SPEC, ({ params, audio, time, destination, preset }) => 
 
 ## 7 · Out of scope here
 
-A slot on an entity (a node inside a target's tree), scene-level slot overrides, FX plugins, the asset pipeline's audio
-conversion and cutting (#301 / #304). (Target slots, in place, **are** in scope – §2 "Two homes".)
+A slot on an entity (a node inside a target's tree), scene-level slot overrides, cutting a sample's selection into its own file (#304). (Target slots, in place, **are** in scope – §2 "Two homes".)
 
 ## 8 · Decisions for Tilman
 
@@ -294,6 +360,8 @@ conversion and cutting (#301 / #304). (Target slots, in place, **are** in scope 
 | D11 | Videos through the mixer | yes (one context, buses, ducking, space) / keep them apart | **yes** – after a phone test (T12) |
 | D12 | Sample format | MP3 levels in the browser (lamejs) / Opus+AAC (#301) | **MP3** for samples now; #301 follows it for the UI sounds |
 | D13 | Keep the original WAV | in the Library as the source, never published / discard after encoding | **keep** – levels can be remade, a better encoder later |
+| D14 | Where the mixer is edited | a Mix view (strips) + patches as wires on the Logic canvas / only rows in the Sound panel | **Mix view + Logic wires** |
+| D15 | How a duck knows "sounds" | `playing` (state) / `level` (envelope follower) | **both, `playing` the default**; `level` for real radio beds |
 | D8 | Priority | now / after #322 and the logic follow-ups (HANDOFF "Next") | your call – it completes Phase 8 |
 
 ## 9 · Plan (the epic's tasks)
@@ -310,10 +378,11 @@ conversion and cutting (#301 / #304). (Target slots, in place, **are** in scope 
 | T8 | Logic: slots as canvas nodes, the `sound` action wired | M | T7 |
 | T9 | MCP `get_sound` / `put_sound`, `docs/sound.md` | S | T7 |
 | T10 | Target slots in place: `TargetData.sound`, the engine's panner from the anchor, `replaces`, the target's Sound section in the editor | M | T2, T7 |
-
 | T12 | One mixer: buses UI / Sounds / Media / Voice, limiter, videos through `createMediaElementSource` at their target's space, voice ducking, `mix` in the Sound panel; iPhone + S22 test (background/resume) | M | T2, D10, D11 |
+| T15 | Patchable mixer: named buses, inserts (eq, compressor, limiter, filter, delay, reverb, gate), master, patches `duck` (playing / level worklet) and `send`; a video's and a slot's `bus` | L | T12 |
+| T16 | Effect plugins `registerSoundEffect` + the editor's Mix view (strips, meters, M/S, inserts, patch rows) and patches as audio wires on the Logic canvas | L | T15, T7, D14 |
 | T13 | Library kind `sound` (presets as JSON items: API rules, Library view, usages, build into the configuration), *Save as preset* | M | T1 |
 | T14 | Samples: WAV/AIFF/FLAC → MP3 64/128/192 kbps in the browser (lamejs, lazy), uploaded as `levels`, original kept; waveform with start/length in the Source | M | T13, D12, D13 |
 | T11 | 3D mode: the listener from the camera pose, a `PannerNode` per target slot, HRTF / equalpower by the *Headphones* setting, cone; phone test with headphones | M | T10, D9 |
 
-Order: T1 → T2 → (T3 → T4) ‖ T5 ‖ T6 ‖ T12 ‖ T13 → T14 → T7 → (T8 ‖ T9 ‖ T10) → T11. Drafts: `agents/design/sound-design.html`. T1 + T2 + T5 ship alone: the reader sounds as today, from data.
+Order: T1 → T2 → (T3 → T4) ‖ T5 ‖ T6 ‖ (T12 → T15) ‖ T13 → T14 → T7 → T16 → (T8 ‖ T9 ‖ T10) → T11. Drafts: `agents/design/sound-design.html`. T1 + T2 + T5 ship alone: the reader sounds as today, from data.

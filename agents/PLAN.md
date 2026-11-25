@@ -65,8 +65,8 @@ From Phase 12 – `.mind` compilation in the content builder:
 
 **Sound design as a system: epic #373** (2026-11-25, Tilman) – samarecordings' engine as a modular sound engine: events →
 slots (experience: the 2D app; target: in place, stereo or 3D/HRTF) → base engine + synth plugins (`registerSynth`), one
-mixer with video and voice, presets and samples in the Library. Concept `agents/research/2026-11-25-sound-design.md`,
-drafts `agents/design/sound-design.html`; decisions D1–D13 open.
+patchable mixer (buses, inserts, effect plugins, ducking patches) with video and voice, presets and samples in the Library. Concept `agents/research/2026-11-25-sound-design.md`,
+drafts `agents/design/sound-design.html`; decisions D1–D15 open.
 
 Built as a first step (2026-09-26, `FeedbackService`, see MEMORY): events tick (spread slider), tap
 (buttons), found, unlock; generated chiptune placeholder sounds (a calm second take was reverted 2026-09-26); Info → Settings "Sound & vibration".

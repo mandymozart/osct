@@ -106,11 +106,44 @@
   .lr { position: absolute; bottom: 16px; left: 16px; right: 16px; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 11px; }
   .lr .bar { flex: 1; height: 6px; background: #333; position: relative; } .lr .bar i { position: absolute; top: -3px; width: 2px; height: 12px; background: #fff; left: 38%; }
   .badge { position: absolute; left: calc(18% + 210px); top: calc(22% + 20px); background: rgba(30,30,30,.9); border: 1px solid var(--line); padding: 4px 8px; font-size: 11px; }
+
+  /* --- mix --- */
+  .mixer { flex-direction: column; padding: 24px; gap: 16px; background: var(--stage); }
+  .mixwin { background: var(--surface); border: 1px solid var(--line); }
+  .mixhead { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; background: var(--surface-head); border-bottom: 1px solid var(--line); }
+  .mixhead .t { font-weight: 600; } .mixhead .sp { flex: 1; }
+  .strips { display: flex; }
+  .strip { width: 118px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+  .strip.master { border-right: 0; border-left: 2px solid #5a5a5a; width: 132px; }
+  .strip.add { width: 60px; align-items: center; justify-content: flex-start; color: var(--muted); }
+  .strip .nm { font-weight: 600; display: flex; justify-content: space-between; }
+  .strip .nm small { color: var(--muted); font-weight: 400; }
+  .ins { display: flex; flex-direction: column; gap: 2px; min-height: 66px; }
+  .ins span { height: 20px; border: 1px solid var(--line); background: var(--control-background); display: flex; align-items: center; padding: 0 5px; font-size: 11px; justify-content: space-between; white-space: nowrap; overflow: hidden; }
+  .ins span.off { color: var(--muted); border-style: dashed; }
+  .ins span.plug::after { content: "plugin"; font-size: 9px; color: var(--muted); }
+  .ins span.empty { border-style: dashed; color: var(--muted); background: transparent; }
+  .send { font-size: 11px; color: var(--muted); height: 20px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #383838; padding: 0 5px; }
+  .fader { display: flex; gap: 6px; height: 140px; align-items: stretch; justify-content: center; }
+  .fader .track { width: 26px; background: var(--control-background); border: 1px solid var(--line); position: relative; }
+  .fader .track i { position: absolute; left: 0; right: 0; bottom: 0; background: #4a4a4a; }
+  .fader .track b { position: absolute; left: 0; right: 0; top: 4px; text-align: center; font-weight: 400; font-size: 10px; }
+  .fader .vu { width: 5px; background: #333; position: relative; } .fader .vu i { position: absolute; left: 0; right: 0; bottom: 0; background: #d0d0d0; }
+  .fader .duck { width: 5px; position: relative; } .fader .duck i { position: absolute; left: 0; right: 0; top: 0; background: repeating-linear-gradient(0deg, #999 0 2px, transparent 2px 4px); }
+  .ms { display: flex; gap: 4px; } .ms span { flex: 1; height: 20px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); }
+  .ms span.on { background: #e0e0e0; color: #1e1e1e; }
+  .out { font-size: 11px; color: var(--muted); }
+  .src { font-size: 10px; color: var(--muted); line-height: 1.35; min-height: 28px; }
+  .patches .row2 { display: grid; grid-template-columns: 44px 140px 1fr 170px 200px 24px; gap: 8px; align-items: center; height: 30px; padding: 0 8px; border-top: 1px solid #383838; }
+  .patches .row2 .k { color: var(--muted); }
+  .wire { display: flex; align-items: center; gap: 6px; }
+  .wire .pin { width: 10px; height: 10px; border: 2px solid #bbb; border-radius: 50%; flex: none; }
+  .wire .line { flex: 1; height: 2px; background: #bbb; min-width: 20px; }
 </style>
 </head>
 <body>
 <div class="draftbar"><b>Sound design drafts (#373)</b>
-  <a href="#flow">Flow &amp; interfaces</a><a href="#app">Experience: the 2D app's slots</a><a href="#preset">Preset</a><a href="#target">Target: in place</a>
+  <a href="#flow">Flow &amp; interfaces</a><a href="#app">Experience: the 2D app's slots</a><a href="#preset">Preset</a><a href="#target">Target: in place</a><a href="#mix">Mix: buses and patches</a>
 </div>
 
 <!-- ============ FLOW ============ -->
@@ -321,6 +354,55 @@ feedback("tap")  <i>// emits ui.tap + vibration
   </div>
 </section>
 
+
+<!-- ============ MIX ============ -->
+<section class="frame mixer" id="mix">
+  <div class="mixwin">
+    <div class="mixhead"><span class="t">Mix</span><span style="color:var(--muted)">osct · 6 buses · 2 patches</span><span class="sp"></span><span class="ib">▶</span></div>
+    <div class="strips">
+      <div class="strip"><div class="nm">UI <small>ui</small></div><div class="src">tap, tick, entryOpen, entryClose</div>
+        <div class="ins"><span>EQ</span><span class="empty">+ insert</span></div><div class="send">→ room <b>0 %</b></div>
+        <div class="fader"><div class="vu"><i style="height:40%"></i></div><div class="track"><i style="height:70%"></i><b>−3</b></div><div class="duck"></div></div>
+        <div class="ms"><span>M</span><span>S</span></div><div class="out">→ Master</div></div><div class="strip"><div class="nm">Sounds <small>sounds</small></div><div class="src">found, unlock, room, hum, creak</div>
+        <div class="ins"><span>EQ</span><span>Compressor</span><span class="empty">+ insert</span></div><div class="send">→ room <b>20 %</b></div>
+        <div class="fader"><div class="vu"><i style="height:30%"></i></div><div class="track"><i style="height:62%"></i><b>−6</b></div><div class="duck"><i style="height:22%"></i></div></div>
+        <div class="ms"><span>M</span><span>S</span></div><div class="out">→ Master</div></div><div class="strip"><div class="nm">Voice <small>voice</small></div><div class="src">video P. 12 · Mark speaks</div>
+        <div class="ins"><span>EQ · low cut 90</span><span>Compressor</span><span class="plug">De-esser</span></div><div class="send">→ room <b>8 %</b></div>
+        <div class="fader"><div class="vu"><i style="height:78%"></i></div><div class="track"><i style="height:80%"></i><b>0</b></div><div class="duck"></div></div>
+        <div class="ms"><span>M</span><span class="on">S</span></div><div class="out">→ Master</div></div><div class="strip"><div class="nm">Bed <small>bed</small></div><div class="src">video P. 14 (second video) · slot room</div>
+        <div class="ins"><span>Filter · low pass</span><span class="off">Delay</span><span class="empty">+ insert</span></div><div class="send">→ room <b>30 %</b></div>
+        <div class="fader"><div class="vu"><i style="height:18%"></i></div><div class="track"><i style="height:55%"></i><b>−9</b></div><div class="duck"><i style="height:38%"></i></div></div>
+        <div class="ms"><span>M</span><span>S</span></div><div class="out">→ Master</div></div><div class="strip"><div class="nm">Media <small>media</small></div><div class="src">other videos</div>
+        <div class="ins"><span class="empty">+ insert</span></div><div class="send">→ room <b>0 %</b></div>
+        <div class="fader"><div class="vu"><i style="height:0%"></i></div><div class="track"><i style="height:70%"></i><b>−3</b></div><div class="duck"><i style="height:22%"></i></div></div>
+        <div class="ms"><span>M</span><span>S</span></div><div class="out">→ Master</div></div><div class="strip"><div class="nm">Room <small>return</small></div><div class="src">sends from UI, Sounds, Voice, Bed</div>
+        <div class="ins"><span>Reverb · 2.4 s</span><span class="empty">+ insert</span></div><div class="send"><span>no send</span></div>
+        <div class="fader"><div class="vu"><i style="height:25%"></i></div><div class="track"><i style="height:60%"></i><b>−7</b></div><div class="duck"></div></div>
+        <div class="ms"><span>M</span><span>S</span></div><div class="out">→ Master</div></div>
+      <div class="strip add"><span class="ib">+</span><span style="margin-top:6px;font-size:11px">bus</span></div>
+      <div class="strip master"><div class="nm">Master</div><div class="src">L / R</div>
+        <div class="ins"><span>EQ</span><span>Compressor</span><span>Limiter · −1 dB</span></div><div class="send" style="visibility:hidden">–</div>
+        <div class="fader"><div class="vu"><i style="height:72%"></i></div><div class="vu"><i style="height:66%"></i></div><div class="track"><i style="height:80%"></i><b>0</b></div></div>
+        <div class="ms"><span>M</span></div><div class="out">→ out</div></div>
+    </div>
+    <div class="patches">
+      <div class="mixhead" style="border-top:1px solid var(--line)"><span class="t">Patches</span><span class="sp"></span><span class="ib">+</span></div>
+      <div class="row2"><span class="k">duck</span><span class="wire"><b>Voice</b><span class="line"></span><span class="pin"></span></span><span>Bed −12 dB · Sounds −6 dB · Media −6 dB</span><span>level · threshold −30 dB</span><span>attack 80 · hold 200 · release 600 ms</span><span class="ib">×</span></div>
+      <div class="row2"><span class="k">duck</span><span class="wire"><b>slot unlock</b><span class="line"></span><span class="pin"></span></span><span>Bed −9 dB</span><span>playing</span><span>attack 20 · release 400 ms</span><span class="ib">×</span></div>
+      <div class="row2"><span class="k">send</span><span class="wire"><b>Bed</b><span class="line"></span><span class="pin"></span></span><span>Room 30 %</span><span>post fader</span><span></span><span class="ib">×</span></div>
+    </div>
+  </div>
+  <div class="panel" style="align-self:flex-end;width:340px">
+    <div class="sec"><div class="sec-head"><span class="chev">▾</span><span class="t">Voice · Compressor</span><span class="sum">insert 2 of 3</span><span class="tog on"></span></div>
+      <div class="sec-body">
+        <div class="row"><span class="l">Threshold</span><div class="num"><div class="fill" style="width:55%"></div><span>−24</span><span>dB</span></div></div>
+        <div class="row"><span class="l">Ratio</span><div class="num"><div class="fill" style="width:30%"></div><span>3</span><span>: 1</span></div></div>
+        <div class="row"><span class="l">Attack</span><div class="num"><div class="fill" style="width:20%"></div><span>10</span><span>ms</span></div></div>
+        <div class="row"><span class="l">Release</span><div class="num"><div class="fill" style="width:35%"></div><span>250</span><span>ms</span></div></div>
+      </div></div>
+  </div>
+</section>
+
 <div class="notes" id="notes"></div>
 
 <script>
@@ -338,6 +420,9 @@ feedback("tap")  <i>// emits ui.tap + vibration
              "Plays: on an event (found, tap …) or while found (a loop that fades in and out with tracking). replaces: \"found\" swaps out the experience's find sound for this target.",
              "On the stage, the rings show the full-volume distance and the rolloff; the bar shows the current pan.",
              "Mode 3D: the listener is the camera (its pose each AR frame) and the slot a PannerNode at the target. It uses HRTF when the reader turns on Headphones (3D sound), and equalpower on the phone speaker. Distance and rolloff are the panner's own; muffle is our low-pass. Ambisonics comes later, for recorded AmbiX ambience."],
+    mix: ["The master mixer: one strip per bus. Authors add their own buses (here a Bed for a second video, and Room as a shared reverb return). Each strip shows its sources, its inserts in order, a send, a fader with a meter, a duck meter (hatched: how far it is lowered right now), M/S and its output.",
+          "Inserts are built-in effects (EQ, compressor, limiter, filter, delay, reverb, gate) or effect plugins (registerSoundEffect, marked 'plugin'). Clicking one opens its section.",
+          "Patches make the radio audio bed: the Voice ducks Bed, Sounds and Media while it actually speaks (level: an envelope follower, so the bed rises in the pauses), and the unlock jingle ducks the Bed while it plays (playing: no analysis). On the Logic canvas the same patches are audio wires in the signal colour (the canvas exception of RULES #38); here they stay grey."],
   };
   const params = new URLSearchParams(location.search);
   if (params.has("shot")) document.body.classList.add("shot");
