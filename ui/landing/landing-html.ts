@@ -261,6 +261,7 @@ export const LANDING_CSS = /* css */ `
         :host([data-skeleton]) .scatter { display: none; }
         .qr-code.loading { position: relative; }
         .qr-code.loading::after { inset: 0; }
+        .stage.loading::after { content: none; }   /* the stage's placeholder is the book's cover (#372), not the skeleton's box */
         /* The closed book's cover where the 3D intro first shows it (#372) – gone once the stage runs */
         .cover {
           position: absolute;
