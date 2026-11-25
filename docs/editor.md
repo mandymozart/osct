@@ -1072,8 +1072,9 @@ one square group:
   view does not move. **The surface follows the last click** (#369): the active selection's surface, the table when
   nothing is selected (`lockTo`) – the view does not move. Where that plane is seen edge-on (the table from the front, a
   wall from above, within 10°) a pan moves along the screen.
-The chip to the left of the gizmo names the view (Top, Front …), the projection and what the camera is fixed to
-("Top · ortho · on Poster 3"; with several selected their count); ✕ = Home. Numpad 1 / 3 / 7 snap to front / right /
+No label on the stage (Tilman chose the tooltips over an overlay, a caption or a toast): the persp / ortho button's
+tooltip names the projection and the view ("Orthographic · Top"), the lock's what the camera is fixed to ("Fixed on
+Poster 3"); the Inspector says how many are selected. Numpad 1 / 3 / 7 snap to front / right /
 top (Ctrl: the opposite), 9 to the opposite of the view now.
 All of it is stored on the device with the orbit (`PreviewOrbit`: `pan.z`, `surface`, `label`, `free`, `ortho`,
 `autoOrtho`, `axisView`).

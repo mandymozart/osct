@@ -732,17 +732,15 @@
   const cameraFree = $derived(!!cameraOrbit?.free);
   const cameraOrtho = $derived(!!cameraOrbit?.ortho);
   const surfaceLabel = (id: string) => content.scene(sceneId)?.surfaces?.find(s => s.id === id)?.label || id;
-  /** The chip beside the gizmo: the view (snapped or not), the projection, what the camera's point is fixed to – Blender's "Top Orthographic" */
-  const cameraCorner = $derived.by(() => {
+  /**
+   * What the camera shows, in the buttons' tooltips (#369, Tilman picked "D": no label on the stage) – the projection with
+   * the view it snapped to ("Orthographic · Top"), and the surface its point is fixed to ("Fixed on Poster 3")
+   */
+  const projectionText = $derived.by(() => {
     const view = cameraOrbit?.axisView;
-    const lock = cameraOrbit?.free ? "free" : cameraOrbit?.surface ? `on ${surfaceLabel(cameraOrbit.surface)}` : "on the table";
-    return [
-      ...(selection.many ? [`${selection.others.length + 1} selected`] : []),
-      view ? `${view[0].toUpperCase()}${view.slice(1)}` : null,
-      cameraOrtho ? "ortho" : "persp",
-      lock,
-    ].filter(Boolean).join(" · ");
+    return `${cameraOrtho ? "Orthographic" : "Perspective"}${view ? ` · ${view[0].toUpperCase()}${view.slice(1)}` : ""}`;
   });
+  const lockText = $derived(cameraFree ? "Free" : `Fixed on ${cameraOrbit?.surface ? surfaceLabel(cameraOrbit.surface) : "the table"}`);
   /** The camera's place on the stage (#369): its top right corner, moved left of the panels that lie there */
   const cameraBox = $state({ w: 0, h: 0 });
   const cameraAt = $derived(clearTopCorner(cameraBox, Object.values(floats.views).map(v => v.rect),
@@ -1222,15 +1220,9 @@
   {/if}
   {#if stage && stage.status === "running"}
     <!-- #369: the camera control at the stage's top right, clear of the panels – the gizmo floating, one square group under it,
-      the view and what the camera is fixed to in the chip to its left -->
+      the view and what the camera is fixed to in the buttons' tooltips -->
     <div class="camera" data-app-ui bind:clientWidth={cameraBox.w} bind:clientHeight={cameraBox.h}
       style:right="{cameraAt.right}px" style:top="{cameraAt.top}px">
-      <p class="camera-corner" data-help-name="View" data-help="What the camera shows: the view it snapped to (Top, Front …), perspective or ortho, and what its point is fixed to – the surface of what you clicked last, the table when nothing is selected, or free. ✕ goes back to the reader's view.">
-        <span class="what" title={cameraCorner}>{cameraCorner}</span>
-        {#if cameraOrbit}
-          <button type="button" class="icon-button" aria-label="Home" title="Home: the reader's view around the scene's origin" onclick={() => stage?.cameraHome()}><Icon name="close" /></button>
-        {/if}
-      </p>
       <ViewGizmo turn={() => stage?.cameraTurn() ?? null} current={cameraOrbit?.axisView ?? null}
         onsnap={view => stage?.snapView(view)} onorbit={(dx, dy) => stage?.orbitBy(dx, dy)} />
       <span class="camera-tools" role="toolbar" aria-orientation="vertical" aria-label="Camera">
@@ -1244,7 +1236,7 @@
           data-help-name="Reader's view" data-help="Back to the start view: what a reader holding the phone sees, around the scene's origin on the table, in perspective. The Home key, numpad 0 and a double click on the stage do the same.">
           <Icon name="phone" /></button>
         <button type="button" class="icon-button" class:on={cameraOrtho} aria-pressed={cameraOrtho} onclick={() => stage?.setOrtho(!cameraOrtho)}
-          aria-label={cameraOrtho ? "Orthographic" : "Perspective"} title={cameraOrtho ? "Orthographic (numpad 5) – click for perspective" : "Perspective (numpad 5) – click for orthographic"}
+          aria-label={cameraOrtho ? "Orthographic" : "Perspective"} title="{projectionText} (numpad 5) – click for {cameraOrtho ? 'perspective' : 'orthographic'}"
           data-help-name="Perspective / ortho" data-help="Orthographic shows parallel lines true – for lining things up. A click on the gizmo turns it on by itself and orbiting away turns it off again; switched on here it stays while you orbit. Only the editor shows it: a reader always sees in perspective.">
           <Icon name={cameraOrtho ? "ortho" : "perspective"} /></button>
         <span class="camera-rule" aria-hidden="true"></span>
@@ -1252,7 +1244,7 @@
           data-help-name="Focus" data-help="The camera faces the selection and turns around its middle: a surface (a standing poster, a wall) front-on and whole, a printed target, a node of an entity; several selected, the box around them all. With nothing selected it shows the whole scene.">
           <Icon name="crosshair" /></button>
         <button type="button" class="icon-button" class:on={cameraFree} aria-pressed={cameraFree} onclick={() => stage?.cameraFree(!cameraFree)}
-          aria-label={cameraFree ? "Camera: free" : "Camera: fixed"} title={cameraFree ? "Free: a pan moves the camera's point along the screen, anywhere – click to fix it to its surface again" : "Fixed: a pan slides the camera's point along its surface – click to free it"}
+          aria-label={cameraFree ? "Camera: free" : "Camera: fixed"} title={cameraFree ? "Free: a pan moves the camera's point along the screen, anywhere – click to fix it to its surface again" : `${lockText}: a pan slides the camera's point along it – click to free it`}
           data-help-name="Fixed / free" data-help="Fixed: the point the camera turns around stays on the surface of what you clicked last (the table when nothing is selected) and a pan slides it along. Free: a pan moves it along the screen – up, down, anywhere in the room. Back to fixed, it lands on the surface along your line of sight, so the view does not jump.">
           <Icon name={cameraFree ? "unlock" : "lock"} /></button>
       </span>
@@ -1419,10 +1411,6 @@
   .camera-tools .drag { cursor: grab; touch-action: none; }
   .camera-tools .drag:active { cursor: grabbing; }
   .camera-rule { height: 0; margin: .125rem 0; border-top: 1px solid var(--line); }
-  .camera-corner { position: absolute; right: calc(100% + .375rem); top: .25rem; margin: 0; display: flex; align-items: center; gap: .25rem;
-    padding: .125rem .375rem; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: .75rem; white-space: nowrap; }
-  /* A long surface name ends in … (#369); the whole line is its tooltip */
-  .camera-corner .what { display: block; min-width: 0; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .many-selected { margin: 0; padding: .25rem .5rem; border-bottom: 1px solid var(--line); }
   /* B (#369): the box select's layer over the stage and the box drawn on it */
   .box-select { position: absolute; inset: 0; z-index: 2; cursor: crosshair; touch-action: none; }

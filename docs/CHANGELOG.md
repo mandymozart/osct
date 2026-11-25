@@ -59,6 +59,13 @@ Sections per version: *Added*, *Changed*, *Fixed*, *Removed* (only those that ap
 - **"Get the app ↓" scrolls to its section** (#372): the link lies in the landing's shadow root, where the browser found no
   `#get`; a click now scrolls the landing to the section (the static page's script and `mountLanding`).
 
+## 6.22.1 – 2026-11-25
+
+### Changed
+- **The camera control has no chip any more** (#369, Tilman: *"the persp on the table something look is weird"* – of four
+  places sketched he picked the tooltips): the persp / ortho button's tooltip names the projection and the view
+  ("Orthographic · Top"), the lock's what the camera is fixed to ("Fixed on Poster 3"). The reader's view button is Home.
+
 ## 6.22.0 – 2026-11-25
 
 ### Added
